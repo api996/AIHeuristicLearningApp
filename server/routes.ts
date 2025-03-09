@@ -1,15 +1,31 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { chatService } from "./services/chat";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  // User authentication routes
+  app.post("/api/login", async (req, res) => {
+    const { username, password } = req.body;
+    if (username === "admin" && password === "admin") {
+      res.json({ success: true });
+    } else {
+      res.status(401).json({ message: "Invalid credentials" });
+    }
+  });
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  // Chat routes
+  app.post("/api/chat", async (req, res) => {
+    try {
+      const { message } = req.body;
+      const response = await chatService.sendMessage(message);
+      res.json(response);
+    } catch (error) {
+      console.error("Chat error:", error);
+      res.status(500).json({ message: "Failed to process chat message" });
+    }
+  });
 
   const httpServer = createServer(app);
-
   return httpServer;
 }
