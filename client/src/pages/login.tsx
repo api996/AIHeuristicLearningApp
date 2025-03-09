@@ -3,18 +3,30 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Login() {
   const [, setLocation] = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock login - in real app would validate with backend
-    if (username === "admin" && password === "admin") {
-      localStorage.setItem("user", JSON.stringify({ username }));
-      setLocation("/");
+    try {
+      const response = await apiRequest("POST", "/api/login", {
+        username,
+        password
+      });
+      const data = await response.json();
+      if (data.success) {
+        localStorage.setItem("user", JSON.stringify({ 
+          username,
+          id: data.userId 
+        }));
+        setLocation("/");
+      }
+    } catch (error) {
+      console.error("Login failed:", error);
     }
   };
 
