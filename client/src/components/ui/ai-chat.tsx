@@ -21,6 +21,7 @@ export function AIChat() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentModel, setCurrentModel] = useState<Model>("deep");
+  const [currentChatId, setCurrentChatId] = useState<string>();
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -59,6 +60,22 @@ export function AIChat() {
     setShowSidebar(!showSidebar);
   };
 
+  const handleNewChat = () => {
+    setMessages([]);
+    setCurrentChatId(undefined);
+    setShowSidebar(false);
+  };
+
+  const handleSelectChat = (chatId: string) => {
+    setCurrentChatId(chatId);
+    // In a real app, we would load the chat history here
+    setMessages([
+      { role: "user", content: "这是历史对话 " + chatId },
+      { role: "assistant", content: "这是历史回复 " + chatId }
+    ]);
+    setShowSidebar(false);
+  };
+
   return (
     <div className="flex h-screen text-white">
       {/* Overlay for mobile */}
@@ -75,7 +92,11 @@ export function AIChat() {
           showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <ChatHistory />
+        <ChatHistory 
+          onNewChat={handleNewChat}
+          currentChatId={currentChatId}
+          onSelectChat={handleSelectChat}
+        />
       </div>
 
       {/* Main Content */}
