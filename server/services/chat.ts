@@ -1,10 +1,11 @@
 import fetch from "node-fetch";
 
 interface ModelConfig {
-  endpoint: string;
-  headers: Record<string, string>;
-  transformRequest: (message: string) => any;
-  transformResponse: (data: any) => { text: string; model: string };
+  endpoint?: string;
+  headers?: Record<string, string>;
+  transformRequest?: (message: string) => any;
+  isSimulated: boolean;
+  getResponse: (message: string) => Promise<{ text: string; model: string }>;
 }
 
 export class ChatService {
@@ -27,6 +28,7 @@ export class ChatService {
           "Authorization": `Bearer ${this.apiKey}`,
           "Content-Type": "application/json",
         },
+        isSimulated: false,
         transformRequest: (message: string) => ({
           query: message,
           response_mode: "blocking",
@@ -34,84 +36,54 @@ export class ChatService {
           user: "user",
           inputs: {},
         }),
-        transformResponse: (data: any) => ({
-          text: data.answer || "无法获取回复",
-          model: "gemini"
-        })
-      },
-      // Mock configurations for other models
-      search: {
-        endpoint: `https://api.dify.ai/v1/chat-messages`,
-        headers: {
-          "Authorization": `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        transformRequest: (message: string) => ({
-          query: `搜索: ${message}`,
-          response_mode: "blocking",
-          conversation_id: null,
-          user: "user",
-          inputs: {},
-        }),
-        transformResponse: (data: any) => ({
-          text: data.answer || "搜索结果暂时无法获取",
-          model: "search"
-        })
-      },
-      deep: {
-        endpoint: `https://api.dify.ai/v1/chat-messages`,
-        headers: {
-          "Authorization": `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        transformRequest: (message: string) => ({
-          query: `深度分析: ${message}`,
-          response_mode: "blocking",
-          conversation_id: null,
-          user: "user",
-          inputs: {},
-        }),
-        transformResponse: (data: any) => ({
-          text: data.answer || "深度分析暂时无法完成",
-          model: "deep"
-        })
+        getResponse: async (message: string) => {
+          const response = await fetch(this.modelConfigs.gemini.endpoint!, {
+            method: "POST",
+            headers: this.modelConfigs.gemini.headers!,
+            body: JSON.stringify(this.modelConfigs.gemini.transformRequest!(message)),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API error: ${response.status} - ${errorText}`);
+          }
+
+          const data = await response.json();
+          return {
+            text: data.answer || "Gemini暂时无法回应",
+            model: "gemini"
+          };
+        }
       },
       deepseek: {
-        endpoint: `https://api.dify.ai/v1/chat-messages`,
-        headers: {
-          "Authorization": `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        transformRequest: (message: string) => ({
-          query: `Deepseek分析: ${message}`,
-          response_mode: "blocking",
-          conversation_id: null,
-          user: "user",
-          inputs: {},
-        }),
-        transformResponse: (data: any) => ({
-          text: data.answer || "Deepseek分析暂时无法完成",
+        isSimulated: true,
+        getResponse: async (message: string) => ({
+          text: `[Deepseek模型] 分析您的问题："${message}"...\n这是一个模拟的Deepseek回应。`,
           model: "deepseek"
         })
       },
       grok: {
-        endpoint: `https://api.dify.ai/v1/chat-messages`,
-        headers: {
-          "Authorization": `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        transformRequest: (message: string) => ({
-          query: `Grok分析: ${message}`,
-          response_mode: "blocking",
-          conversation_id: null,
-          user: "user",
-          inputs: {},
-        }),
-        transformResponse: (data: any) => ({
-          text: data.answer || "Grok分析暂时无法完成",
+        isSimulated: true,
+        getResponse: async (message: string) => ({
+          text: `[Grok模型] 处理您的问题："${message}"...\n这是一个模拟的Grok回应。`,
           model: "grok"
         })
+      },
+      search: {
+        isSimulated: true,
+        getResponse: async (message: string) => ({
+          text: `[Search模型] 搜索您的问题："${message}"...\n这是一个模拟的Search回应。`,
+          model: "search"
+        })
+      },
+      deep: {
+        isSimulated: true,
+        getResponse: async (message: string) => ({
+          text: `[Deep模型] 分析您的问题："${message}"...\n这是一个模拟的Deep回应。`,
+          model: "deep"
+        })
       }
+
     };
   }
 
@@ -125,20 +97,7 @@ export class ChatService {
   async sendMessage(message: string) {
     try {
       const config = this.modelConfigs[this.currentModel];
-
-      const response = await fetch(config.endpoint, {
-        method: "POST",
-        headers: config.headers,
-        body: JSON.stringify(config.transformRequest(message)),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API error: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      return config.transformResponse(data);
+      return await config.getResponse(message);
     } catch (error) {
       console.error(`Error in ${this.currentModel} chat:`, error);
       throw error;
