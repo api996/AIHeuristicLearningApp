@@ -96,9 +96,9 @@ export function AIChat() {
   if (!userId) return null;
 
   return (
-    <div className="flex h-screen text-white">
+    <div className="flex h-screen bg-zinc-900">
       {/* Sidebar */}
-      <div className={`fixed lg:static lg:flex w-64 h-full bg-neutral-900 transform transition-transform duration-200 ${showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <div className={`fixed lg:static lg:flex w-64 h-full bg-zinc-800 border-r border-zinc-700 transform transition-transform duration-200 ${showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <ChatHistory
           userId={userId}
           currentChatId={currentChatId || 0}
@@ -110,46 +110,46 @@ export function AIChat() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="h-16 flex items-center px-4 border-b border-neutral-800">
+        <header className="h-16 flex items-center px-4 border-b border-zinc-700 bg-zinc-800">
           <Button 
             variant="ghost" 
             size="icon"
-            className="lg:hidden mr-2"
+            className="lg:hidden mr-2 text-white"
             onClick={() => setShowSidebar(!showSidebar)}
           >
             <Menu className="h-6 w-6" />
           </Button>
-          <h1 className="text-xl font-semibold">我能帮你学习什么？</h1>
+          <h1 className="text-xl font-semibold text-white">我能帮你学习什么？</h1>
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-900">
           {messages.map((msg, i) => (
             <ChatMessage key={i} message={msg} />
           ))}
         </div>
 
         {/* Input Area */}
-        <div className="p-4 border-t border-neutral-800">
+        <div className="p-4 border-t border-zinc-700 bg-zinc-800">
           <div className="flex flex-col space-y-4">
             <div className="flex flex-wrap gap-2 justify-center">
-              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
+              <Button variant="outline" size="sm" className="bg-zinc-700 hover:bg-zinc-600 text-white border-zinc-600">
                 <Search className="w-4 h-4 mr-2" />
                 网络搜索
               </Button>
-              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
+              <Button variant="outline" size="sm" className="bg-zinc-700 hover:bg-zinc-600 text-white border-zinc-600">
                 <Brain className="w-4 h-4 mr-2" />
                 深度推理
               </Button>
-              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
+              <Button variant="outline" size="sm" className="bg-zinc-700 hover:bg-zinc-600 text-white border-zinc-600">
                 <Sparkles className="w-4 h-4 mr-2" />
                 Gemini
               </Button>
-              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
+              <Button variant="outline" size="sm" className="bg-zinc-700 hover:bg-zinc-600 text-white border-zinc-600">
                 <Code className="w-4 h-4 mr-2" />
                 Deepseek
               </Button>
-              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
+              <Button variant="outline" size="sm" className="bg-zinc-700 hover:bg-zinc-600 text-white border-zinc-600">
                 <Rocket className="w-4 h-4 mr-2" />
                 Grok
               </Button>
@@ -163,12 +163,12 @@ export function AIChat() {
                   onKeyDown={handleKeyDown}
                   placeholder="输入消息..."
                   disabled={isLoading}
-                  className="w-full h-[60px] min-h-[60px] max-h-[200px] p-3 bg-neutral-900 border border-neutral-800 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-neutral-700"
+                  className="w-full h-[60px] min-h-[60px] max-h-[200px] p-3 bg-zinc-700 text-white border border-zinc-600 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-zinc-500 placeholder-zinc-400"
                 />
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  className="absolute bottom-2 left-2"
+                  className="absolute bottom-2 left-2 text-zinc-400 hover:text-white"
                 >
                   <Image className="h-5 w-5" />
                 </Button>
@@ -176,7 +176,7 @@ export function AIChat() {
               <Button 
                 onClick={handleSend}
                 disabled={isLoading}
-                className="h-[60px] px-6"
+                className="h-[60px] px-6 bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Send className="h-5 w-5" />
               </Button>
