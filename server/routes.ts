@@ -17,12 +17,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chat routes
   app.post("/api/chat", async (req, res) => {
     try {
-      const { message } = req.body;
+      const { message, model } = req.body;
+
+      if (model) {
+        chatService.setModel(model);
+      }
+
       const response = await chatService.sendMessage(message);
       res.json(response);
     } catch (error) {
       console.error("Chat error:", error);
-      res.status(500).json({ message: "Failed to process chat message" });
+      res.status(500).json({ 
+        message: "Failed to process chat message",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

@@ -13,27 +13,33 @@ type Message = {
   content: string;
 };
 
+type Model = "search" | "deep" | "gemini" | "deepseek" | "grok";
+
 export function AIChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentModel, setCurrentModel] = useState<Model>("deep");
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
     try {
       setIsLoading(true);
-      const newMessages = [...messages, { role: "user", content: input }];
+      const newMessages = [...messages, { role: "user" as const, content: input }];
       setMessages(newMessages);
       setInput("");
 
-      const response = await apiRequest("POST", "/api/chat", { message: input });
+      const response = await apiRequest("POST", "/api/chat", { 
+        message: input,
+        model: currentModel
+      });
       const data = await response.json();
 
       setMessages([...newMessages, { 
-        role: "assistant", 
-        content: data.message || data.text || "抱歉，我现在无法回答这个问题。"
+        role: "assistant" as const, 
+        content: data.text || "抱歉，我现在无法回答这个问题。"
       }]);
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -82,23 +88,48 @@ export function AIChat() {
         <div className="p-4 border-t border-neutral-800">
           <div className="flex flex-col space-y-4">
             <div className="flex flex-wrap gap-2 justify-center">
-              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className={`bg-neutral-900 hover:bg-neutral-800 ${currentModel === 'search' ? 'border-blue-500' : ''}`}
+                onClick={() => setCurrentModel('search')}
+              >
                 <Search className="w-4 h-4 mr-2" />
                 网络搜索
               </Button>
-              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className={`bg-neutral-900 hover:bg-neutral-800 ${currentModel === 'deep' ? 'border-blue-500' : ''}`}
+                onClick={() => setCurrentModel('deep')}
+              >
                 <Brain className="w-4 h-4 mr-2" />
                 深度推理
               </Button>
-              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className={`bg-neutral-900 hover:bg-neutral-800 ${currentModel === 'gemini' ? 'border-blue-500' : ''}`}
+                onClick={() => setCurrentModel('gemini')}
+              >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Gemini
               </Button>
-              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className={`bg-neutral-900 hover:bg-neutral-800 ${currentModel === 'deepseek' ? 'border-blue-500' : ''}`}
+                onClick={() => setCurrentModel('deepseek')}
+              >
                 <Code className="w-4 h-4 mr-2" />
                 Deepseek
               </Button>
-              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className={`bg-neutral-900 hover:bg-neutral-800 ${currentModel === 'grok' ? 'border-blue-500' : ''}`}
+                onClick={() => setCurrentModel('grok')}
+              >
                 <Rocket className="w-4 h-4 mr-2" />
                 Grok
               </Button>
