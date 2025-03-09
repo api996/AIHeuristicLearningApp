@@ -8,15 +8,10 @@ import {
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-
-type Message = {
-  role: "user" | "assistant";
-  content: string;
-};
+import type { Message } from "@shared/schema";
 
 export function AIChat() {
   const queryClient = useQueryClient();
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,57 +19,57 @@ export function AIChat() {
   const userStr = localStorage.getItem("user");
   const userId = userStr ? JSON.parse(userStr).id : null;
 
-  const { data: currentMessages = [] } = useQuery({
+  // Query for current chat messages
+  const { data: messages = [] } = useQuery<Message[]>({
     queryKey: [`/api/messages/${currentChatId}`],
     enabled: !!currentChatId
   });
 
-  useEffect(() => {
-    if (currentMessages && Array.isArray(currentMessages)) {
-      const transformedMessages = currentMessages.map(msg => ({
-        role: msg.role as "user" | "assistant",
-        content: msg.content
-      }));
-      setMessages(transformedMessages);
-    }
-  }, [currentMessages]);
-
-  const createNewChat = async () => {
-    if (!userId) return;
-
-    try {
-      const response = await apiRequest("POST", "/api/chats", {
-        userId,
-        title: "新对话",
-        model: "default"
-      });
-      const newChat = await response.json();
-      setCurrentChatId(newChat.id);
-      setMessages([]);
-      queryClient.invalidateQueries({ queryKey: [`/api/chats/${userId}`] });
-    } catch (error) {
-      console.error("Failed to create new chat:", error);
-    }
-  };
+  // Query for user's chats
+  const { data: chats = [] } = useQuery({
+    queryKey: [`/api/chats/${userId}`],
+    enabled: !!userId
+  });
 
   const handleSend = async () => {
     if (!input.trim() || isLoading || !currentChatId) return;
 
-    try {
-      setIsLoading(true);
-      const newMessage = { role: "user" as const, content: input };
-      setMessages(prev => [...prev, newMessage]);
-      setInput("");
+    const messageContent = input.trim();
+    setInput("");
+    setIsLoading(true);
 
+    try {
+      // Optimistically update UI
+      const tempMessage: Message = {
+        id: Date.now(), // Temporary ID
+        chatId: currentChatId,
+        content: messageContent,
+        role: "user",
+        createdAt: new Date().toISOString()
+      };
+
+      // Update messages optimistically
+      queryClient.setQueryData<Message[]>(
+        [`/api/messages/${currentChatId}`],
+        (old = []) => [...old, tempMessage]
+      );
+
+      // Send to server
       const response = await apiRequest("POST", "/api/chat", {
-        message: input,
+        message: messageContent,
         chatId: currentChatId
       });
-      const data = await response.json();
 
-      queryClient.invalidateQueries({ queryKey: [`/api/messages/${currentChatId}`] });
+      // Invalidate to get fresh data including both messages
+      await queryClient.invalidateQueries({ 
+        queryKey: [`/api/messages/${currentChatId}`]
+      });
     } catch (error) {
       console.error("Failed to send message:", error);
+      // Revert optimistic update on error
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/messages/${currentChatId}`]
+      });
     } finally {
       setIsLoading(false);
     }
@@ -87,11 +82,31 @@ export function AIChat() {
     }
   };
 
-  useEffect(() => {
-    if (!currentChatId && userId) {
-      createNewChat();
+  const createNewChat = async () => {
+    if (!userId) return;
+
+    try {
+      const response = await apiRequest("POST", "/api/chats", {
+        userId,
+        title: "新对话",
+        model: "default"
+      });
+      const newChat = await response.json();
+      setCurrentChatId(newChat.id);
+      queryClient.invalidateQueries({ queryKey: [`/api/chats/${userId}`] });
+    } catch (error) {
+      console.error("Failed to create new chat:", error);
     }
-  }, [userId]);
+  };
+
+  // Initialize chat if needed
+  useEffect(() => {
+    if (!currentChatId && userId && chats.length === 0) {
+      createNewChat();
+    } else if (chats.length > 0 && !currentChatId) {
+      setCurrentChatId(chats[0].id);
+    }
+  }, [userId, chats, currentChatId]);
 
   if (!userId) return null;
 
@@ -124,8 +139,8 @@ export function AIChat() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-900">
-          {messages.map((msg, i) => (
-            <ChatMessage key={i} message={msg} />
+          {messages.map((msg) => (
+            <ChatMessage key={msg.id} message={msg} />
           ))}
         </div>
 
