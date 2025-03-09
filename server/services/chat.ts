@@ -4,6 +4,7 @@ const DIFY_API_BASE_URL = "https://api.dify.ai/v1";
 
 export class ChatService {
   private apiKey: string;
+  private currentModel: string;
 
   constructor() {
     const apiKey = process.env.DIFY_API_KEY;
@@ -11,6 +12,11 @@ export class ChatService {
       throw new Error("DIFY_API_KEY is required");
     }
     this.apiKey = apiKey;
+    this.currentModel = "default"; // Default model
+  }
+
+  setModel(model: string) {
+    this.currentModel = model;
   }
 
   async sendMessage(message: string) {
@@ -22,19 +28,24 @@ export class ChatService {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: [{
-            role: "user",
-            content: message
-          }],
-          response_mode: "streaming",
+          query: message,
+          response_mode: "blocking",
+          conversation_id: null,
+          user: "user",
+          inputs: {},
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Dify API error: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Dify API error: ${response.status} - ${errorText}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      return {
+        text: data.answer,
+        model: this.currentModel,
+      };
     } catch (error) {
       console.error("Error calling Dify API:", error);
       throw error;
