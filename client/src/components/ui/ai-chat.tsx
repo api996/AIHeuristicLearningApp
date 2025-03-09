@@ -55,10 +55,26 @@ export function AIChat() {
     }
   };
 
+  const toggleSidebar = () => {
+    setShowSidebar(!showSidebar);
+  };
+
   return (
     <div className="flex h-screen text-white">
+      {/* Overlay for mobile */}
+      {showSidebar && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 lg:hidden z-20"
+          onClick={toggleSidebar}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className={`fixed lg:static lg:flex w-64 h-full bg-neutral-900 transform transition-transform duration-200 ${showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <div 
+        className={`fixed lg:static lg:flex w-64 h-full bg-neutral-900 transform transition-transform duration-200 ease-in-out z-30 ${
+          showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
         <ChatHistory />
       </div>
 
@@ -70,7 +86,7 @@ export function AIChat() {
             variant="ghost" 
             size="icon"
             className="lg:hidden mr-2"
-            onClick={() => setShowSidebar(!showSidebar)}
+            onClick={toggleSidebar}
           >
             <Menu className="h-6 w-6" />
           </Button>

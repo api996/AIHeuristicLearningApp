@@ -19,8 +19,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { message, model } = req.body;
 
+      if (!message) {
+        return res.status(400).json({ 
+          message: "Message is required",
+          error: "MISSING_MESSAGE"
+        });
+      }
+
       if (model) {
-        chatService.setModel(model);
+        try {
+          chatService.setModel(model);
+        } catch (error) {
+          return res.status(400).json({ 
+            message: "Invalid model selected",
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
       }
 
       const response = await chatService.sendMessage(message);
