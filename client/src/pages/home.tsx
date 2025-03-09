@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { VercelV0Chat } from "@/components/ui/v0-ai-chat";
+import { AIChat } from "@/components/ui/ai-chat";
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -13,8 +13,8 @@ export default function Home() {
   }, [setLocation]);
 
   return (
-    <div className="min-h-screen bg-black">
-      <VercelV0Chat />
+    <div className="min-h-screen bg-zinc-900">
+      <AIChat />
     </div>
   );
 }
