@@ -21,20 +21,27 @@ export function AIChat() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<number | null>(null);
-  const userId = JSON.parse(localStorage.getItem("user") || "{}").id;
+  const userStr = localStorage.getItem("user");
+  const userId = userStr ? JSON.parse(userStr).id : null;
 
   const { data: currentMessages = [] } = useQuery({
-    queryKey: ["/api/messages", currentChatId],
+    queryKey: [`/api/messages/${currentChatId}`],
     enabled: !!currentChatId
   });
 
   useEffect(() => {
-    if (currentMessages.length > 0) {
-      setMessages(currentMessages);
+    if (currentMessages && Array.isArray(currentMessages)) {
+      const transformedMessages = currentMessages.map(msg => ({
+        role: msg.role as "user" | "assistant",
+        content: msg.content
+      }));
+      setMessages(transformedMessages);
     }
   }, [currentMessages]);
 
   const createNewChat = async () => {
+    if (!userId) return;
+
     try {
       const response = await apiRequest("POST", "/api/chats", {
         userId,
@@ -44,7 +51,7 @@ export function AIChat() {
       const newChat = await response.json();
       setCurrentChatId(newChat.id);
       setMessages([]);
-      queryClient.invalidateQueries({ queryKey: ["/api/chats", userId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/chats/${userId}`] });
     } catch (error) {
       console.error("Failed to create new chat:", error);
     }
@@ -55,8 +62,8 @@ export function AIChat() {
 
     try {
       setIsLoading(true);
-      const newMessages = [...messages, { role: "user", content: input }];
-      setMessages(newMessages);
+      const newMessage = { role: "user" as const, content: input };
+      setMessages(prev => [...prev, newMessage]);
       setInput("");
 
       const response = await apiRequest("POST", "/api/chat", {
@@ -65,7 +72,7 @@ export function AIChat() {
       });
       const data = await response.json();
 
-      queryClient.invalidateQueries({ queryKey: ["/api/messages", currentChatId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/messages/${currentChatId}`] });
     } catch (error) {
       console.error("Failed to send message:", error);
     } finally {
@@ -81,10 +88,12 @@ export function AIChat() {
   };
 
   useEffect(() => {
-    if (!currentChatId) {
+    if (!currentChatId && userId) {
       createNewChat();
     }
-  }, []);
+  }, [userId]);
+
+  if (!userId) return null;
 
   return (
     <div className="flex h-screen text-white">

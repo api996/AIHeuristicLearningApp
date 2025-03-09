@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, MessageSquare } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import type { Chat } from "@shared/schema";
 
 interface ChatHistoryProps {
   userId: number;
@@ -11,8 +12,8 @@ interface ChatHistoryProps {
 }
 
 export function ChatHistory({ userId, currentChatId, onSelectChat, onNewChat }: ChatHistoryProps) {
-  const { data: chats = [] } = useQuery({
-    queryKey: ["/api/chats", userId],
+  const { data: chats = [] } = useQuery<Chat[]>({
+    queryKey: [`/api/chats/${userId}`],
     enabled: !!userId
   });
 
@@ -27,7 +28,7 @@ export function ChatHistory({ userId, currentChatId, onSelectChat, onNewChat }: 
 
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-2">
-          {chats.map((chat: any) => (
+          {chats.map((chat) => (
             <Button
               key={chat.id}
               variant={currentChatId === chat.id ? "default" : "ghost"}
