@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
@@ -6,6 +6,7 @@ import {
   Search, Brain, Sparkles, Code, Rocket,
   Menu, Send, Image
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
 type Message = {
@@ -14,13 +15,43 @@ type Message = {
 };
 
 export function AIChat() {
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentChatId, setCurrentChatId] = useState<number | null>(null);
+  const userId = JSON.parse(localStorage.getItem("user") || "{}").id;
+
+  const { data: currentMessages = [] } = useQuery({
+    queryKey: ["/api/messages", currentChatId],
+    enabled: !!currentChatId
+  });
+
+  useEffect(() => {
+    if (currentMessages.length > 0) {
+      setMessages(currentMessages);
+    }
+  }, [currentMessages]);
+
+  const createNewChat = async () => {
+    try {
+      const response = await apiRequest("POST", "/api/chats", {
+        userId,
+        title: "新对话",
+        model: "default"
+      });
+      const newChat = await response.json();
+      setCurrentChatId(newChat.id);
+      setMessages([]);
+      queryClient.invalidateQueries({ queryKey: ["/api/chats", userId] });
+    } catch (error) {
+      console.error("Failed to create new chat:", error);
+    }
+  };
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !currentChatId) return;
 
     try {
       setIsLoading(true);
@@ -28,13 +59,13 @@ export function AIChat() {
       setMessages(newMessages);
       setInput("");
 
-      const response = await apiRequest("POST", "/api/chat", { message: input });
+      const response = await apiRequest("POST", "/api/chat", {
+        message: input,
+        chatId: currentChatId
+      });
       const data = await response.json();
 
-      setMessages([...newMessages, { 
-        role: "assistant", 
-        content: data.message || data.text || "抱歉，我现在无法回答这个问题。"
-      }]);
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", currentChatId] });
     } catch (error) {
       console.error("Failed to send message:", error);
     } finally {
@@ -49,11 +80,22 @@ export function AIChat() {
     }
   };
 
+  useEffect(() => {
+    if (!currentChatId) {
+      createNewChat();
+    }
+  }, []);
+
   return (
     <div className="flex h-screen text-white">
       {/* Sidebar */}
       <div className={`fixed lg:static lg:flex w-64 h-full bg-neutral-900 transform transition-transform duration-200 ${showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        <ChatHistory />
+        <ChatHistory
+          userId={userId}
+          currentChatId={currentChatId || 0}
+          onSelectChat={setCurrentChatId}
+          onNewChat={createNewChat}
+        />
       </div>
 
       {/* Main Content */}
