@@ -13,7 +13,7 @@ export default function Home() {
   }, [setLocation]);
 
   return (
-    <div className="min-h-screen bg-zinc-900">
+    <div className="min-h-screen bg-black">
       <AIChat />
     </div>
   );

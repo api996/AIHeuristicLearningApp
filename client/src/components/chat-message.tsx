@@ -14,10 +14,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
       message.role === "user" ? "justify-end" : "justify-start"
     )}>
       <div className={cn(
-        "max-w-[80%] rounded-lg px-4 py-2 text-white",
+        "max-w-[80%] rounded-lg px-4 py-2",
         message.role === "user" 
           ? "bg-blue-600" 
-          : "bg-zinc-700"
+          : "bg-neutral-800"
       )}>
         {message.content}
       </div>
