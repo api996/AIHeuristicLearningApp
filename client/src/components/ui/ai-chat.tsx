@@ -6,6 +6,7 @@ import {
   Search, Brain, Sparkles, Code, Rocket,
   Menu, Send, Image
 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 type Message = {
   role: "user" | "assistant";
@@ -16,18 +17,29 @@ export function AIChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    
-    const newMessages = [
-      ...messages,
-      { role: "user", content: input },
-      { role: "assistant", content: "这是一个模拟回复。实际应用中这里会连接到AI模型API。" }
-    ];
-    
-    setMessages(newMessages);
-    setInput("");
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+
+    try {
+      setIsLoading(true);
+      const newMessages = [...messages, { role: "user", content: input }];
+      setMessages(newMessages);
+      setInput("");
+
+      const response = await apiRequest("POST", "/api/chat", { message: input });
+      const data = await response.json();
+
+      setMessages([...newMessages, { 
+        role: "assistant", 
+        content: data.message || data.text || "抱歉，我现在无法回答这个问题。"
+      }]);
+    } catch (error) {
+      console.error("Failed to send message:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -99,6 +111,7 @@ export function AIChat() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="输入消息..."
+                  disabled={isLoading}
                   className="w-full h-[60px] min-h-[60px] max-h-[200px] p-3 bg-neutral-900 border border-neutral-800 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-neutral-700"
                 />
                 <Button 
@@ -111,6 +124,7 @@ export function AIChat() {
               </div>
               <Button 
                 onClick={handleSend}
+                disabled={isLoading}
                 className="h-[60px] px-6"
               >
                 <Send className="h-5 w-5" />
