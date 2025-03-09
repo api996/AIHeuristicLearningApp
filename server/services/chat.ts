@@ -22,28 +22,22 @@ export class ChatService {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          inputs: {},
-          query: message,
-          response_mode: "blocking",
-          user: "default",
+          messages: [{
+            role: "user",
+            content: message
+          }],
+          response_mode: "streaming",
         }),
       });
 
       if (!response.ok) {
-        // For testing without API, return a mock response
-        return {
-          answer: "这是一个模拟回复。系统正在测试中，稍后将连接到真实的AI服务。",
-        };
+        throw new Error(`Dify API error: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error) {
       console.error("Error calling Dify API:", error);
-      // Return a mock response for testing
-      return {
-        answer: "系统暂时无法连接AI服务，这是一个模拟回复。请稍后再试。",
-      };
+      throw error;
     }
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
@@ -6,70 +6,37 @@ import {
   Search, Brain, Sparkles, Code, Rocket,
   Menu, Send, Image
 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import type { Message } from "@shared/schema";
+
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+};
 
 export function AIChat() {
-  const queryClient = useQueryClient();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentChatId, setCurrentChatId] = useState<number | null>(null);
-  const userStr = localStorage.getItem("user");
-  const userId = userStr ? JSON.parse(userStr).id : null;
-
-  // Query for current chat messages
-  const { data: messages = [] } = useQuery<Message[]>({
-    queryKey: [`/api/messages/${currentChatId}`],
-    enabled: !!currentChatId
-  });
-
-  // Query for user's chats
-  const { data: chats = [] } = useQuery({
-    queryKey: [`/api/chats/${userId}`],
-    enabled: !!userId
-  });
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !currentChatId) return;
-
-    const messageContent = input.trim();
-    setInput("");
-    setIsLoading(true);
+    if (!input.trim() || isLoading) return;
 
     try {
-      // Optimistically update UI
-      const tempMessage: Message = {
-        id: Date.now(), // Temporary ID
-        chatId: currentChatId,
-        content: messageContent,
-        role: "user",
-        createdAt: new Date().toISOString()
-      };
+      setIsLoading(true);
+      const newMessages = [...messages, { role: "user", content: input }];
+      setMessages(newMessages);
+      setInput("");
 
-      // Update messages optimistically
-      queryClient.setQueryData<Message[]>(
-        [`/api/messages/${currentChatId}`],
-        (old = []) => [...old, tempMessage]
-      );
+      const response = await apiRequest("POST", "/api/chat", { message: input });
+      const data = await response.json();
 
-      // Send to server
-      const response = await apiRequest("POST", "/api/chat", {
-        message: messageContent,
-        chatId: currentChatId
-      });
-
-      // Invalidate to get fresh data including both messages
-      await queryClient.invalidateQueries({ 
-        queryKey: [`/api/messages/${currentChatId}`]
-      });
+      setMessages([...newMessages, { 
+        role: "assistant", 
+        content: data.message || data.text || "抱歉，我现在无法回答这个问题。"
+      }]);
     } catch (error) {
       console.error("Failed to send message:", error);
-      // Revert optimistic update on error
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/messages/${currentChatId}`]
-      });
     } finally {
       setIsLoading(false);
     }
@@ -82,89 +49,56 @@ export function AIChat() {
     }
   };
 
-  const createNewChat = async () => {
-    if (!userId) return;
-
-    try {
-      const response = await apiRequest("POST", "/api/chats", {
-        userId,
-        title: "新对话",
-        model: "default"
-      });
-      const newChat = await response.json();
-      setCurrentChatId(newChat.id);
-      queryClient.invalidateQueries({ queryKey: [`/api/chats/${userId}`] });
-    } catch (error) {
-      console.error("Failed to create new chat:", error);
-    }
-  };
-
-  // Initialize chat if needed
-  useEffect(() => {
-    if (!currentChatId && userId && chats.length === 0) {
-      createNewChat();
-    } else if (chats.length > 0 && !currentChatId) {
-      setCurrentChatId(chats[0].id);
-    }
-  }, [userId, chats, currentChatId]);
-
-  if (!userId) return null;
-
   return (
-    <div className="flex h-screen bg-zinc-900">
+    <div className="flex h-screen text-white">
       {/* Sidebar */}
-      <div className={`fixed lg:static lg:flex w-64 h-full bg-zinc-800 border-r border-zinc-700 transform transition-transform duration-200 ${showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        <ChatHistory
-          userId={userId}
-          currentChatId={currentChatId || 0}
-          onSelectChat={setCurrentChatId}
-          onNewChat={createNewChat}
-        />
+      <div className={`fixed lg:static lg:flex w-64 h-full bg-neutral-900 transform transition-transform duration-200 ${showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+        <ChatHistory />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="h-16 flex items-center px-4 border-b border-zinc-700 bg-zinc-800">
+        <header className="h-16 flex items-center px-4 border-b border-neutral-800">
           <Button 
             variant="ghost" 
             size="icon"
-            className="lg:hidden mr-2 text-white"
+            className="lg:hidden mr-2"
             onClick={() => setShowSidebar(!showSidebar)}
           >
             <Menu className="h-6 w-6" />
           </Button>
-          <h1 className="text-xl font-semibold text-white">我能帮你学习什么？</h1>
+          <h1 className="text-xl font-semibold">我能帮你学习什么？</h1>
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-900">
-          {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} />
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.map((msg, i) => (
+            <ChatMessage key={i} message={msg} />
           ))}
         </div>
 
         {/* Input Area */}
-        <div className="p-4 border-t border-zinc-700 bg-zinc-800">
+        <div className="p-4 border-t border-neutral-800">
           <div className="flex flex-col space-y-4">
             <div className="flex flex-wrap gap-2 justify-center">
-              <Button variant="outline" size="sm" className="bg-zinc-700 hover:bg-zinc-600 text-white border-zinc-600">
+              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
                 <Search className="w-4 h-4 mr-2" />
                 网络搜索
               </Button>
-              <Button variant="outline" size="sm" className="bg-zinc-700 hover:bg-zinc-600 text-white border-zinc-600">
+              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
                 <Brain className="w-4 h-4 mr-2" />
                 深度推理
               </Button>
-              <Button variant="outline" size="sm" className="bg-zinc-700 hover:bg-zinc-600 text-white border-zinc-600">
+              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
                 <Sparkles className="w-4 h-4 mr-2" />
                 Gemini
               </Button>
-              <Button variant="outline" size="sm" className="bg-zinc-700 hover:bg-zinc-600 text-white border-zinc-600">
+              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
                 <Code className="w-4 h-4 mr-2" />
                 Deepseek
               </Button>
-              <Button variant="outline" size="sm" className="bg-zinc-700 hover:bg-zinc-600 text-white border-zinc-600">
+              <Button variant="outline" size="sm" className="bg-neutral-900 hover:bg-neutral-800">
                 <Rocket className="w-4 h-4 mr-2" />
                 Grok
               </Button>
@@ -178,12 +112,12 @@ export function AIChat() {
                   onKeyDown={handleKeyDown}
                   placeholder="输入消息..."
                   disabled={isLoading}
-                  className="w-full h-[60px] min-h-[60px] max-h-[200px] p-3 bg-zinc-700 text-white border border-zinc-600 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-zinc-500 placeholder-zinc-400"
+                  className="w-full h-[60px] min-h-[60px] max-h-[200px] p-3 bg-neutral-900 border border-neutral-800 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-neutral-700"
                 />
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  className="absolute bottom-2 left-2 text-zinc-400 hover:text-white"
+                  className="absolute bottom-2 left-2"
                 >
                   <Image className="h-5 w-5" />
                 </Button>
@@ -191,7 +125,7 @@ export function AIChat() {
               <Button 
                 onClick={handleSend}
                 disabled={isLoading}
-                className="h-[60px] px-6 bg-blue-600 hover:bg-blue-700 text-white"
+                className="h-[60px] px-6"
               >
                 <Send className="h-5 w-5" />
               </Button>
