@@ -100,3 +100,75 @@ export function ChatHistory({ onNewChat, currentChatId, onSelectChat }: ChatHist
     </div>
   );
 }
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Separator } from './ui/separator';
+import { ScrollArea } from './ui/scroll-area';
+import { Button } from './ui/button';
+import { Trash2 } from 'lucide-react';
+
+interface ChatHistoryProps {
+  chats: any[];
+  currentChatId: number | null;
+  setCurrentChatId: (id: number) => void;
+  onDeleteChat: (id: number) => void;
+  user: { userId: number; role: string };
+}
+
+export function ChatHistory({ 
+  chats, 
+  currentChatId, 
+  setCurrentChatId, 
+  onDeleteChat,
+  user 
+}: ChatHistoryProps) {
+  const { data: currentChat } = useQuery({
+    queryKey: [`/api/chats/${currentChatId}/messages`, user.userId, user.role],
+    enabled: !!currentChatId && !!user.userId,
+    queryFn: async () => {
+      const response = await fetch(`/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`);
+      if (!response.ok) throw new Error('Failed to fetch messages');
+      return response.json();
+    },
+  });
+
+  if (!chats || chats.length === 0) {
+    return (
+      <div className="p-4 text-sm text-neutral-400">
+        暂无聊天记录
+      </div>
+    );
+  }
+
+  return (
+    <ScrollArea className="h-[calc(100vh-180px)]">
+      <div className="pr-4">
+        {chats.map((chat) => (
+          <div key={chat.id} className="mb-1">
+            <div
+              className={`flex justify-between items-center p-2 rounded-lg cursor-pointer hover:bg-neutral-800 ${
+                currentChatId === chat.id ? 'bg-neutral-800' : ''
+              }`}
+              onClick={() => setCurrentChatId(chat.id)}
+            >
+              <div className="flex-1 truncate text-sm">
+                {chat.title}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-neutral-500 hover:text-neutral-400"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteChat(chat.id);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </ScrollArea>
+  );
+}

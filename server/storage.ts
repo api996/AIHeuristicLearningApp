@@ -1,6 +1,6 @@
 import { users, type User, type InsertUser, chats, messages, type Chat, type Message } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -107,16 +107,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getChatMessages(chatId: number, userId: number, isAdmin: boolean): Promise<Message[]> {
+    // First verify if the user has access to this chat
     const chat = await this.getChatById(chatId, userId, isAdmin);
-    if (!chat) return [];
+    if (!chat) return []; // Chat not found or user doesn't have access
 
     // Only return messages if the user has access to the chat
     if (!isAdmin && chat.userId !== userId) return [];
 
-    return await db.select()
+    // Get messages for a specific chat
+    const result = await db.select()
       .from(messages)
       .where(eq(messages.chatId, chatId))
-      .orderBy(messages.createdAt);
+      .orderBy(asc(messages.createdAt));
+
+    return result;
   }
 }
 
