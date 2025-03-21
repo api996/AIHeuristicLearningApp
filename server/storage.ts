@@ -81,7 +81,7 @@ export class DatabaseStorage implements IStorage {
 
     if (!isAdmin) {
       // Regular users can only access their own chats
-      query.where(eq(chats.userId, userId));
+      query.where(and(eq(chats.userId, userId)));
     }
 
     const [chat] = await query;
@@ -109,6 +109,9 @@ export class DatabaseStorage implements IStorage {
   async getChatMessages(chatId: number, userId: number, isAdmin: boolean): Promise<Message[]> {
     const chat = await this.getChatById(chatId, userId, isAdmin);
     if (!chat) return [];
+
+    // Only return messages if the user has access to the chat
+    if (!isAdmin && chat.userId !== userId) return [];
 
     return await db.select()
       .from(messages)

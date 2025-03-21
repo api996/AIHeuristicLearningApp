@@ -16,7 +16,7 @@ export function ChatHistory({ onNewChat, currentChatId, onSelectChat }: ChatHist
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const { data: chats, isLoading } = useQuery({
-    queryKey: ['/api/chats'],
+    queryKey: ['/api/chats', user.userId, user.role],
     queryFn: async () => {
       const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
       if (!response.ok) throw new Error('Failed to fetch chats');
