@@ -14,6 +14,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/login", async (req, res) => {
     const { username, password } = req.body;
     if (username === "admin" && password === "admin") {
+      // Create or get user first
       const user = await storage.getUserByUsername(username) ||
         await storage.createUser({ username, password });
       res.json({ success: true, userId: user.id });
@@ -25,8 +26,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chat history routes
   app.get("/api/chats", async (req, res) => {
     try {
-      const userId = 1; // For now using fixed userId=1 for admin
-      const chats = await storage.getUserChats(userId);
+      // Get admin user
+      const admin = await storage.getUserByUsername("admin");
+      if (!admin) {
+        return res.status(401).json({ message: "Please login first" });
+      }
+      const chats = await storage.getUserChats(admin.id);
       res.json(chats);
     } catch (error) {
       log(`Error fetching chats: ${error}`);
@@ -36,9 +41,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/chats", async (req, res) => {
     try {
-      const userId = 1; // For now using fixed userId=1 for admin
+      // Get admin user
+      const admin = await storage.getUserByUsername("admin");
+      if (!admin) {
+        return res.status(401).json({ message: "Please login first" });
+      }
       const { title, model } = req.body;
-      const chat = await storage.createChat(userId, title || "新对话", model || "default");
+      const chat = await storage.createChat(admin.id, title || "新对话", model || "default");
       res.json(chat);
     } catch (error) {
       log(`Error creating chat: ${error}`);
@@ -110,7 +119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Image upload endpoint
-  app.post("/api/upload", async (req, res) => {
+  app.post("/api/upload", express.json({limit: '50mb'}), async (req, res) => {
     try {
       const { image } = req.body;
 
