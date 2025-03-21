@@ -35,7 +35,11 @@ export default function Login() {
       const data = await response.json();
 
       if (data.success) {
-        localStorage.setItem("user", JSON.stringify({ username }));
+        localStorage.setItem("user", JSON.stringify({
+          username,
+          userId: data.userId,
+          role: data.role
+        }));
         setLocation("/");
       } else {
         setError(data.message || "认证失败");
