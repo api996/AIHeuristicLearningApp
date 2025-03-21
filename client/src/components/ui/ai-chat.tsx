@@ -1,10 +1,17 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
-import { 
-  Search, Brain, Sparkles, Code, Rocket,
-  Menu, Send, Image
+import {
+  Search,
+  Brain,
+  Sparkles,
+  Code,
+  Rocket,
+  Menu,
+  Send,
+  Image as ImageIcon,
+  Plus,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +23,19 @@ type Message = {
 
 type Model = "search" | "deep" | "gemini" | "deepseek" | "grok";
 
+interface UploadResponse {
+  url: string;
+}
+
+const readFileAsBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 export function AIChat() {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -24,6 +44,7 @@ export function AIChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentModel, setCurrentModel] = useState<Model>("deep");
   const [currentChatId, setCurrentChatId] = useState<number>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: currentChat } = useQuery({
     queryKey: [`/api/chats/${currentChatId}/messages`],
@@ -32,11 +53,11 @@ export function AIChat() {
 
   const createChatMutation = useMutation({
     mutationFn: async (data: { title: string; model: string }) => {
-      const response = await apiRequest('POST', '/api/chats', data);
+      const response = await apiRequest("POST", "/api/chats", data);
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/chats'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
       setCurrentChatId(data.id);
     },
   });
@@ -58,17 +79,20 @@ export function AIChat() {
         });
       }
 
-      const response = await apiRequest("POST", "/api/chat", { 
+      const response = await apiRequest("POST", "/api/chat", {
         message: input,
         model: currentModel,
-        chatId: currentChatId
+        chatId: currentChatId,
       });
       const data = await response.json();
 
-      setMessages([...newMessages, { 
-        role: "assistant" as const, 
-        content: data.text || "抱歉，我现在无法回答这个问题。"
-      }]);
+      setMessages([
+        ...newMessages,
+        {
+          role: "assistant" as const,
+          content: data.text || "抱歉，我现在无法回答这个问题。",
+        },
+      ]);
     } catch (error) {
       console.error("Failed to send message:", error);
     } finally {
@@ -97,31 +121,59 @@ export function AIChat() {
     setCurrentChatId(chatId);
     // Load chat messages from the database
     if (currentChat) {
-      setMessages(currentChat.map((msg: any) => ({
-        role: msg.role,
-        content: msg.content
-      })));
+      setMessages(
+        currentChat.map((msg: any) => ({
+          role: msg.role,
+          content: msg.content,
+        }))
+      );
     }
     setShowSidebar(false);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsLoading(true);
+      const base64Image = await readFileAsBase64(file);
+
+      const response = await apiRequest("POST", "/api/upload", { image: base64Image });
+      const data: UploadResponse = await response.json();
+
+      // Add image to messages
+      setMessages([...messages, {
+        role: "user",
+        content: `![Uploaded Image](${data.url})`
+      }]);
+    } catch (error) {
+      console.error("Failed to upload image:", error);
+    } finally {
+      setIsLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   return (
     <div className="flex h-screen text-white">
       {/* Overlay for mobile */}
       {showSidebar && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 lg:hidden z-20"
           onClick={() => setShowSidebar(false)}
         />
       )}
 
       {/* Sidebar */}
-      <div 
+      <div
         className={`fixed lg:static lg:flex w-64 h-full bg-neutral-900 transform transition-transform duration-200 ease-in-out z-30 ${
-          showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          showSidebar ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        <ChatHistory 
+        <ChatHistory
           onNewChat={handleNewChat}
           currentChatId={currentChatId}
           onSelectChat={handleSelectChat}
@@ -132,8 +184,8 @@ export function AIChat() {
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="h-16 flex items-center px-4 border-b border-neutral-800">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             className="lg:hidden mr-2"
             onClick={toggleSidebar}
@@ -154,47 +206,57 @@ export function AIChat() {
         <div className="p-4 border-t border-neutral-800">
           <div className="flex flex-col space-y-4">
             <div className="flex flex-wrap gap-2 justify-center">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className={`bg-neutral-900 hover:bg-neutral-800 ${currentModel === 'search' ? 'border-blue-500' : ''}`}
-                onClick={() => setCurrentModel('search')}
+              <Button
+                variant="outline"
+                size="sm"
+                className={`bg-neutral-900 hover:bg-neutral-800 ${
+                  currentModel === "search" ? "border-blue-500" : ""
+                }`}
+                onClick={() => setCurrentModel("search")}
               >
                 <Search className="w-4 h-4 mr-2" />
                 网络搜索
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className={`bg-neutral-900 hover:bg-neutral-800 ${currentModel === 'deep' ? 'border-blue-500' : ''}`}
-                onClick={() => setCurrentModel('deep')}
+              <Button
+                variant="outline"
+                size="sm"
+                className={`bg-neutral-900 hover:bg-neutral-800 ${
+                  currentModel === "deep" ? "border-blue-500" : ""
+                }`}
+                onClick={() => setCurrentModel("deep")}
               >
                 <Brain className="w-4 h-4 mr-2" />
                 深度推理
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className={`bg-neutral-900 hover:bg-neutral-800 ${currentModel === 'gemini' ? 'border-blue-500' : ''}`}
-                onClick={() => setCurrentModel('gemini')}
+              <Button
+                variant="outline"
+                size="sm"
+                className={`bg-neutral-900 hover:bg-neutral-800 ${
+                  currentModel === "gemini" ? "border-blue-500" : ""
+                }`}
+                onClick={() => setCurrentModel("gemini")}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Gemini
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className={`bg-neutral-900 hover:bg-neutral-800 ${currentModel === 'deepseek' ? 'border-blue-500' : ''}`}
-                onClick={() => setCurrentModel('deepseek')}
+              <Button
+                variant="outline"
+                size="sm"
+                className={`bg-neutral-900 hover:bg-neutral-800 ${
+                  currentModel === "deepseek" ? "border-blue-500" : ""
+                }`}
+                onClick={() => setCurrentModel("deepseek")}
               >
                 <Code className="w-4 h-4 mr-2" />
                 Deepseek
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className={`bg-neutral-900 hover:bg-neutral-800 ${currentModel === 'grok' ? 'border-blue-500' : ''}`}
-                onClick={() => setCurrentModel('grok')}
+              <Button
+                variant="outline"
+                size="sm"
+                className={`bg-neutral-900 hover:bg-neutral-800 ${
+                  currentModel === "grok" ? "border-blue-500" : ""
+                }`}
+                onClick={() => setCurrentModel("grok")}
               >
                 <Rocket className="w-4 h-4 mr-2" />
                 Grok
@@ -211,15 +273,23 @@ export function AIChat() {
                   disabled={isLoading}
                   className="w-full h-[60px] min-h-[60px] max-h-[200px] p-3 bg-neutral-900 border border-neutral-800 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-neutral-700"
                 />
-                <Button 
-                  variant="ghost" 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <Button
+                  variant="ghost"
                   size="icon"
                   className="absolute bottom-2 left-2"
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  <Image className="h-5 w-5" />
+                  <ImageIcon className="h-5 w-5" />
                 </Button>
               </div>
-              <Button 
+              <Button
                 onClick={handleSend}
                 disabled={isLoading}
                 className="h-[60px] px-6"

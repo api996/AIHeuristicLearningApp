@@ -3,13 +3,18 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { chatService } from "./services/chat";
 import { log } from "./vite";
+import { Buffer } from "buffer";
+import path from "path";
+import fs from "fs";
+import express from 'express';
+
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
   app.post("/api/login", async (req, res) => {
     const { username, password } = req.body;
     if (username === "admin" && password === "admin") {
-      const user = await storage.getUserByUsername(username) || 
+      const user = await storage.getUserByUsername(username) ||
         await storage.createUser({ username, password });
       res.json({ success: true, userId: user.id });
     } else {
@@ -69,7 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { message, model, chatId } = req.body;
 
       if (!message) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Message is required",
           error: "MISSING_MESSAGE"
         });
@@ -79,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           chatService.setModel(model);
         } catch (error) {
-          return res.status(400).json({ 
+          return res.status(400).json({
             message: "Invalid model selected",
             error: error instanceof Error ? error.message : String(error)
           });
@@ -97,12 +102,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(response);
     } catch (error) {
       log("Chat error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to process chat message",
         error: error instanceof Error ? error.message : String(error)
       });
     }
   });
+
+  // Image upload endpoint
+  app.post("/api/upload", async (req, res) => {
+    try {
+      const { image } = req.body;
+
+      if (!image) {
+        return res.status(400).json({ message: "No image provided" });
+      }
+
+      // Check if image is base64
+      const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+
+      // Create uploads directory if it doesn't exist
+      const uploadsDir = path.join(process.cwd(), "uploads");
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir);
+      }
+
+      // Generate unique filename
+      const filename = `${Date.now()}.png`;
+      const filepath = path.join(uploadsDir, filename);
+
+      // Save file
+      fs.writeFileSync(filepath, buffer);
+
+      // Return the URL
+      res.json({ url: `/uploads/${filename}` });
+    } catch (error) {
+      log(`Error uploading image: ${error}`);
+      res.status(500).json({ message: "Failed to upload image" });
+    }
+  });
+
+  // Serve uploaded files
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
   const httpServer = createServer(app);
   return httpServer;
