@@ -15,11 +15,13 @@ import {
   Plus,
   LogOut,
   Settings,
+  Edit
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Label } from "@/components/ui/label";
 
 type Message = {
   role: "user" | "assistant";
@@ -53,10 +55,15 @@ export function AIChat() {
   const [, setLocation] = useLocation();
 
   // Password change state
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+
+  // 修改标题相关状态
+  const [showTitleDialog, setShowTitleDialog] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [titleError, setTitleError] = useState("");
 
   // Get user from localStorage
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -83,6 +90,22 @@ export function AIChat() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
       setCurrentChatId(data.id);
+    },
+  });
+
+  const updateTitleMutation = useMutation({
+    mutationFn: async (data: { chatId: number; title: string }) => {
+      const response = await apiRequest("PUT", `/api/chats/${data.chatId}`, { title: data.title });
+      return response.json();
+    },
+    onSuccess: () => {
+      setShowTitleDialog(false);
+      setNewTitle("");
+      setTitleError("");
+      queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
+    },
+    onError: (error: Error) => {
+      setTitleError(error.message);
     },
   });
 
@@ -116,6 +139,17 @@ export function AIChat() {
       console.error("Failed to change password:", error);
     }
   };
+
+  const handleTitleChange = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setTitleError("");
+    if (!newTitle.trim()) {
+      setTitleError("标题不能为空");
+      return;
+    }
+    await updateTitleMutation.mutateAsync({ chatId: currentChatId!, title: newTitle });
+  };
+
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -177,7 +211,7 @@ export function AIChat() {
   // Update handleSelectChat to properly load messages
   const handleSelectChat = (chatId: number) => {
     setCurrentChatId(chatId);
-    
+
     // 通过API加载聊天消息
     const fetchMessages = async () => {
       try {
@@ -189,13 +223,13 @@ export function AIChat() {
           throw new Error("Failed to fetch messages");
         }
         const messagesData = await response.json();
-        
+
         // 转换消息格式并更新状态
         const formattedMessages = messagesData.map((msg: any) => ({
           role: msg.role,
           content: msg.content
         }));
-        
+
         setMessages(formattedMessages);
       } catch (error) {
         console.error("Error loading chat messages:", error);
@@ -204,7 +238,7 @@ export function AIChat() {
         setShowSidebar(false);
       }
     };
-    
+
     fetchMessages();
   };
 
@@ -246,6 +280,20 @@ export function AIChat() {
     setLocation("/login");
   };
 
+  // 获取聊天记录
+  const { data: apiChats, isLoading: apiChatsLoading } = useQuery({
+    queryKey: ['/api/chats', user.userId, user.role],
+    queryFn: async () => {
+      const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
+      if (!response.ok) throw new Error('Failed to fetch chats');
+      return response.json();
+    },
+  });
+
+  // 用于在界面上显示的聊天列表
+  const chatsToRender = apiChats;
+
+
   return (
     <div className="flex h-screen text-white">
       {/* Overlay for mobile */}
@@ -267,6 +315,7 @@ export function AIChat() {
           currentChatId={currentChatId}
           onSelectChat={handleSelectChat}
           user={user}
+          chats={chatsToRender} // Pass chatsToRender to ChatHistory
         />
       </div>
 
@@ -283,7 +332,17 @@ export function AIChat() {
             >
               <Menu className="h-6 w-6" />
             </Button>
-            <h1 className="text-xl font-semibold">我能帮你学习什么？</h1>
+            <div className="flex items-center">
+              {currentChatId && (
+                <>
+                  <h1 className="text-xl font-semibold mr-2">{currentChat?.title}</h1>
+                  <Button variant="ghost" size="icon" onClick={() => setShowTitleDialog(true)}>
+                    <Edit className="h-5 w-5" />
+                  </Button>
+                </>
+              )}
+            </div>
+
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -446,6 +505,38 @@ export function AIChat() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* 修改标题对话框 */}
+      <Dialog open={showTitleDialog} onOpenChange={setShowTitleDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>修改对话标题</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleTitleChange} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-title">新标题</Label>
+              <Input
+                id="new-title"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="请输入新标题"
+              />
+              {titleError && <p className="text-sm text-red-500">{titleError}</p>}
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={updateTitleMutation.isPending}>
+                {updateTitleMutation.isPending ? "保存中..." : "保存"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {apiChatsLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-neutral-400">加载中...</p>
+        </div>
+      ) : null}
     </div>
   );
 }

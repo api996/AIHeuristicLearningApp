@@ -78,12 +78,20 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUserChats(userId: number, isAdmin: boolean): Promise<Chat[]> {
+  async getUserChats(userId: number, isAdmin: boolean): Promise<(Chat & { username?: string })[]> {
     try {
       if (isAdmin) {
-        // Admin can see all chats
-        return await db.select()
+        // Admin can see all chats with usernames
+        return await db.select({
+            id: chats.id,
+            userId: chats.userId,
+            title: chats.title,
+            model: chats.model,
+            createdAt: chats.createdAt,
+            username: users.username
+          })
           .from(chats)
+          .leftJoin(users, eq(chats.userId, users.id))
           .orderBy(desc(chats.createdAt));
       } else {
         // Regular users can only see their own chats
@@ -118,6 +126,17 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       log(`Error getting chat by id: ${error}`);
+      throw error;
+    }
+  }
+
+  async updateChatTitle(chatId: number, title: string): Promise<void> {
+    try {
+      await db.update(chats)
+        .set({ title })
+        .where(eq(chats.id, chatId));
+    } catch (error) {
+      log(`Error updating chat title: ${error}`);
       throw error;
     }
   }
