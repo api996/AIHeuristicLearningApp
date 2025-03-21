@@ -38,22 +38,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/login", async (req, res) => {
     try {
       const { username, password } = req.body;
-      // For now, keep the simple admin check
-      if (username === "admin" && password === "admin") {
-        // Create or get user first
-        const user = await storage.getUserByUsername(username) ||
-          await storage.createUser({ username, password, role: "admin" });
+
+      // 获取用户信息
+      let user = await storage.getUserByUsername(username);
+
+      // 如果是首次设置管理员账户
+      if (username === "admin" && !user) {
+        // 使用更强的默认密码 (可以在首次登录后修改)
+        const secureAdminPassword = "Admin@" + Math.floor(Math.random() * 10000);
+        user = await storage.createUser({ 
+          username, 
+          password: secureAdminPassword, 
+          role: "admin" 
+        });
+
+        // 记录生成的密码到日志（仅供首次设置使用）
+        console.log(`初始管理员密码已生成: ${secureAdminPassword}`);
+
+        // 返回错误提示
+        return res.status(401).json({
+          success: false,
+          message: "管理员账户已创建，请查看服务器日志获取初始密码"
+        });
+      }
+
+      // 验证用户密码
+      if (user && user.password === password) {
         res.json({ success: true, userId: user.id, role: user.role });
       } else {
-        const user = await storage.getUserByUsername(username);
-        if (user && user.password === password) {
-          res.json({ success: true, userId: user.id, role: user.role });
-        } else {
-          res.status(401).json({ 
-            success: false, 
-            message: "用户名或密码错误" 
-          });
-        }
+        res.status(401).json({ 
+          success: false, 
+          message: "用户名或密码错误" 
+        });
       }
     } catch (error) {
       log(`Login error: ${error}`);
@@ -118,12 +134,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Fetching messages for chat ${chatId}, user ${userId}, isAdmin: ${isAdmin}`);
 
       const messages = await storage.getChatMessages(chatId, Number(userId), isAdmin);
-      console.log(`Found ${messages.length} messages`);
+      console.log(`Found ${messages.length} messages for chat ${chatId}`);
 
-      res.json(messages);
+      if (!messages || messages.length === 0) {
+        log(`No messages found for chat ${chatId}, this might be a new chat`);
+      }
+
+      res.json(messages || []);
     } catch (error) {
       log(`Error fetching messages: ${error}`);
-      res.status(500).json({ message: "Failed to fetch chat messages" });
+      res.status(500).json({ message: "Failed to fetch chat messages", error: String(error) });
     }
   });
 

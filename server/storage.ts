@@ -1,6 +1,7 @@
 import { users, type User, type InsertUser, chats, messages, type Chat, type Message } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
+import { log } from "./vite";
 
 export interface IStorage {
   // User methods
@@ -23,104 +24,154 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    try {
+      const [user] = await db.select().from(users).where(eq(users.id, id));
+      return user;
+    } catch (error) {
+      log(`Error getting user: ${error}`);
+      throw error;
+    }
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
+    try {
+      const [user] = await db.select().from(users).where(eq(users.username, username));
+      return user;
+    } catch (error) {
+      log(`Error getting user by username: ${error}`);
+      throw error;
+    }
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
+    try {
+      const [user] = await db.insert(users).values(insertUser).returning();
+      return user;
+    } catch (error) {
+      log(`Error creating user: ${error}`);
+      throw error;
+    }
   }
 
   async updateUserPassword(userId: number, newPassword: string): Promise<void> {
-    await db.update(users)
-      .set({ password: newPassword })
-      .where(eq(users.id, userId));
+    try {
+      await db.update(users)
+        .set({ password: newPassword })
+        .where(eq(users.id, userId));
+    } catch (error) {
+      log(`Error updating user password: ${error}`);
+      throw error;
+    }
   }
 
   // Chat methods
   async createChat(userId: number, title: string, model: string): Promise<Chat> {
-    const [chat] = await db.insert(chats)
-      .values({ userId, title, model })
-      .returning();
-    return chat;
+    try {
+      const [chat] = await db.insert(chats)
+        .values({ userId, title, model })
+        .returning();
+      return chat;
+    } catch (error) {
+      log(`Error creating chat: ${error}`);
+      throw error;
+    }
   }
 
   async getUserChats(userId: number, isAdmin: boolean): Promise<Chat[]> {
-    if (isAdmin) {
-      // Admin can see all chats with user information
-      return await db.select({
-        id: chats.id,
-        title: chats.title,
-        model: chats.model,
-        createdAt: chats.createdAt,
-        userId: chats.userId,
-        username: users.username,
-      })
-      .from(chats)
-      .leftJoin(users, eq(chats.userId, users.id))
-      .orderBy(chats.createdAt);
-    } else {
-      // Regular users can only see their own chats
-      return await db.select()
-        .from(chats)
-        .where(eq(chats.userId, userId))
-        .orderBy(chats.createdAt);
+    try {
+      if (isAdmin) {
+        // Admin can see all chats with user information
+        return await db.query.chats.findMany({
+          with: {
+            user: {
+              columns: {
+                username: true,
+              },
+            },
+          },
+          orderBy: (chats, { desc }) => [desc(chats.createdAt)],
+        });
+      } else {
+        // Regular users can only see their own chats
+        return await db.select()
+          .from(chats)
+          .where(eq(chats.userId, userId))
+          .orderBy(chats.createdAt, "desc");
+      }
+    } catch (error) {
+      log(`Error getting user chats: ${error}`);
+      throw error;
     }
   }
 
   async getChatById(chatId: number, userId: number, isAdmin: boolean): Promise<Chat | undefined> {
-    const query = db.select()
-      .from(chats)
-      .where(eq(chats.id, chatId));
-
-    if (!isAdmin) {
-      // Regular users can only access their own chats
-      query.where(and(eq(chats.userId, userId)));
+    try {
+      if (isAdmin) {
+        // Admin can access any chat
+        const [chat] = await db.select()
+          .from(chats)
+          .where(eq(chats.id, chatId));
+        return chat;
+      } else {
+        // Regular users can only access their own chats
+        const [chat] = await db.select()
+          .from(chats)
+          .where(and(
+            eq(chats.id, chatId),
+            eq(chats.userId, userId)
+          ));
+        return chat;
+      }
+    } catch (error) {
+      log(`Error getting chat by ID: ${error}`);
+      throw error;
     }
-
-    const [chat] = await query;
-    return chat;
   }
 
   async deleteChat(chatId: number, userId: number, isAdmin: boolean): Promise<void> {
-    const chat = await this.getChatById(chatId, userId, isAdmin);
-    if (!chat) return;
+    try {
+      // First verify if the user has access to this chat
+      const chat = await this.getChatById(chatId, userId, isAdmin);
+      if (!chat) return;
 
-    // First delete all messages in the chat
-    await db.delete(messages).where(eq(messages.chatId, chatId));
-    // Then delete the chat itself
-    await db.delete(chats).where(eq(chats.id, chatId));
+      // First delete all messages in the chat
+      await db.delete(messages).where(eq(messages.chatId, chatId));
+      // Then delete the chat itself
+      await db.delete(chats).where(eq(chats.id, chatId));
+    } catch (error) {
+      log(`Error deleting chat: ${error}`);
+      throw error;
+    }
   }
 
   // Message methods
   async createMessage(chatId: number, content: string, role: string): Promise<Message> {
-    const [message] = await db.insert(messages)
-      .values({ chatId, content, role })
-      .returning();
-    return message;
+    try {
+      const [message] = await db.insert(messages)
+        .values({ chatId, content, role })
+        .returning();
+      return message;
+    } catch (error) {
+      log(`Error creating message: ${error}`);
+      throw error;
+    }
   }
 
   async getChatMessages(chatId: number, userId: number, isAdmin: boolean): Promise<Message[]> {
-    // First verify if the user has access to this chat
-    const chat = await this.getChatById(chatId, userId, isAdmin);
-    if (!chat) return []; // Chat not found or user doesn't have access
+    try {
+      // First verify if the user has access to this chat
+      const chat = await this.getChatById(chatId, userId, isAdmin);
+      if (!chat) return []; // Chat not found or user doesn't have access
 
-    // Only return messages if the user has access to the chat
-    if (!isAdmin && chat.userId !== userId) return [];
-
-    // Get messages for a specific chat
-    const result = await db.select()
-      .from(messages)
-      .where(eq(messages.chatId, chatId))
-      .orderBy(asc(messages.createdAt));
-
-    return result;
+      // Get messages for a specific chat
+      return await db.select()
+        .from(messages)
+        .where(eq(messages.chatId, chatId))
+        .orderBy(asc(messages.createdAt));
+    } catch (error) {
+      log(`Error getting chat messages: ${error}`);
+      throw error;
+    }
   }
 }
 

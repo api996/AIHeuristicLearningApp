@@ -177,8 +177,35 @@ export function AIChat() {
   // Update handleSelectChat to properly load messages
   const handleSelectChat = (chatId: number) => {
     setCurrentChatId(chatId);
-    // Load chat messages from the database will happen automatically through the query
-    setShowSidebar(false);
+    
+    // 通过API加载聊天消息
+    const fetchMessages = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(
+          `/api/chats/${chatId}/messages?userId=${user.userId}&role=${user.role}`
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch messages");
+        }
+        const messagesData = await response.json();
+        
+        // 转换消息格式并更新状态
+        const formattedMessages = messagesData.map((msg: any) => ({
+          role: msg.role,
+          content: msg.content
+        }));
+        
+        setMessages(formattedMessages);
+      } catch (error) {
+        console.error("Error loading chat messages:", error);
+      } finally {
+        setIsLoading(false);
+        setShowSidebar(false);
+      }
+    };
+    
+    fetchMessages();
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -239,6 +266,7 @@ export function AIChat() {
           onNewChat={handleNewChat}
           currentChatId={currentChatId}
           onSelectChat={handleSelectChat}
+          user={user}
         />
       </div>
 
