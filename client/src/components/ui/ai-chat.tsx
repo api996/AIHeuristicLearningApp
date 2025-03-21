@@ -61,9 +61,15 @@ export function AIChat() {
   // Get user from localStorage
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+  // Update the query to include user context
   const { data: currentChat } = useQuery({
-    queryKey: [`/api/chats/${currentChatId}/messages`],
-    enabled: !!currentChatId,
+    queryKey: [`/api/chats/${currentChatId}/messages`, user.userId, user.role],
+    queryFn: async () => {
+      const response = await fetch(`/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`);
+      if (!response.ok) throw new Error('Failed to fetch messages');
+      return response.json();
+    },
+    enabled: !!currentChatId && !!user.userId,
   });
 
   const createChatMutation = useMutation({
@@ -168,17 +174,10 @@ export function AIChat() {
     setShowSidebar(false);
   };
 
+  // Update handleSelectChat to properly load messages
   const handleSelectChat = (chatId: number) => {
     setCurrentChatId(chatId);
-    // Load chat messages from the database
-    if (currentChat) {
-      setMessages(
-        currentChat.map((msg: any) => ({
-          role: msg.role,
-          content: msg.content,
-        }))
-      );
-    }
+    // Load chat messages from the database will happen automatically through the query
     setShowSidebar(false);
   };
 
