@@ -110,8 +110,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/chats", async (req, res) => {
     try {
       const { userId, role } = req.query;
-      if (!userId) {
-        return res.status(401).json({ message: "Please login first" });
+      if (!userId || isNaN(Number(userId))) {
+        return res.status(401).json({ message: "Invalid user ID" });
       }
       const isAdmin = role === "admin";
       const chats = await storage.getUserChats(Number(userId), isAdmin);
@@ -126,8 +126,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const chatId = parseInt(req.params.chatId);
       const { userId, role } = req.query;
-      if (!userId) {
-        return res.status(401).json({ message: "Please login first" });
+
+      if (!userId || isNaN(Number(userId))) {
+        return res.status(401).json({ message: "Invalid user ID" });
       }
 
       const isAdmin = role === "admin";
@@ -303,6 +304,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Serve uploaded files
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
+  // User statistics endpoint
+  app.get("/api/users", async (req, res) => {
+    try {
+      // Check if the requester is admin
+      const userId = req.query.userId;
+      const user = await storage.getUser(Number(userId));
+
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Permission denied" });
+      }
+
+      // Get all users with their stats
+      const users = await storage.getAllUsers();
+      const usersWithStats = await Promise.all(
+        users.map(async (user) => {
+          const chats = await storage.getUserChats(user.id, true);
+          return {
+            ...user,
+            chatCount: chats.length,
+            lastActive: chats[0]?.createdAt || null
+          };
+        })
+      );
+
+      res.json(usersWithStats);
+    } catch (error) {
+      log(`Error fetching users: ${error}`);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
 
   const httpServer = createServer(app);
   return httpServer;

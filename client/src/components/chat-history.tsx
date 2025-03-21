@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,12 +25,12 @@ export function ChatHistory({
   user 
 }: ChatHistoryProps) {
   const queryClient = useQueryClient();
-  
+
   // 检查用户是否存在
   if (!user) {
     return <div className="p-4 text-center text-neutral-400">请先登录</div>;
   }
-  
+
   // 使用传入的chats或从API获取
   const { data: apiChats, isLoading } = useQuery({
     queryKey: ['/api/chats', user.userId, user.role],

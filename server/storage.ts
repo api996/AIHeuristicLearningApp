@@ -1,4 +1,3 @@
-
 import { users, type User, type InsertUser, chats, messages, type Chat, type Message } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc } from "drizzle-orm";
@@ -20,6 +19,7 @@ export interface IStorage {
   // Message methods
   createMessage(chatId: number, content: string, role: string): Promise<Message>;
   getChatMessages(chatId: number, userId: number, isAdmin: boolean): Promise<Message[]>;
+  getAllUsers(): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -183,6 +183,15 @@ export class DatabaseStorage implements IStorage {
         .orderBy(asc(messages.createdAt));
     } catch (error) {
       log(`Error getting chat messages: ${error}`);
+      throw error;
+    }
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    try {
+      return await db.select().from(users);
+    } catch (error) {
+      log(`Error getting all users: ${error}`);
       throw error;
     }
   }
