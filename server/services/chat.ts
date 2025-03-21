@@ -1,4 +1,5 @@
 import fetch from "node-fetch";
+import { log } from "../vite";
 
 interface ModelConfig {
   endpoint?: string;
@@ -20,6 +21,7 @@ export class ChatService {
     }
     this.apiKey = apiKey;
     this.currentModel = "deep"; // Default model
+    log("ChatService initialized");
 
     this.modelConfigs = {
       gemini: {
@@ -37,6 +39,7 @@ export class ChatService {
           inputs: {},
         }),
         getResponse: async (message: string) => {
+          log(`Calling Dify API with message: ${message}`);
           const response = await fetch(this.modelConfigs.gemini.endpoint!, {
             method: "POST",
             headers: this.modelConfigs.gemini.headers!,
@@ -45,10 +48,12 @@ export class ChatService {
 
           if (!response.ok) {
             const errorText = await response.text();
+            log(`Dify API error: ${response.status} - ${errorText}`);
             throw new Error(`API error: ${response.status} - ${errorText}`);
           }
 
           const data = await response.json();
+          log(`Received Dify API response: ${JSON.stringify(data)}`);
           return {
             text: data.answer || "Gemini暂时无法回应",
             model: "gemini"
@@ -57,33 +62,44 @@ export class ChatService {
       },
       deepseek: {
         isSimulated: true,
-        getResponse: async (message: string) => ({
-          text: `[Deepseek模型] 分析您的问题："${message}"...\n这是一个模拟的Deepseek回应。`,
-          model: "deepseek"
-        })
+        getResponse: async (message: string) => {
+          log(`Simulating Deepseek response for: ${message}`);
+          return {
+            text: `[Deepseek模型] 分析您的问题："${message}"...\n这是一个模拟的Deepseek回应。`,
+            model: "deepseek"
+          };
+        }
       },
       grok: {
         isSimulated: true,
-        getResponse: async (message: string) => ({
-          text: `[Grok模型] 处理您的问题："${message}"...\n这是一个模拟的Grok回应。`,
-          model: "grok"
-        })
+        getResponse: async (message: string) => {
+          log(`Simulating Grok response for: ${message}`);
+          return {
+            text: `[Grok模型] 处理您的问题："${message}"...\n这是一个模拟的Grok回应。`,
+            model: "grok"
+          };
+        }
       },
       search: {
         isSimulated: true,
-        getResponse: async (message: string) => ({
-          text: `[Search模型] 搜索您的问题："${message}"...\n这是一个模拟的Search回应。`,
-          model: "search"
-        })
+        getResponse: async (message: string) => {
+          log(`Simulating Search response for: ${message}`);
+          return {
+            text: `[Search模型] 搜索您的问题："${message}"...\n这是一个模拟的Search回应。`,
+            model: "search"
+          };
+        }
       },
       deep: {
         isSimulated: true,
-        getResponse: async (message: string) => ({
-          text: `[Deep模型] 分析您的问题："${message}"...\n这是一个模拟的Deep回应。`,
-          model: "deep"
-        })
+        getResponse: async (message: string) => {
+          log(`Simulating Deep response for: ${message}`);
+          return {
+            text: `[Deep模型] 分析您的问题："${message}"...\n这是一个模拟的Deep回应。`,
+            model: "deep"
+          };
+        }
       }
-
     };
   }
 
@@ -91,15 +107,17 @@ export class ChatService {
     if (!this.modelConfigs[model]) {
       throw new Error(`Unsupported model: ${model}`);
     }
+    log(`Switching to model: ${model}`);
     this.currentModel = model;
   }
 
   async sendMessage(message: string) {
     try {
+      log(`Processing message with ${this.currentModel} model: ${message}`);
       const config = this.modelConfigs[this.currentModel];
       return await config.getResponse(message);
     } catch (error) {
-      console.error(`Error in ${this.currentModel} chat:`, error);
+      log(`Error in ${this.currentModel} chat: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
