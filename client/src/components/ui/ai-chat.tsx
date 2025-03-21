@@ -95,7 +95,7 @@ export function AIChat() {
 
   const updateTitleMutation = useMutation({
     mutationFn: async (data: { chatId: number; title: string }) => {
-      const response = await apiRequest("PUT", `/api/chats/${data.chatId}/title`, { title: data.title });
+      const response = await apiRequest("PUT", `/api/chats/${data.chatId}/title?userId=${user.userId}&role=${user.role}`, { title: data.title });
       return response.json();
     },
     onSuccess: () => {
