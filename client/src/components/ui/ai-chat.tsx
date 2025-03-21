@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
+import { useLocation } from "wouter";
 import {
   Search,
   Brain,
@@ -12,6 +13,7 @@ import {
   Send,
   Image as ImageIcon,
   Plus,
+  LogOut,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -45,6 +47,7 @@ export function AIChat() {
   const [currentModel, setCurrentModel] = useState<Model>("deep");
   const [currentChatId, setCurrentChatId] = useState<number>();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [, setLocation] = useLocation();
 
   const { data: currentChat } = useQuery({
     queryKey: [`/api/chats/${currentChatId}/messages`],
@@ -157,6 +160,18 @@ export function AIChat() {
     }
   };
 
+  useEffect(() => {
+    const user = localStorage.getItem("user");
+    if (!user) {
+      setLocation("/login");
+    }
+  }, [setLocation]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    setLocation("/login");
+  };
+
   return (
     <div className="flex h-screen text-white">
       {/* Overlay for mobile */}
@@ -183,16 +198,26 @@ export function AIChat() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="h-16 flex items-center px-4 border-b border-neutral-800">
+        <header className="h-16 flex items-center justify-between px-4 border-b border-neutral-800">
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden mr-2"
+              onClick={toggleSidebar}
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+            <h1 className="text-xl font-semibold">我能帮你学习什么？</h1>
+          </div>
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden mr-2"
-            onClick={toggleSidebar}
+            onClick={handleLogout}
+            className="text-red-500 hover:text-red-400"
           >
-            <Menu className="h-6 w-6" />
+            <LogOut className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-semibold">我能帮你学习什么？</h1>
         </header>
 
         {/* Messages */}

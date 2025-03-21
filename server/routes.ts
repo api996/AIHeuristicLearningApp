@@ -8,18 +8,59 @@ import path from "path";
 import fs from "fs";
 import express from 'express';
 
-
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
-  app.post("/api/login", async (req, res) => {
-    const { username, password } = req.body;
-    if (username === "admin" && password === "admin") {
-      // Create or get user first
-      const user = await storage.getUserByUsername(username) ||
-        await storage.createUser({ username, password });
+  app.post("/api/register", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "用户名已存在" 
+        });
+      }
+
+      // Create new user
+      const user = await storage.createUser({ username, password });
       res.json({ success: true, userId: user.id });
-    } else {
-      res.status(401).json({ message: "Invalid credentials" });
+    } catch (error) {
+      log(`Registration error: ${error}`);
+      res.status(500).json({ 
+        success: false, 
+        message: "注册失败，请稍后重试" 
+      });
+    }
+  });
+
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      // For now, keep the simple admin check
+      if (username === "admin" && password === "admin") {
+        // Create or get user first
+        const user = await storage.getUserByUsername(username) ||
+          await storage.createUser({ username, password });
+        res.json({ success: true, userId: user.id });
+      } else {
+        const user = await storage.getUserByUsername(username);
+        if (user && user.password === password) {
+          res.json({ success: true, userId: user.id });
+        } else {
+          res.status(401).json({ 
+            success: false, 
+            message: "用户名或密码错误" 
+          });
+        }
+      }
+    } catch (error) {
+      log(`Login error: ${error}`);
+      res.status(500).json({ 
+        success: false, 
+        message: "登录失败，请稍后重试" 
+      });
     }
   });
 
