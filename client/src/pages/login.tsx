@@ -16,7 +16,12 @@ export default function Login() {
   useEffect(() => {
     const user = localStorage.getItem("user");
     if (user) {
-      setLocation("/");
+      const userData = JSON.parse(user);
+      if (userData.role === 'admin') {
+        setLocation("/admin");
+      } else {
+        setLocation("/");
+      }
     }
   }, [setLocation]);
 
