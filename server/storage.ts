@@ -125,3 +125,179 @@ export class DatabaseStorage implements IStorage {
 }
 
 export const storage = new DatabaseStorage();
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
+import * as schema from "@shared/schema";
+import { log } from "./vite";
+
+class Storage {
+  // 用户相关方法
+  async getUserByUsername(username: string) {
+    try {
+      const users = await db.select().from(schema.users).where(eq(schema.users.username, username));
+      return users.length > 0 ? users[0] : null;
+    } catch (error) {
+      log(`Error getting user by username: ${error}`);
+      throw error;
+    }
+  }
+
+  async getUser(userId: number) {
+    try {
+      const users = await db.select().from(schema.users).where(eq(schema.users.id, userId));
+      return users.length > 0 ? users[0] : null;
+    } catch (error) {
+      log(`Error getting user: ${error}`);
+      throw error;
+    }
+  }
+
+  async createUser({ username, password, role = "user" }: { username: string; password: string; role?: string }) {
+    try {
+      const result = await db.insert(schema.users).values({
+        username,
+        password,
+        role: role as any,
+      }).returning();
+      return result[0];
+    } catch (error) {
+      log(`Error creating user: ${error}`);
+      throw error;
+    }
+  }
+
+  async updateUserPassword(userId: number, newPassword: string) {
+    try {
+      await db.update(schema.users)
+        .set({ password: newPassword })
+        .where(eq(schema.users.id, userId));
+      return true;
+    } catch (error) {
+      log(`Error updating user password: ${error}`);
+      throw error;
+    }
+  }
+
+  // 聊天相关方法
+  async getUserChats(userId: number, isAdmin: boolean) {
+    try {
+      if (isAdmin) {
+        // 管理员可以看到所有聊天
+        const result = await db.query.chats.findMany({
+          with: {
+            user: {
+              columns: {
+                username: true,
+              },
+            },
+          },
+          orderBy: (chats, { desc }) => [desc(chats.createdAt)],
+        });
+        
+        // 处理结果以包含用户名
+        return result.map(chat => ({
+          ...chat,
+          username: chat.user?.username,
+        }));
+      } else {
+        // 普通用户只能看到自己的聊天
+        return await db.select().from(schema.chats)
+          .where(eq(schema.chats.userId, userId))
+          .orderBy(schema.chats.createdAt, "desc");
+      }
+    } catch (error) {
+      log(`Error getting user chats: ${error}`);
+      throw error;
+    }
+  }
+
+  async getChatById(chatId: number, userId: number, isAdmin: boolean) {
+    try {
+      if (isAdmin) {
+        // 管理员可以访问任何聊天
+        const chats = await db.select().from(schema.chats).where(eq(schema.chats.id, chatId));
+        return chats.length > 0 ? chats[0] : null;
+      } else {
+        // 普通用户只能访问自己的聊天
+        const chats = await db.select().from(schema.chats)
+          .where(and(
+            eq(schema.chats.id, chatId),
+            eq(schema.chats.userId, userId)
+          ));
+        return chats.length > 0 ? chats[0] : null;
+      }
+    } catch (error) {
+      log(`Error getting chat by ID: ${error}`);
+      throw error;
+    }
+  }
+
+  async createChat(userId: number, title: string, model: string) {
+    try {
+      const result = await db.insert(schema.chats).values({
+        userId,
+        title,
+        model,
+      }).returning();
+      return result[0];
+    } catch (error) {
+      log(`Error creating chat: ${error}`);
+      throw error;
+    }
+  }
+
+  async deleteChat(chatId: number, userId: number, isAdmin: boolean) {
+    try {
+      // 首先检查权限
+      const chat = await this.getChatById(chatId, userId, isAdmin);
+      if (!chat) {
+        throw new Error("Chat not found or access denied");
+      }
+      
+      // 先删除相关消息
+      await db.delete(schema.messages).where(eq(schema.messages.chatId, chatId));
+      
+      // 然后删除聊天记录
+      await db.delete(schema.chats).where(eq(schema.chats.id, chatId));
+      return true;
+    } catch (error) {
+      log(`Error deleting chat: ${error}`);
+      throw error;
+    }
+  }
+
+  // 消息相关方法
+  async getChatMessages(chatId: number, userId: number, isAdmin: boolean) {
+    try {
+      // 首先验证用户有权限访问这个聊天
+      const chat = await this.getChatById(chatId, userId, isAdmin);
+      if (!chat) {
+        throw new Error("Chat not found or access denied");
+      }
+      
+      // 获取消息
+      return await db.select().from(schema.messages)
+        .where(eq(schema.messages.chatId, chatId))
+        .orderBy(schema.messages.createdAt, "asc");
+    } catch (error) {
+      log(`Error getting chat messages: ${error}`);
+      throw error;
+    }
+  }
+
+  async createMessage(chatId: number, content: string, role: string) {
+    try {
+      const result = await db.insert(schema.messages).values({
+        chatId,
+        content,
+        role,
+      }).returning();
+      return result[0];
+    } catch (error) {
+      log(`Error creating message: ${error}`);
+      throw error;
+    }
+  }
+}
+
+export const storage = new Storage();

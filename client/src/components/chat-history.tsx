@@ -1,13 +1,10 @@
-import { useState } from 'react';
-import { ScrollArea } from "@/components/ui/scroll-area";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { 
-  Trash2, 
-  Plus,
-  MessageSquare 
-} from 'lucide-react';
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MessageSquare, Plus } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ChatHistoryProps {
   onNewChat?: () => void;
@@ -28,6 +25,8 @@ export function ChatHistory({
   chats: propsChats,
   user 
 }: ChatHistoryProps) {
+  const queryClient = useQueryClient();
+  
   // 检查用户是否存在
   if (!user) {
     return <div className="p-4 text-center text-neutral-400">请先登录</div>;
@@ -139,16 +138,23 @@ export function ChatHistory({
                 variant="ghost"
                 size="icon"
                 className="opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => {
-                  if (onDeleteChat) {
-                    e.stopPropagation();
-                    onDeleteChat(chat.id);
-                  } else {
-                    handleDeleteChat(chat.id, e);
-                  }
-                }}
+                onClick={(e) => handleDeleteChat(chat.id, e)}
               >
-                <Trash2 className="h-4 w-4 text-red-500" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 6h18" />
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                </svg>
               </Button>
             </div>
           ))}

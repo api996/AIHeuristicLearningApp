@@ -134,12 +134,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Fetching messages for chat ${chatId}, user ${userId}, isAdmin: ${isAdmin}`);
 
       const messages = await storage.getChatMessages(chatId, Number(userId), isAdmin);
-      console.log(`Found ${messages.length} messages`);
+      console.log(`Found ${messages.length} messages for chat ${chatId}`);
 
-      res.json(messages);
+      if (!messages || messages.length === 0) {
+        log(`No messages found for chat ${chatId}, this might be a new chat`);
+      }
+
+      res.json(messages || []);
     } catch (error) {
       log(`Error fetching messages: ${error}`);
-      res.status(500).json({ message: "Failed to fetch chat messages" });
+      res.status(500).json({ message: "Failed to fetch chat messages", error: String(error) });
     }
   });
 
