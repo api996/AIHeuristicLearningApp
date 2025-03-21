@@ -147,7 +147,7 @@ export function AIChat() {
       setTitleError("标题不能为空");
       return;
     }
-    
+
     try {
       await updateTitleMutation.mutateAsync({ chatId: currentChatId!, title: newTitle });
     } catch (error) {
