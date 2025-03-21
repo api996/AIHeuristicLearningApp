@@ -58,14 +58,30 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    const port = 5000;
-    server.listen({
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    }, () => {
-      log(`Server is now listening on port ${port}`);
-    });
+    // Try to find an available port starting with 5000
+    const startPort = 5000;
+    let port = startPort;
+    
+    const startServer = (portToUse: number) => {
+      server.listen({
+        port: portToUse,
+        host: "0.0.0.0",
+        reusePort: true,
+      }, () => {
+        log(`Server is now listening on port ${portToUse}`);
+      }).on('error', (err: any) => {
+        if (err.code === 'EADDRINUSE') {
+          log(`Port ${portToUse} is in use, trying another port...`);
+          port++;
+          startServer(port);
+        } else {
+          log(`Failed to start server: ${err.message}`);
+          throw err;
+        }
+      });
+    };
+    
+    startServer(port);
   } catch (error) {
     log(`Failed to start server: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
