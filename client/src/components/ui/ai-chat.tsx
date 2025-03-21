@@ -95,7 +95,7 @@ export function AIChat() {
 
   const updateTitleMutation = useMutation({
     mutationFn: async (data: { chatId: number; title: string }) => {
-      const response = await apiRequest("PUT", `/api/chats/${data.chatId}`, { title: data.title });
+      const response = await apiRequest("PUT", `/api/chats/${data.chatId}/title`, { title: data.title });
       return response.json();
     },
     onSuccess: () => {
@@ -147,7 +147,12 @@ export function AIChat() {
       setTitleError("标题不能为空");
       return;
     }
-    await updateTitleMutation.mutateAsync({ chatId: currentChatId!, title: newTitle });
+    
+    try {
+      await updateTitleMutation.mutateAsync({ chatId: currentChatId!, title: newTitle });
+    } catch (error) {
+      console.error("修改标题失败:", error);
+    }
   };
 
 
