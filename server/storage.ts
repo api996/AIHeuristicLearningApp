@@ -1,3 +1,4 @@
+
 import { users, type User, type InsertUser, chats, messages, type Chat, type Message } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc } from "drizzle-orm";
@@ -77,26 +78,27 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUserChats(userId: number, isAdmin: boolean): Promise<Chat[]> {
+  async getUserChats(userId: number, isAdmin: boolean): Promise<(Chat & { username?: string })[]> {
     try {
       if (isAdmin) {
-        // Admin can see all chats with user information
-        return await db.query.chats.findMany({
-          with: {
-            user: {
-              columns: {
-                username: true,
-              },
-            },
-          },
-          orderBy: (chats, { desc }) => [desc(chats.createdAt)],
-        });
+        // Admin can see all chats with usernames
+        return await db.select({
+            id: chats.id,
+            userId: chats.userId,
+            title: chats.title,
+            model: chats.model,
+            createdAt: chats.createdAt,
+            username: users.username
+          })
+          .from(chats)
+          .leftJoin(users, eq(chats.userId, users.id))
+          .orderBy(desc(chats.createdAt));
       } else {
         // Regular users can only see their own chats
         return await db.select()
           .from(chats)
           .where(eq(chats.userId, userId))
-          .orderBy(chats.createdAt, "desc");
+          .orderBy(desc(chats.createdAt));
       }
     } catch (error) {
       log(`Error getting user chats: ${error}`);
@@ -123,7 +125,18 @@ export class DatabaseStorage implements IStorage {
         return chat;
       }
     } catch (error) {
-      log(`Error getting chat by ID: ${error}`);
+      log(`Error getting chat by id: ${error}`);
+      throw error;
+    }
+  }
+
+  async updateChatTitle(chatId: number, title: string): Promise<void> {
+    try {
+      await db.update(chats)
+        .set({ title })
+        .where(eq(chats.id, chatId));
+    } catch (error) {
+      log(`Error updating chat title: ${error}`);
       throw error;
     }
   }
@@ -175,4 +188,5 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
+// Export a single instance of the storage
 export const storage = new DatabaseStorage();

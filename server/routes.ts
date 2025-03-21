@@ -176,6 +176,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete chat" });
     }
   });
+  
+  // 修改对话标题的路由
+  app.put("/api/chats/:chatId/title", async (req, res) => {
+    try {
+      const chatId = parseInt(req.params.chatId);
+      const { userId, role } = req.query;
+      const { title } = req.body;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "请先登录" });
+      }
+      
+      if (!title || title.trim() === "") {
+        return res.status(400).json({ 
+          success: false, 
+          message: "标题不能为空" 
+        });
+      }
+      
+      const isAdmin = role === "admin";
+      const chat = await storage.getChatById(chatId, Number(userId), isAdmin);
+      
+      if (!chat) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "无权访问该对话或对话不存在" 
+        });
+      }
+      
+      await storage.updateChatTitle(chatId, title);
+      res.json({ success: true });
+    } catch (error) {
+      log(`Error updating chat title: ${error}`);
+      res.status(500).json({ 
+        success: false, 
+        message: "更新标题失败，请稍后重试" 
+      });
+    }
+  });
 
   // Chat message route
   app.post("/api/chat", async (req, res) => {
