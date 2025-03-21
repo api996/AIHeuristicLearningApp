@@ -12,13 +12,21 @@ interface ChatHistoryProps {
 }
 
 export function ChatHistory({ onNewChat, currentChatId, onSelectChat }: ChatHistoryProps) {
+  // Get user from localStorage
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
   const { data: chats, isLoading } = useQuery({
     queryKey: ['/api/chats'],
+    queryFn: async () => {
+      const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
+      if (!response.ok) throw new Error('Failed to fetch chats');
+      return response.json();
+    }
   });
 
   const deleteChatMutation = useMutation({
     mutationFn: async (chatId: number) => {
-      await apiRequest('DELETE', `/api/chats/${chatId}`);
+      await apiRequest('DELETE', `/api/chats/${chatId}?userId=${user.userId}&role=${user.role}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/chats'] });
@@ -51,10 +59,10 @@ export function ChatHistory({ onNewChat, currentChatId, onSelectChat }: ChatHist
         <div className="p-4 space-y-2">
           {isLoading ? (
             <div className="text-center text-neutral-500">加载中...</div>
-          ) : chats?.length === 0 ? (
+          ) : !chats || chats.length === 0 ? (
             <div className="text-center text-neutral-500">暂无对话记录</div>
           ) : (
-            chats?.map((chat: any) => (
+            chats.map((chat: any) => (
               <div
                 key={chat.id}
                 className={`group flex items-center ${
@@ -67,7 +75,14 @@ export function ChatHistory({ onNewChat, currentChatId, onSelectChat }: ChatHist
                   onClick={() => onSelectChat(chat.id)}
                 >
                   <MessageSquare className="mr-2 h-4 w-4" />
-                  {chat.title}
+                  <div className="flex flex-col items-start">
+                    <span>{chat.title}</span>
+                    {user.role === "admin" && chat.username && (
+                      <span className="text-xs text-neutral-500">
+                        by {chat.username}
+                      </span>
+                    )}
+                  </div>
                 </Button>
                 <Button
                   variant="ghost"

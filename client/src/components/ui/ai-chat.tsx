@@ -14,7 +14,10 @@ import {
   Image as ImageIcon,
   Plus,
   LogOut,
+  Settings,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -49,6 +52,15 @@ export function AIChat() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
 
+  // Password change state
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  // Get user from localStorage
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
   const { data: currentChat } = useQuery({
     queryKey: [`/api/chats/${currentChatId}/messages`],
     enabled: !!currentChatId,
@@ -56,7 +68,10 @@ export function AIChat() {
 
   const createChatMutation = useMutation({
     mutationFn: async (data: { title: string; model: string }) => {
-      const response = await apiRequest("POST", "/api/chats", data);
+      const response = await apiRequest("POST", "/api/chats", {
+        ...data,
+        userId: user.userId,
+      });
       return response.json();
     },
     onSuccess: (data) => {
@@ -64,6 +79,37 @@ export function AIChat() {
       setCurrentChatId(data.id);
     },
   });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: { userId: number; currentPassword: string; newPassword: string }) => {
+      const response = await apiRequest("POST", "/api/change-password", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      setShowPasswordDialog(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setPasswordError("");
+    },
+    onError: (error: Error) => {
+      setPasswordError(error.message);
+    },
+  });
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError("");
+
+    try {
+      await changePasswordMutation.mutateAsync({
+        userId: user.userId,
+        currentPassword,
+        newPassword,
+      });
+    } catch (error) {
+      console.error("Failed to change password:", error);
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -86,6 +132,8 @@ export function AIChat() {
         message: input,
         model: currentModel,
         chatId: currentChatId,
+        userId: user.userId,
+        role: user.role,
       });
       const data = await response.json();
 
@@ -210,14 +258,24 @@ export function AIChat() {
             </Button>
             <h1 className="text-xl font-semibold">我能帮你学习什么？</h1>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            className="text-red-500 hover:text-red-400"
-          >
-            <LogOut className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowPasswordDialog(true)}
+              className="text-neutral-400 hover:text-white"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              className="text-red-500 hover:text-red-400"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
         </header>
 
         {/* Messages */}
@@ -227,67 +285,68 @@ export function AIChat() {
           ))}
         </div>
 
-        {/* Input Area */}
+        {/* Model Selection and Input Area */}
         <div className="p-4 border-t border-neutral-800">
-          <div className="flex flex-col space-y-4">
-            <div className="flex flex-wrap gap-2 justify-center">
-              <Button
-                variant="outline"
-                size="sm"
-                className={`bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "search" ? "border-blue-500" : ""
-                }`}
-                onClick={() => setCurrentModel("search")}
-              >
-                <Search className="w-4 h-4 mr-2" />
-                网络搜索
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "deep" ? "border-blue-500" : ""
-                }`}
-                onClick={() => setCurrentModel("deep")}
-              >
-                <Brain className="w-4 h-4 mr-2" />
-                深度推理
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "gemini" ? "border-blue-500" : ""
-                }`}
-                onClick={() => setCurrentModel("gemini")}
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Gemini
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "deepseek" ? "border-blue-500" : ""
-                }`}
-                onClick={() => setCurrentModel("deepseek")}
-              >
-                <Code className="w-4 h-4 mr-2" />
-                Deepseek
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "grok" ? "border-blue-500" : ""
-                }`}
-                onClick={() => setCurrentModel("grok")}
-              >
-                <Rocket className="w-4 h-4 mr-2" />
-                Grok
-              </Button>
-            </div>
+          <div className="flex flex-wrap gap-2 justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              className={`bg-neutral-900 hover:bg-neutral-800 ${
+                currentModel === "search" ? "border-blue-500" : ""
+              }`}
+              onClick={() => setCurrentModel("search")}
+            >
+              <Search className="w-4 h-4 mr-2" />
+              网络搜索
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`bg-neutral-900 hover:bg-neutral-800 ${
+                currentModel === "deep" ? "border-blue-500" : ""
+              }`}
+              onClick={() => setCurrentModel("deep")}
+            >
+              <Brain className="w-4 h-4 mr-2" />
+              深度推理
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`bg-neutral-900 hover:bg-neutral-800 ${
+                currentModel === "gemini" ? "border-blue-500" : ""
+              }`}
+              onClick={() => setCurrentModel("gemini")}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Gemini
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`bg-neutral-900 hover:bg-neutral-800 ${
+                currentModel === "deepseek" ? "border-blue-500" : ""
+              }`}
+              onClick={() => setCurrentModel("deepseek")}
+            >
+              <Code className="w-4 h-4 mr-2" />
+              Deepseek
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`bg-neutral-900 hover:bg-neutral-800 ${
+                currentModel === "grok" ? "border-blue-500" : ""
+              }`}
+              onClick={() => setCurrentModel("grok")}
+            >
+              <Rocket className="w-4 h-4 mr-2" />
+              Grok
+            </Button>
+          </div>
 
+          {/* Input Area */}
+          <div className="p-4 border-t border-neutral-800">
             <div className="flex space-x-2">
               <div className="flex-1 relative">
                 <textarea
@@ -325,6 +384,41 @@ export function AIChat() {
           </div>
         </div>
       </div>
+
+      {/* Password Change Dialog */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>修改密码</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handlePasswordChange} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm">当前密码</label>
+              <Input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="bg-neutral-800 border-neutral-700"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm">新密码</label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="bg-neutral-800 border-neutral-700"
+              />
+            </div>
+            {passwordError && (
+              <div className="text-red-500 text-sm">{passwordError}</div>
+            )}
+            <Button type="submit" className="w-full">
+              确认修改
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

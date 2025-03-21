@@ -42,12 +42,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (username === "admin" && password === "admin") {
         // Create or get user first
         const user = await storage.getUserByUsername(username) ||
-          await storage.createUser({ username, password });
-        res.json({ success: true, userId: user.id });
+          await storage.createUser({ username, password, role: "admin" });
+        res.json({ success: true, userId: user.id, role: user.role });
       } else {
         const user = await storage.getUserByUsername(username);
         if (user && user.password === password) {
-          res.json({ success: true, userId: user.id });
+          res.json({ success: true, userId: user.id, role: user.role });
         } else {
           res.status(401).json({ 
             success: false, 
@@ -64,15 +64,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Password change endpoint
+  app.post("/api/change-password", async (req, res) => {
+    try {
+      const { userId, currentPassword, newPassword } = req.body;
+
+      // Get user and verify current password
+      const user = await storage.getUser(userId);
+      if (!user || user.password !== currentPassword) {
+        return res.status(401).json({
+          success: false,
+          message: "当前密码错误"
+        });
+      }
+
+      // Update password
+      await storage.updateUserPassword(userId, newPassword);
+      res.json({ success: true });
+    } catch (error) {
+      log(`Password change error: ${error}`);
+      res.status(500).json({
+        success: false,
+        message: "修改密码失败，请稍后重试"
+      });
+    }
+  });
+
   // Chat history routes
   app.get("/api/chats", async (req, res) => {
     try {
-      // Get admin user
-      const admin = await storage.getUserByUsername("admin");
-      if (!admin) {
+      const { userId, role } = req.query;
+      if (!userId) {
         return res.status(401).json({ message: "Please login first" });
       }
-      const chats = await storage.getUserChats(admin.id);
+      const isAdmin = role === "admin";
+      const chats = await storage.getUserChats(Number(userId), isAdmin);
       res.json(chats);
     } catch (error) {
       log(`Error fetching chats: ${error}`);
@@ -80,15 +106,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/chats", async (req, res) => {
+  app.get("/api/chats/:chatId/messages", async (req, res) => {
     try {
-      // Get admin user
-      const admin = await storage.getUserByUsername("admin");
-      if (!admin) {
+      const chatId = parseInt(req.params.chatId);
+      const { userId, role } = req.query;
+      if (!userId) {
         return res.status(401).json({ message: "Please login first" });
       }
-      const { title, model } = req.body;
-      const chat = await storage.createChat(admin.id, title || "新对话", model || "default");
+      const isAdmin = role === "admin";
+      const messages = await storage.getChatMessages(chatId, Number(userId), isAdmin);
+      res.json(messages);
+    } catch (error) {
+      log(`Error fetching messages: ${error}`);
+      res.status(500).json({ message: "Failed to fetch chat messages" });
+    }
+  });
+
+  app.post("/api/chats", async (req, res) => {
+    try {
+      const { userId, title, model } = req.body;
+      if (!userId) {
+        return res.status(401).json({ message: "Please login first" });
+      }
+      const chat = await storage.createChat(userId, title || "新对话", model || "default");
       res.json(chat);
     } catch (error) {
       log(`Error creating chat: ${error}`);
@@ -99,7 +139,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/chats/:chatId", async (req, res) => {
     try {
       const chatId = parseInt(req.params.chatId);
-      await storage.deleteChat(chatId);
+      const { userId, role } = req.query;
+      if (!userId) {
+        return res.status(401).json({ message: "Please login first" });
+      }
+      const isAdmin = role === "admin";
+      await storage.deleteChat(chatId, Number(userId), isAdmin);
       res.json({ success: true });
     } catch (error) {
       log(`Error deleting chat: ${error}`);
@@ -107,27 +152,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/chats/:chatId/messages", async (req, res) => {
-    try {
-      const chatId = parseInt(req.params.chatId);
-      const messages = await storage.getChatMessages(chatId);
-      res.json(messages);
-    } catch (error) {
-      log(`Error fetching messages: ${error}`);
-      res.status(500).json({ message: "Failed to fetch chat messages" });
-    }
-  });
-
   // Chat message route
   app.post("/api/chat", async (req, res) => {
     try {
-      const { message, model, chatId } = req.body;
+      const { message, model, chatId, userId, role } = req.body;
 
       if (!message) {
         return res.status(400).json({
           message: "Message is required",
           error: "MISSING_MESSAGE"
         });
+      }
+
+      if (!userId) {
+        return res.status(401).json({ message: "Please login first" });
+      }
+
+      const isAdmin = role === "admin";
+      const chat = await storage.getChatById(chatId, Number(userId), isAdmin);
+      if (!chat) {
+        return res.status(403).json({ message: "Access denied" });
       }
 
       if (model) {
