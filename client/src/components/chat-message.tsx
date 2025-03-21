@@ -8,6 +8,13 @@ interface ChatMessageProps {
 }
 
 export function ChatMessage({ message }: ChatMessageProps) {
+  // Check if the message contains an image markdown
+  const isImage = message.content.startsWith("![");
+
+  // Parse image URL if it's an image message
+  const imageUrl = isImage ? 
+    message.content.match(/\((.*?)\)/)?.[1] : null;
+
   return (
     <div className={cn(
       "flex",
@@ -19,7 +26,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
           ? "bg-blue-600" 
           : "bg-neutral-800"
       )}>
-        {message.content}
+        {isImage && imageUrl ? (
+          <img 
+            src={imageUrl} 
+            alt="Uploaded" 
+            className="max-w-full rounded"
+          />
+        ) : (
+          message.content
+        )}
       </div>
     </div>
   );
