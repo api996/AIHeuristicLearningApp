@@ -1,9 +1,11 @@
-
-import { eq } from "drizzle-orm";
+import { users, type User, type InsertUser } from "@shared/schema";
 import { db } from "./db";
-import { users, chats, messages, type User, type InsertUser, type Chat, type Message } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { users as usersTable, chats, messages, type User, type InsertUser, type Chat, type Message } from "@shared/schema";
 
-// 定义存储接口
+// modify the interface with any CRUD methods
+// you might need
+
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
@@ -23,17 +25,17 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
     return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.username, username));
     return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    const [user] = await db.insert(usersTable).values(insertUser).returning();
     return user;
   }
 
