@@ -40,7 +40,13 @@ export default function Login() {
           userId: data.userId,
           role: data.role
         }));
-        setLocation("/");
+
+        // Redirect admin users to dashboard, others to home
+        if (data.role === "admin") {
+          setLocation("/admin");
+        } else {
+          setLocation("/");
+        }
       } else {
         setError(data.message || "认证失败");
       }
