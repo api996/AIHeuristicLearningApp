@@ -7,6 +7,7 @@ import {
   Menu, Send, Image
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 type Message = {
   role: "user" | "assistant";
@@ -16,12 +17,29 @@ type Message = {
 type Model = "search" | "deep" | "gemini" | "deepseek" | "grok";
 
 export function AIChat() {
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentModel, setCurrentModel] = useState<Model>("deep");
-  const [currentChatId, setCurrentChatId] = useState<string>();
+  const [currentChatId, setCurrentChatId] = useState<number>();
+
+  const { data: currentChat } = useQuery({
+    queryKey: [`/api/chats/${currentChatId}/messages`],
+    enabled: !!currentChatId,
+  });
+
+  const createChatMutation = useMutation({
+    mutationFn: async (data: { title: string; model: string }) => {
+      const response = await apiRequest('POST', '/api/chats', data);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/chats'] });
+      setCurrentChatId(data.id);
+    },
+  });
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -32,9 +50,18 @@ export function AIChat() {
       setMessages(newMessages);
       setInput("");
 
+      // Create a new chat if none exists
+      if (!currentChatId) {
+        const chat = await createChatMutation.mutateAsync({
+          title: input.slice(0, 50), // Use first 50 chars of message as title
+          model: currentModel,
+        });
+      }
+
       const response = await apiRequest("POST", "/api/chat", { 
         message: input,
-        model: currentModel
+        model: currentModel,
+        chatId: currentChatId
       });
       const data = await response.json();
 
@@ -66,13 +93,15 @@ export function AIChat() {
     setShowSidebar(false);
   };
 
-  const handleSelectChat = (chatId: string) => {
+  const handleSelectChat = (chatId: number) => {
     setCurrentChatId(chatId);
-    // In a real app, we would load the chat history here
-    setMessages([
-      { role: "user", content: "这是历史对话 " + chatId },
-      { role: "assistant", content: "这是历史回复 " + chatId }
-    ]);
+    // Load chat messages from the database
+    if (currentChat) {
+      setMessages(currentChat.map((msg: any) => ({
+        role: msg.role,
+        content: msg.content
+      })));
+    }
     setShowSidebar(false);
   };
 
@@ -82,7 +111,7 @@ export function AIChat() {
       {showSidebar && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 lg:hidden z-20"
-          onClick={toggleSidebar}
+          onClick={() => setShowSidebar(false)}
         />
       )}
 
