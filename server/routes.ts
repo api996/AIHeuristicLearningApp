@@ -113,8 +113,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ message: "Please login first" });
       }
+
       const isAdmin = role === "admin";
+      console.log(`Fetching messages for chat ${chatId}, user ${userId}, isAdmin: ${isAdmin}`);
+
       const messages = await storage.getChatMessages(chatId, Number(userId), isAdmin);
+      console.log(`Found ${messages.length} messages`);
+
       res.json(messages);
     } catch (error) {
       log(`Error fetching messages: ${error}`);

@@ -40,11 +40,12 @@ export class ChatService {
         }),
         getResponse: async (message: string) => {
           log(`Calling Dify API with message: ${message}`);
-          const response = await fetch(this.modelConfigs.gemini.endpoint!, {
+          const response = await fetchWithRetry(this.modelConfigs.gemini.endpoint!, {
             method: "POST",
             headers: this.modelConfigs.gemini.headers!,
             body: JSON.stringify(this.modelConfigs.gemini.transformRequest!(message)),
-          });
+            timeout: 30000, // 30秒超时
+          }, 3, 500);
 
           if (!response.ok) {
             const errorText = await response.text();
@@ -124,3 +125,35 @@ export class ChatService {
 }
 
 export const chatService = new ChatService();
+
+// 添加重试逻辑，避免504超时问题
+const fetchWithRetry = async (url: string, options: any, retries = 3, backoff = 300) => {
+  let lastError;
+  
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok) return response;
+      
+      // 如果服务器返回504，等待后重试
+      if (response.status === 504) {
+        lastError = new Error(`Gateway timeout (504) on attempt ${i + 1} of ${retries}`);
+        log(`Gateway timeout, retrying in ${backoff}ms...`);
+        await new Promise(resolve => setTimeout(resolve, backoff));
+        backoff *= 2; // 指数退避策略
+        continue;
+      }
+      
+      // 其他错误直接返回
+      return response;
+    } catch (error) {
+      lastError = error;
+      log(`Network error on attempt ${i + 1} of ${retries}: ${error}`);
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      backoff *= 2;
+    }
+  }
+  
+  // 所有重试都失败了
+  throw lastError || new Error('Failed after retries');
+};
