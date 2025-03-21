@@ -16,7 +16,7 @@ interface ChatHistoryProps {
   setCurrentChatId?: (id: number) => void;
   onDeleteChat?: (id: number) => void;
   chats?: any[];
-  user: { userId: number; role: string };
+  user?: { userId: number; role: string };
 }
 
 export function ChatHistory({ 
@@ -28,6 +28,11 @@ export function ChatHistory({
   chats: propsChats,
   user 
 }: ChatHistoryProps) {
+  // 检查用户是否存在
+  if (!user) {
+    return <div className="p-4 text-center text-neutral-400">请先登录</div>;
+  }
+  
   // 使用传入的chats或从API获取
   const { data: apiChats, isLoading } = useQuery({
     queryKey: ['/api/chats', user.userId, user.role],
@@ -36,7 +41,7 @@ export function ChatHistory({
       if (!response.ok) throw new Error('Failed to fetch chats');
       return response.json();
     },
-    enabled: !propsChats // 只有当没有传入chats时才从API获取
+    enabled: !propsChats && !!user.userId // 只有当没有传入chats且用户已登录时才从API获取
   });
 
   // 获取当前选中聊天的消息
