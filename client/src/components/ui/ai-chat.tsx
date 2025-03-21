@@ -239,6 +239,7 @@ export function AIChat() {
           onNewChat={handleNewChat}
           currentChatId={currentChatId}
           onSelectChat={handleSelectChat}
+          user={user}
         />
       </div>
 
