@@ -298,6 +298,8 @@ export function AIChat() {
   // 用于在界面上显示的聊天列表
   const chatsToRender = apiChats;
 
+  const greetingMessage = "你好！准备开始一段富有启发性的对话了吗？";
+
 
   return (
     <div className="flex h-screen text-white">
@@ -370,10 +372,26 @@ export function AIChat() {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg, i) => (
-            <ChatMessage key={i} message={msg} />
-          ))}
+        <div className="flex-1 p-6 md:p-8 overflow-y-auto flex flex-col gap-4">
+          {messages.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-center">
+              <div className="space-y-3">
+                <div className="flex justify-center">
+                  <div className="p-4 rounded-full bg-primary-foreground/10">
+                    <Brain size={20} />
+                  </div>
+                </div>
+                <h3 className="text-lg font-semibold">{greetingMessage}</h3>
+                <p className="max-w-md text-sm text-neutral-400">
+                  与AI开始交谈，探索不同学习模型
+                </p>
+              </div>
+            </div>
+          ) : (
+            messages.map((msg, i) => (
+              <ChatMessage key={i} message={msg} />
+            ))
+          )}
         </div>
 
         {/* Model Selection and Input Area */}
