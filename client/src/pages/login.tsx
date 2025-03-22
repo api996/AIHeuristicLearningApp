@@ -40,10 +40,9 @@ export default function Login() {
       const data = await response.json();
 
       if (data.success) {
-        localStorage.setItem("user", JSON.stringify({
-          username,
+        localStorage.setItem("user", JSON.stringify({ 
           userId: data.userId,
-          role: data.role
+          role: data.role 
         }));
 
         // Redirect admin users to dashboard, others to home
