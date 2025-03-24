@@ -45,6 +45,8 @@ export default function Login() {
           userId: data.userId,
           role: data.role 
         }));
+        
+        console.log("登录成功，用户信息:", data);
 
         // Redirect admin users to dashboard, others to home
         if (data.role === "admin") {

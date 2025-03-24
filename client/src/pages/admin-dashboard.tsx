@@ -43,6 +43,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const userStr = localStorage.getItem("user");
     if (!userStr) {
+      console.log("未找到用户信息，重定向到登录页");
       setLocation("/login");
       return;
     }
@@ -51,8 +52,10 @@ export default function AdminDashboard() {
     console.log("当前用户信息:", user); // 添加日志以便调试
     
     if (!user || user.role !== "admin") {
-      console.log("非管理员用户，重定向到登录页");
+      console.log(`非管理员用户(角色: ${user.role})，重定向到登录页`);
       setLocation("/login");
+    } else {
+      console.log(`确认管理员身份: 用户ID=${user.userId}, 角色=${user.role}`);
     }
   }, [setLocation]);
 

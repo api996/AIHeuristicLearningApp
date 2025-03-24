@@ -64,7 +64,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 验证用户密码
       if (user && user.password === password) {
-        res.json({ success: true, userId: user.id, role: user.role });
+        // 确保发送正确的角色信息
+        console.log(`用户 ${username} 登录成功，角色: ${user.role}`);
+        res.json({ 
+          success: true, 
+          userId: user.id, 
+          role: user.role 
+        });
       } else {
         res.status(401).json({ 
           success: false, 
