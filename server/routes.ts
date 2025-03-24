@@ -16,21 +16,32 @@ async function verifyTurnstileToken(token: string): Promise<boolean> {
     // 开发环境中的特殊处理
     const isDevelopment = process.env.NODE_ENV !== 'production';
     
-    // 在开发环境中的验证绕过逻辑
-    if (isDevelopment) {
-      // 如果没有设置密钥，或使用特定的测试令牌，默认通过验证
-      if (!process.env.TURNSTILE_SECRET_KEY || token === 'DEV_BYPASS_TOKEN') {
-        log(`开发环境: Turnstile验证已绕过`);
+    // 验证必要的环境变量
+    if (!process.env.TURNSTILE_SECRET_KEY) {
+      log(`警告: TURNSTILE_SECRET_KEY 环境变量未设置`);
+      
+      // 开发环境下允许继续
+      if (isDevelopment) {
+        log(`开发环境: Turnstile验证已绕过 (缺少密钥)`);
         return true;
       }
     }
+    
+    // 在开发环境中的验证绕过逻辑
+    if (isDevelopment && token === 'DEV_BYPASS_TOKEN') {
+      log(`开发环境: 使用开发者绕过令牌`);
+      return true;
+    }
 
-    // 验证令牌格式 (生产环境中的完整验证)
+    // 验证令牌格式
     if (!token || typeof token !== 'string' || token.length < 10) {
       log(`无效的Turnstile令牌格式: ${token}`);
       return false;
     }
 
+    // 记录验证信息
+    log(`使用密钥验证Turnstile令牌: ${process.env.TURNSTILE_SECRET_KEY ? '密钥已设置' : '密钥未设置'}`);
+    
     // 发送验证请求
     const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',

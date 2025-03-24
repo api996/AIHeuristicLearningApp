@@ -31,8 +31,15 @@ export default function Login() {
   const [turnstileLoaded, setTurnstileLoaded] = useState(false);
   const turnstileRef = useRef<HTMLDivElement>(null);
 
+  // 修复Turnstile加载问题
   useEffect(() => {
-    // Check if already logged in
+    // 移除之前可能存在的脚本，避免重复加载
+    const existingScript = document.querySelector('script[src*="turnstile"]');
+    if (existingScript) {
+      existingScript.remove();
+    }
+    
+    // 检查是否已经登录ogged in
     const userStr = localStorage.getItem("user");
     if (!userStr) {
       return;
