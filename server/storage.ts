@@ -15,7 +15,6 @@ export interface IStorage {
   // Chat methods
   createChat(userId: number, title: string, model: string): Promise<Chat>;
   getUserChats(userId: number, isAdmin: boolean): Promise<(Chat & { username?: string })[]>;
-  getAllChats(): Promise<(Chat & { username?: string })[]>; // 新增方法获取所有聊天记录
   deleteChat(chatId: number, userId: number, isAdmin: boolean): Promise<void>;
   getChatById(chatId: number, userId: number, isAdmin: boolean): Promise<Chat | undefined>;
 
@@ -126,27 +125,6 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       log(`Error getting user chats: ${error}`);
-      throw error;
-    }
-  }
-  
-  // 获取所有聊天记录（管理员专用）
-  async getAllChats(): Promise<(Chat & { username?: string })[]> {
-    try {
-      // 获取所有聊天记录，并关联用户名
-      return await db.select({
-          id: chats.id,
-          userId: chats.userId,
-          title: chats.title,
-          model: chats.model,
-          createdAt: chats.createdAt,
-          username: users.username
-        })
-        .from(chats)
-        .leftJoin(users, eq(chats.userId, users.id))
-        .orderBy(desc(chats.createdAt));
-    } catch (error) {
-      log(`Error getting all chats: ${error}`);
       throw error;
     }
   }

@@ -1,13 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { env } from "./env"; // Assuming this is where environment variables are accessed
-import { setupVite } from "./vite";
-import { chatService } from "./services/chat";
-import { log } from "./vite";
-
-// 明确设置环境变量
-process.env.NODE_ENV = process.env.NODE_ENV || 'development';
-log(`当前运行环境: ${process.env.NODE_ENV}`);
+import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 app.use(express.json({ limit: '100mb' }));
@@ -68,7 +61,7 @@ app.use((req, res, next) => {
     // Try to find an available port starting with 5000
     const startPort = 5000;
     let port = startPort;
-
+    
     const startServer = (portToUse: number) => {
       server.listen({
         port: portToUse,
@@ -87,7 +80,7 @@ app.use((req, res, next) => {
         }
       });
     };
-
+    
     startServer(port);
   } catch (error) {
     log(`Failed to start server: ${error instanceof Error ? error.message : String(error)}`);
