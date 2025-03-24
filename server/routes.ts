@@ -7,12 +7,42 @@ import { Buffer } from "buffer";
 import path from "path";
 import fs from "fs";
 import express from 'express';
+import fetch from "node-fetch";
+
+async function verifyTurnstileToken(token: string): Promise<boolean> {
+  try {
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        secret: process.env.TURNSTILE_SECRET_KEY,
+        response: token,
+      }),
+    });
+
+    const data = await response.json();
+    return data.success === true;
+  } catch (error) {
+    console.error('Turnstile verification error:', error);
+    return false;
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
   app.post("/api/register", async (req, res) => {
     try {
-      const { username, password } = req.body;
+      const { username, password, turnstileToken } = req.body;
+
+      // Verify Turnstile token
+      if (!await verifyTurnstileToken(turnstileToken)) {
+        return res.status(400).json({
+          success: false,
+          message: "人机验证失败"
+        });
+      }
 
       // Check if username already exists
       const existingUser = await storage.getUserByUsername(username);
@@ -37,32 +67,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/login", async (req, res) => {
     try {
-      const { username, password } = req.body;
+      const { username, password, turnstileToken } = req.body;
 
-      // 获取用户信息
-      let user = await storage.getUserByUsername(username);
-
-      // 如果是首次设置管理员账户
-      if (username === "admin" && !user) {
-        // 使用更强的默认密码 (可以在首次登录后修改)
-        const secureAdminPassword = "Admin@" + Math.floor(Math.random() * 10000);
-        user = await storage.createUser({ 
-          username, 
-          password: secureAdminPassword, 
-          role: "admin" 
-        });
-
-        // 记录生成的密码到日志（仅供首次设置使用）
-        console.log(`初始管理员密码已生成: ${secureAdminPassword}`);
-
-        // 返回错误提示
-        return res.status(401).json({
+      // Verify Turnstile token
+      if (!await verifyTurnstileToken(turnstileToken)) {
+        return res.status(400).json({
           success: false,
-          message: "管理员账户已创建，请查看服务器日志获取初始密码"
+          message: "人机验证失败"
         });
       }
 
-      // 验证用户密码
+      const user = await storage.getUserByUsername(username);
+
       if (user && user.password === password) {
         res.json({ 
           success: true, 
