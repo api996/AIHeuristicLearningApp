@@ -115,7 +115,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/chats", async (req, res) => {
     try {
       const { userId, role } = req.query;
-      if (!userId || isNaN(Number(userId))) {
+      // 更严格的用户ID验证
+      if (!userId || isNaN(Number(userId)) || Number(userId) <= 0) {
+        log(`Invalid user ID in request: ${userId}`);
         return res.status(401).json({ message: "Invalid user ID" });
       }
       const isAdmin = role === "admin";
