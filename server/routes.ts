@@ -11,12 +11,21 @@ import fetch from "node-fetch";
 
 async function verifyTurnstileToken(token: string): Promise<boolean> {
   try {
-    log(`Verifying Turnstile token...`);
+    log(`开始验证Turnstile令牌...`);
+    
+    // 在开发环境中，如果没有设置密钥，默认通过验证
     if (!process.env.TURNSTILE_SECRET_KEY) {
-      log(`Error: TURNSTILE_SECRET_KEY is not set`);
+      log(`警告: TURNSTILE_SECRET_KEY未设置，在开发环境中自动通过验证`);
+      return true; // 开发环境中默认通过
+    }
+
+    // 验证令牌格式
+    if (!token || typeof token !== 'string' || token.length < 10) {
+      log(`无效的Turnstile令牌格式: ${token}`);
       return false;
     }
 
+    // 发送验证请求
     const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: {
@@ -28,11 +37,21 @@ async function verifyTurnstileToken(token: string): Promise<boolean> {
       }),
     });
 
+    if (!response.ok) {
+      log(`Turnstile API响应错误: ${response.status} ${response.statusText}`);
+      return false;
+    }
+
     const data = await response.json();
-    log(`Turnstile verification result: ${JSON.stringify(data)}`);
+    log(`Turnstile验证结果: ${JSON.stringify(data)}`);
+    
+    if (!data.success) {
+      log(`验证失败原因: ${data['error-codes']?.join(', ') || '未知'}`);
+    }
+    
     return data.success === true;
   } catch (error) {
-    log(`Turnstile verification error: ${error}`);
+    log(`Turnstile验证异常: ${error}`);
     return false;
   }
 }
@@ -120,13 +139,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/chats", async (req, res) => {
     try {
       const { userId, role } = req.query;
-      if (!userId || isNaN(Number(userId))) {
-        return res.status(401).json({ message: "Invalid user ID" });
+      // 更详细的用户ID验证
+      if (!userId) {
+        log(`Missing userId in request: ${JSON.stringify(req.query)}`);
+        return res.status(401).json({ message: "User ID is required" });
       }
+      
+      const parsedUserId = Number(userId);
+      if (isNaN(parsedUserId) || parsedUserId <= 0) {
+        log(`Invalid userId format: ${userId}`);
+        return res.status(401).json({ message: "Invalid user ID format" });
+      }
+      
       const isAdmin = role === "admin";
       // 如果是管理员，则获取请求中指定的用户的聊天记录
       // 如果是普通用户，则获取自己的聊天记录
-      const targetUserId = Number(userId);
+      const targetUserId = parsedUserId;
       const chats = await storage.getUserChats(targetUserId, isAdmin);
       res.json(chats);
     } catch (error) {

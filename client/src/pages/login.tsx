@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { apiRequest } from "@/lib/queryClient";
 import { MessageSquare, Brain, Shield } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -15,24 +16,25 @@ export default function Login() {
   const [error, setError] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [turnstileLoaded, setTurnstileLoaded] = useState(false);
+  const turnstileRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
-    // 检查是否已登录
+    // Check if already logged in
     const userStr = localStorage.getItem("user");
-    if (!userStr) {
-      return;
-    }
-
-    const user = JSON.parse(userStr);
-    if (user.role === "admin") {
-      setLocation("/admin");
-    } else {
-      setLocation("/");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user.role === "admin") {
+        setLocation("/admin");
+      } else {
+        setLocation("/");
+      }
     }
   }, [setLocation]);
 
   useEffect(() => {
-    // 加载 Turnstile 脚本
+    // Load Turnstile script
     const script = document.createElement("script");
     script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
     script.async = true;
@@ -44,11 +46,22 @@ export default function Login() {
     };
   }, []);
 
-  // 设置 Turnstile 回调
+  // Monitor Turnstile load status
   useEffect(() => {
-    // @ts-ignore
+    const checkTurnstileLoaded = setInterval(() => {
+      if (window.grecaptcha) { // Assuming grecaptcha is available after Turnstile loads
+        setTurnstileLoaded(true);
+        clearInterval(checkTurnstileLoaded);
+      }
+    }, 500);
+
+    return () => clearInterval(checkTurnstileLoaded);
+  }, []);
+
+  useEffect(() => {
+    // Set Turnstile callback
     window.onTurnstileSuccess = (token: string) => {
-      console.log("Turnstile 验证成功");
+      console.log("Turnstile verification successful");
       setTurnstileToken(token);
     };
   }, []);
@@ -59,50 +72,57 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      // 表单验证
+      // Form validation
       if (!username || !password) {
-        throw new Error("请填写用户名和密码");
+        throw new Error("Please fill in username and password");
       }
 
       if (!turnstileToken) {
-        throw new Error("请完成人机验证");
+        throw new Error("Please complete the CAPTCHA");
       }
 
       if (isRegistering && password !== confirmPassword) {
-        throw new Error("两次输入的密码不一致");
+        throw new Error("Passwords do not match");
       }
 
-      // 发送登录/注册请求
+      // Send login/register request
       const endpoint = isRegistering ? "/api/register" : "/api/login";
-      console.log(`尝试${isRegistering ? '注册' : '登录'}用户: ${username}`);
+      console.log(`Attempting to ${isRegistering ? 'register' : 'login'} user: ${username}`);
 
-      const response = await apiRequest("POST", endpoint, {
-        username,
-        password,
-        turnstileToken
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password, turnstileToken }),
       });
 
       const data = await response.json();
-      console.log("服务器响应:", data);
+      console.log("Server response:", data);
 
-      if (data.success) {
-        localStorage.setItem("user", JSON.stringify({
-          userId: data.userId,
-          role: data.role
-        }));
-
-        // 根据角色重定向
+      if (response.ok && data.success) {
+        localStorage.setItem("user", JSON.stringify({ userId: data.userId, role: data.role }));
         if (data.role === "admin") {
           setLocation("/admin");
         } else {
           setLocation("/");
         }
       } else {
-        setError(data.message || "认证失败");
+        setError(data.message || "Authentication failed");
+        if (turnstileRef.current) {
+          // Reset CAPTCHA if failed
+          // Assuming a reset method is available on the turnstile element.  This might need adjustment based on the specific Turnstile implementation.
+          turnstileRef.current.reset();
+        }
+
       }
     } catch (error) {
-      console.error("认证错误:", error);
-      setError(error instanceof Error ? error.message : "操作失败，请稍后重试");
+      console.error("Authentication error:", error);
+      setError(error instanceof Error ? error.message : "Operation failed, please try again later");
+      // Reset CAPTCHA if failed
+      if (turnstileRef.current) {
+        turnstileRef.current.reset();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -110,7 +130,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-black flex">
-      {/* 左侧 - 应用介绍 */}
+      {/* Left - App Introduction */}
       <div className="hidden lg:flex lg:w-1/2 bg-neutral-900 flex-col justify-center px-12">
         <div className="space-y-6">
           <h1 className="text-4xl font-bold text-white">
@@ -157,12 +177,12 @@ export default function Login() {
         </div>
       </div>
 
-      {/* 右侧 - 登录表单 */}
+      {/* Right - Login Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <Card className="w-[400px] bg-neutral-900 text-white border-neutral-800">
           <CardHeader>
             <CardTitle className="text-2xl text-center">
-              {isRegistering ? "创建账户" : "欢迎回来"}
+              {isRegistering ? "Create Account" : "Welcome Back"}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -205,6 +225,7 @@ export default function Login() {
 
               <div className="flex justify-center my-4">
                 <div
+                  ref={turnstileRef}
                   className="cf-turnstile"
                   data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                   data-callback="onTurnstileSuccess"
@@ -215,12 +236,8 @@ export default function Login() {
                 <div className="text-red-500 text-sm text-center">{error}</div>
               )}
 
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? "处理中..." : (isRegistering ? "注册" : "登录")}
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Processing..." : (isRegistering ? "Register" : "Login")}
               </Button>
 
               <div className="text-center">

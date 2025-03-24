@@ -33,13 +33,35 @@ export function ChatHistory({
 
   // 使用传入的chats或从API获取
   const { data: apiChats, isLoading } = useQuery({
-    queryKey: ['/api/chats', user.userId, user.role],
+    queryKey: ['/api/chats', user?.userId, user?.role],
     queryFn: async () => {
-      const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
-      if (!response.ok) throw new Error('Failed to fetch chats');
-      return response.json();
+      // 确保user存在且userId是有效的数字
+      if (!user || !user.userId || isNaN(Number(user.userId))) {
+        console.log('用户未登录或ID无效，跳过聊天记录获取');
+        return [];
+      }
+      
+      try {
+        const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
+        if (response.status === 401) {
+          console.warn('认证错误:', response.statusText);
+          // 可能需要重新登录
+          return [];
+        }
+        
+        if (!response.ok) {
+          console.error(`获取聊天记录失败: ${response.statusText}`);
+          return [];
+        }
+        
+        return response.json();
+      } catch (error) {
+        console.error('聊天记录请求异常:', error);
+        return [];
+      }
     },
-    enabled: !propsChats && !!user.userId // 只有当没有传入chats且用户已登录时才从API获取
+    enabled: !propsChats && !!user && !!user.userId && !isNaN(Number(user.userId)),
+    retry: false // 认证失败时不重试
   });
 
   // 获取当前选中聊天的消息
