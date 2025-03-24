@@ -6,6 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare, Brain, Shield } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
+// 扩展Window接口以包含Turnstile回调
+declare global {
+  interface Window {
+    onTurnstileSuccess: (token: string) => void;
+    grecaptcha?: {
+      render: (container: HTMLElement, config: any) => void;
+      reset: (widgetId: string) => void;
+    };
+  }
+}
+
 export default function Login() {
   const [, setLocation] = useLocation();
   const [isRegistering, setIsRegistering] = useState(false);
@@ -13,13 +24,38 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+
+  // 在组件加载时检查Turnstile密钥
+  useEffect(() => {
+    console.log("环境变量详细检查:");
+    console.log("VITE_TURNSTILE_SITE_KEY:", import.meta.env.VITE_TURNSTILE_SITE_KEY || "未设置");
+    console.log("所有可用环境变量:", import.meta.env);
+    
+    // 检查是否在开发环境中
+    if (import.meta.env.DEV) {
+      console.log("当前在开发环境中运行");
+    }
+    
+    // 在开发环境中，如果没有设置Turnstile密钥，使用DEV_BYPASS_TOKEN
+    if (import.meta.env.DEV && !import.meta.env.VITE_TURNSTILE_SITE_KEY) {
+      setTurnstileToken("DEV_BYPASS_TOKEN");
+    }
+  }, []);
+
   const [isLoading, setIsLoading] = useState(false);
   const [turnstileLoaded, setTurnstileLoaded] = useState(false);
   const turnstileRef = useRef<HTMLDivElement>(null);
 
+  // 修复Turnstile加载问题
   useEffect(() => {
-    // Check if already logged in
+    // 移除之前可能存在的脚本，避免重复加载
+    const existingScript = document.querySelector('script[src*="turnstile"]');
+    if (existingScript) {
+      existingScript.remove();
+    }
+    
+    // 检查是否已经登录ogged in
     const userStr = localStorage.getItem("user");
     if (!userStr) {
       return;
@@ -47,6 +83,12 @@ export default function Login() {
 
   // 加载 Turnstile 脚本
   useEffect(() => {
+    // 添加全局回调函数
+    window.onTurnstileSuccess = (token: string) => {
+      console.log("Turnstile验证成功，获取到令牌:", token.slice(0, 10) + "...");
+      setTurnstileToken(token);
+    };
+    
     const script = document.createElement("script");
     script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
     script.async = true;
@@ -56,10 +98,19 @@ export default function Login() {
     script.onerror = () => {
       console.error("Failed to load Turnstile script");
       setError("验证组件加载失败，请刷新页面重试");
+      
+      // 在开发环境中，如果脚本加载失败，使用DEV_BYPASS_TOKEN
+      if (import.meta.env.DEV) {
+        setTurnstileToken("DEV_BYPASS_TOKEN");
+      }
     };
 
     return () => {
-      document.head.removeChild(script);
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
+      // 清理全局回调
+      delete window.onTurnstileSuccess;
     };
   }, []);
 
@@ -82,8 +133,15 @@ export default function Login() {
         throw new Error("请填写用户名和密码");
       }
 
+      // 开发环境中的Turnstile检查绕过
       if (!turnstileToken) {
-        throw new Error("请完成人机验证");
+        if (import.meta.env.DEV) {
+          console.log("开发环境: 使用DEV_BYPASS_TOKEN绕过人机验证");
+          setTurnstileToken("DEV_BYPASS_TOKEN");
+        } else {
+          console.log("环境变量检查:", import.meta.env.VITE_TURNSTILE_SITE_KEY ? "找到密钥" : "未找到密钥");
+          throw new Error("请完成人机验证");
+        }
       }
 
       if (isRegistering && password !== confirmPassword) {
