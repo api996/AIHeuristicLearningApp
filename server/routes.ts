@@ -139,6 +139,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/chats", async (req, res) => {
     try {
       const { userId, role } = req.query;
+      log(`获取聊天记录请求: userId=${userId}, role=${role}`);
+      
       // 更详细的用户ID验证
       if (!userId) {
         log(`Missing userId in request: ${JSON.stringify(req.query)}`);
@@ -147,15 +149,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const parsedUserId = Number(userId);
       if (isNaN(parsedUserId) || parsedUserId <= 0) {
-        log(`Invalid userId format: ${userId}`);
+        log(`无效的userId格式: ${userId}`);
         return res.status(401).json({ message: "Invalid user ID format" });
       }
       
       const isAdmin = role === "admin";
+      log(`用户角色: ${isAdmin ? 'admin' : 'user'}, ID: ${parsedUserId}`);
+      
       // 如果是管理员，则获取请求中指定的用户的聊天记录
       // 如果是普通用户，则获取自己的聊天记录
       const targetUserId = parsedUserId;
       const chats = await storage.getUserChats(targetUserId, isAdmin);
+      log(`成功获取聊天记录: ${chats.length} 条记录`);
       res.json(chats);
     } catch (error) {
       log(`Error fetching chats: ${error}`);

@@ -8,27 +8,25 @@ export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   useEffect(() => {
-    const userStr = localStorage.getItem("user");
+    const userStr = localStorage.getItem('user');
     if (!userStr) {
-      // 重定向到登录页面
-      setLocation("/login");
+      console.log('No user found in localStorage, redirecting to login');
+      setLocation('/login');
       return;
     }
-
     try {
       const userData = JSON.parse(userStr);
-      if (!userData.userId) {
-        console.error("无效的用户数据");
-        localStorage.removeItem("user");
-        setLocation("/login");
+      if (!userData || !userData.userId) {
+        console.log('Invalid user data, redirecting to login');
+        localStorage.removeItem('user'); // Clear invalid user data
+        setLocation('/login');
         return;
       }
       setUser(userData);
-      setIsAuthenticated(true);
     } catch (error) {
-      console.error("登录状态解析错误:", error);
-      localStorage.removeItem("user");
-      setLocation("/login");
+      console.error('Failed to parse user data:', error);
+      localStorage.removeItem('user'); // Clear corrupted user data
+      setLocation('/login');
     }
   }, [setLocation]);
 

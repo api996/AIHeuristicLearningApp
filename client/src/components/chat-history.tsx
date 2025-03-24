@@ -40,7 +40,7 @@ export function ChatHistory({
         console.log('用户未登录或ID无效，跳过聊天记录获取');
         return [];
       }
-      
+
       try {
         const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
         if (response.status === 401) {
@@ -48,12 +48,12 @@ export function ChatHistory({
           // 可能需要重新登录
           return [];
         }
-        
+
         if (!response.ok) {
           console.error(`获取聊天记录失败: ${response.statusText}`);
           return [];
         }
-        
+
         return response.json();
       } catch (error) {
         console.error('聊天记录请求异常:', error);

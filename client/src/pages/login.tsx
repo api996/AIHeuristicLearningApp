@@ -100,8 +100,24 @@ export default function Login() {
       const data = await response.json();
       console.log("Server response:", data);
 
-      if (response.ok && data.success) {
-        localStorage.setItem("user", JSON.stringify({ userId: data.userId, role: data.role }));
+      if (response.ok) {
+        if (!data.userId) {
+          setError('Server returned an invalid user ID');
+          return;
+        }
+
+        const userData = {
+          userId: data.userId,
+          role: data.role || 'user',
+        };
+
+        console.log('Saving user data:', userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+
+        // 确认存储成功
+        const savedData = localStorage.getItem('user');
+        console.log('Saved user data:', savedData);
+
         if (data.role === "admin") {
           setLocation("/admin");
         } else {
