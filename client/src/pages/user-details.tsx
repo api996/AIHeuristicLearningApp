@@ -19,6 +19,7 @@ interface Chat {
 }
 
 interface User {
+  id: number; // Added id to User interface
   username: string;
   role: string;
   chatCount: number;
@@ -35,7 +36,7 @@ export default function UserDetails({ params }: { params: { id: string } }) {
       setLocation("/login");
       return;
     }
-    
+
     const user = JSON.parse(userStr);
     if (!user || user.role !== "admin") {
       setLocation("/login");
@@ -99,7 +100,8 @@ export default function UserDetails({ params }: { params: { id: string } }) {
                 {chats?.map((chat: Chat) => (
                   <div
                     key={chat.id}
-                    className="p-4 rounded-lg bg-neutral-800 hover:bg-neutral-700 transition-colors"
+                    className="p-4 rounded-lg bg-neutral-800 hover:bg-neutral-700 transition-colors cursor-pointer"
+                    onClick={() => setLocation(`/admin/chats/${chat.id}`)}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-medium text-white">{chat.title}</h3>
@@ -108,7 +110,7 @@ export default function UserDetails({ params }: { params: { id: string } }) {
                       </span>
                     </div>
                     <p className="text-sm text-neutral-300">
-                      {chat.content}
+                      点击查看对话详情
                     </p>
                   </div>
                 ))}
