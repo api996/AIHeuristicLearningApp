@@ -4,28 +4,31 @@ import { AIChat } from "@/components/ui/ai-chat";
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const [user, setUser] = useState(() => {
-    const userInfoStr = localStorage.getItem("userInfo");
-    if (!userInfoStr) return null;
-    try {
-      const userInfo = JSON.parse(userInfoStr);
-      if (!userInfo || !userInfo.userId || !userInfo.token) return null; // Added token check
-      return userInfo;
-    } catch (e) {
-      console.error("解析用户信息失败:", e);
-      localStorage.removeItem("userInfo");
-      return null;
-    }
-  });
+  const [user, setUser] = useState<{ userId: number; role: string } | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!user) {
-      setLocation("/login");
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      console.log('No user found in localStorage, redirecting to login');
+      setLocation('/login');
       return;
     }
-    setIsAuthenticated(true); // Set isAuthenticated based on user state
-  }, [user, setLocation]);
+    try {
+      const userData = JSON.parse(userStr);
+      if (!userData || !userData.userId) {
+        console.log('Invalid user data, redirecting to login');
+        localStorage.removeItem('user'); // Clear invalid user data
+        setLocation('/login');
+        return;
+      }
+      setUser(userData);
+    } catch (error) {
+      console.error('Failed to parse user data:', error);
+      localStorage.removeItem('user'); // Clear corrupted user data
+      setLocation('/login');
+    }
+  }, [setLocation]);
 
   // 如果用户未认证，显示加载中
   if (!isAuthenticated) {
@@ -38,7 +41,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black">
-      <AIChat user={user} /> {/* Pass user data to AIChat */}
+      <AIChat />
     </div>
   );
 }
