@@ -39,18 +39,7 @@ export function ChatHistory({
       if (!response.ok) throw new Error('Failed to fetch chats');
       return response.json();
     },
-    enabled: !propsChats && !!user.userId // 只有当没有传入chats且用户已登录时才从API获取
-  });
-
-  // 获取当前选中聊天的消息
-  const { data: currentChat } = useQuery({
-    queryKey: [`/api/chats/${currentChatId}/messages`, user.userId, user.role],
-    enabled: !!currentChatId && !!user.userId,
-    queryFn: async () => {
-      const response = await fetch(`/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`);
-      if (!response.ok) throw new Error('Failed to fetch messages');
-      return response.json();
-    },
+    enabled: !propsChats && !!user.userId && user.role !== 'admin' // 只有当没有传入chats且用户已登录且不是管理员时才从API获取
   });
 
   const deleteChatMutation = useMutation({

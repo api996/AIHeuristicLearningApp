@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface TurnstileProps {
   onVerify: (token: string) => void;
@@ -27,6 +27,12 @@ export function TurnstileWidget({ onVerify, onError }: TurnstileProps) {
       console.error('[Turnstile] Missing site key');
       setError('Configuration error: Missing site key');
       return;
+    }
+
+    // Check if script is already loaded
+    const existingScript = document.querySelector('script[src*="turnstile"]');
+    if (existingScript) {
+      console.warn('[Turnstile] Turnstile already has been loaded. Was Turnstile imported multiple times?');
     }
 
     // Load Turnstile script
