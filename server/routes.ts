@@ -7,92 +7,16 @@ import { Buffer } from "buffer";
 import path from "path";
 import fs from "fs";
 import express from 'express';
-import fetch from "node-fetch";
-
-async function verifyTurnstileToken(token: string): Promise<boolean> {
-  try {
-    log(`开始验证Turnstile令牌...`);
-    
-    // 开发环境中的特殊处理
-    const isDevelopment = process.env.NODE_ENV !== 'production';
-    
-    // 验证必要的环境变量
-    if (!process.env.TURNSTILE_SECRET_KEY) {
-      log(`警告: TURNSTILE_SECRET_KEY 环境变量未设置`);
-      
-      // 开发环境下允许继续
-      if (isDevelopment) {
-        log(`开发环境: Turnstile验证已绕过 (缺少密钥)`);
-        return true;
-      }
-    }
-    
-    // 在开发环境中的验证绕过逻辑
-    if (isDevelopment && token === 'DEV_BYPASS_TOKEN') {
-      log(`开发环境: 使用开发者绕过令牌`);
-      return true;
-    }
-
-    // 验证令牌格式
-    if (!token || typeof token !== 'string' || token.length < 10) {
-      log(`无效的Turnstile令牌格式: ${token}`);
-      return false;
-    }
-
-    // 记录验证信息
-    log(`使用密钥验证Turnstile令牌: ${process.env.TURNSTILE_SECRET_KEY ? '密钥已设置' : '密钥未设置'}`);
-    
-    // 发送验证请求
-    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        secret: process.env.TURNSTILE_SECRET_KEY,
-        response: token,
-      }),
-    });
-
-    if (!response.ok) {
-      log(`Turnstile API响应错误: ${response.status} ${response.statusText}`);
-      return false;
-    }
-
-    const data = await response.json();
-    log(`Turnstile验证结果: ${JSON.stringify(data)}`);
-    
-    if (!data.success) {
-      log(`验证失败原因: ${data['error-codes']?.join(', ') || '未知'}`);
-    }
-    
-    return data.success === true;
-  } catch (error) {
-    log(`Turnstile验证异常: ${error}`);
-    return false;
-  }
-}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
   app.post("/api/register", async (req, res) => {
     try {
-      const { username, password, turnstileToken } = req.body;
-      log(`Registering user: ${username}`);
-
-      // Verify Turnstile token
-      if (!await verifyTurnstileToken(turnstileToken)) {
-        log(`人机验证失败: ${username}`);
-        return res.status(400).json({
-          success: false,
-          message: "人机验证失败"
-        });
-      }
+      const { username, password } = req.body;
 
       // Check if username already exists
       const existingUser = await storage.getUserByUsername(username);
       if (existingUser) {
-        log(`用户名已存在: ${username}`);
         return res.status(400).json({ 
           success: false, 
           message: "用户名已存在" 
@@ -101,7 +25,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create new user
       const user = await storage.createUser({ username, password });
-      log(`User registered successfully: ${username}, ID: ${user.id}`);
       res.json({ success: true, userId: user.id });
     } catch (error) {
       log(`Registration error: ${error}`);
@@ -114,30 +37,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/login", async (req, res) => {
     try {
-      const { username, password, turnstileToken } = req.body;
-      log(`Login attempt for user: ${username}`);
+      const { username, password } = req.body;
 
-      // Verify Turnstile token
-      if (!await verifyTurnstileToken(turnstileToken)) {
-        log(`人机验证失败: ${username}`);
-        return res.status(400).json({
+      // 获取用户信息
+      let user = await storage.getUserByUsername(username);
+
+      // 如果是首次设置管理员账户
+      if (username === "admin" && !user) {
+        // 使用更强的默认密码 (可以在首次登录后修改)
+        const secureAdminPassword = "Admin@" + Math.floor(Math.random() * 10000);
+        user = await storage.createUser({ 
+          username, 
+          password: secureAdminPassword, 
+          role: "admin" 
+        });
+
+        // 记录生成的密码到日志（仅供首次设置使用）
+        console.log(`初始管理员密码已生成: ${secureAdminPassword}`);
+
+        // 返回错误提示
+        return res.status(401).json({
           success: false,
-          message: "人机验证失败"
+          message: "管理员账户已创建，请查看服务器日志获取初始密码"
         });
       }
 
-      const user = await storage.getUserByUsername(username);
-      log(`User lookup result: ${user ? 'found' : 'not found'}`);
-
+      // 验证用户密码
       if (user && user.password === password) {
-        log(`Login successful: ${username}, ID: ${user.id}, Role: ${user.role}`);
         res.json({ 
           success: true, 
           userId: user.id, 
           role: user.role 
         });
       } else {
-        log(`Login failed: Invalid credentials for ${username}`);
         res.status(401).json({ 
           success: false, 
           message: "用户名或密码错误" 
@@ -156,28 +88,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/chats", async (req, res) => {
     try {
       const { userId, role } = req.query;
-      log(`获取聊天记录请求: userId=${userId}, role=${role}`);
-      
-      // 更详细的用户ID验证
-      if (!userId) {
-        log(`Missing userId in request: ${JSON.stringify(req.query)}`);
-        return res.status(401).json({ message: "User ID is required" });
+      if (!userId || isNaN(Number(userId))) {
+        return res.status(401).json({ message: "Invalid user ID" });
       }
-      
-      const parsedUserId = Number(userId);
-      if (isNaN(parsedUserId) || parsedUserId <= 0) {
-        log(`无效的userId格式: ${userId}`);
-        return res.status(401).json({ message: "Invalid user ID format" });
-      }
-      
       const isAdmin = role === "admin";
-      log(`用户角色: ${isAdmin ? 'admin' : 'user'}, ID: ${parsedUserId}`);
-      
       // 如果是管理员，则获取请求中指定的用户的聊天记录
       // 如果是普通用户，则获取自己的聊天记录
-      const targetUserId = parsedUserId;
+      const targetUserId = Number(userId);
       const chats = await storage.getUserChats(targetUserId, isAdmin);
-      log(`成功获取聊天记录: ${chats.length} 条记录`);
       res.json(chats);
     } catch (error) {
       log(`Error fetching chats: ${error}`);
