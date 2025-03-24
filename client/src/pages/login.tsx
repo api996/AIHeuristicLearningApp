@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useNavigate } from "wouter"; // Added useNavigate
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { toast } from "@/components/ui/use-toast";
 
 export default function Login() {
   const [, setLocation] = useLocation();
+  const navigate = useNavigate(); // Added useNavigate
   const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +23,7 @@ export default function Login() {
 
   useEffect(() => {
     // Check if already logged in
-    const userStr = localStorage.getItem("user");
+    const userStr = localStorage.getItem("userInfo"); // Changed key to "userInfo"
     if (userStr) {
       const user = JSON.parse(userStr);
       if (user.role === "admin") {
@@ -71,58 +72,62 @@ export default function Login() {
     setError("");
     setIsLoading(true);
 
+    // 验证是否有Turnstile令牌
+    if (!turnstileToken) {
+      setError("请完成人机验证");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      // Form validation
-      if (!username || !password) {
-        throw new Error("Please fill in username and password");
-      }
-
-      if (!turnstileToken) {
-        throw new Error("Please complete the CAPTCHA");
-      }
-
-      if (isRegistering && password !== confirmPassword) {
-        throw new Error("Passwords do not match");
-      }
-
-      // Send login/register request
-      const endpoint = isRegistering ? "/api/register" : "/api/login";
-      console.log(`Attempting to ${isRegistering ? 'register' : 'login'} user: ${username}`);
-
-      const response = await fetch(endpoint, {
+      const response = await fetch(`/api/${isRegistering ? "register" : "login"}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username, password, turnstileToken }),
+        body: JSON.stringify({
+          username,
+          password,
+          turnstileToken,
+        }),
       });
 
       const data = await response.json();
-      console.log("Server response:", data);
 
-      if (response.ok && data.success) {
-        localStorage.setItem("user", JSON.stringify({ userId: data.userId, role: data.role }));
-        if (data.role === "admin") {
-          setLocation("/admin");
-        } else {
-          setLocation("/");
+      if (data.success) {
+        // 确保有用户ID
+        if (!data.userId) {
+          setError("登录成功但未返回用户ID，请联系管理员");
+          turnstileRef.current?.reset();
+          setIsLoading(false);
+          return;
         }
+
+        // 保存用户信息到localStorage
+        const userInfo = {
+          userId: data.userId,
+          role: data.role || "user",
+        };
+
+        console.log("登录成功，保存用户信息:", userInfo);
+        localStorage.setItem("userInfo", JSON.stringify(userInfo));
+
+        // 确保保存成功
+        const savedInfo = localStorage.getItem("userInfo");
+        if (!savedInfo) {
+          console.error("用户信息保存失败");
+        }
+
+        // 延迟一下再跳转，确保localStorage已更新
+        setTimeout(() => navigate("/"), 100);
       } else {
-        setError(data.message || "Authentication failed");
-        if (turnstileRef.current) {
-          // Reset CAPTCHA if failed
-          // Assuming a reset method is available on the turnstile element.  This might need adjustment based on the specific Turnstile implementation.
-          turnstileRef.current.reset();
-        }
-
+        setError(data.message || "操作失败，请重试");
+        turnstileRef.current?.reset();
       }
-    } catch (error) {
-      console.error("Authentication error:", error);
-      setError(error instanceof Error ? error.message : "Operation failed, please try again later");
-      // Reset CAPTCHA if failed
-      if (turnstileRef.current) {
-        turnstileRef.current.reset();
-      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("网络错误，请稍后重试");
+      turnstileRef.current?.reset();
     } finally {
       setIsLoading(false);
     }

@@ -139,26 +139,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/chats", async (req, res) => {
     try {
       const { userId, role } = req.query;
-      // 更详细的用户ID验证
+      log(`获取聊天记录请求: userId=${userId}, role=${role}`);
+      
+      // 严格的用户ID验证
       if (!userId) {
-        log(`Missing userId in request: ${JSON.stringify(req.query)}`);
+        log(`请求中缺少userId: ${JSON.stringify(req.query)}`);
         return res.status(401).json({ message: "User ID is required" });
       }
       
       const parsedUserId = Number(userId);
       if (isNaN(parsedUserId) || parsedUserId <= 0) {
-        log(`Invalid userId format: ${userId}`);
+        log(`无效的userId格式: ${userId}`);
         return res.status(401).json({ message: "Invalid user ID format" });
       }
       
-      const isAdmin = role === "admin";
-      // 如果是管理员，则获取请求中指定的用户的聊天记录
-      // 如果是普通用户，则获取自己的聊天记录
+      // 验证用户是否存在
+      const user = await storage.getUser(parsedUserId);
+      if (!user) {
+        log(`用户不存在: ${parsedUserId}`);
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      const isAdmin = role === "admin" && user.role === "admin"; // 确保role与数据库中的一致
+      log(`用户 ${parsedUserId} 是否管理员: ${isAdmin}`);
+      
+      // 获取聊天记录
       const targetUserId = parsedUserId;
       const chats = await storage.getUserChats(targetUserId, isAdmin);
+      log(`成功获取 ${chats.length} 条聊天记录`);
       res.json(chats);
     } catch (error) {
-      log(`Error fetching chats: ${error}`);
+      log(`获取聊天记录错误: ${error}`);
       res.status(500).json({ message: "Failed to fetch chat history" });
     }
   });
