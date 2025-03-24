@@ -47,10 +47,10 @@ export default function AdminDashboard() {
       setLocation("/login");
       return;
     }
-    
+
     const user = JSON.parse(userStr);
     console.log("当前用户信息:", user); // 添加日志以便调试
-    
+
     if (!user || user.role !== "admin") {
       console.log(`非管理员用户(角色: ${user.role})，重定向到登录页`);
       setLocation("/login");
@@ -174,7 +174,7 @@ export default function AdminDashboard() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setSelectedUserId(user.id)}
+                      onClick={() => setLocation(`/admin/users/${user.id}`)}
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
