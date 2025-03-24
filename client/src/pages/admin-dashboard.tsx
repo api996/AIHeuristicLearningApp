@@ -41,8 +41,17 @@ export default function AdminDashboard() {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const userStr = localStorage.getItem("user");
+    if (!userStr) {
+      setLocation("/login");
+      return;
+    }
+    
+    const user = JSON.parse(userStr);
+    console.log("当前用户信息:", user); // 添加日志以便调试
+    
     if (!user || user.role !== "admin") {
+      console.log("非管理员用户，重定向到登录页");
       setLocation("/login");
     }
   }, [setLocation]);
@@ -50,7 +59,8 @@ export default function AdminDashboard() {
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const response = await fetch("/api/users");
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const response = await fetch(`/api/users?userId=${user.userId}`);
       if (!response.ok) throw new Error("Failed to fetch users");
       return response.json();
     },

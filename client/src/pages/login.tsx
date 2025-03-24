@@ -40,6 +40,7 @@ export default function Login() {
       const data = await response.json();
 
       if (data.success) {
+        console.log("登录成功，用户信息:", data);
         localStorage.setItem("user", JSON.stringify({ 
           userId: data.userId,
           role: data.role 
