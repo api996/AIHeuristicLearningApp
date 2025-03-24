@@ -38,24 +38,17 @@ interface User {
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
     if (!userStr) {
-      console.log("未找到用户信息，重定向到登录页");
       setLocation("/login");
       return;
     }
 
     const user = JSON.parse(userStr);
-    console.log("当前用户信息:", user); // 添加日志以便调试
-
-    if (!user || user.role !== "admin") {
-      console.log(`非管理员用户(角色: ${user.role})，重定向到登录页`);
+    if (user.role !== "admin") {
       setLocation("/login");
-    } else {
-      console.log(`确认管理员身份: 用户ID=${user.userId}, 角色=${user.role}`);
     }
   }, [setLocation]);
 
@@ -65,7 +58,9 @@ export default function AdminDashboard() {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       const response = await fetch(`/api/users?userId=${user.userId}`);
       if (!response.ok) throw new Error("Failed to fetch users");
-      return response.json();
+      const allUsers = await response.json();
+      // 过滤掉管理员用户
+      return allUsers.filter((user: User) => user.role !== "admin");
     },
   });
 
@@ -114,7 +109,7 @@ export default function AdminDashboard() {
                 <Users className="h-8 w-8 text-blue-500" />
                 <div className="text-right">
                   <p className="text-2xl font-bold text-white">{users?.length || 0}</p>
-                  <p className="text-sm text-neutral-400">总用户数</p>
+                  <p className="text-sm text-neutral-400">普通用户数</p>
                 </div>
               </div>
             </CardContent>

@@ -29,7 +29,7 @@ export default function UserDetails({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const userId = parseInt(params.id);
 
-  // 验证管理员权限
+  // 修改useEffect部分
   useEffect(() => {
     const userStr = localStorage.getItem("user");
     if (!userStr) {
@@ -38,7 +38,7 @@ export default function UserDetails({ params }: { params: { id: string } }) {
     }
 
     const user = JSON.parse(userStr);
-    if (!user || user.role !== "admin") {
+    if (user.role !== "admin") {
       setLocation("/login");
     }
   }, [setLocation]);
@@ -55,11 +55,14 @@ export default function UserDetails({ params }: { params: { id: string } }) {
     },
   });
 
-  // 获取用户的聊天记录
+  // 获取用户聊天记录的useQuery
   const { data: chats } = useQuery({
     queryKey: ["/api/chats", userId],
     queryFn: async () => {
       const adminUser = JSON.parse(localStorage.getItem("user") || "{}");
+      if (adminUser.role !== "admin") {
+        throw new Error("Unauthorized");
+      }
       const response = await fetch(`/api/chats?userId=${userId}&role=${adminUser.role}`);
       if (!response.ok) throw new Error("Failed to fetch chats");
       return response.json();
