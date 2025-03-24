@@ -16,9 +16,12 @@ export default function Login() {
   const [turnstileToken, setTurnstileToken] = useState<string>();
   const [isVerifying, setIsVerifying] = useState(false);
 
+  // 检查是否已登录
   useEffect(() => {
+    console.log('[Login] Checking existing user session');
     const user = localStorage.getItem("user");
     if (user) {
+      console.log('[Login] Found existing user session');
       const userData = JSON.parse(user);
       if (userData.role === 'admin') {
         setLocation("/admin");
@@ -109,6 +112,7 @@ export default function Login() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="bg-neutral-800 border-neutral-700"
+                disabled={isVerifying}
               />
             </div>
             <div className="space-y-2">
@@ -118,6 +122,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="bg-neutral-800 border-neutral-700"
+                disabled={isVerifying}
               />
             </div>
             {isRegistering && (
@@ -128,6 +133,7 @@ export default function Login() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="bg-neutral-800 border-neutral-700"
+                  disabled={isVerifying}
                 />
               </div>
             )}
@@ -156,7 +162,11 @@ export default function Login() {
                 type="button"
                 variant="ghost"
                 className="text-sm text-neutral-400 hover:text-white"
-                onClick={() => setIsRegistering(!isRegistering)}
+                onClick={() => {
+                  setIsRegistering(!isRegistering);
+                  setError("");
+                }}
+                disabled={isVerifying}
               >
                 {isRegistering ? "已有账号？去登录" : "没有账号？去注册"}
               </Button>
