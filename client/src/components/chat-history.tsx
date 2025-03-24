@@ -26,42 +26,29 @@ export function ChatHistory({
 }: ChatHistoryProps) {
   const queryClient = useQueryClient();
 
-  // 检查用户是否存在且有效
-  if (!user || !user.userId) {
+  // 检查用户是否存在
+  if (!user) {
     return <div className="p-4 text-center text-neutral-400">请先登录</div>;
   }
 
   // 使用传入的chats或从API获取
   const { data: apiChats, isLoading } = useQuery({
-    queryKey: ['/api/chats', user?.userId, user?.role],
+    queryKey: ['/api/chats', user.userId, user.role],
     queryFn: async () => {
-      // 确保user存在且userId是有效的数字
-      if (!user || !user.userId || isNaN(Number(user.userId))) {
-        console.log('用户未登录或ID无效，跳过聊天记录获取');
+      // 确保user.userId是有效的数字
+      if (!user.userId || isNaN(Number(user.userId))) {
+        console.log('Invalid or missing user ID, skipping chat fetch');
         return [];
       }
-
-      try {
-        const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
-        if (response.status === 401) {
-          console.warn('认证错误:', response.statusText);
-          // 可能需要重新登录
-          return [];
-        }
-
-        if (!response.ok) {
-          console.error(`获取聊天记录失败: ${response.statusText}`);
-          return [];
-        }
-
-        return response.json();
-      } catch (error) {
-        console.error('聊天记录请求异常:', error);
+      
+      const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
+      if (!response.ok) {
+        console.log(`Failed to fetch chats: ${response.statusText}`);
         return [];
       }
+      return response.json();
     },
-    enabled: !propsChats && !!user && !!user.userId && !isNaN(Number(user.userId)),
-    retry: false // 认证失败时不重试
+    enabled: !propsChats && !!user.userId && !isNaN(Number(user.userId)) // 确保只在有效的用户ID情况下获取
   });
 
   // 获取当前选中聊天的消息

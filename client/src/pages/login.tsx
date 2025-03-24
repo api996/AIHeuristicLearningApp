@@ -1,15 +1,13 @@
-import { useState, useEffect, useRef } from "react";
-import { useLocation, useNavigate } from "wouter"; // Added useNavigate
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { apiRequest } from "@/lib/queryClient";
 import { MessageSquare, Brain, Shield } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
-
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const navigate = useNavigate(); // Added useNavigate
   const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -17,25 +15,24 @@ export default function Login() {
   const [error, setError] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
-  const [turnstileLoaded, setTurnstileLoaded] = useState(false);
-  const turnstileRef = useRef<HTMLDivElement>(null);
-
 
   useEffect(() => {
-    // Check if already logged in
-    const userStr = localStorage.getItem("userInfo"); // Changed key to "userInfo"
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      if (user.role === "admin") {
-        setLocation("/admin");
-      } else {
-        setLocation("/");
-      }
+    // 检查是否已登录
+    const userStr = localStorage.getItem("user");
+    if (!userStr) {
+      return;
+    }
+
+    const user = JSON.parse(userStr);
+    if (user.role === "admin") {
+      setLocation("/admin");
+    } else {
+      setLocation("/");
     }
   }, [setLocation]);
 
   useEffect(() => {
-    // Load Turnstile script
+    // 加载 Turnstile 脚本
     const script = document.createElement("script");
     script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
     script.async = true;
@@ -47,22 +44,11 @@ export default function Login() {
     };
   }, []);
 
-  // Monitor Turnstile load status
+  // 设置 Turnstile 回调
   useEffect(() => {
-    const checkTurnstileLoaded = setInterval(() => {
-      if (window.grecaptcha) { // Assuming grecaptcha is available after Turnstile loads
-        setTurnstileLoaded(true);
-        clearInterval(checkTurnstileLoaded);
-      }
-    }, 500);
-
-    return () => clearInterval(checkTurnstileLoaded);
-  }, []);
-
-  useEffect(() => {
-    // Set Turnstile callback
+    // @ts-ignore
     window.onTurnstileSuccess = (token: string) => {
-      console.log("Turnstile verification successful");
+      console.log("Turnstile 验证成功");
       setTurnstileToken(token);
     };
   }, []);
@@ -72,62 +58,51 @@ export default function Login() {
     setError("");
     setIsLoading(true);
 
-    // 验证是否有Turnstile令牌
-    if (!turnstileToken) {
-      setError("请完成人机验证");
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const response = await fetch(`/api/${isRegistering ? "register" : "login"}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username,
-          password,
-          turnstileToken,
-        }),
+      // 表单验证
+      if (!username || !password) {
+        throw new Error("请填写用户名和密码");
+      }
+
+      if (!turnstileToken) {
+        throw new Error("请完成人机验证");
+      }
+
+      if (isRegistering && password !== confirmPassword) {
+        throw new Error("两次输入的密码不一致");
+      }
+
+      // 发送登录/注册请求
+      const endpoint = isRegistering ? "/api/register" : "/api/login";
+      console.log(`尝试${isRegistering ? '注册' : '登录'}用户: ${username}`);
+
+      const response = await apiRequest("POST", endpoint, {
+        username,
+        password,
+        turnstileToken
       });
 
       const data = await response.json();
+      console.log("服务器响应:", data);
 
       if (data.success) {
-        // 确保有用户ID
-        if (!data.userId) {
-          setError("登录成功但未返回用户ID，请联系管理员");
-          turnstileRef.current?.reset();
-          setIsLoading(false);
-          return;
-        }
-
-        // 保存用户信息到localStorage
-        const userInfo = {
+        localStorage.setItem("user", JSON.stringify({
           userId: data.userId,
-          role: data.role || "user",
-        };
+          role: data.role
+        }));
 
-        console.log("登录成功，保存用户信息:", userInfo);
-        localStorage.setItem("userInfo", JSON.stringify(userInfo));
-
-        // 确保保存成功
-        const savedInfo = localStorage.getItem("userInfo");
-        if (!savedInfo) {
-          console.error("用户信息保存失败");
+        // 根据角色重定向
+        if (data.role === "admin") {
+          setLocation("/admin");
+        } else {
+          setLocation("/");
         }
-
-        // 延迟一下再跳转，确保localStorage已更新
-        setTimeout(() => navigate("/"), 100);
       } else {
-        setError(data.message || "操作失败，请重试");
-        turnstileRef.current?.reset();
+        setError(data.message || "认证失败");
       }
-    } catch (err) {
-      console.error("Login error:", err);
-      setError("网络错误，请稍后重试");
-      turnstileRef.current?.reset();
+    } catch (error) {
+      console.error("认证错误:", error);
+      setError(error instanceof Error ? error.message : "操作失败，请稍后重试");
     } finally {
       setIsLoading(false);
     }
@@ -135,7 +110,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-black flex">
-      {/* Left - App Introduction */}
+      {/* 左侧 - 应用介绍 */}
       <div className="hidden lg:flex lg:w-1/2 bg-neutral-900 flex-col justify-center px-12">
         <div className="space-y-6">
           <h1 className="text-4xl font-bold text-white">
@@ -182,12 +157,12 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right - Login Form */}
+      {/* 右侧 - 登录表单 */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <Card className="w-[400px] bg-neutral-900 text-white border-neutral-800">
           <CardHeader>
             <CardTitle className="text-2xl text-center">
-              {isRegistering ? "Create Account" : "Welcome Back"}
+              {isRegistering ? "创建账户" : "欢迎回来"}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -230,7 +205,6 @@ export default function Login() {
 
               <div className="flex justify-center my-4">
                 <div
-                  ref={turnstileRef}
                   className="cf-turnstile"
                   data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                   data-callback="onTurnstileSuccess"
@@ -241,8 +215,12 @@ export default function Login() {
                 <div className="text-red-500 text-sm text-center">{error}</div>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Processing..." : (isRegistering ? "Register" : "Login")}
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? "处理中..." : (isRegistering ? "注册" : "登录")}
               </Button>
 
               <div className="text-center">
