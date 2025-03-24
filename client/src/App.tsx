@@ -12,17 +12,20 @@ import NotFound from "@/pages/not-found";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/users/:id" component={UserDetails} />
       <Route path="/admin/chats/:id" component={ChatDetails} />
+      <Route path="/" component={Home} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
 function App() {
+  // 清除查询缓存
+  queryClient.clear();
+
   return (
     <QueryClientProvider client={queryClient}>
       <Router />
