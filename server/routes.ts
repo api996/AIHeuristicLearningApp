@@ -13,13 +13,19 @@ async function verifyTurnstileToken(token: string): Promise<boolean> {
   try {
     log(`开始验证Turnstile令牌...`);
     
-    // 在开发环境中，如果没有设置密钥，默认通过验证
-    if (!process.env.TURNSTILE_SECRET_KEY) {
-      log(`警告: TURNSTILE_SECRET_KEY未设置，在开发环境中自动通过验证`);
-      return true; // 开发环境中默认通过
+    // 开发环境中的特殊处理
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    
+    // 在开发环境中的验证绕过逻辑
+    if (isDevelopment) {
+      // 如果没有设置密钥，或使用特定的测试令牌，默认通过验证
+      if (!process.env.TURNSTILE_SECRET_KEY || token === 'DEV_BYPASS_TOKEN') {
+        log(`开发环境: Turnstile验证已绕过`);
+        return true;
+      }
     }
 
-    // 验证令牌格式
+    // 验证令牌格式 (生产环境中的完整验证)
     if (!token || typeof token !== 'string' || token.length < 10) {
       log(`无效的Turnstile令牌格式: ${token}`);
       return false;
