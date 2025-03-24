@@ -23,9 +23,20 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
+  // 打印环境变量用于调试
+  log("Vite环境变量检查:");
+  log(`TURNSTILE_SITE_KEY: ${process.env.TURNSTILE_SITE_KEY ? "已设置" : "未设置"}`);
+  log(`VITE_TURNSTILE_SITE_KEY: ${process.env.VITE_TURNSTILE_SITE_KEY ? "已设置" : "未设置"}`);
+
+  // 确保VITE_前缀的环境变量可用
+  if (process.env.TURNSTILE_SITE_KEY && !process.env.VITE_TURNSTILE_SITE_KEY) {
+    process.env.VITE_TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY;
+    log("已从TURNSTILE_SITE_KEY复制值到VITE_TURNSTILE_SITE_KEY");
+  }
+
   const serverOptions = {
     middlewareMode: true,
-    hmr: { server },
+    hmr: { server, overlay: true },
     allowedHosts: true,
   };
 
@@ -41,6 +52,11 @@ export async function setupVite(app: Express, server: Server) {
     },
     server: serverOptions,
     appType: "custom",
+    // 直接定义环境变量
+    define: {
+      'import.meta.env.VITE_TURNSTILE_SITE_KEY':
+        JSON.stringify(process.env.VITE_TURNSTILE_SITE_KEY || process.env.TURNSTILE_SITE_KEY || '')
+    }
   });
 
   app.use(vite.middlewares);

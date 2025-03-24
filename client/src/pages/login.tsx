@@ -17,10 +17,14 @@ export default function Login() {
 
   // 在组件加载时检查Turnstile密钥
   useEffect(() => {
-    console.log("Turnstile密钥检查:", 
-      import.meta.env.VITE_TURNSTILE_SITE_KEY ? 
-      "前端成功获取到密钥!" : 
-      "前端未获取到密钥!");
+    console.log("环境变量详细检查:");
+    console.log("VITE_TURNSTILE_SITE_KEY:", import.meta.env.VITE_TURNSTILE_SITE_KEY || "未设置");
+    console.log("所有可用环境变量:", import.meta.env);
+    
+    // 检查是否在开发环境中
+    if (import.meta.env.DEV) {
+      console.log("当前在开发环境中运行");
+    }
   }, []);
 
   const [isLoading, setIsLoading] = useState(false);
