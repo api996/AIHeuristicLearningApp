@@ -2,6 +2,12 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
+// 打印环境变量信息用于调试
+log("环境变量检查:");
+log(`TURNSTILE_SITE_KEY: ${process.env.TURNSTILE_SITE_KEY ? "已设置" : "未设置"}`);
+log(`TURNSTILE_SECRET_KEY: ${process.env.TURNSTILE_SECRET_KEY ? "已设置" : "未设置"}`);
+log(`VITE_TURNSTILE_SITE_KEY: ${process.env.VITE_TURNSTILE_SITE_KEY ? "已设置" : "未设置"}`);
+
 const app = express();
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));

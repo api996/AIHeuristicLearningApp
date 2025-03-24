@@ -82,8 +82,15 @@ export default function Login() {
         throw new Error("请填写用户名和密码");
       }
 
+      // 开发环境中的Turnstile检查绕过
       if (!turnstileToken) {
-        throw new Error("请完成人机验证");
+        if (import.meta.env.DEV) {
+          console.log("开发环境: 使用DEV_BYPASS_TOKEN绕过人机验证");
+          setTurnstileToken("DEV_BYPASS_TOKEN");
+        } else {
+          console.log("环境变量检查:", import.meta.env.VITE_TURNSTILE_SITE_KEY ? "找到密钥" : "未找到密钥");
+          throw new Error("请完成人机验证");
+        }
       }
 
       if (isRegistering && password !== confirmPassword) {

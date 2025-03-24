@@ -220,3 +220,32 @@ args = "env | grep -E \"TURNSTILE|VITE\""
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
+
+[[workflows.workflow]]
+name = "显示所有密钥和环境变量"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"===== 所有环境变量 =====\""
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "env"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = 'echo "\n===== Replit Secrets ====="'
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-未设置}\""
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-未设置}\""
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-未设置}\""
