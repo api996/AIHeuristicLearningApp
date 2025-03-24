@@ -64,13 +64,11 @@ export default function AdminDashboard() {
     },
   });
 
-  // 获取所有用户的聊天记录总数
   const { data: chats } = useQuery({
-    queryKey: ["/api/admin/all-chats"],
+    queryKey: ["/api/chats"],
     queryFn: async () => {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
-      // 管理员应该获取所有聊天记录，而不仅仅是自己的
-      const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}&allUsers=true`);
+      const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
       if (!response.ok) throw new Error("Failed to fetch chats");
       return response.json();
     },
