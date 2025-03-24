@@ -64,7 +64,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 验证用户密码
       if (user && user.password === password) {
-        res.json({ success: true, userId: user.id, role: user.role });
+        // 确保发送正确的角色信息
+        console.log(`用户 ${username} 登录成功，ID: ${user.id}, 角色: ${user.role}`);
+        
+        // 特殊处理：如果是ID为1的用户，确保角色为admin
+        if (user.id === 1 && user.role !== "admin") {
+          await storage.updateUserRole(1, "admin");
+          user.role = "admin";
+          console.log(`用户ID 1 角色已自动更正为 admin`);
+        }
+        
+        res.json({ 
+          success: true, 
+          userId: user.id, 
+          role: user.role 
+        });
       } else {
         res.status(401).json({ 
           success: false, 
@@ -336,6 +350,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // 临时管理员角色修复端点
+  app.get("/api/fix-admin", async (req, res) => {
+    try {
+      // 直接将ID为1的用户设置为管理员
+      await storage.updateUserRole(1, "admin");
+      
+      // 打印确认信息
+      const user = await storage.getUser(1);
+      console.log(`用户ID 1 角色已更新为: ${user?.role}`);
+      
+      res.json({ 
+        success: true, 
+        message: "管理员角色已修复",
+        user
+      });
+    } catch (error) {
+      console.error(`管理员角色修复错误: ${error}`);
+      res.status(500).json({ 
+        success: false, 
+        message: "角色修复失败" 
+      });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

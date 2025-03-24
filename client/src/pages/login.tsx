@@ -16,7 +16,12 @@ export default function Login() {
   useEffect(() => {
     const user = localStorage.getItem("user");
     if (user) {
-      setLocation("/");
+      const userData = JSON.parse(user);
+      if (userData.role === 'admin') {
+        setLocation("/admin");
+      } else {
+        setLocation("/");
+      }
     }
   }, [setLocation]);
 
@@ -35,11 +40,13 @@ export default function Login() {
       const data = await response.json();
 
       if (data.success) {
-        localStorage.setItem("user", JSON.stringify({
-          username,
+        console.log("登录成功，用户信息:", data);
+        localStorage.setItem("user", JSON.stringify({ 
           userId: data.userId,
-          role: data.role
+          role: data.role 
         }));
+        
+        console.log("登录成功，用户信息:", data);
 
         // Redirect admin users to dashboard, others to home
         if (data.role === "admin") {

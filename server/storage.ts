@@ -9,6 +9,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserPassword(userId: number, newPassword: string): Promise<void>;
+  updateUserRole(userId: number, role: "admin" | "user"): Promise<void>;
 
   // Chat methods
   createChat(userId: number, title: string, model: string): Promise<Chat>;
@@ -61,6 +62,18 @@ export class DatabaseStorage implements IStorage {
         .where(eq(users.id, userId));
     } catch (error) {
       log(`Error updating user password: ${error}`);
+      throw error;
+    }
+  }
+
+  async updateUserRole(userId: number, role: "admin" | "user"): Promise<void> {
+    try {
+      await db.update(users)
+        .set({ role })
+        .where(eq(users.id, userId));
+      console.log(`用户 ${userId} 角色已更新为 ${role}`);
+    } catch (error) {
+      log(`Error updating user role: ${error}`);
       throw error;
     }
   }
