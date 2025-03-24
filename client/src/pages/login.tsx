@@ -14,21 +14,10 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Load Turnstile script
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-
-    return () => {
-      document.head.removeChild(script);
-    };
-  }, []);
-
-  useEffect(() => {
+    // 检查是否已登录
     const user = localStorage.getItem("user");
     if (user) {
       const userData = JSON.parse(user);
@@ -40,10 +29,24 @@ export default function Login() {
     }
   }, [setLocation]);
 
-  // Setup Turnstile callback
+  useEffect(() => {
+    // 加载 Turnstile 脚本
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
+
+  // 设置 Turnstile 回调
   useEffect(() => {
     // @ts-ignore
     window.onTurnstileSuccess = (token: string) => {
+      console.log("Turnstile 验证成功");
       setTurnstileToken(token);
     };
   }, []);
@@ -51,32 +54,42 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
-    if (!turnstileToken) {
-      setError("请完成人机验证");
-      return;
-    }
-
-    if (isRegistering && password !== confirmPassword) {
-      setError("密码不匹配");
-      return;
-    }
+    setIsLoading(true);
 
     try {
+      // 表单验证
+      if (!username || !password) {
+        throw new Error("请填写用户名和密码");
+      }
+
+      if (!turnstileToken) {
+        throw new Error("请完成人机验证");
+      }
+
+      if (isRegistering && password !== confirmPassword) {
+        throw new Error("两次输入的密码不一致");
+      }
+
+      // 发送登录/注册请求
       const endpoint = isRegistering ? "/api/register" : "/api/login";
-      const response = await apiRequest("POST", endpoint, { 
-        username, 
+      console.log(`尝试${isRegistering ? '注册' : '登录'}用户: ${username}`);
+
+      const response = await apiRequest("POST", endpoint, {
+        username,
         password,
-        turnstileToken 
+        turnstileToken
       });
+
       const data = await response.json();
+      console.log("服务器响应:", data);
 
       if (data.success) {
-        localStorage.setItem("user", JSON.stringify({ 
+        localStorage.setItem("user", JSON.stringify({
           userId: data.userId,
-          role: data.role 
+          role: data.role
         }));
 
+        // 根据角色重定向
         if (data.role === "admin") {
           setLocation("/admin");
         } else {
@@ -86,14 +99,16 @@ export default function Login() {
         setError(data.message || "认证失败");
       }
     } catch (error) {
-      setError("操作失败，请稍后重试");
-      console.error("Auth error:", error);
+      console.error("认证错误:", error);
+      setError(error instanceof Error ? error.message : "操作失败，请稍后重试");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-black flex">
-      {/* Left side - Application Introduction */}
+      {/* 左侧 - 应用介绍 */}
       <div className="hidden lg:flex lg:w-1/2 bg-neutral-900 flex-col justify-center px-12">
         <div className="space-y-6">
           <h1 className="text-4xl font-bold text-white">
@@ -140,7 +155,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right side - Login Form */}
+      {/* 右侧 - 登录表单 */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <Card className="w-[400px] bg-neutral-900 text-white border-neutral-800">
           <CardHeader>
@@ -158,6 +173,7 @@ export default function Login() {
                   onChange={(e) => setUsername(e.target.value)}
                   className="bg-neutral-800 border-neutral-700"
                   placeholder="请输入用户名"
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -168,6 +184,7 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="bg-neutral-800 border-neutral-700"
                   placeholder="请输入密码"
+                  disabled={isLoading}
                 />
               </div>
               {isRegistering && (
@@ -179,6 +196,7 @@ export default function Login() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="bg-neutral-800 border-neutral-700"
                     placeholder="请再次输入密码"
+                    disabled={isLoading}
                   />
                 </div>
               )}
@@ -186,7 +204,7 @@ export default function Login() {
               <div className="flex justify-center my-4">
                 <div
                   className="cf-turnstile"
-                  data-sitekey="1x00000000000000000000AA"
+                  data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                   data-callback="onTurnstileSuccess"
                 ></div>
               </div>
@@ -195,8 +213,12 @@ export default function Login() {
                 <div className="text-red-500 text-sm text-center">{error}</div>
               )}
 
-              <Button type="submit" className="w-full">
-                {isRegistering ? "注册" : "登录"}
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? "处理中..." : (isRegistering ? "注册" : "登录")}
               </Button>
 
               <div className="text-center">
@@ -205,6 +227,7 @@ export default function Login() {
                   variant="ghost"
                   className="text-sm text-neutral-400 hover:text-white"
                   onClick={() => setIsRegistering(!isRegistering)}
+                  disabled={isLoading}
                 >
                   {isRegistering ? "已有账号？去登录" : "没有账号？去注册"}
                 </Button>
