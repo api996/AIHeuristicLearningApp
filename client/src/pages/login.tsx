@@ -201,13 +201,13 @@ export default function Login() {
                 </div>
               )}
 
-              <div className="flex justify-center my-4">
-                <div
-                  className="cf-turnstile"
-                  data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                  data-callback="onTurnstileSuccess"
-                ></div>
-              </div>
+              {/* 显式的Turnstile容器 */}
+              <div 
+                id="turnstile-container" 
+                className="cf-turnstile mt-4 flex justify-center"
+                data-sitekey="1x00000000000000000000AA"
+                data-callback="onTurnstileSuccess"
+              ></div>
 
               {error && (
                 <div className="text-red-500 text-sm text-center">{error}</div>

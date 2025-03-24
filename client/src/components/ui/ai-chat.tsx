@@ -287,12 +287,18 @@ export function AIChat() {
 
   // 获取聊天记录
   const { data: apiChats, isLoading: apiChatsLoading } = useQuery({
-    queryKey: ['/api/chats', user.userId, user.role],
+    queryKey: ['/api/chats', user?.userId, user?.role],
     queryFn: async () => {
-      const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
+      // 如果没有用户信息，返回空数组
+      if (!user || !user.userId) {
+        return [];
+      }
+      const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role || 'user'}`);
       if (!response.ok) throw new Error('Failed to fetch chats');
       return response.json();
     },
+    // 只有在用户存在时才执行查询
+    enabled: !!user && !!user.userId,
   });
 
   // 用于在界面上显示的聊天列表

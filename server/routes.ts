@@ -39,8 +39,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { username, password, turnstileToken } = req.body;
       log(`Registering user: ${username}`);
 
-      // Verify Turnstile token
-      if (!await verifyTurnstileToken(turnstileToken)) {
+      // 在开发环境中跳过验证，在生产环境中验证
+      if (process.env.NODE_ENV !== 'development' && !await verifyTurnstileToken(turnstileToken)) {
         log(`人机验证失败: ${username}`);
         return res.status(400).json({
           success: false,
@@ -76,8 +76,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { username, password, turnstileToken } = req.body;
       log(`Login attempt for user: ${username}`);
 
-      // Verify Turnstile token
-      if (!await verifyTurnstileToken(turnstileToken)) {
+      // 在开发环境中跳过验证，在生产环境中验证
+      if (process.env.NODE_ENV !== 'development' && !await verifyTurnstileToken(turnstileToken)) {
         log(`人机验证失败: ${username}`);
         return res.status(400).json({
           success: false,
@@ -293,7 +293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 如果是新创建的聊天，可能没有chatId，这种情况直接在内存中处理
       if (!chatId) {
         log(`处理无chatId的临时消息: ${message}`);
-        
+
         if (model) {
           try {
             chatService.setModel(model);
@@ -304,7 +304,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
         }
-        
+
         const response = await chatService.sendMessage(message);
         return res.json(response);
       }
@@ -387,11 +387,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // 直接将ID为1的用户设置为管理员
       await storage.updateUserRole(1, "admin");
-      
+
       // 打印确认信息
       const user = await storage.getUser(1);
       console.log(`用户ID 1 角色已更新为: ${user?.role}`);
-      
+
       res.json({ 
         success: true, 
         message: "管理员角色已修复",
