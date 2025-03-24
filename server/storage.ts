@@ -10,6 +10,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUserPassword(userId: number, newPassword: string): Promise<void>;
   updateUserRole(userId: number, role: "admin" | "user"): Promise<void>;
+  deleteUser(userId: number): Promise<void>;
 
   // Chat methods
   createChat(userId: number, title: string, model: string): Promise<Chat>;
@@ -71,9 +72,17 @@ export class DatabaseStorage implements IStorage {
       await db.update(users)
         .set({ role })
         .where(eq(users.id, userId));
-      console.log(`用户 ${userId} 角色已更新为 ${role}`);
     } catch (error) {
       log(`Error updating user role: ${error}`);
+      throw error;
+    }
+  }
+
+  async deleteUser(userId: number): Promise<void> {
+    try {
+      await db.delete(users).where(eq(users.id, userId));
+    } catch (error) {
+      log(`Error deleting user: ${error}`);
       throw error;
     }
   }
@@ -94,7 +103,7 @@ export class DatabaseStorage implements IStorage {
   async getUserChats(userId: number, isAdmin: boolean): Promise<(Chat & { username?: string })[]> {
     try {
       if (isAdmin) {
-        // Admin can see all users' chats with usernames, except admin's chats
+        // 管理员查看特定用户的聊天记录
         return await db.select({
             id: chats.id,
             userId: chats.userId,
@@ -105,10 +114,10 @@ export class DatabaseStorage implements IStorage {
           })
           .from(chats)
           .leftJoin(users, eq(chats.userId, users.id))
-          .where(ne(chats.userId, 1)) // 排除管理员(ID=1)的聊天记录
+          .where(eq(chats.userId, userId)) // 只返回指定用户的聊天记录
           .orderBy(desc(chats.createdAt));
       } else {
-        // Regular users can only see their own chats
+        // 普通用户只能看到自己的聊天记录
         return await db.select()
           .from(chats)
           .where(eq(chats.userId, userId))
@@ -116,6 +125,22 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       log(`Error getting user chats: ${error}`);
+      throw error;
+    }
+  }
+
+  async deleteChat(chatId: number, userId: number, isAdmin: boolean): Promise<void> {
+    try {
+      // First verify if the user has access to this chat
+      const chat = await this.getChatById(chatId, userId, isAdmin);
+      if (!chat) return;
+
+      // First delete all messages in the chat
+      await db.delete(messages).where(eq(messages.chatId, chatId));
+      // Then delete the chat itself
+      await db.delete(chats).where(eq(chats.id, chatId));
+    } catch (error) {
+      log(`Error deleting chat: ${error}`);
       throw error;
     }
   }
@@ -144,34 +169,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateChatTitle(chatId: number, title: string): Promise<void> {
-    try {
-      await db.update(chats)
-        .set({ title })
-        .where(eq(chats.id, chatId));
-    } catch (error) {
-      log(`Error updating chat title: ${error}`);
-      throw error;
-    }
-  }
-
-  async deleteChat(chatId: number, userId: number, isAdmin: boolean): Promise<void> {
-    try {
-      // First verify if the user has access to this chat
-      const chat = await this.getChatById(chatId, userId, isAdmin);
-      if (!chat) return;
-
-      // First delete all messages in the chat
-      await db.delete(messages).where(eq(messages.chatId, chatId));
-      // Then delete the chat itself
-      await db.delete(chats).where(eq(chats.id, chatId));
-    } catch (error) {
-      log(`Error deleting chat: ${error}`);
-      throw error;
-    }
-  }
-
-  // Message methods
   async createMessage(chatId: number, content: string, role: string): Promise<Message> {
     try {
       const [message] = await db.insert(messages)
@@ -188,7 +185,10 @@ export class DatabaseStorage implements IStorage {
     try {
       // First verify if the user has access to this chat
       const chat = await this.getChatById(chatId, userId, isAdmin);
-      if (!chat) return []; // Chat not found or user doesn't have access
+      if (!chat) return []; 
+
+      // Only return messages if the user has access to the chat
+      if (!isAdmin && chat.userId !== userId) return [];
 
       // Get messages for a specific chat
       return await db.select()

@@ -64,16 +64,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 验证用户密码
       if (user && user.password === password) {
-        // 确保发送正确的角色信息
-        console.log(`用户 ${username} 登录成功，ID: ${user.id}, 角色: ${user.role}`);
-        
-        // 特殊处理：如果是ID为1的用户，确保角色为admin
-        if (user.id === 1 && user.role !== "admin") {
-          await storage.updateUserRole(1, "admin");
-          user.role = "admin";
-          console.log(`用户ID 1 角色已自动更正为 admin`);
-        }
-        
         res.json({ 
           success: true, 
           userId: user.id, 
@@ -94,33 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Password change endpoint
-  app.post("/api/change-password", async (req, res) => {
-    try {
-      const { userId, currentPassword, newPassword } = req.body;
-
-      // Get user and verify current password
-      const user = await storage.getUser(userId);
-      if (!user || user.password !== currentPassword) {
-        return res.status(401).json({
-          success: false,
-          message: "当前密码错误"
-        });
-      }
-
-      // Update password
-      await storage.updateUserPassword(userId, newPassword);
-      res.json({ success: true });
-    } catch (error) {
-      log(`Password change error: ${error}`);
-      res.status(500).json({
-        success: false,
-        message: "修改密码失败，请稍后重试"
-      });
-    }
-  });
-
-  // Chat history routes
+  // Chat routes
   app.get("/api/chats", async (req, res) => {
     try {
       const { userId, role } = req.query;
@@ -128,7 +92,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid user ID" });
       }
       const isAdmin = role === "admin";
-      const chats = await storage.getUserChats(Number(userId), isAdmin);
+      // 如果是管理员，则获取请求中指定的用户的聊天记录
+      // 如果是普通用户，则获取自己的聊天记录
+      const targetUserId = Number(userId);
+      const chats = await storage.getUserChats(targetUserId, isAdmin);
       res.json(chats);
     } catch (error) {
       log(`Error fetching chats: ${error}`);
@@ -146,19 +113,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const isAdmin = role === "admin";
-      console.log(`Fetching messages for chat ${chatId}, user ${userId}, isAdmin: ${isAdmin}`);
-
       const messages = await storage.getChatMessages(chatId, Number(userId), isAdmin);
-      console.log(`Found ${messages.length} messages for chat ${chatId}`);
-
-      if (!messages || messages.length === 0) {
-        log(`No messages found for chat ${chatId}, this might be a new chat`);
-      }
-
       res.json(messages || []);
     } catch (error) {
       log(`Error fetching messages: ${error}`);
-      res.status(500).json({ message: "Failed to fetch chat messages", error: String(error) });
+      res.status(500).json({ message: "Failed to fetch chat messages" });
     }
   });
 
@@ -191,45 +150,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete chat" });
     }
   });
-  
-  // 修改对话标题的路由
-  app.put("/api/chats/:chatId/title", async (req, res) => {
+
+  // User management routes
+  app.get("/api/users", async (req, res) => {
     try {
-      const chatId = parseInt(req.params.chatId);
-      const { userId, role } = req.query;
-      const { title } = req.body;
-      
-      if (!userId) {
-        return res.status(401).json({ message: "请先登录" });
+      // Check if the requester is admin
+      const userId = req.query.userId;
+      const user = await storage.getUser(Number(userId));
+
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Permission denied" });
       }
-      
-      if (!title || title.trim() === "") {
-        return res.status(400).json({ 
-          success: false, 
-          message: "标题不能为空" 
-        });
+
+      // Get all users with their stats
+      const users = await storage.getAllUsers();
+      const usersWithStats = await Promise.all(
+        users
+          .filter(user => user.role !== "admin") // 排除管理员用户
+          .map(async (user) => {
+            const chats = await storage.getUserChats(user.id, true);
+            return {
+              ...user,
+              chatCount: chats.length,
+              lastActive: chats[0]?.createdAt || null
+            };
+          })
+      );
+
+      res.json(usersWithStats);
+    } catch (error) {
+      log(`Error fetching users: ${error}`);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Delete user endpoint
+  app.delete("/api/users/:userId", async (req, res) => {
+    try {
+      const userIdToDelete = parseInt(req.params.userId);
+      const requesterId = parseInt(req.query.userId as string);
+
+      // Check if requester is admin
+      const requester = await storage.getUser(requesterId);
+      if (!requester || requester.role !== "admin") {
+        return res.status(403).json({ message: "Permission denied" });
       }
-      
-      const isAdmin = role === "admin";
-      const chat = await storage.getChatById(chatId, Number(userId), isAdmin);
-      
-      if (!chat) {
-        return res.status(403).json({ 
-          success: false, 
-          message: "无权访问该对话或对话不存在" 
-        });
+
+      // Don't allow deleting admin
+      const userToDelete = await storage.getUser(userIdToDelete);
+      if (!userToDelete || userToDelete.role === "admin") {
+        return res.status(400).json({ message: "Cannot delete admin account" });
       }
-      
-      await storage.updateChatTitle(chatId, title);
+
+      // Delete all user's chats first
+      const userChats = await storage.getUserChats(userIdToDelete, true);
+      for (const chat of userChats) {
+        await storage.deleteChat(chat.id, userIdToDelete, true);
+      }
+
+      // Delete the user
+      await storage.deleteUser(userIdToDelete);
+
       res.json({ success: true });
     } catch (error) {
-      log(`Error updating chat title: ${error}`);
-      res.status(500).json({ 
-        success: false, 
-        message: "更新标题失败，请稍后重试" 
+      log(`Error deleting user: ${error}`);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Password change endpoint
+  app.post("/api/change-password", async (req, res) => {
+    try {
+      const { userId, currentPassword, newPassword } = req.body;
+
+      // Get user and verify current password
+      const user = await storage.getUser(userId);
+      if (!user || user.password !== currentPassword) {
+        return res.status(401).json({
+          success: false,
+          message: "当前密码错误"
+        });
+      }
+
+      // Update password
+      await storage.updateUserPassword(userId, newPassword);
+      res.json({ success: true });
+    } catch (error) {
+      log(`Password change error: ${error}`);
+      res.status(500).json({
+        success: false,
+        message: "修改密码失败，请稍后重试"
       });
     }
   });
+
 
   // Chat message route
   app.post("/api/chat", async (req, res) => {
@@ -337,38 +351,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Serve uploaded files
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-
-  app.get("/api/users", async (req, res) => {
-    try {
-      // Check if the requester is admin
-      const userId = req.query.userId;
-      const user = await storage.getUser(Number(userId));
-
-      if (!user || user.role !== "admin") {
-        return res.status(403).json({ message: "Permission denied" });
-      }
-
-      // Get all users with their stats
-      const users = await storage.getAllUsers();
-      const usersWithStats = await Promise.all(
-        users
-          .filter(user => user.role !== "admin") // 排除管理员用户
-          .map(async (user) => {
-            const chats = await storage.getUserChats(user.id, true);
-            return {
-              ...user,
-              chatCount: chats.length,
-              lastActive: chats[0]?.createdAt || null
-            };
-          })
-      );
-
-      res.json(usersWithStats);
-    } catch (error) {
-      log(`Error fetching users: ${error}`);
-      res.status(500).json({ message: "Failed to fetch users" });
-    }
-  });
 
 
   // 临时管理员角色修复端点
