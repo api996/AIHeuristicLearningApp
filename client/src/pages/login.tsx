@@ -33,23 +33,10 @@ export default function Login() {
     }
   }, [setLocation]);
 
-  useEffect(() => {
-    // Load Turnstile script
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-
-    return () => {
-      document.head.removeChild(script);
-    };
-  }, []);
-
-  // Monitor Turnstile load status
+  // 监控 Turnstile 脚本加载状态
   useEffect(() => {
     const checkTurnstileLoaded = setInterval(() => {
-      if (window.grecaptcha) { // Assuming grecaptcha is available after Turnstile loads
+      if (window.grecaptcha) {
         setTurnstileLoaded(true);
         clearInterval(checkTurnstileLoaded);
       }
@@ -58,8 +45,26 @@ export default function Login() {
     return () => clearInterval(checkTurnstileLoaded);
   }, []);
 
+  // 加载 Turnstile 脚本
   useEffect(() => {
-    // Set Turnstile callback
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+
+    script.onerror = () => {
+      console.error("Failed to load Turnstile script");
+      setError("验证组件加载失败，请刷新页面重试");
+    };
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
+
+  // Set Turnstile callback
+  useEffect(() => {
     window.onTurnstileSuccess = (token: string) => {
       console.log("Turnstile verification successful");
       setTurnstileToken(token);
@@ -74,20 +79,20 @@ export default function Login() {
     try {
       // Form validation
       if (!username || !password) {
-        throw new Error("Please fill in username and password");
+        throw new Error("请填写用户名和密码");
       }
 
       if (!turnstileToken) {
-        throw new Error("Please complete the CAPTCHA");
+        throw new Error("请完成人机验证");
       }
 
       if (isRegistering && password !== confirmPassword) {
-        throw new Error("Passwords do not match");
+        throw new Error("两次输入的密码不一致");
       }
 
       // Send login/register request
       const endpoint = isRegistering ? "/api/register" : "/api/login";
-      console.log(`Attempting to ${isRegistering ? 'register' : 'login'} user: ${username}`);
+      console.log(`尝试${isRegistering ? '注册' : '登录'}用户: ${username}`);
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -98,11 +103,11 @@ export default function Login() {
       });
 
       const data = await response.json();
-      console.log("Server response:", data);
+      console.log("服务器响应:", data);
 
       if (response.ok) {
         if (!data.userId) {
-          setError('Server returned an invalid user ID');
+          setError('服务器返回的用户ID无效');
           return;
         }
 
@@ -111,12 +116,12 @@ export default function Login() {
           role: data.role || 'user',
         };
 
-        console.log('Saving user data:', userData);
+        console.log('保存用户数据:', userData);
         localStorage.setItem('user', JSON.stringify(userData));
 
         // 确认存储成功
         const savedData = localStorage.getItem('user');
-        console.log('Saved user data:', savedData);
+        console.log('已保存的用户数据:', savedData);
 
         if (data.role === "admin") {
           setLocation("/admin");
@@ -124,20 +129,18 @@ export default function Login() {
           setLocation("/");
         }
       } else {
-        setError(data.message || "Authentication failed");
+        setError(data.message || "认证失败");
         if (turnstileRef.current) {
           // Reset CAPTCHA if failed
-          // Assuming a reset method is available on the turnstile element.  This might need adjustment based on the specific Turnstile implementation.
-          turnstileRef.current.reset();
+          window.grecaptcha?.reset();
         }
-
       }
     } catch (error) {
-      console.error("Authentication error:", error);
-      setError(error instanceof Error ? error.message : "Operation failed, please try again later");
+      console.error("认证错误:", error);
+      setError(error instanceof Error ? error.message : "操作失败，请稍后重试");
       // Reset CAPTCHA if failed
       if (turnstileRef.current) {
-        turnstileRef.current.reset();
+        window.grecaptcha?.reset();
       }
     } finally {
       setIsLoading(false);
@@ -146,7 +149,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-black flex">
-      {/* Left - App Introduction */}
+      {/* 左侧 - 应用介绍 */}
       <div className="hidden lg:flex lg:w-1/2 bg-neutral-900 flex-col justify-center px-12">
         <div className="space-y-6">
           <h1 className="text-4xl font-bold text-white">
@@ -193,12 +196,12 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right - Login Form */}
+      {/* 右侧 - 登录表单 */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <Card className="w-[400px] bg-neutral-900 text-white border-neutral-800">
           <CardHeader>
             <CardTitle className="text-2xl text-center">
-              {isRegistering ? "Create Account" : "Welcome Back"}
+              {isRegistering ? "创建账号" : "欢迎回来"}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -248,7 +251,9 @@ export default function Login() {
                     data-callback="onTurnstileSuccess"
                   ></div>
                 ) : (
-                  <div className="text-neutral-400">加载验证组件中...</div>
+                  <div className="text-neutral-400 p-4 bg-neutral-800 rounded-lg">
+                    正在加载验证组件...
+                  </div>
                 )}
               </div>
 
@@ -256,8 +261,12 @@ export default function Login() {
                 <div className="text-red-500 text-sm text-center">{error}</div>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Processing..." : (isRegistering ? "Register" : "Login")}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || !turnstileLoaded}
+              >
+                {isLoading ? "处理中..." : (isRegistering ? "注册" : "登录")}
               </Button>
 
               <div className="text-center">
