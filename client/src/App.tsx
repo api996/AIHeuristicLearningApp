@@ -6,6 +6,7 @@ import Home from "@/pages/home";
 import Login from "@/pages/login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import UserDetails from "@/pages/user-details";
+import ChatDetails from "@/pages/chat-details";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/users/:id" component={UserDetails} />
+      <Route path="/admin/chats/:id" component={ChatDetails} />
       <Route component={NotFound} />
     </Switch>
   );
