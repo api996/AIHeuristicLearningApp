@@ -319,7 +319,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve uploaded files
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-  // User statistics endpoint
   app.get("/api/users", async (req, res) => {
     try {
       // Check if the requester is admin
@@ -333,14 +332,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all users with their stats
       const users = await storage.getAllUsers();
       const usersWithStats = await Promise.all(
-        users.map(async (user) => {
-          const chats = await storage.getUserChats(user.id, true);
-          return {
-            ...user,
-            chatCount: chats.length,
-            lastActive: chats[0]?.createdAt || null
-          };
-        })
+        users
+          .filter(user => user.role !== "admin") // 排除管理员用户
+          .map(async (user) => {
+            const chats = await storage.getUserChats(user.id, true);
+            return {
+              ...user,
+              chatCount: chats.length,
+              lastActive: chats[0]?.createdAt || null
+            };
+          })
       );
 
       res.json(usersWithStats);

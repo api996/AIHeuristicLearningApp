@@ -13,7 +13,7 @@ export interface IStorage {
 
   // Chat methods
   createChat(userId: number, title: string, model: string): Promise<Chat>;
-  getUserChats(userId: number, isAdmin: boolean): Promise<Chat[]>;
+  getUserChats(userId: number, isAdmin: boolean): Promise<(Chat & { username?: string })[]>;
   deleteChat(chatId: number, userId: number, isAdmin: boolean): Promise<void>;
   getChatById(chatId: number, userId: number, isAdmin: boolean): Promise<Chat | undefined>;
 
@@ -94,7 +94,7 @@ export class DatabaseStorage implements IStorage {
   async getUserChats(userId: number, isAdmin: boolean): Promise<(Chat & { username?: string })[]> {
     try {
       if (isAdmin) {
-        // Admin can see all users' chats with usernames
+        // Admin can see all users' chats with usernames, except admin's chats
         return await db.select({
             id: chats.id,
             userId: chats.userId,
@@ -105,6 +105,7 @@ export class DatabaseStorage implements IStorage {
           })
           .from(chats)
           .leftJoin(users, eq(chats.userId, users.id))
+          .where(ne(chats.userId, 1)) // 排除管理员(ID=1)的聊天记录
           .orderBy(desc(chats.createdAt));
       } else {
         // Regular users can only see their own chats
