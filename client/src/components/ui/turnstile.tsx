@@ -27,12 +27,13 @@ export function TurnstileWidget({ onVerify, onError }: TurnstileProps) {
     if (!siteKey) {
       console.error('[Turnstile] Missing site key');
       setError('Configuration error: Missing site key');
+      setIsLoading(false);
       return;
     }
 
     // 避免重复加载脚本
     if (scriptLoadAttempted.current) {
-      console.warn('[Turnstile] Script load already attempted');
+      console.warn('[Turnstile] Script load already attempted, skipping');
       return;
     }
 
@@ -42,47 +43,79 @@ export function TurnstileWidget({ onVerify, onError }: TurnstileProps) {
     // 检查脚本是否已经加载
     const existingScript = document.querySelector('script[src*="turnstile"]');
     if (existingScript) {
-      console.warn('[Turnstile] Script already exists, checking if widget can be rendered');
-      if (window.turnstile) {
-        initializeWidget(siteKey);
-      }
+      console.warn('[Turnstile] Script already exists, waiting for turnstile object');
+
+      // 等待turnstile对象
+      const checkTurnstile = setInterval(() => {
+        if (window.turnstile) {
+          clearInterval(checkTurnstile);
+          initializeWidget(siteKey);
+        }
+      }, 100);
+
+      // 设置超时
+      setTimeout(() => {
+        clearInterval(checkTurnstile);
+        if (!window.turnstile) {
+          console.error('[Turnstile] Timeout waiting for turnstile object');
+          setError('Failed to initialize verification component');
+          setIsLoading(false);
+        }
+      }, 5000);
+
       return;
     }
 
     function initializeWidget(siteKey: string) {
       console.log('[Turnstile] Initializing widget');
       try {
-        if (widgetRef.current && window.turnstile) {
-          widgetId.current = window.turnstile.render(widgetRef.current, {
-            sitekey: siteKey,
-            theme: 'dark',
-            callback: (token: string) => {
-              console.log('[Turnstile] Verification successful');
-              onVerify(token);
-            },
-            'error-callback': (error: any) => {
-              console.error('[Turnstile] Widget error:', error);
-              const err = new Error('Verification failed');
-              setError(err.message);
-              if (onError) onError(err);
-            }
-          });
-          setIsLoading(false);
-          console.log('[Turnstile] Widget initialized, ID:', widgetId.current);
-        } else {
-          console.error('[Turnstile] Failed to initialize: DOM element or turnstile not ready');
+        if (!widgetRef.current) {
+          console.error('[Turnstile] Widget reference not found');
           setError('Failed to initialize verification');
+          setIsLoading(false);
+          return;
         }
+
+        if (!window.turnstile) {
+          console.error('[Turnstile] Turnstile object not available');
+          setError('Failed to initialize verification');
+          setIsLoading(false);
+          return;
+        }
+
+        widgetId.current = window.turnstile.render(widgetRef.current, {
+          sitekey: siteKey,
+          theme: 'dark',
+          callback: (token: string) => {
+            console.log('[Turnstile] Verification successful');
+            onVerify(token);
+          },
+          'error-callback': (error: any) => {
+            console.error('[Turnstile] Widget error:', error);
+            setError('Verification failed');
+            if (onError) onError(error);
+          },
+          'expired-callback': () => {
+            console.warn('[Turnstile] Challenge expired, refreshing');
+            if (widgetId.current) {
+              window.turnstile.reset(widgetId.current);
+            }
+          }
+        });
+
+        console.log('[Turnstile] Widget initialized with ID:', widgetId.current);
+        setIsLoading(false);
       } catch (error) {
         console.error('[Turnstile] Initialization error:', error);
         setError('Failed to initialize verification');
+        setIsLoading(false);
         if (onError) onError(error);
       }
     }
 
     // 加载Turnstile脚本
     const script = document.createElement('script');
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad';
     script.async = true;
     script.defer = true;
 
@@ -108,24 +141,35 @@ export function TurnstileWidget({ onVerify, onError }: TurnstileProps) {
       if (widgetId.current && window.turnstile) {
         window.turnstile.remove(widgetId.current);
       }
-      document.body.removeChild(script);
-      delete window.onTurnstileLoad;
+
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+
+      // 清理全局处理程序
+      const temp = window.onTurnstileLoad;
+      window.onTurnstileLoad = undefined;
+      if (temp === window.onTurnstileLoad) {
+        delete window.onTurnstileLoad;
+      }
+
       scriptLoadAttempted.current = false;
+      console.log('[Turnstile] Cleanup completed');
     };
   }, [onVerify, onError]);
 
   if (error) {
-    return <div className="text-red-500 text-sm">{error}</div>;
+    return <div className="text-red-500 text-sm text-center">{error}</div>;
   }
 
   return (
-    <div className="relative">
+    <div className="relative flex justify-center">
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-900 bg-opacity-50">
           <span className="text-sm text-neutral-400">加载验证组件中...</span>
         </div>
       )}
-      <div ref={widgetRef} />
+      <div ref={widgetRef} className="turnstile-container" />
     </div>
   );
 }
