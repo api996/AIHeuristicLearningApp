@@ -11,6 +11,12 @@ import fetch from "node-fetch";
 
 async function verifyTurnstileToken(token: string): Promise<boolean> {
   try {
+    // 在开发环境中跳过验证
+    if (process.env.NODE_ENV === 'development') {
+      log(`开发环境：跳过 Turnstile 验证`);
+      return true;
+    }
+
     log(`Verifying Turnstile token...`);
     const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',

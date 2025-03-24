@@ -18,9 +18,9 @@ export default function Login() {
 
   useEffect(() => {
     // 检查是否已登录
-    const user = localStorage.getItem("user");
-    if (user) {
-      const userData = JSON.parse(user);
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const userData = JSON.parse(userStr);
       if (userData.role === 'admin') {
         setLocation("/admin");
       } else {
@@ -31,22 +31,23 @@ export default function Login() {
 
   useEffect(() => {
     // 加载 Turnstile 脚本
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
+    if (process.env.NODE_ENV !== 'development') {
+      const script = document.createElement("script");
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
 
-    return () => {
-      document.head.removeChild(script);
-    };
+      return () => {
+        document.head.removeChild(script);
+      };
+    }
   }, []);
 
   // 设置 Turnstile 回调
   useEffect(() => {
     // @ts-ignore
     window.onTurnstileSuccess = (token: string) => {
-      console.log("Turnstile 验证成功");
       setTurnstileToken(token);
     };
   }, []);
@@ -62,7 +63,7 @@ export default function Login() {
         throw new Error("请填写用户名和密码");
       }
 
-      if (!turnstileToken) {
+      if (!turnstileToken && process.env.NODE_ENV !== 'development') {
         throw new Error("请完成人机验证");
       }
 
@@ -72,8 +73,6 @@ export default function Login() {
 
       // 发送登录/注册请求
       const endpoint = isRegistering ? "/api/register" : "/api/login";
-      console.log(`尝试${isRegistering ? '注册' : '登录'}用户: ${username}`);
-
       const response = await apiRequest("POST", endpoint, {
         username,
         password,
@@ -81,7 +80,6 @@ export default function Login() {
       });
 
       const data = await response.json();
-      console.log("服务器响应:", data);
 
       if (data.success) {
         localStorage.setItem("user", JSON.stringify({
@@ -201,14 +199,16 @@ export default function Login() {
                 </div>
               )}
 
-              {/* 显式的Turnstile容器 */}
-              <div 
-                id="turnstile-container" 
-                className="cf-turnstile mt-4 flex justify-center"
-                data-sitekey={import.meta.env.DEV ? "1x00000000000000000000AA" : import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                data-callback="onTurnstileSuccess"
-              ></div>
-              {import.meta.env.DEV && (
+              {/* 修改 Turnstile 容器配置 */}
+              {process.env.NODE_ENV !== 'development' && (
+                <div 
+                  id="turnstile-container" 
+                  className="cf-turnstile mt-4 flex justify-center"
+                  data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                  data-callback="onTurnstileSuccess"
+                ></div>
+              )}
+              {process.env.NODE_ENV === 'development' && (
                 <div className="text-xs text-green-500 mt-1 text-center">
                   ⚠️ 开发环境中：人机验证已自动通过
                 </div>
