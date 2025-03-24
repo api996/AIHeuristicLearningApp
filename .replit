@@ -13,6 +13,9 @@ run = ["sh", "-c", "npm run dev"]
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 5001
+
 [workflows]
 runButton = "重启并检查环境变量"
 
