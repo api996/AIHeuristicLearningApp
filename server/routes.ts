@@ -351,10 +351,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  const httpServer = createServer(app);
-  return httpServer;
-}
-
   // 临时管理员角色修复端点
   app.get("/api/fix-admin", async (req, res) => {
     try {
@@ -378,3 +374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
