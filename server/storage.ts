@@ -1,6 +1,6 @@
 import { users, type User, type InsertUser, chats, messages, type Chat, type Message } from "@shared/schema";
 import { db } from "./db";
-import { eq, ne, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
 import { log } from "./vite";
 
 export interface IStorage {
@@ -94,7 +94,7 @@ export class DatabaseStorage implements IStorage {
   async getUserChats(userId: number, isAdmin: boolean): Promise<(Chat & { username?: string })[]> {
     try {
       if (isAdmin) {
-        // Admin can see all chats with usernames, excluding their own
+        // Admin can see all chats with usernames
         return await db.select({
             id: chats.id,
             userId: chats.userId,
@@ -105,7 +105,6 @@ export class DatabaseStorage implements IStorage {
           })
           .from(chats)
           .leftJoin(users, eq(chats.userId, users.id))
-          .where(ne(chats.userId, userId))
           .orderBy(desc(chats.createdAt));
       } else {
         // Regular users can only see their own chats
