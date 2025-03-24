@@ -114,13 +114,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chat routes
   app.get("/api/chats", async (req, res) => {
     try {
-      const { userId, role } = req.query;
+      const { userId, role, allUsers } = req.query;
       // 更严格的用户ID验证
       if (!userId || isNaN(Number(userId)) || Number(userId) <= 0) {
         log(`Invalid user ID in request: ${userId}`);
         return res.status(401).json({ message: "Invalid user ID" });
       }
       const isAdmin = role === "admin";
+      
+      // 管理员可以获取所有用户的聊天记录
+      if (isAdmin && allUsers === "true") {
+        log(`管理员获取所有聊天记录`);
+        const allChats = await storage.getAllChats();
+        return res.json(allChats);
+      }
+      
       // 如果是管理员，则获取请求中指定的用户的聊天记录
       // 如果是普通用户，则获取自己的聊天记录
       const targetUserId = Number(userId);

@@ -205,9 +205,14 @@ export default function Login() {
               <div 
                 id="turnstile-container" 
                 className="cf-turnstile mt-4 flex justify-center"
-                data-sitekey="1x00000000000000000000AA"
+                data-sitekey={import.meta.env.DEV ? "1x00000000000000000000AA" : import.meta.env.VITE_TURNSTILE_SITE_KEY}
                 data-callback="onTurnstileSuccess"
               ></div>
+              {import.meta.env.DEV && (
+                <div className="text-xs text-green-500 mt-1 text-center">
+                  ⚠️ 开发环境中：人机验证已自动通过
+                </div>
+              )}
 
               {error && (
                 <div className="text-red-500 text-sm text-center">{error}</div>
