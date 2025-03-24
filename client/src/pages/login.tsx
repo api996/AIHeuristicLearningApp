@@ -18,14 +18,16 @@ export default function Login() {
 
   useEffect(() => {
     // 检查是否已登录
-    const user = localStorage.getItem("user");
-    if (user) {
-      const userData = JSON.parse(user);
-      if (userData.role === 'admin') {
-        setLocation("/admin");
-      } else {
-        setLocation("/");
-      }
+    const userStr = localStorage.getItem("user");
+    if (!userStr) {
+      return;
+    }
+
+    const user = JSON.parse(userStr);
+    if (user.role === "admin") {
+      setLocation("/admin");
+    } else {
+      setLocation("/");
     }
   }, [setLocation]);
 

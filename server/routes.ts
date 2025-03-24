@@ -12,6 +12,11 @@ import fetch from "node-fetch";
 async function verifyTurnstileToken(token: string): Promise<boolean> {
   try {
     log(`Verifying Turnstile token...`);
+    if (!process.env.TURNSTILE_SECRET_KEY) {
+      log(`Error: TURNSTILE_SECRET_KEY is not set`);
+      return false;
+    }
+
     const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: {
