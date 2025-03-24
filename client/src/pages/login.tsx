@@ -247,12 +247,18 @@ export default function Login() {
                   <div
                     ref={turnstileRef}
                     className="cf-turnstile"
-                    data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                    data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
                     data-callback="onTurnstileSuccess"
+                    data-theme="dark"
                   ></div>
                 ) : (
                   <div className="text-neutral-400 p-4 bg-neutral-800 rounded-lg">
                     正在加载验证组件...
+                    {!import.meta.env.VITE_TURNSTILE_SITE_KEY && (
+                      <p className="text-yellow-500 text-xs mt-2">
+                        注意: 未设置VITE_TURNSTILE_SITE_KEY环境变量
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

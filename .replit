@@ -14,7 +14,7 @@ localPort = 5000
 externalPort = 80
 
 [workflows]
-runButton = "修复用户认证问题"
+runButton = "重启并检查环境变量"
 
 [[workflows.workflow]]
 name = "Project"
@@ -188,6 +188,31 @@ args = "pkill -f \"tsx server/index.ts\" || true"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+
+[[workflows.workflow]]
+name = "重启并检查环境变量"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"tsx server/index.ts\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"正在检查环境变量...\""
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "env | grep -E \"TURNSTILE|VITE\""
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
