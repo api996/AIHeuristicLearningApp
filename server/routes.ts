@@ -247,6 +247,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Please login first" });
       }
 
+      // 如果是新创建的聊天，可能没有chatId，这种情况直接在内存中处理
+      if (!chatId) {
+        log(`处理无chatId的临时消息: ${message}`);
+        
+        if (model) {
+          try {
+            chatService.setModel(model);
+          } catch (error) {
+            return res.status(400).json({
+              message: "Invalid model selected",
+              error: error instanceof Error ? error.message : String(error)
+            });
+          }
+        }
+        
+        const response = await chatService.sendMessage(message);
+        return res.json(response);
+      }
+
       const isAdmin = role === "admin";
       const chat = await storage.getChatById(chatId, Number(userId), isAdmin);
       if (!chat) {
