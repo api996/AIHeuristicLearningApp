@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TurnstileWidget } from "@/components/ui/turnstile";
 import { apiRequest } from "@/lib/queryClient";
 
 export default function Login() {
@@ -12,6 +13,8 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string>();
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     const user = localStorage.getItem("user");
@@ -29,26 +32,49 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
-    if (isRegistering && password !== confirmPassword) {
-      setError("密码不匹配");
-      return;
-    }
-
     try {
+      console.log('[Login] Starting authentication process');
+
+      if (!turnstileToken) {
+        setError("请完成人机验证");
+        console.log('[Login] Missing turnstile token');
+        return;
+      }
+
+      if (isRegistering && password !== confirmPassword) {
+        setError("密码不匹配");
+        return;
+      }
+
+      setIsVerifying(true);
+      console.log('[Login] Verifying turnstile token');
+
+      // First verify the turnstile token
+      const verifyResponse = await apiRequest("POST", "/api/verify-turnstile", {
+        token: turnstileToken
+      });
+
+      const verifyData = await verifyResponse.json();
+      if (!verifyData.success) {
+        setError("人机验证失败，请重试");
+        console.log('[Login] Turnstile verification failed:', verifyData.message);
+        return;
+      }
+
+      console.log('[Login] Turnstile verification successful, proceeding with authentication');
+
+      // Then proceed with login/registration
       const endpoint = isRegistering ? "/api/register" : "/api/login";
       const response = await apiRequest("POST", endpoint, { username, password });
       const data = await response.json();
 
       if (data.success) {
-        console.log("登录成功，用户信息:", data);
+        console.log('[Login] Authentication successful:', data);
         localStorage.setItem("user", JSON.stringify({ 
           userId: data.userId,
           role: data.role 
         }));
-        
-        console.log("登录成功，用户信息:", data);
 
-        // Redirect admin users to dashboard, others to home
         if (data.role === "admin") {
           setLocation("/admin");
         } else {
@@ -56,10 +82,13 @@ export default function Login() {
         }
       } else {
         setError(data.message || "认证失败");
+        console.log('[Login] Authentication failed:', data.message);
       }
     } catch (error) {
+      console.error('[Login] Error during authentication:', error);
       setError("操作失败，请稍后重试");
-      console.error("Auth error:", error);
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -102,12 +131,26 @@ export default function Login() {
                 />
               </div>
             )}
+
+            <div className="space-y-2">
+              <TurnstileWidget 
+                onVerify={setTurnstileToken}
+                onError={() => setError("人机验证加载失败，请刷新页面重试")}
+              />
+            </div>
+
             {error && (
               <div className="text-red-500 text-sm text-center">{error}</div>
             )}
-            <Button type="submit" className="w-full">
-              {isRegistering ? "注册" : "登录"}
+
+            <Button 
+              type="submit" 
+              className="w-full"
+              disabled={isVerifying || !turnstileToken}
+            >
+              {isVerifying ? "验证中..." : (isRegistering ? "注册" : "登录")}
             </Button>
+
             <div className="text-center">
               <Button
                 type="button"
