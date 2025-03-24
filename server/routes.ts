@@ -7,6 +7,7 @@ import { Buffer } from "buffer";
 import path from "path";
 import fs from "fs";
 import express from 'express';
+import { verifyTurnstileToken } from './services/turnstile';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
@@ -373,6 +374,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false, 
         message: "角色修复失败" 
+      });
+    }
+  });
+
+  // Add this route handler inside the registerRoutes function
+  app.post("/api/verify-turnstile", async (req, res) => {
+    try {
+      const { token } = req.body;
+
+      if (!token) {
+        log('[Turnstile] Missing token in request');
+        return res.status(400).json({ 
+          success: false, 
+          message: "Missing verification token" 
+        });
+      }
+
+      const isValid = await verifyTurnstileToken(token);
+
+      if (!isValid) {
+        log('[Turnstile] Invalid token');
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid verification token" 
+        });
+      }
+
+      log('[Turnstile] Token verified successfully');
+      res.json({ success: true });
+    } catch (error) {
+      log(`[Turnstile] Verification error: ${error}`);
+      res.status(500).json({ 
+        success: false, 
+        message: "验证失败，请稍后重试" 
       });
     }
   });
