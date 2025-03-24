@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare, Brain, Shield } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
-
 export default function Login() {
   const [, setLocation] = useLocation();
   const [isRegistering, setIsRegistering] = useState(false);
@@ -19,17 +18,18 @@ export default function Login() {
   const [turnstileLoaded, setTurnstileLoaded] = useState(false);
   const turnstileRef = useRef<HTMLDivElement>(null);
 
-
   useEffect(() => {
     // Check if already logged in
     const userStr = localStorage.getItem("user");
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      if (user.role === "admin") {
-        setLocation("/admin");
-      } else {
-        setLocation("/");
-      }
+    if (!userStr) {
+      return;
+    }
+
+    const user = JSON.parse(userStr);
+    if (user.role === "admin") {
+      setLocation("/admin");
+    } else {
+      setLocation("/");
     }
   }, [setLocation]);
 
@@ -240,12 +240,16 @@ export default function Login() {
               )}
 
               <div className="flex justify-center my-4">
-                <div
-                  ref={turnstileRef}
-                  className="cf-turnstile"
-                  data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                  data-callback="onTurnstileSuccess"
-                ></div>
+                {turnstileLoaded ? (
+                  <div
+                    ref={turnstileRef}
+                    className="cf-turnstile"
+                    data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                    data-callback="onTurnstileSuccess"
+                  ></div>
+                ) : (
+                  <div className="text-neutral-400">加载验证组件中...</div>
+                )}
               </div>
 
               {error && (
