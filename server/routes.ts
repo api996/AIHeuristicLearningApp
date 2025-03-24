@@ -11,6 +11,7 @@ import fetch from "node-fetch";
 
 async function verifyTurnstileToken(token: string): Promise<boolean> {
   try {
+    log(`Verifying Turnstile token...`);
     const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: {
@@ -23,9 +24,10 @@ async function verifyTurnstileToken(token: string): Promise<boolean> {
     });
 
     const data = await response.json();
+    log(`Turnstile verification result: ${JSON.stringify(data)}`);
     return data.success === true;
   } catch (error) {
-    console.error('Turnstile verification error:', error);
+    log(`Turnstile verification error: ${error}`);
     return false;
   }
 }
@@ -35,9 +37,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/register", async (req, res) => {
     try {
       const { username, password, turnstileToken } = req.body;
+      log(`Registering user: ${username}`);
 
       // Verify Turnstile token
       if (!await verifyTurnstileToken(turnstileToken)) {
+        log(`人机验证失败: ${username}`);
         return res.status(400).json({
           success: false,
           message: "人机验证失败"
@@ -47,6 +51,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if username already exists
       const existingUser = await storage.getUserByUsername(username);
       if (existingUser) {
+        log(`用户名已存在: ${username}`);
         return res.status(400).json({ 
           success: false, 
           message: "用户名已存在" 
@@ -55,6 +60,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create new user
       const user = await storage.createUser({ username, password });
+      log(`User registered successfully: ${username}, ID: ${user.id}`);
       res.json({ success: true, userId: user.id });
     } catch (error) {
       log(`Registration error: ${error}`);
@@ -68,9 +74,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/login", async (req, res) => {
     try {
       const { username, password, turnstileToken } = req.body;
+      log(`Login attempt for user: ${username}`);
 
       // Verify Turnstile token
       if (!await verifyTurnstileToken(turnstileToken)) {
+        log(`人机验证失败: ${username}`);
         return res.status(400).json({
           success: false,
           message: "人机验证失败"
@@ -78,14 +86,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = await storage.getUserByUsername(username);
+      log(`User lookup result: ${user ? 'found' : 'not found'}`);
 
       if (user && user.password === password) {
+        log(`Login successful: ${username}, ID: ${user.id}, Role: ${user.role}`);
         res.json({ 
           success: true, 
           userId: user.id, 
           role: user.role 
         });
       } else {
+        log(`Login failed: Invalid credentials for ${username}`);
         res.status(401).json({ 
           success: false, 
           message: "用户名或密码错误" 
