@@ -13,7 +13,16 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+
+  // 在组件加载时检查Turnstile密钥
+  useEffect(() => {
+    console.log("Turnstile密钥检查:", 
+      import.meta.env.VITE_TURNSTILE_SITE_KEY ? 
+      "前端成功获取到密钥!" : 
+      "前端未获取到密钥!");
+  }, []);
+
   const [isLoading, setIsLoading] = useState(false);
   const [turnstileLoaded, setTurnstileLoaded] = useState(false);
   const turnstileRef = useRef<HTMLDivElement>(null);
