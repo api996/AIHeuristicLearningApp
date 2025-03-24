@@ -47,15 +47,9 @@ export default function Login() {
   const [turnstileLoaded, setTurnstileLoaded] = useState(false);
   const turnstileRef = useRef<HTMLDivElement>(null);
 
-  // 修复Turnstile加载问题
+  // 检查登录状态
   useEffect(() => {
-    // 移除之前可能存在的脚本，避免重复加载
-    const existingScript = document.querySelector('script[src*="turnstile"]');
-    if (existingScript) {
-      existingScript.remove();
-    }
-    
-    // 检查是否已经登录ogged in
+    // 检查是否已经登录
     const userStr = localStorage.getItem("user");
     if (!userStr) {
       return;
@@ -69,56 +63,54 @@ export default function Login() {
     }
   }, [setLocation]);
 
-  // 监控 Turnstile 脚本加载状态
+  // 统一处理Turnstile加载和回调
   useEffect(() => {
-    const checkTurnstileLoaded = setInterval(() => {
-      if (window.grecaptcha) {
-        setTurnstileLoaded(true);
-        clearInterval(checkTurnstileLoaded);
-      }
-    }, 500);
-
-    return () => clearInterval(checkTurnstileLoaded);
-  }, []);
-
-  // 加载 Turnstile 脚本
-  useEffect(() => {
+    // 先移除所有已存在的Turnstile脚本
+    document.querySelectorAll('script[src*="turnstile"]').forEach(el => el.remove());
+    
     // 添加全局回调函数
     window.onTurnstileSuccess = (token: string) => {
       console.log("Turnstile验证成功，获取到令牌:", token.slice(0, 10) + "...");
       setTurnstileToken(token);
     };
     
+    // 确认密钥存在
+    const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+    console.log("Turnstile站点密钥:", siteKey || "未设置");
+    
+    if (!siteKey && import.meta.env.DEV) {
+      console.log("开发环境: 未设置密钥，使用DEV_BYPASS_TOKEN");
+      setTurnstileToken("DEV_BYPASS_TOKEN");
+      return;
+    }
+    
+    // 加载Turnstile脚本
     const script = document.createElement("script");
     script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
     script.async = true;
     script.defer = true;
-    document.head.appendChild(script);
-
+    
+    script.onload = () => {
+      console.log("Turnstile脚本加载成功");
+      setTurnstileLoaded(true);
+    };
+    
     script.onerror = () => {
-      console.error("Failed to load Turnstile script");
+      console.error("Turnstile脚本加载失败");
       setError("验证组件加载失败，请刷新页面重试");
       
-      // 在开发环境中，如果脚本加载失败，使用DEV_BYPASS_TOKEN
       if (import.meta.env.DEV) {
         setTurnstileToken("DEV_BYPASS_TOKEN");
       }
     };
-
+    
+    document.head.appendChild(script);
+    
     return () => {
       if (document.head.contains(script)) {
         document.head.removeChild(script);
       }
-      // 清理全局回调
       delete window.onTurnstileSuccess;
-    };
-  }, []);
-
-  // Set Turnstile callback
-  useEffect(() => {
-    window.onTurnstileSuccess = (token: string) => {
-      console.log("Turnstile verification successful");
-      setTurnstileToken(token);
     };
   }, []);
 
@@ -305,7 +297,7 @@ export default function Login() {
                   <div
                     ref={turnstileRef}
                     className="cf-turnstile"
-                    data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
+                    data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                     data-callback="onTurnstileSuccess"
                     data-theme="dark"
                   ></div>
