@@ -18,16 +18,6 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
-interface ChatStats {
-  total: number;
-  today: number;
-}
-
-interface UserStats {
-  total: number;
-  active: number;
-}
-
 interface User {
   id: number;
   username: string;
@@ -52,24 +42,13 @@ export default function AdminDashboard() {
     }
   }, [setLocation]);
 
+  // 获取所有普通用户列表
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       const response = await fetch(`/api/users?userId=${user.userId}`);
       if (!response.ok) throw new Error("Failed to fetch users");
-      const allUsers = await response.json();
-      // 过滤掉管理员用户
-      return allUsers.filter((user: User) => user.role !== "admin");
-    },
-  });
-
-  const { data: chats } = useQuery({
-    queryKey: ["/api/chats"],
-    queryFn: async () => {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
-      if (!response.ok) throw new Error("Failed to fetch chats");
       return response.json();
     },
   });
@@ -123,7 +102,9 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <MessageSquare className="h-8 w-8 text-green-500" />
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-white">{chats?.length || 0}</p>
+                  <p className="text-2xl font-bold text-white">
+                    {users?.reduce((total, user) => total + (user.chatCount || 0), 0) || 0}
+                  </p>
                   <p className="text-sm text-neutral-400">总对话数</p>
                 </div>
               </div>
