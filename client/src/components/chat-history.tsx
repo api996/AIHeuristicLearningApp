@@ -24,12 +24,13 @@ export function ChatHistory({
   chats: propsChats,
   user 
 }: ChatHistoryProps) {
-  const queryClient = useQueryClient();
-
-  // 检查用户是否存在
-  if (!user) {
-    return <div className="p-4 text-center text-neutral-400">请先登录</div>;
+  // 如果用户不存在或未登录，不渲染任何内容
+  if (!user?.userId) {
+    console.log('[ChatHistory] No user found, not rendering');
+    return null;
   }
+
+  const queryClient = useQueryClient();
 
   // 使用传入的chats或从API获取
   const { data: apiChats, isLoading } = useQuery({
@@ -39,7 +40,12 @@ export function ChatHistory({
       if (!response.ok) throw new Error('Failed to fetch chats');
       return response.json();
     },
-    enabled: !propsChats && !!user.userId && user.role !== 'admin' // 只有当没有传入chats且用户已登录且不是管理员时才从API获取
+    // 关键：只有在必要时才启用查询
+    enabled: Boolean(
+      !propsChats && // 没有传入props中的chats
+      user.userId && // 用户已登录
+      user.role !== 'admin' // 不是管理员用户
+    )
   });
 
   const deleteChatMutation = useMutation({
@@ -82,6 +88,7 @@ export function ChatHistory({
 
   return (
     <div className="w-full flex flex-col h-full">
+      {/* 新对话按钮 */}
       {onNewChat && (
         <div className="p-4 border-b border-neutral-800">
           <Button 
@@ -95,6 +102,7 @@ export function ChatHistory({
         </div>
       )}
 
+      {/* 聊天记录列表 */}
       <ScrollArea className="h-[calc(100vh-180px)]">
         <div className="pr-4 p-4 space-y-2">
           {chatsToRender.map((chat) => (
