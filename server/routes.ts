@@ -11,6 +11,12 @@ import fetch from "node-fetch";
 
 async function verifyTurnstileToken(token: string): Promise<boolean> {
   try {
+    // 在开发环境中跳过验证
+    if (process.env.NODE_ENV === 'development') {
+      log(`开发环境：跳过 Turnstile 验证`);
+      return true;
+    }
+
     log(`Verifying Turnstile token...`);
     const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
@@ -39,8 +45,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { username, password, turnstileToken } = req.body;
       log(`Registering user: ${username}`);
 
-      // Verify Turnstile token
-      if (!await verifyTurnstileToken(turnstileToken)) {
+      // 在开发环境中跳过验证，在生产环境中验证
+      if (process.env.NODE_ENV !== 'development' && !await verifyTurnstileToken(turnstileToken)) {
         log(`人机验证失败: ${username}`);
         return res.status(400).json({
           success: false,
@@ -76,8 +82,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { username, password, turnstileToken } = req.body;
       log(`Login attempt for user: ${username}`);
 
-      // Verify Turnstile token
-      if (!await verifyTurnstileToken(turnstileToken)) {
+      // 在开发环境中跳过验证，在生产环境中验证
+      if (process.env.NODE_ENV !== 'development' && !await verifyTurnstileToken(turnstileToken)) {
         log(`人机验证失败: ${username}`);
         return res.status(400).json({
           success: false,
@@ -114,11 +120,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chat routes
   app.get("/api/chats", async (req, res) => {
     try {
-      const { userId, role } = req.query;
-      if (!userId || isNaN(Number(userId))) {
+      const { userId, role, allUsers } = req.query;
+      // 更严格的用户ID验证
+      if (!userId || isNaN(Number(userId)) || Number(userId) <= 0) {
+        log(`Invalid user ID in request: ${userId}`);
         return res.status(401).json({ message: "Invalid user ID" });
       }
       const isAdmin = role === "admin";
+      
+      // 管理员可以获取所有用户的聊天记录
+      if (isAdmin && allUsers === "true") {
+        log(`管理员获取所有聊天记录`);
+        const allChats = await storage.getAllChats();
+        return res.json(allChats);
+      }
+      
       // 如果是管理员，则获取请求中指定的用户的聊天记录
       // 如果是普通用户，则获取自己的聊天记录
       const targetUserId = Number(userId);
@@ -291,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 如果是新创建的聊天，可能没有chatId，这种情况直接在内存中处理
       if (!chatId) {
         log(`处理无chatId的临时消息: ${message}`);
-        
+
         if (model) {
           try {
             chatService.setModel(model);
@@ -302,7 +318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
         }
-        
+
         const response = await chatService.sendMessage(message);
         return res.json(response);
       }
@@ -385,11 +401,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // 直接将ID为1的用户设置为管理员
       await storage.updateUserRole(1, "admin");
-      
+
       // 打印确认信息
       const user = await storage.getUser(1);
       console.log(`用户ID 1 角色已更新为: ${user?.role}`);
-      
+
       res.json({ 
         success: true, 
         message: "管理员角色已修复",

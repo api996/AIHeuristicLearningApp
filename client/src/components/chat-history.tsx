@@ -26,8 +26,8 @@ export function ChatHistory({
 }: ChatHistoryProps) {
   const queryClient = useQueryClient();
 
-  // 检查用户是否存在
-  if (!user) {
+  // 检查用户是否存在且有效
+  if (!user || !user.userId) {
     return <div className="p-4 text-center text-neutral-400">请先登录</div>;
   }
 
