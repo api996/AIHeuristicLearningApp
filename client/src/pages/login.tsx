@@ -1,21 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, Brain, Shield } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
-
-// 扩展Window接口以包含Turnstile回调
-declare global {
-  interface Window {
-    onTurnstileSuccess: (token: string) => void;
-    grecaptcha?: {
-      render: (container: HTMLElement, config: any) => void;
-      reset: (widgetId: string) => void;
-    };
-  }
-}
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -24,155 +12,43 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [turnstileToken, setTurnstileToken] = useState("");
 
-  // 在组件加载时检查Turnstile密钥
   useEffect(() => {
-    console.log("环境变量详细检查:");
-    console.log("VITE_TURNSTILE_SITE_KEY:", import.meta.env.VITE_TURNSTILE_SITE_KEY || "未设置");
-    console.log("所有可用环境变量:", import.meta.env);
-    
-    // 检查是否在开发环境中
-    if (import.meta.env.DEV) {
-      console.log("当前在开发环境中运行");
-    }
-    
-    // 在开发环境中，如果没有设置Turnstile密钥，使用DEV_BYPASS_TOKEN
-    if (import.meta.env.DEV && !import.meta.env.VITE_TURNSTILE_SITE_KEY) {
-      setTurnstileToken("DEV_BYPASS_TOKEN");
-    }
-  }, []);
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [turnstileLoaded, setTurnstileLoaded] = useState(false);
-  const turnstileRef = useRef<HTMLDivElement>(null);
-
-  // 检查登录状态
-  useEffect(() => {
-    // 检查是否已经登录
-    const userStr = localStorage.getItem("user");
-    if (!userStr) {
-      return;
-    }
-
-    const user = JSON.parse(userStr);
-    if (user.role === "admin") {
-      setLocation("/admin");
-    } else {
-      setLocation("/");
+    const user = localStorage.getItem("user");
+    if (user) {
+      const userData = JSON.parse(user);
+      if (userData.role === 'admin') {
+        setLocation("/admin");
+      } else {
+        setLocation("/");
+      }
     }
   }, [setLocation]);
-
-  // 统一处理Turnstile加载和回调
-  useEffect(() => {
-    // 先移除所有已存在的Turnstile脚本
-    document.querySelectorAll('script[src*="turnstile"]').forEach(el => el.remove());
-    
-    // 添加全局回调函数
-    window.onTurnstileSuccess = (token: string) => {
-      console.log("Turnstile验证成功，获取到令牌:", token.slice(0, 10) + "...");
-      setTurnstileToken(token);
-    };
-    
-    // 确认密钥存在
-    const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
-    console.log("Turnstile站点密钥:", siteKey || "未设置");
-    
-    if (!siteKey && import.meta.env.DEV) {
-      console.log("开发环境: 未设置密钥，使用DEV_BYPASS_TOKEN");
-      setTurnstileToken("DEV_BYPASS_TOKEN");
-      return;
-    }
-    
-    // 加载Turnstile脚本
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-    script.async = true;
-    script.defer = true;
-    
-    script.onload = () => {
-      console.log("Turnstile脚本加载成功");
-      setTurnstileLoaded(true);
-    };
-    
-    script.onerror = () => {
-      console.error("Turnstile脚本加载失败");
-      setError("验证组件加载失败，请刷新页面重试");
-      
-      if (import.meta.env.DEV) {
-        setTurnstileToken("DEV_BYPASS_TOKEN");
-      }
-    };
-    
-    document.head.appendChild(script);
-    
-    return () => {
-      if (document.head.contains(script)) {
-        document.head.removeChild(script);
-      }
-      delete window.onTurnstileSuccess;
-    };
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
+
+    if (isRegistering && password !== confirmPassword) {
+      setError("密码不匹配");
+      return;
+    }
 
     try {
-      // Form validation
-      if (!username || !password) {
-        throw new Error("请填写用户名和密码");
-      }
-
-      // 开发环境中的Turnstile检查绕过
-      if (!turnstileToken) {
-        if (import.meta.env.DEV) {
-          console.log("开发环境: 使用DEV_BYPASS_TOKEN绕过人机验证");
-          setTurnstileToken("DEV_BYPASS_TOKEN");
-        } else {
-          console.log("环境变量检查:", import.meta.env.VITE_TURNSTILE_SITE_KEY ? "找到密钥" : "未找到密钥");
-          throw new Error("请完成人机验证");
-        }
-      }
-
-      if (isRegistering && password !== confirmPassword) {
-        throw new Error("两次输入的密码不一致");
-      }
-
-      // Send login/register request
       const endpoint = isRegistering ? "/api/register" : "/api/login";
-      console.log(`尝试${isRegistering ? '注册' : '登录'}用户: ${username}`);
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, password, turnstileToken }),
-      });
-
+      const response = await apiRequest("POST", endpoint, { username, password });
       const data = await response.json();
-      console.log("服务器响应:", data);
 
-      if (response.ok) {
-        if (!data.userId) {
-          setError('服务器返回的用户ID无效');
-          return;
-        }
-
-        const userData = {
+      if (data.success) {
+        console.log("登录成功，用户信息:", data);
+        localStorage.setItem("user", JSON.stringify({ 
           userId: data.userId,
-          role: data.role || 'user',
-        };
+          role: data.role 
+        }));
+        
+        console.log("登录成功，用户信息:", data);
 
-        console.log('保存用户数据:', userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-
-        // 确认存储成功
-        const savedData = localStorage.getItem('user');
-        console.log('已保存的用户数据:', savedData);
-
+        // Redirect admin users to dashboard, others to home
         if (data.role === "admin") {
           setLocation("/admin");
         } else {
@@ -180,166 +56,71 @@ export default function Login() {
         }
       } else {
         setError(data.message || "认证失败");
-        if (turnstileRef.current) {
-          // Reset CAPTCHA if failed
-          window.grecaptcha?.reset();
-        }
       }
     } catch (error) {
-      console.error("认证错误:", error);
-      setError(error instanceof Error ? error.message : "操作失败，请稍后重试");
-      // Reset CAPTCHA if failed
-      if (turnstileRef.current) {
-        window.grecaptcha?.reset();
-      }
-    } finally {
-      setIsLoading(false);
+      setError("操作失败，请稍后重试");
+      console.error("Auth error:", error);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black flex">
-      {/* 左侧 - 应用介绍 */}
-      <div className="hidden lg:flex lg:w-1/2 bg-neutral-900 flex-col justify-center px-12">
-        <div className="space-y-6">
-          <h1 className="text-4xl font-bold text-white">
-            AI 智能助手平台
-          </h1>
-          <p className="text-xl text-neutral-400">
-            探索多模型智能对话，体验顶尖AI技术
-          </p>
-          <div className="grid grid-cols-1 gap-4 mt-8">
-            <div className="flex items-start space-x-4">
-              <div className="p-2 bg-neutral-800 rounded-lg">
-                <Brain className="h-6 w-6 text-blue-500" />
-              </div>
-              <div>
-                <h3 className="font-medium text-white">多模型支持</h3>
-                <p className="text-sm text-neutral-400">
-                  支持多种AI模型，满足不同场景需求
-                </p>
-              </div>
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <Card className="w-[350px] bg-neutral-900 text-white border-neutral-800">
+        <CardHeader>
+          <CardTitle className="text-center">
+            {isRegistering ? "注册" : "登录"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm">用户名</label>
+              <Input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="bg-neutral-800 border-neutral-700"
+              />
             </div>
-            <div className="flex items-start space-x-4">
-              <div className="p-2 bg-neutral-800 rounded-lg">
-                <MessageSquare className="h-6 w-6 text-green-500" />
-              </div>
-              <div>
-                <h3 className="font-medium text-white">实时对话</h3>
-                <p className="text-sm text-neutral-400">
-                  流畅的实时对话体验，快速响应
-                </p>
-              </div>
+            <div className="space-y-2">
+              <label className="text-sm">密码</label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-neutral-800 border-neutral-700"
+              />
             </div>
-            <div className="flex items-start space-x-4">
-              <div className="p-2 bg-neutral-800 rounded-lg">
-                <Shield className="h-6 w-6 text-yellow-500" />
-              </div>
-              <div>
-                <h3 className="font-medium text-white">安全可靠</h3>
-                <p className="text-sm text-neutral-400">
-                  严格的安全防护，保护您的隐私
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 右侧 - 登录表单 */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-        <Card className="w-[400px] bg-neutral-900 text-white border-neutral-800">
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">
-              {isRegistering ? "创建账号" : "欢迎回来"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {isRegistering && (
               <div className="space-y-2">
-                <label className="text-sm">用户名</label>
-                <Input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="bg-neutral-800 border-neutral-700"
-                  placeholder="请输入用户名"
-                  disabled={isLoading}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm">密码</label>
+                <label className="text-sm">确认密码</label>
                 <Input
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   className="bg-neutral-800 border-neutral-700"
-                  placeholder="请输入密码"
-                  disabled={isLoading}
                 />
               </div>
-              {isRegistering && (
-                <div className="space-y-2">
-                  <label className="text-sm">确认密码</label>
-                  <Input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="bg-neutral-800 border-neutral-700"
-                    placeholder="请再次输入密码"
-                    disabled={isLoading}
-                  />
-                </div>
-              )}
-
-              <div className="flex justify-center my-4">
-                {turnstileLoaded ? (
-                  <div
-                    ref={turnstileRef}
-                    className="cf-turnstile"
-                    data-sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                    data-callback="onTurnstileSuccess"
-                    data-theme="dark"
-                  ></div>
-                ) : (
-                  <div className="text-neutral-400 p-4 bg-neutral-800 rounded-lg">
-                    正在加载验证组件...
-                    {!import.meta.env.VITE_TURNSTILE_SITE_KEY && (
-                      <p className="text-yellow-500 text-xs mt-2">
-                        注意: 未设置VITE_TURNSTILE_SITE_KEY环境变量
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {error && (
-                <div className="text-red-500 text-sm text-center">{error}</div>
-              )}
-
+            )}
+            {error && (
+              <div className="text-red-500 text-sm text-center">{error}</div>
+            )}
+            <Button type="submit" className="w-full">
+              {isRegistering ? "注册" : "登录"}
+            </Button>
+            <div className="text-center">
               <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading || !turnstileLoaded}
+                type="button"
+                variant="ghost"
+                className="text-sm text-neutral-400 hover:text-white"
+                onClick={() => setIsRegistering(!isRegistering)}
               >
-                {isLoading ? "处理中..." : (isRegistering ? "注册" : "登录")}
+                {isRegistering ? "已有账号？去登录" : "没有账号？去注册"}
               </Button>
-
-              <div className="text-center">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-sm text-neutral-400 hover:text-white"
-                  onClick={() => setIsRegistering(!isRegistering)}
-                  disabled={isLoading}
-                >
-                  {isRegistering ? "已有账号？去登录" : "没有账号？去注册"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
