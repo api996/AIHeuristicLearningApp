@@ -35,11 +35,20 @@ export function ChatHistory({
   const { data: apiChats, isLoading } = useQuery({
     queryKey: ['/api/chats', user.userId, user.role],
     queryFn: async () => {
+      // 确保user.userId是有效的数字
+      if (!user.userId || isNaN(Number(user.userId))) {
+        console.log('Invalid or missing user ID, skipping chat fetch');
+        return [];
+      }
+      
       const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
-      if (!response.ok) throw new Error('Failed to fetch chats');
+      if (!response.ok) {
+        console.log(`Failed to fetch chats: ${response.statusText}`);
+        return [];
+      }
       return response.json();
     },
-    enabled: !propsChats && !!user.userId // 只有当没有传入chats且用户已登录时才从API获取
+    enabled: !propsChats && !!user.userId && !isNaN(Number(user.userId)) // 确保只在有效的用户ID情况下获取
   });
 
   // 获取当前选中聊天的消息

@@ -72,11 +72,20 @@ export function AIChat() {
   const { data: currentChat } = useQuery({
     queryKey: [`/api/chats/${currentChatId}/messages`, user.userId, user.role],
     queryFn: async () => {
+      // 验证用户ID和聊天ID
+      if (!user.userId || isNaN(Number(user.userId)) || !currentChatId) {
+        console.log('Invalid user ID or chat ID, skipping message fetch');
+        return [];
+      }
+      
       const response = await fetch(`/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`);
-      if (!response.ok) throw new Error('Failed to fetch messages');
+      if (!response.ok) {
+        console.log(`Failed to fetch messages: ${response.statusText}`);
+        return [];
+      }
       return response.json();
     },
-    enabled: !!currentChatId && !!user.userId,
+    enabled: !!currentChatId && !!user.userId && !isNaN(Number(user.userId)),
   });
 
   const createChatMutation = useMutation({
