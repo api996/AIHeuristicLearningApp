@@ -23,7 +23,7 @@ function Router() {
 }
 
 function App() {
-  // 清除查询缓存
+  // 在应用启动时清除查询缓存，防止未登录状态下的缓存数据
   queryClient.clear();
 
   return (
