@@ -9,6 +9,7 @@ declare global {
   interface Window {
     turnstile: any;
     onTurnstileLoad: () => void;
+    _turnstileInstance: string | null;
   }
 }
 
@@ -30,6 +31,18 @@ export function TurnstileWidget({ onVerify, onError }: TurnstileProps) {
       setIsLoading(false);
       return;
     }
+
+    // 检查是否已经有实例在运行
+    if (window._turnstileInstance) {
+      console.warn('[Turnstile] Instance already exists:', window._turnstileInstance);
+      setError('另一个验证实例正在运行');
+      setIsLoading(false);
+      return;
+    }
+
+    // 标记实例
+    window._turnstileInstance = Date.now().toString();
+    console.log('[Turnstile] Created new instance:', window._turnstileInstance);
 
     // 避免重复加载脚本
     if (scriptLoadAttempted.current) {
@@ -81,6 +94,15 @@ export function TurnstileWidget({ onVerify, onError }: TurnstileProps) {
           setError('Failed to initialize verification');
           setIsLoading(false);
           return;
+        }
+
+        // 清除可能存在的旧widget
+        if (widgetId.current) {
+          try {
+            window.turnstile.remove(widgetId.current);
+          } catch (e) {
+            console.warn('[Turnstile] Failed to remove old widget:', e);
+          }
         }
 
         widgetId.current = window.turnstile.render(widgetRef.current, {
@@ -145,6 +167,9 @@ export function TurnstileWidget({ onVerify, onError }: TurnstileProps) {
       if (script.parentNode) {
         script.parentNode.removeChild(script);
       }
+
+      // 清理全局实例标记
+      window._turnstileInstance = null;
 
       // 清理全局处理程序
       const temp = window.onTurnstileLoad;
