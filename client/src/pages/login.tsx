@@ -21,13 +21,20 @@ export default function Login() {
     console.log('[Login] Checking existing user session');
     const user = localStorage.getItem("user");
     if (user) {
-      console.log('[Login] Found existing user session');
-      const userData = JSON.parse(user);
-      if (userData.role === 'admin') {
-        setLocation("/admin");
-      } else {
-        setLocation("/");
+      try {
+        console.log('[Login] Found existing user session');
+        const userData = JSON.parse(user);
+        if (userData.role === 'admin') {
+          setLocation("/admin");
+        } else {
+          setLocation("/");
+        }
+      } catch (e) {
+        console.error('[Login] Invalid user data in localStorage');
+        localStorage.removeItem("user"); // 清除无效数据
       }
+    } else {
+      console.log('No user found in localStorage, staying on login page');
     }
   }, [setLocation]);
 
@@ -138,7 +145,7 @@ export default function Login() {
               </div>
             )}
 
-            <div className="space-y-2">
+            <div className="space-y-2" key="turnstile-container">
               <TurnstileWidget 
                 onVerify={setTurnstileToken}
                 onError={() => setError("人机验证加载失败，请刷新页面重试")}
