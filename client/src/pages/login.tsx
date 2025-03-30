@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { TurnstileWidget } from "@/components/ui/turnstile";
-import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -11,7 +11,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [turnstileToken, setTurnstileToken] = useState<string>();
+  const [turnstileToken, setTurnstileToken] = useState<string | undefined>(undefined);
   const [isVerifying, setIsVerifying] = useState(false);
 
   // 检查是否已登录
@@ -20,11 +20,18 @@ export default function Login() {
     const user = localStorage.getItem("user");
     if (user) {
       console.log('[Login] Found existing user session');
-      const userData = JSON.parse(user);
-      if (userData.role === 'admin') {
-        setLocation("/admin");
-      } else {
-        setLocation("/");
+      try {
+        const userData = JSON.parse(user);
+        if (userData.userId && userData.role) {
+          if (userData.role === 'admin') {
+            setLocation("/admin");
+          } else {
+            setLocation("/");
+          }
+        }
+      } catch (err) {
+        console.error('[Login] Error parsing user data:', err);
+        localStorage.removeItem("user");
       }
     }
   }, [setLocation]);
@@ -51,23 +58,54 @@ export default function Login() {
     setIsVerifying(true);
 
     try {
+      // 验证 Turnstile 令牌
+      console.log('[Login] Verifying turnstile token');
+      const verifyResponse = await fetch('/api/verify-turnstile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: turnstileToken })
+      });
+      
+      const verifyResult = await verifyResponse.json();
+      if (!verifyResult.success) {
+        setError("人机验证失败，请重试");
+        setIsVerifying(false);
+        return;
+      }
+      
+      // 进行登录/注册操作
       console.log('[Login] Starting authentication process');
       const endpoint = isRegistering ? '/api/register' : '/api/login';
-      const response = await apiRequest({
-        endpoint,
+      const response = await fetch(endpoint, {
         method: 'POST',
-        data: { username, password, turnstileToken }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
       });
-
-      if (response.success) {
-        localStorage.setItem("user", JSON.stringify(response.user));
-        if (response.user.role === 'admin') {
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // 清除缓存，确保不使用未登录状态下的缓存数据
+        queryClient.clear();
+        
+        // 保存用户信息
+        const userData = {
+          userId: result.userId,
+          role: result.role || 'user',
+          username: username
+        };
+        
+        localStorage.setItem("user", JSON.stringify(userData));
+        console.log('[Login] Authentication successful, user data saved:', userData);
+        
+        // 重定向到相应页面
+        if (userData.role === 'admin') {
           setLocation("/admin");
         } else {
           setLocation("/");
         }
       } else {
-        setError(response.message || "验证失败，请稍后重试");
+        setError(result.message || "验证失败，请稍后重试");
       }
     } catch (err) {
       console.error('[Login] Authentication error:', err);
