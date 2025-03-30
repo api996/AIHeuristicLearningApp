@@ -20,6 +20,7 @@ interface ChatHistoryProps {
   setCurrentChatId?: (id: number) => void;
   onDeleteChat?: (id: number) => void;
   onLogout?: () => void;
+  onChangePassword?: () => void;
   chats?: any[];
   user?: { userId: number; role: string; username?: string };
 }
@@ -31,6 +32,7 @@ export function ChatHistory({
   setCurrentChatId,
   onDeleteChat,
   onLogout,
+  onChangePassword,
   chats: propsChats,
   user 
 }: ChatHistoryProps) {
@@ -187,6 +189,7 @@ export function ChatHistory({
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                onClick={onChangePassword}
               >
                 <Settings className="mr-2.5 h-4 w-4 text-green-400" />
                 <span>修改密码</span>
