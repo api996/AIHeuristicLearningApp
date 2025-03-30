@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Brain, User } from "lucide-react";
 
@@ -6,15 +7,70 @@ interface ChatMessageProps {
     role: "user" | "assistant";
     content: string;
   };
+  isThinking?: boolean; // 用于表示AI是否正在思考
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+// 打字机效果的Hook
+const useTypewriter = (text: string, delay: number = 30) => {
+  const [displayedText, setDisplayedText] = useState("");
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [completed, setCompleted] = useState(false);
+  
+  useEffect(() => {
+    // 重置状态
+    if (text !== displayedText && currentIndex === 0) {
+      setDisplayedText("");
+    }
+    
+    // 如果已完成或文本为空，返回
+    if (completed || !text) return;
+    
+    // 如果当前索引小于文本长度，继续打字
+    if (currentIndex < text.length) {
+      const timeout = setTimeout(() => {
+        setDisplayedText(prev => prev + text[currentIndex]);
+        setCurrentIndex(currentIndex + 1);
+      }, delay);
+      
+      return () => clearTimeout(timeout);
+    } else {
+      // 打字完成
+      setCompleted(true);
+    }
+  }, [text, currentIndex, delay, completed, displayedText]);
+  
+  // 如果文本改变，重置状态
+  useEffect(() => {
+    setCurrentIndex(0);
+    setDisplayedText("");
+    setCompleted(false);
+  }, [text]);
+  
+  return { displayedText, completed };
+};
+
+export function ChatMessage({ message, isThinking = false }: ChatMessageProps) {
+  // 对于AI回复使用打字机效果
+  const { displayedText, completed } = useTypewriter(
+    message.role === "assistant" ? message.content : "",
+    20
+  );
+
   // Check if the message contains an image markdown
   const isImage = message.content.startsWith("![");
 
   // Parse image URL if it's an image message
   const imageUrl = isImage ? 
     message.content.match(/\((.*?)\)/)?.[1] : null;
+
+  // 思考中动画组件
+  const ThinkingAnimation = () => (
+    <div className="flex items-center space-x-2 mt-2 h-6">
+      <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: "0ms" }}></div>
+      <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: "300ms" }}></div>
+      <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: "600ms" }}></div>
+    </div>
+  );
 
   // 支持简单的Markdown渲染
   const renderContent = (content: string) => {
@@ -80,7 +136,23 @@ export function ChatMessage({ message }: ChatMessageProps) {
               className="max-w-full max-h-[300px] rounded-md object-contain"
             />
           ) : (
-            renderContent(message.content)
+            <>
+              {message.role === "assistant" ? (
+                <>
+                  {/* 对AI消息使用打字机效果 */}
+                  {renderContent(displayedText)}
+                  {/* 如果打字尚未完成，显示光标 */}
+                  {!completed && !isThinking && 
+                    <span className="inline-block h-4 w-1 bg-blue-400 animate-pulse ml-0.5 align-middle"></span>
+                  }
+                  {/* 如果正在思考中，显示思考动画 */}
+                  {isThinking && <ThinkingAnimation />}
+                </>
+              ) : (
+                // 对用户消息直接显示
+                renderContent(message.content)
+              )}
+            </>
           )}
         </div>
       </div>
