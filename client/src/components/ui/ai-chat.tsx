@@ -81,6 +81,15 @@ export function AIChat({ userData }: AIChatProps) {
   const [showTitleDialog, setShowTitleDialog] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [titleError, setTitleError] = useState("");
+  
+  // 新增对话框状态
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [showLearningPathDialog, setShowLearningPathDialog] = useState(false);
+  const [showPreferencesDialog, setShowPreferencesDialog] = useState(false);
+  
+  // 偏好设置状态
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("dark");
+  const [fontSize, setFontSize] = useState<"small" | "medium" | "large">("medium");
 
   // Use the passed in userData
   const user = userData;
@@ -340,6 +349,9 @@ export function AIChat({ userData }: AIChatProps) {
           onLogout={handleLogout}
           onNewChat={handleNewChat}
           onChangePassword={() => setShowPasswordDialog(true)}
+          onShowProfile={() => setShowProfileDialog(true)}
+          onShowLearningPath={() => setShowLearningPathDialog(true)}
+          onShowPreferences={() => setShowPreferencesDialog(true)}
           onDeleteChat={(id) => {
             if (id === currentChatId) {
               setCurrentChatId(undefined);
@@ -594,6 +606,207 @@ export function AIChat({ userData }: AIChatProps) {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* 用户资料对话框 */}
+      <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>个人资料</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2 px-1">
+            <div className="flex items-center justify-center mb-6">
+              <div className="h-24 w-24 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white text-3xl font-bold">
+                {user.username ? user.username.charAt(0).toUpperCase() : "U"}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="username" className="text-sm text-neutral-400">用户名</Label>
+              <div className="p-3 bg-neutral-800 rounded-md text-white">
+                {user.username || "未设置用户名"}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="role" className="text-sm text-neutral-400">角色</Label>
+              <div className="p-3 bg-neutral-800 rounded-md text-white">
+                {user.role === "admin" ? "管理员" : "普通用户"}
+              </div>
+            </div>
+            <Button 
+              onClick={() => {
+                setShowProfileDialog(false);
+                setShowPasswordDialog(true);
+              }}
+              className="w-full mt-4"
+            >
+              修改密码
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 学习轨迹对话框 */}
+      <Dialog open={showLearningPathDialog} onOpenChange={setShowLearningPathDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>学习轨迹分析</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4 px-1">
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-neutral-200">学习主题</h3>
+              <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
+                根据您的对话内容，以下是您感兴趣的主要学习主题：
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="px-2.5 py-1 bg-blue-600/20 border border-blue-500/20 rounded-full text-blue-400 text-xs">
+                    人工智能
+                  </div>
+                  <div className="px-2.5 py-1 bg-purple-600/20 border border-purple-500/20 rounded-full text-purple-400 text-xs">
+                    深度学习
+                  </div>
+                  <div className="px-2.5 py-1 bg-green-600/20 border border-green-500/20 rounded-full text-green-400 text-xs">
+                    计算机科学
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-neutral-200">学习进度</h3>
+              <div className="p-4 bg-neutral-800 rounded-md">
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-neutral-300">人工智能基础</span>
+                      <span className="text-xs text-neutral-400">75%</span>
+                    </div>
+                    <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: "75%" }}></div>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-neutral-300">机器学习算法</span>
+                      <span className="text-xs text-neutral-400">40%</span>
+                    </div>
+                    <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-purple-500 rounded-full" style={{ width: "40%" }}></div>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-neutral-300">数据结构</span>
+                      <span className="text-xs text-neutral-400">60%</span>
+                    </div>
+                    <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-green-500 rounded-full" style={{ width: "60%" }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-neutral-200">学习建议</h3>
+              <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
+                <p>
+                  根据您的对话历史，您对算法和数据结构方面有较强的兴趣，但在机器学习应用上可以进一步加强。建议您可以：
+                </p>
+                <ul className="list-disc pl-5 mt-2 space-y-1 text-neutral-400">
+                  <li>深入学习更多机器学习实际应用场景</li>
+                  <li>尝试实践一些小型AI项目，巩固理论知识</li>
+                  <li>探索更多关于神经网络架构的高级话题</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowLearningPathDialog(false)}>
+              关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 偏好设置对话框 */}
+      <Dialog open={showPreferencesDialog} onOpenChange={setShowPreferencesDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>偏好设置</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-3">
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-neutral-300">外观</h3>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={theme === "light" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTheme("light")}
+                  className="flex-1"
+                >
+                  浅色
+                </Button>
+                <Button
+                  variant={theme === "dark" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTheme("dark")}
+                  className="flex-1"
+                >
+                  深色
+                </Button>
+                <Button
+                  variant={theme === "system" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTheme("system")}
+                  className="flex-1"
+                >
+                  跟随系统
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-neutral-300">字体大小</h3>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={fontSize === "small" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFontSize("small")}
+                  className="flex-1"
+                >
+                  小
+                </Button>
+                <Button
+                  variant={fontSize === "medium" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFontSize("medium")}
+                  className="flex-1"
+                >
+                  中
+                </Button>
+                <Button
+                  variant={fontSize === "large" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFontSize("large")}
+                  className="flex-1"
+                >
+                  大
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-neutral-300">自定义功能 <span className="text-xs text-neutral-500">(即将推出)</span></h3>
+              <div className="p-3 bg-neutral-800 rounded-md text-neutral-400 text-sm">
+                更多自定义功能将在后续版本推出，敬请期待！
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" onClick={() => setShowPreferencesDialog(false)}>
+              保存设置
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
