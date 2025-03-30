@@ -17,7 +17,8 @@ import {
   Settings,
   Edit,
   User,
-  ChevronDown
+  ChevronDown,
+  MessageSquare
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -385,7 +386,7 @@ export function AIChat({ userData }: AIChatProps) {
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => onNewChat && onNewChat()}
+              onClick={handleNewChat}
               className="h-9 w-9 rounded-lg hover:bg-neutral-800 text-neutral-300"
               title="新对话"
             >
