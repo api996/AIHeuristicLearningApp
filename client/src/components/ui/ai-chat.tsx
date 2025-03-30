@@ -169,15 +169,42 @@ export function AIChat({ userData }: AIChatProps) {
   const handleTitleChange = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setTitleError("");
-    if (!newTitle.trim()) {
+    
+    // 去除前后空白字符
+    const trimmedTitle = newTitle.trim();
+    
+    // 基本验证
+    if (!trimmedTitle) {
       setTitleError("标题不能为空");
+      return;
+    }
+    
+    // 长度验证
+    if (trimmedTitle.length > 30) {
+      setTitleError("标题不能超过30个字符");
+      return;
+    }
+    
+    // 非常简单的验证 - 检查是否包含控制字符
+    if (/[\x00-\x1F\x7F]/.test(trimmedTitle)) {
+      setTitleError("标题包含不支持的字符");
       return;
     }
 
     try {
-      await updateTitleMutation.mutateAsync({ chatId: currentChatId!, title: newTitle });
+      await updateTitleMutation.mutateAsync({ 
+        chatId: currentChatId!, 
+        title: trimmedTitle 
+      });
+      
+      // 更新对话框中的标题内容
+      setNewTitle(trimmedTitle);
+      
+      // 关闭对话框
+      setShowTitleDialog(false);
     } catch (error) {
       console.error("修改标题失败:", error);
+      setTitleError("保存失败，请稍后再试");
     }
   };
 
@@ -655,8 +682,13 @@ export function AIChat({ userData }: AIChatProps) {
                 id="new-title"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="请输入新标题"
+                placeholder="请输入新标题 (最多30字符)"
+                maxLength={30}
+                className="bg-neutral-800 border-neutral-700"
               />
+              <div className="text-xs text-neutral-500 mt-1 text-right">
+                {newTitle.length}/30
+              </div>
               {titleError && <p className="text-sm text-red-500">{titleError}</p>}
             </div>
             <DialogFooter>
