@@ -290,6 +290,20 @@ export function AIChat({ userData }: AIChatProps) {
     }
   };
 
+  // 添加事件监听器，处理从侧边栏点击"修改密码"按钮
+  useEffect(() => {
+    // 监听打开密码修改对话框的事件
+    const handleOpenPasswordDialog = () => {
+      setShowPasswordDialog(true);
+    };
+    
+    window.addEventListener('open-password-dialog', handleOpenPasswordDialog);
+    
+    return () => {
+      window.removeEventListener('open-password-dialog', handleOpenPasswordDialog);
+    };
+  }, []);
+
   useEffect(() => {
     const user = localStorage.getItem("user");
     if (!user) {
@@ -404,10 +418,10 @@ export function AIChat({ userData }: AIChatProps) {
           </div>
         </header>
 
-        {/* Messages */}
-        <div className="flex-1 p-6 md:p-8 overflow-y-auto flex flex-col gap-4">
+        {/* Messages - 减少垂直方向的空间 */}
+        <div className="flex-1 p-3 md:p-4 overflow-y-auto flex flex-col gap-3">
           {messages.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-center">
+            <div className="flex-1 flex items-center justify-center text-center pb-16">
               <div className="space-y-3">
                 <div className="flex justify-center">
                   <div className="p-4 rounded-full bg-primary-foreground/10">
@@ -428,62 +442,62 @@ export function AIChat({ userData }: AIChatProps) {
         </div>
 
         {/* Input Area - 简化布局并采用ChatGPT风格 */}
-        <div className="p-4 border-t border-neutral-800">
+        <div className="p-3 border-t border-neutral-800 mt-auto"> 
           {/* 模型选择 - 使用更紧凑的布局 */}
-          <div className="mb-3 flex flex-wrap gap-2 justify-center">
+          <div className="mb-2 flex flex-wrap gap-1.5 justify-center">
             <Button
               variant="outline"
               size="sm"
-              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+              className={`h-7 text-xs bg-neutral-900 hover:bg-neutral-800 ${
                 currentModel === "search" ? "border-blue-500" : "border-neutral-700"
               }`}
               onClick={() => setCurrentModel("search")}
             >
-              <Search className="w-3.5 h-3.5 mr-1.5" />
+              <Search className="w-3 h-3 mr-1" />
               网络搜索
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+              className={`h-7 text-xs bg-neutral-900 hover:bg-neutral-800 ${
                 currentModel === "deep" ? "border-blue-500" : "border-neutral-700"
               }`}
               onClick={() => setCurrentModel("deep")}
             >
-              <Brain className="w-3.5 h-3.5 mr-1.5" />
+              <Brain className="w-3 h-3 mr-1" />
               深度推理
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+              className={`h-7 text-xs bg-neutral-900 hover:bg-neutral-800 ${
                 currentModel === "gemini" ? "border-blue-500" : "border-neutral-700"
               }`}
               onClick={() => setCurrentModel("gemini")}
             >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+              <Sparkles className="w-3 h-3 mr-1" />
               Gemini
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+              className={`h-7 text-xs bg-neutral-900 hover:bg-neutral-800 ${
                 currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700"
               }`}
               onClick={() => setCurrentModel("deepseek")}
             >
-              <Code className="w-3.5 h-3.5 mr-1.5" />
+              <Code className="w-3 h-3 mr-1" />
               Deepseek
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+              className={`h-7 text-xs bg-neutral-900 hover:bg-neutral-800 ${
                 currentModel === "grok" ? "border-blue-500" : "border-neutral-700"
               }`}
               onClick={() => setCurrentModel("grok")}
             >
-              <Rocket className="w-3.5 h-3.5 mr-1.5" />
+              <Rocket className="w-3 h-3 mr-1" />
               Grok
             </Button>
           </div>
