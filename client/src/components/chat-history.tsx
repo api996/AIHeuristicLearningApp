@@ -87,14 +87,7 @@ export function ChatHistory({
   }
 
   return (
-    <div className="w-full flex flex-col h-full">话按钮 */}="outline"
-            onClick={onNewChat}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            新对话
-          </Button>
-        </div>
-      )}
+    <div className="w-full flex flex-col h-full">
 
       {/* 聊天记录列表 */}
       <ScrollArea className="h-[calc(100vh-180px)]">
