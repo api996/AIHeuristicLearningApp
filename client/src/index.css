@@ -5,6 +5,30 @@
 @layer base {
   * {
     @apply border-border;
+
+@layer base {
+  :root {
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --glass-background: rgba(255, 255, 255, 0.15);
+    --glass-backdrop-blur: 10px;
+  }
+  
+  .dark {
+    --glass-border: rgba(30, 41, 59, 0.4);
+    --glass-background: rgba(15, 23, 42, 0.3);
+    --glass-backdrop-blur: 12px;
+  }
+  
+  .glass-morphism {
+    @apply backdrop-blur-lg bg-white/30 dark:bg-slate-900/30 border border-white/20 dark:border-gray-800/40;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  }
+  
+  .inner-glass {
+    @apply backdrop-blur-md bg-white/50 dark:bg-slate-800/50 border border-white/30 dark:border-gray-700/30;
+  }
+}
+
   }
 
   body {
