@@ -428,7 +428,7 @@ export function AIChat({ userData }: AIChatProps) {
         </div>
 
         {/* Input Area - 简化布局并采用ChatGPT风格 */}
-        <div className="p-4 border-t border-neutral-800">
+        <div className="p-4 border-t border-neutral-800 mt-auto mb-4"> {/* Added mt-auto mb-4 */}
           {/* 模型选择 - 使用更紧凑的布局 */}
           <div className="mb-3 flex flex-wrap gap-2 justify-center">
             <Button
