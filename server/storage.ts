@@ -104,7 +104,7 @@ export class DatabaseStorage implements IStorage {
     try {
       if (isAdmin) {
         // 管理员查看特定用户的聊天记录
-        const results = await db.select({
+        return await db.select({
             id: chats.id,
             userId: chats.userId,
             title: chats.title,
@@ -116,12 +116,6 @@ export class DatabaseStorage implements IStorage {
           .leftJoin(users, eq(chats.userId, users.id))
           .where(eq(chats.userId, userId)) // 只返回指定用户的聊天记录
           .orderBy(desc(chats.createdAt));
-        
-        // 转换结果，处理 username 的 null 值为 undefined
-        return results.map(chat => ({
-          ...chat,
-          username: chat.username || undefined
-        }));
       } else {
         // 普通用户只能看到自己的聊天记录
         return await db.select()
@@ -154,28 +148,19 @@ export class DatabaseStorage implements IStorage {
   async getChatById(chatId: number, userId: number, isAdmin: boolean): Promise<Chat | undefined> {
     try {
       if (isAdmin) {
-        // 管理员需要验证聊天记录的存在，但不限制只能看自己的
-        // 在这里我们只需要检查聊天ID是否存在
+        // Admin can access any chat
         const [chat] = await db.select()
           .from(chats)
           .where(eq(chats.id, chatId));
-        
-        if (chat) {
-          log(`Admin ${userId} accessed chat ${chatId} belonging to user ${chat.userId}`);
-        }
         return chat;
       } else {
-        // 普通用户只能访问自己的聊天记录
+        // Regular users can only access their own chats
         const [chat] = await db.select()
           .from(chats)
           .where(and(
             eq(chats.id, chatId),
             eq(chats.userId, userId)
           ));
-        
-        if (!chat) {
-          log(`User ${userId} tried to access unauthorized chat ${chatId}`);
-        }
         return chat;
       }
     } catch (error) {
@@ -203,11 +188,7 @@ export class DatabaseStorage implements IStorage {
       if (!chat) return []; 
 
       // Only return messages if the user has access to the chat
-      // 普通用户只能看自己的消息，管理员可以看到指定聊天的消息但必须通过userId验证
-      if (!isAdmin && chat.userId !== userId) {
-        log(`User ${userId} tried to access messages from chat ${chatId} belonging to user ${chat.userId}`);
-        return [];
-      }
+      if (!isAdmin && chat.userId !== userId) return [];
 
       // Get messages for a specific chat
       return await db.select()
