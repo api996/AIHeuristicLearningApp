@@ -63,41 +63,113 @@ export function ChatMessage({ message, isThinking = false }: ChatMessageProps) {
   const imageUrl = isImage ? 
     message.content.match(/\((.*?)\)/)?.[1] : null;
 
-  // 思考过程状态列表
-  const thinkingSteps = [
-    "接收到您的问题...",
-    "分析问题中...",
-    "理解问题关键点...",
-    "搜索相关知识...",
-    "检索相关信息...",
-    "整合可用信息...",
-    "深入思考中...",
-    "考虑不同角度...",
-    "分析可能解释...",
-    "评估最佳方案...",
-    "反思中...",
-    "优化答案...",
-    "组织回答中...",
-    "准备输出中..."
+  // 思考过程状态列表，包含不同阶段的状态提示
+  const thinkingPhases = [
+    // 第一阶段：初始分析
+    [
+      "接收到您的问题...",
+      "分析问题中...",
+      "理解问题关键点...",
+      "确定问题范围..."
+    ],
+    // 第二阶段：搜索信息
+    [
+      "搜索相关知识库...",
+      "检索匹配信息...",
+      "整合可用信息...",
+      "判断信息相关性..."
+    ],
+    // 第三阶段：深度思考
+    [
+      "启动深度推理...",
+      "考虑多个可能角度...",
+      "分析可能的解释...",
+      "评估不同方案..."
+    ],
+    // 第四阶段：优化
+    [
+      "进一步提炼思路...",
+      "尝试更深层次的解析...",
+      "优化答案质量...",
+      "需要更多分析迭代..."
+    ],
+    // 第五阶段：准备回答
+    [
+      "整合思考结果...",
+      "构建连贯回答...",
+      "精简组织语言...",
+      "准备最终输出..."
+    ]
   ];
   
-  // 跟踪思考步骤
-  const [currentThinkingStep, setCurrentThinkingStep] = useState(0);
+  // 当前思考阶段和步骤
+  const [currentPhase, setCurrentPhase] = useState(0);
+  const [currentStepInPhase, setCurrentStepInPhase] = useState(0);
+  
+  // 获取当前显示的思考步骤文本
+  const getCurrentThinkingStepText = () => {
+    // 确保索引在有效范围内
+    const phase = Math.min(currentPhase, thinkingPhases.length - 1);
+    const step = Math.min(currentStepInPhase, thinkingPhases[phase].length - 1);
+    return thinkingPhases[phase][step];
+  };
+  
+  // 仅用于兼容性，可以删除
+  // const [currentThinkingStep, setCurrentThinkingStep] = useState(0);
+  
+  // 阶段间切换的迭代消息
+  const phaseTransitionMessages = [
+    "继续分析更多相关信息...",
+    "需要深入挖掘问题本质...",
+    "让我进一步拓展分析维度...",
+    "需要迭代优化当前思路..."
+  ];
   
   // 更新思考步骤的效果
   useEffect(() => {
     if (!isThinking) return;
     
-    const interval = setInterval(() => {
-      setCurrentThinkingStep(prev => (prev + 1) % thinkingSteps.length);
-    }, 1500); // 每1.5秒更新一次思考状态
+    // 步骤更新间隔
+    const stepInterval = setInterval(() => {
+      // 更新当前阶段内的步骤
+      setCurrentStepInPhase(prev => {
+        // 如果到达当前阶段的最后一步
+        if (prev >= thinkingPhases[currentPhase].length - 1) {
+          // 重置步骤，并在外层延时器中处理阶段更新
+          return 0;
+        } else {
+          // 继续下一步
+          return prev + 1;
+        }
+      });
+    }, 1500); // 每1.5秒更新一次步骤
     
-    return () => clearInterval(interval);
-  }, [isThinking, thinkingSteps.length]);
+    // 阶段更新间隔 - 比步骤间隔长
+    const phaseInterval = setInterval(() => {
+      // 每8秒切换到下一个阶段并显示过渡消息
+      setCurrentPhase(prev => (prev + 1) % thinkingPhases.length);
+    }, 8000); // 每8秒更新一次阶段
+    
+    return () => {
+      clearInterval(stepInterval);
+      clearInterval(phaseInterval);
+    };
+  }, [isThinking, thinkingPhases.length, currentPhase]);
   
-  // 增强的思考中动画组件
+  // 计算总体进度比例 (0-100%)
+  const calculateProgressPercentage = () => {
+    const totalSteps = thinkingPhases.reduce((total, phase) => total + phase.length, 0);
+    const completedPhaseSteps = thinkingPhases
+      .slice(0, currentPhase)
+      .reduce((total, phase) => total + phase.length, 0);
+    const currentPhaseCompletedSteps = currentStepInPhase + 1;
+    
+    return ((completedPhaseSteps + currentPhaseCompletedSteps) / totalSteps) * 100;
+  };
+
+  // 增强的思考中动画组件 - 带分阶段进度显示
   const ThinkingAnimation = () => (
-    <div className="mt-2 space-y-2">
+    <div className="mt-2 space-y-3">
       <div className="flex items-center space-x-3">
         <div className="flex space-x-1">
           <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: "0ms" }}></div>
@@ -105,19 +177,45 @@ export function ChatMessage({ message, isThinking = false }: ChatMessageProps) {
           <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: "600ms" }}></div>
         </div>
         <div className="text-blue-400 text-sm font-medium animate-pulse">
-          {thinkingSteps[currentThinkingStep]}
+          {getCurrentThinkingStepText()}
         </div>
       </div>
+      
+      {/* 分阶段进度指示器 */}
+      <div className="flex items-center space-x-1.5">
+        {thinkingPhases.map((_, index) => (
+          <div 
+            key={index} 
+            className={cn(
+              "h-1 rounded-full flex-1 transition-all duration-500",
+              index === currentPhase 
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse" 
+                : index < currentPhase 
+                  ? "bg-blue-500" 
+                  : "bg-neutral-800"
+            )}
+          />
+        ))}
+      </div>
+      
+      {/* 总进度条 */}
       <div className="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
         <div 
           className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 rounded-full animate-shimmer"
           style={{ 
-            width: `${((currentThinkingStep + 1) / thinkingSteps.length) * 100}%`,
+            width: `${calculateProgressPercentage()}%`,
             backgroundSize: '200% 100%',
-            transition: 'width 1s ease-in-out'
+            transition: 'width 1s ease-out'
           }}
-        ></div>
+        />
       </div>
+      
+      {/* 阶段提示 - 只在阶段转换时显示 */}
+      {currentStepInPhase === 0 && currentPhase > 0 && (
+        <div className="text-xs text-neutral-400 italic mt-1">
+          {phaseTransitionMessages[(currentPhase - 1) % phaseTransitionMessages.length]}
+        </div>
+      )}
     </div>
   );
 
