@@ -9,8 +9,16 @@ declare global {
   interface Window {
     turnstile: any;
     onTurnstileLoad: () => void;
-    _turnstileInstance: string | null;
+    // 全局回调队列
+    _turnstileCallbacks: Array<() => void>;
+    // 已存在的Turnstile脚本
+    _turnstileScriptLoaded: boolean;
   }
+}
+
+// 设置全局回调队列
+if (typeof window !== 'undefined') {
+  window._turnstileCallbacks = window._turnstileCallbacks || [];
 }
 
 export function TurnstileWidget({ onVerify, onError }: TurnstileProps) {
@@ -18,168 +26,174 @@ export function TurnstileWidget({ onVerify, onError }: TurnstileProps) {
   const [error, setError] = useState<string | null>(null);
   const widgetRef = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
-  const scriptLoadAttempted = useRef(false);
+  const mountedRef = useRef(false);
+
+  // 重置Widget的函数
+  const resetWidget = () => {
+    if (widgetId.current && window.turnstile) {
+      try {
+        window.turnstile.reset(widgetId.current);
+      } catch (e) {
+        console.warn('[Turnstile] Failed to reset widget:', e);
+      }
+    }
+  };
+
+  // 渲染Widget的函数
+  const renderWidget = (siteKey: string) => {
+    console.log('[Turnstile] Rendering widget');
+    try {
+      if (!widgetRef.current) {
+        console.error('[Turnstile] Widget reference not found');
+        setError('无法初始化验证组件');
+        setIsLoading(false);
+        return;
+      }
+
+      if (!window.turnstile) {
+        console.error('[Turnstile] Turnstile object not available');
+        setError('验证组件未正确加载');
+        setIsLoading(false);
+        return;
+      }
+
+      // 清除可能存在的旧widget
+      if (widgetId.current) {
+        try {
+          console.log('[Turnstile] Removing existing widget:', widgetId.current);
+          window.turnstile.remove(widgetId.current);
+          widgetId.current = null;
+        } catch (e) {
+          console.warn('[Turnstile] Failed to remove old widget:', e);
+        }
+      }
+
+      // 确保容器是空的
+      if (widgetRef.current) {
+        widgetRef.current.innerHTML = '';
+      }
+
+      // 渲染新的widget
+      widgetId.current = window.turnstile.render(widgetRef.current, {
+        sitekey: siteKey,
+        theme: 'dark',
+        callback: (token: string) => {
+          console.log('[Turnstile] Verification successful');
+          onVerify(token);
+        },
+        'error-callback': (error: any) => {
+          console.error('[Turnstile] Widget error:', error);
+          if (onError) onError(error);
+        },
+        'expired-callback': () => {
+          console.warn('[Turnstile] Challenge expired, refreshing');
+          resetWidget();
+        }
+      });
+
+      console.log('[Turnstile] Widget rendered with ID:', widgetId.current);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('[Turnstile] Render error:', error);
+      setError('验证组件加载失败');
+      setIsLoading(false);
+      if (onError) onError(error);
+    }
+  };
 
   useEffect(() => {
     console.log('[Turnstile] Component mounted');
+    // 防止重复执行
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+
     const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
     console.log('[Turnstile] Site key available:', !!siteKey);
 
     if (!siteKey) {
       console.error('[Turnstile] Missing site key');
-      setError('Configuration error: Missing site key');
+      setError('配置错误：缺少验证密钥');
       setIsLoading(false);
       return;
     }
 
-    // 检查是否已经有实例在运行
-    if (window._turnstileInstance) {
-      console.warn('[Turnstile] Instance already exists:', window._turnstileInstance);
-      setError('另一个验证实例正在运行');
-      setIsLoading(false);
+    // 如果Turnstile已经加载，直接使用
+    if (window.turnstile) {
+      console.log('[Turnstile] Turnstile already available, rendering widget directly');
+      renderWidget(siteKey);
       return;
     }
 
-    // 标记实例
-    window._turnstileInstance = Date.now().toString();
-    console.log('[Turnstile] Created new instance:', window._turnstileInstance);
+    // 将回调添加到全局队列
+    const callbackId = window._turnstileCallbacks.length;
+    window._turnstileCallbacks.push(() => renderWidget(siteKey));
+    console.log(`[Turnstile] Callback queued at position ${callbackId}`);
 
-    // 避免重复加载脚本
-    if (scriptLoadAttempted.current) {
-      console.warn('[Turnstile] Script load already attempted, skipping');
+    // 检查是否已有脚本加载中
+    if (window._turnstileScriptLoaded) {
+      console.log('[Turnstile] Script already loading, waiting for callback');
       return;
     }
 
-    // 标记脚本加载尝试
-    scriptLoadAttempted.current = true;
-
-    // 检查脚本是否已经加载
     const existingScript = document.querySelector('script[src*="turnstile"]');
     if (existingScript) {
-      console.warn('[Turnstile] Script already exists, waiting for turnstile object');
-
-      // 等待turnstile对象
-      const checkTurnstile = setInterval(() => {
-        if (window.turnstile) {
-          clearInterval(checkTurnstile);
-          initializeWidget(siteKey);
-        }
-      }, 100);
-
-      // 设置超时
-      setTimeout(() => {
-        clearInterval(checkTurnstile);
-        if (!window.turnstile) {
-          console.error('[Turnstile] Timeout waiting for turnstile object');
-          setError('Failed to initialize verification component');
-          setIsLoading(false);
-        }
-      }, 5000);
-
+      console.log('[Turnstile] Script tag already exists');
+      window._turnstileScriptLoaded = true;
       return;
     }
 
-    function initializeWidget(siteKey: string) {
-      console.log('[Turnstile] Initializing widget');
-      try {
-        if (!widgetRef.current) {
-          console.error('[Turnstile] Widget reference not found');
-          setError('Failed to initialize verification');
-          setIsLoading(false);
-          return;
-        }
-
-        if (!window.turnstile) {
-          console.error('[Turnstile] Turnstile object not available');
-          setError('Failed to initialize verification');
-          setIsLoading(false);
-          return;
-        }
-
-        // 清除可能存在的旧widget
-        if (widgetId.current) {
-          try {
-            window.turnstile.remove(widgetId.current);
-          } catch (e) {
-            console.warn('[Turnstile] Failed to remove old widget:', e);
-          }
-        }
-
-        widgetId.current = window.turnstile.render(widgetRef.current, {
-          sitekey: siteKey,
-          theme: 'dark',
-          callback: (token: string) => {
-            console.log('[Turnstile] Verification successful');
-            onVerify(token);
-          },
-          'error-callback': (error: any) => {
-            console.error('[Turnstile] Widget error:', error);
-            setError('Verification failed');
-            if (onError) onError(error);
-          },
-          'expired-callback': () => {
-            console.warn('[Turnstile] Challenge expired, refreshing');
-            if (widgetId.current) {
-              window.turnstile.reset(widgetId.current);
-            }
-          }
-        });
-
-        console.log('[Turnstile] Widget initialized with ID:', widgetId.current);
-        setIsLoading(false);
-      } catch (error) {
-        console.error('[Turnstile] Initialization error:', error);
-        setError('Failed to initialize verification');
-        setIsLoading(false);
-        if (onError) onError(error);
-      }
-    }
-
-    // 加载Turnstile脚本
+    // 加载脚本
     const script = document.createElement('script');
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad';
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
     script.async = true;
     script.defer = true;
 
-    // 定义脚本加载回调
-    window.onTurnstileLoad = () => {
-      console.log('[Turnstile] Script loaded successfully');
-      initializeWidget(siteKey);
+    // 记录脚本正在加载
+    window._turnstileScriptLoaded = true;
+
+    // 设置加载回调
+    script.onload = () => {
+      console.log('[Turnstile] Script loaded, executing callbacks:', window._turnstileCallbacks.length);
+      // 执行所有排队的回调
+      window._turnstileCallbacks.forEach((callback) => {
+        try {
+          callback();
+        } catch (e) {
+          console.error('[Turnstile] Callback execution error:', e);
+        }
+      });
     };
 
-    // 处理脚本加载错误
     script.onerror = () => {
-      console.error('[Turnstile] Failed to load script');
-      setError('Failed to load verification component');
+      console.error('[Turnstile] Script load failed');
+      setError('无法加载验证组件');
       setIsLoading(false);
-      if (onError) onError(new Error('Script load failed'));
+      if (onError) onError(new Error('验证组件加载失败'));
+      window._turnstileScriptLoaded = false;
     };
 
     document.body.appendChild(script);
     console.log('[Turnstile] Script appended to document');
 
+    // 清理函数
     return () => {
-      console.log('[Turnstile] Cleaning up');
+      console.log('[Turnstile] Component unmounting');
+      
+      // 移除widget
       if (widgetId.current && window.turnstile) {
-        window.turnstile.remove(widgetId.current);
+        console.log('[Turnstile] Removing widget:', widgetId.current);
+        try {
+          window.turnstile.remove(widgetId.current);
+        } catch (e) {
+          console.warn('[Turnstile] Error removing widget:', e);
+        }
       }
-
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-
-      // 清理全局实例标记
-      window._turnstileInstance = null;
-
-      // 清理全局处理程序
-      const temp = window.onTurnstileLoad;
-      window.onTurnstileLoad = undefined;
-      if (temp === window.onTurnstileLoad) {
-        delete window.onTurnstileLoad;
-      }
-
-      scriptLoadAttempted.current = false;
-      console.log('[Turnstile] Cleanup completed');
+      
+      // 从回调队列中移除
+      window._turnstileCallbacks.splice(callbackId, 1);
+      console.log(`[Turnstile] Removed callback at position ${callbackId}`);
+      
+      mountedRef.current = false;
     };
   }, [onVerify, onError]);
 

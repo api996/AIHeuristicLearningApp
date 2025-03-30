@@ -11,11 +11,29 @@ import { verifyTurnstileToken } from './services/turnstile';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
+  // 处理注册请求
   app.post("/api/register", async (req, res) => {
     try {
-      const { username, password } = req.body;
+      const { username, password, turnstileToken } = req.body;
 
-      // Check if username already exists
+      // 验证Turnstile令牌
+      if (!turnstileToken) {
+        return res.status(400).json({
+          success: false,
+          message: "请完成人机验证"
+        });
+      }
+
+      // 验证Turnstile令牌
+      const isValidToken = await verifyTurnstileToken(turnstileToken);
+      if (!isValidToken) {
+        return res.status(400).json({
+          success: false,
+          message: "人机验证失败，请重试"
+        });
+      }
+
+      // 检查用户名是否存在
       const existingUser = await storage.getUserByUsername(username);
       if (existingUser) {
         return res.status(400).json({ 
@@ -24,9 +42,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Create new user
+      // 创建新用户
       const user = await storage.createUser({ username, password });
-      res.json({ success: true, userId: user.id });
+      
+      res.json({ 
+        success: true, 
+        userId: user.id,
+        role: user.role
+      });
     } catch (error) {
       log(`Registration error: ${error}`);
       res.status(500).json({ 
@@ -36,9 +59,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 处理登录请求
   app.post("/api/login", async (req, res) => {
     try {
-      const { username, password } = req.body;
+      const { username, password, turnstileToken } = req.body;
+
+      // 验证Turnstile令牌
+      if (!turnstileToken) {
+        return res.status(400).json({
+          success: false,
+          message: "请完成人机验证"
+        });
+      }
+
+      // 验证Turnstile令牌
+      const isValidToken = await verifyTurnstileToken(turnstileToken);
+      if (!isValidToken) {
+        return res.status(400).json({
+          success: false,
+          message: "人机验证失败，请重试"
+        });
+      }
 
       // 获取用户信息
       let user = await storage.getUserByUsername(username);
@@ -247,6 +288,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Chat message route
+  // 聊天统计API端点
+  app.get("/api/chat-stats", async (req, res) => {
+    try {
+      const userId = req.query.userId;
+      
+      // 验证请求者是否是管理员
+      const requester = await storage.getUser(Number(userId));
+      if (!requester || requester.role !== "admin") {
+        return res.status(403).json({ 
+          success: false,
+          message: "Permission denied" 
+        });
+      }
+      
+      // 获取所有用户的聊天记录总数
+      const users = await storage.getAllUsers();
+      let totalChats = 0;
+      let todayChats = 0;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      for (const user of users) {
+        if (user.role === "admin") continue; // 不统计管理员的聊天
+        
+        const userChats = await storage.getUserChats(user.id, true);
+        totalChats += userChats.length;
+        
+        // 统计今日聊天数
+        const todayUserChats = userChats.filter(chat => {
+          if (!chat.createdAt) return false;
+          const chatDate = new Date(chat.createdAt);
+          return chatDate >= today;
+        });
+        
+        todayChats += todayUserChats.length;
+      }
+      
+      res.json({
+        success: true,
+        total: totalChats,
+        today: todayChats
+      });
+    } catch (error) {
+      log(`Error fetching chat stats: ${error}`);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch chat statistics"
+      });
+    }
+  });
+
   app.post("/api/chat", async (req, res) => {
     try {
       const { message, model, chatId, userId, role } = req.body;
@@ -260,6 +352,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!userId) {
         return res.status(401).json({ message: "Please login first" });
+      }
+
+      // 禁止管理员发送聊天消息
+      const user = await storage.getUser(Number(userId));
+      if (user && user.role === "admin") {
+        return res.status(403).json({ 
+          message: "管理员账户仅用于管理系统，不能参与聊天" 
+        });
       }
 
       // 如果是新创建的聊天，可能没有chatId，这种情况直接在内存中处理
@@ -308,7 +408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(response);
     } catch (error) {
-      log("Chat error:", error);
+      log(`Chat error: ${error instanceof Error ? error.message : String(error)}`);
       res.status(500).json({
         message: "Failed to process chat message",
         error: error instanceof Error ? error.message : String(error)
