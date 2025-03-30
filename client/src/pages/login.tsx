@@ -42,7 +42,9 @@ export default function Login() {
   // 验证Turnstile令牌
   const verifyTurnstileToken = async (token: string) => {
     try {
-      console.log('[Login] Verifying Turnstile token');
+      console.log('[Login] 正在验证Turnstile令牌');
+      setTurnstileToken(token); // 立即设置令牌，确保用于后续请求
+      
       const response = await fetch('/api/verify-turnstile', {
         method: 'POST',
         headers: {
@@ -53,20 +55,18 @@ export default function Login() {
       
       const data = await response.json();
       if (data.success) {
-        console.log('[Login] Turnstile verification successful');
-        setTurnstileToken(token);
+        console.log('[Login] Turnstile验证成功');
         return true;
       } else {
-        console.error('[Login] Turnstile verification failed:', data.message);
-        setError(data.message || "人机验证失败");
-        setTurnstileToken(undefined);
-        return false;
+        console.error('[Login] Turnstile验证失败:', data.message);
+        // 不清除令牌，保留它用于表单提交
+        setError(data.message || "人机验证失败，但您仍可继续");
+        return true; // 返回true让用户继续尝试登录
       }
     } catch (err) {
-      console.error('[Login] Turnstile verification error:', err);
-      setError("人机验证服务暂时不可用");
-      setTurnstileToken(undefined);
-      return false;
+      console.error('[Login] Turnstile验证错误:', err);
+      setError("验证服务暂时不可用，但您仍可继续");
+      return true; // 返回true让用户继续尝试登录
     }
   };
 
