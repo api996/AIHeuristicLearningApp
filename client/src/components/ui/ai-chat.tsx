@@ -353,30 +353,30 @@ export function AIChat({ userData }: AIChatProps) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header - 按照主流AI聊天助手设计 */}
-        <header className="h-16 flex items-center justify-between px-4 border-b border-neutral-800">
+        <header className="h-16 flex items-center justify-between px-6 border-b border-neutral-800 py-4 bg-neutral-900">
           <div className="flex items-center">
             {/* 左侧菜单按钮 - 显示历史记录 */}
             <Button
               variant="ghost"
               size="icon"
-              className="mr-3 hover:bg-neutral-800 rounded-lg h-10 w-10"
+              className="mr-4 hover:bg-neutral-800 rounded-lg h-12 w-12"
               onClick={toggleSidebar}
               aria-label="显示侧边栏"
             >
-              <Menu className="h-6 w-6 text-neutral-300" />
+              <Menu className="h-7 w-7 text-neutral-300" />
             </Button>
 
             {/* 当前对话标题 */}
             {currentChatId ? (
               <div className="flex items-center">
-                <h1 className="text-base font-medium text-neutral-200 mr-2 truncate max-w-[180px] sm:max-w-[320px] md:max-w-[400px]">{currentChat?.title}</h1>
+                <h1 className="text-lg font-medium text-neutral-200 mr-2 truncate max-w-[180px] sm:max-w-[320px] md:max-w-[400px]">{currentChat?.title}</h1>
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   onClick={() => setShowTitleDialog(true)}
-                  className="h-7 w-7 rounded-full hover:bg-neutral-800"
+                  className="h-8 w-8 rounded-full hover:bg-neutral-800"
                 >
-                  <Edit className="h-3.5 w-3.5 text-neutral-400" />
+                  <Edit className="h-4 w-4 text-neutral-400" />
                 </Button>
               </div>
             ) : (
@@ -395,10 +395,10 @@ export function AIChat({ userData }: AIChatProps) {
             <Button 
               variant="outline" 
               onClick={handleNewChat}
-              className="h-10 px-4 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700 flex items-center transition-colors"
+              className="h-12 px-6 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700 flex items-center transition-colors"
               title="新对话"
             >
-              <Plus className="h-5 w-5 mr-2" />
+              <Plus className="h-6 w-6 mr-2" />
               <span>新对话</span>
             </Button>
           </div>
