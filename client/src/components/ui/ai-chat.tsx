@@ -343,64 +343,73 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
+        {/* Header - 按照主流AI聊天助手设计 */}
         <header className="h-16 flex items-center justify-between px-4 border-b border-neutral-800">
           <div className="flex items-center">
+            {/* 左侧菜单按钮 - 显示历史记录 */}
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden mr-2"
+              className="mr-3 hover:bg-neutral-800 rounded-lg"
               onClick={toggleSidebar}
             >
-              <Menu className="h-6 w-6" />
+              <Menu className="h-5 w-5 text-neutral-300" />
             </Button>
-            <div className="flex items-center">
-              <div className="flex items-center mr-6">
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg mr-3 hidden md:flex">
-                  <Brain className="h-6 w-6 text-white" />
-                </div>
-                <h1 className="text-xl font-bold text-white hidden md:block">AI 对话助手</h1>
+            
+            {/* 当前对话标题 */}
+            {currentChatId ? (
+              <div className="flex items-center">
+                <h1 className="text-base font-medium text-neutral-200 mr-2 truncate max-w-[180px] sm:max-w-[320px] md:max-w-[400px]">{currentChat?.title}</h1>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setShowTitleDialog(true)}
+                  className="h-7 w-7 rounded-full hover:bg-neutral-800"
+                >
+                  <Edit className="h-3.5 w-3.5 text-neutral-400" />
+                </Button>
               </div>
-              {currentChatId && (
-                <div className="flex items-center bg-neutral-800/60 px-4 py-2 rounded-lg border border-neutral-700/50">
-                  <h1 className="text-base font-medium mr-2 text-neutral-200">{currentChat?.title}</h1>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => setShowTitleDialog(true)}
-                    className="h-7 w-7 ml-1 rounded-full hover:bg-neutral-700"
-                  >
-                    <Edit className="h-3.5 w-3.5 text-neutral-400" />
-                  </Button>
+            ) : (
+              <div className="flex items-center">
+                <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-lg mr-2.5">
+                  <Brain className="h-5 w-5 text-white" />
                 </div>
-              )}
-            </div>
-
+                <h1 className="text-lg font-bold text-white">AI 对话助手</h1>
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            {/* 用户下拉菜单 - 优化设计 */}
+
+          {/* 右侧功能区 */}
+          <div className="flex items-center gap-3">
+            {/* 新对话按钮 */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => onNewChat && onNewChat()}
+              className="h-9 w-9 rounded-lg hover:bg-neutral-800 text-neutral-300"
+              title="新对话"
+            >
+              <MessageSquare className="h-5 w-5" />
+            </Button>
+
+            {/* 用户下拉菜单 */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="ghost" 
-                  className="flex items-center gap-2 bg-neutral-800/50 hover:bg-neutral-700 px-4 py-2.5 rounded-lg transition-all duration-200 border border-neutral-700/50"
+                  className="h-9 w-9 p-0 rounded-full hover:bg-neutral-800 transition-all duration-200 overflow-hidden"
                 >
-                  <div className="flex items-center">
-                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full mr-2.5">
-                      <User className="h-5 w-5 text-white" />
-                    </div>
-                    <span className="text-base font-medium text-white mr-2">{user.username}</span>
-                    <ChevronDown className="h-4 w-4 text-neutral-400 transition-transform duration-300 group-data-[state=open]:rotate-180" />
+                  <div className="bg-gradient-to-br from-blue-500 to-purple-600 h-full w-full flex items-center justify-center">
+                    <User className="h-5 w-5 text-white" />
                   </div>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent 
                 align="end" 
-                alignOffset={-5}
                 sideOffset={8} 
-                className="w-56 bg-neutral-800 border border-neutral-700 text-white rounded-xl shadow-lg animate-in slide-in-from-top-5 fade-in-80 data-[side=bottom]:animate-in data-[side=bottom]:slide-in-from-top-2"
+                className="w-56 bg-neutral-800 border border-neutral-700 text-white rounded-xl shadow-lg animate-in slide-in-from-top-5 fade-in-80 data-[side=bottom]:animate-in data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2"
               >
-                <div className="flex items-center gap-2 px-3 py-2 border-b border-neutral-700">
+                <div className="flex items-center gap-2 px-3 py-3 border-b border-neutral-700">
                   <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full">
                     <User className="h-5 w-5 text-white" />
                   </div>
@@ -409,8 +418,7 @@ export function AIChat({ userData }: AIChatProps) {
                     <span className="text-xs text-neutral-400">用户</span>
                   </div>
                 </div>
-                <DropdownMenuSeparator className="bg-neutral-700" />
-                <DropdownMenuGroup>
+                <DropdownMenuGroup className="py-1">
                   <DropdownMenuItem 
                     className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
                   >
@@ -436,15 +444,15 @@ export function AIChat({ userData }: AIChatProps) {
                     <Sparkles className="mr-2.5 h-4 w-4 text-yellow-400" />
                     <span>偏好设置</span>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-neutral-700" />
-                  <DropdownMenuItem 
-                    className="cursor-pointer flex items-center text-red-400 hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
-                    onClick={handleLogout}
-                  >
-                    <LogOut className="mr-2.5 h-4 w-4" />
-                    <span>退出登录</span>
-                  </DropdownMenuItem>
                 </DropdownMenuGroup>
+                <DropdownMenuSeparator className="bg-neutral-700" />
+                <DropdownMenuItem 
+                  className="cursor-pointer flex items-center text-red-400 hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="mr-2.5 h-4 w-4" />
+                  <span>退出登录</span>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
