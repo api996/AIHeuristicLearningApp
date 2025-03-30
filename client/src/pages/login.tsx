@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -35,105 +36,114 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
+    if (!turnstileToken) {
+      setError("请完成人机验证");
+      return;
+    }
+
+    if (isRegistering) {
+      if (password !== confirmPassword) {
+        setError("两次输入的密码不一致");
+        return;
+      }
+    }
+
+    setIsVerifying(true);
+
     try {
-      console.log('[Login] Starting authentication process');
-
-      if (!turnstileToken) {
-        setError("请完成人机验证");
-        console.log('[Login] Missing turnstile token');
-        return;
-      }
-
-      if (isRegistering && password !== confirmPassword) {
-        setError("密码不匹配");
-        return;
-      }
-
-      setIsVerifying(true);
-      console.log('[Login] Verifying turnstile token');
-
-      // First verify the turnstile token
-      const verifyResponse = await apiRequest("POST", "/api/verify-turnstile", {
-        token: turnstileToken
+      console.log('[Login] Starting authentication');
+      
+      // 验证 Turnstile 令牌
+      const verifyResponse = await apiRequest({
+        method: "POST",
+        url: "/api/verify-turnstile",
+        data: { token: turnstileToken },
       });
 
-      const verifyData = await verifyResponse.json();
-      if (!verifyData.success) {
-        setError("人机验证失败，请重试");
-        console.log('[Login] Turnstile verification failed:', verifyData.message);
+      if (!verifyResponse.success) {
+        setError("人机验证失败，请刷新页面重试");
         return;
       }
 
-      console.log('[Login] Turnstile verification successful, proceeding with authentication');
+      // 根据状态调用登录或注册 API
+      const authResponse = await apiRequest({
+        method: "POST",
+        url: isRegistering ? "/api/register" : "/api/login",
+        data: { username, password },
+      });
 
-      // Then proceed with login/registration
-      const endpoint = isRegistering ? "/api/register" : "/api/login";
-      const response = await apiRequest("POST", endpoint, { username, password });
-      const data = await response.json();
-
-      if (data.success) {
-        console.log('[Login] Authentication successful:', data);
-        localStorage.setItem("user", JSON.stringify({ 
-          userId: data.userId,
-          role: data.role 
+      if (authResponse.success) {
+        console.log('[Login] Authentication successful');
+        localStorage.setItem("user", JSON.stringify({
+          userId: authResponse.userId,
+          username,
+          role: authResponse.role,
         }));
-
-        if (data.role === "admin") {
+        
+        if (authResponse.role === 'admin') {
           setLocation("/admin");
         } else {
           setLocation("/");
         }
       } else {
-        setError(data.message || "认证失败");
-        console.log('[Login] Authentication failed:', data.message);
+        console.error('[Login] Authentication failed:', authResponse.message);
+        setError(authResponse.message || "认证失败，请稍后重试");
       }
     } catch (error) {
-      console.error('[Login] Error during authentication:', error);
-      setError("操作失败，请稍后重试");
+      console.error('[Login] Error during auth:', error);
+      setError("认证失败，请稍后重试");
     } finally {
       setIsVerifying(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black">
-      <Card className="w-[350px] bg-neutral-900 text-white border-neutral-800">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-neutral-950 to-neutral-900">
+      <Card className="w-[380px] bg-neutral-900 text-white border-neutral-800 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-center">
-            {isRegistering ? "注册" : "登录"}
+          <CardTitle className="text-center text-2xl font-bold">
+            {isRegistering ? "创建账户" : "登录系统"}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm">用户名</label>
+              <label className="text-sm font-medium">用户名</label>
               <Input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="bg-neutral-800 border-neutral-700"
+                className="bg-neutral-800 border-neutral-700 focus:border-primary"
                 disabled={isVerifying}
+                placeholder="请输入用户名"
+                required
               />
             </div>
+            
             <div className="space-y-2">
-              <label className="text-sm">密码</label>
+              <label className="text-sm font-medium">密码</label>
               <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-neutral-800 border-neutral-700"
+                className="bg-neutral-800 border-neutral-700 focus:border-primary"
                 disabled={isVerifying}
+                placeholder="请输入密码"
+                required
               />
             </div>
+            
             {isRegistering && (
               <div className="space-y-2">
-                <label className="text-sm">确认密码</label>
+                <label className="text-sm font-medium">确认密码</label>
                 <Input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="bg-neutral-800 border-neutral-700"
+                  className="bg-neutral-800 border-neutral-700 focus:border-primary"
                   disabled={isVerifying}
+                  placeholder="请再次输入密码"
+                  required
                 />
               </div>
             )}
@@ -151,13 +161,13 @@ export default function Login() {
 
             <Button 
               type="submit" 
-              className="w-full"
+              className="w-full bg-blue-600 hover:bg-blue-700 transition-colors"
               disabled={isVerifying || !turnstileToken}
             >
               {isVerifying ? "验证中..." : (isRegistering ? "注册" : "登录")}
             </Button>
 
-            <div className="text-center">
+            <div className="text-center pt-2">
               <Button
                 type="button"
                 variant="ghost"
