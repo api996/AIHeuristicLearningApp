@@ -339,6 +339,7 @@ export function AIChat({ userData }: AIChatProps) {
           onSelectChat={handleSelectChat}
           onLogout={handleLogout}
           onNewChat={handleNewChat}
+          onChangePassword={() => setShowPasswordDialog(true)}
           onDeleteChat={(id) => {
             if (id === currentChatId) {
               setCurrentChatId(undefined);
@@ -405,16 +406,16 @@ export function AIChat({ userData }: AIChatProps) {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 p-6 md:p-8 overflow-y-auto flex flex-col gap-4">
+        <div className="flex-1 p-6 md:p-8 overflow-y-auto flex flex-col gap-4 pb-48">
           {messages.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-center">
               <div className="space-y-3">
                 <div className="flex justify-center">
-                  <div className="p-4 rounded-full bg-primary-foreground/10">
-                    <Brain size={20} />
+                  <div className="p-4 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-600/20">
+                    <Brain size={28} className="text-blue-400" />
                   </div>
                 </div>
-                <h3 className="text-lg font-semibold">{greetingMessage}</h3>
+                <h3 className="text-xl font-semibold text-white">{greetingMessage}</h3>
                 <p className="max-w-md text-sm text-neutral-400">
                   与AI开始交谈，探索不同学习模型
                 </p>
@@ -427,108 +428,112 @@ export function AIChat({ userData }: AIChatProps) {
           )}
         </div>
 
-        {/* Input Area - 简化布局并采用ChatGPT风格 */}
-        <div className="p-4 border-t border-neutral-800">
-          {/* 模型选择 - 使用更紧凑的布局 */}
-          <div className="mb-3 flex flex-wrap gap-2 justify-center">
-            <Button
-              variant="outline"
-              size="sm"
-              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                currentModel === "search" ? "border-blue-500" : "border-neutral-700"
-              }`}
-              onClick={() => setCurrentModel("search")}
-            >
-              <Search className="w-3.5 h-3.5 mr-1.5" />
-              网络搜索
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                currentModel === "deep" ? "border-blue-500" : "border-neutral-700"
-              }`}
-              onClick={() => setCurrentModel("deep")}
-            >
-              <Brain className="w-3.5 h-3.5 mr-1.5" />
-              深度推理
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                currentModel === "gemini" ? "border-blue-500" : "border-neutral-700"
-              }`}
-              onClick={() => setCurrentModel("gemini")}
-            >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              Gemini
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700"
-              }`}
-              onClick={() => setCurrentModel("deepseek")}
-            >
-              <Code className="w-3.5 h-3.5 mr-1.5" />
-              Deepseek
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                currentModel === "grok" ? "border-blue-500" : "border-neutral-700"
-              }`}
-              onClick={() => setCurrentModel("grok")}
-            >
-              <Rocket className="w-3.5 h-3.5 mr-1.5" />
-              Grok
-            </Button>
-          </div>
-
-          {/* 输入框区域 - 使用ChatGPT风格 */}
-          <div className="relative max-w-3xl mx-auto rounded-xl border border-neutral-700 bg-neutral-800 shadow-lg">
-            <div className="flex items-end">
-              <div className="flex-1 relative">
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="输入消息..."
-                  disabled={isLoading}
-                  className="w-full h-[50px] min-h-[50px] max-h-[200px] py-3 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0"
-                />
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageUpload}
-                  accept="image/*"
-                  className="hidden"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute bottom-1.5 left-2 h-8 w-8 rounded-full hover:bg-neutral-700"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <ImageIcon className="h-5 w-5 text-neutral-400" />
-                </Button>
-              </div>
+        {/* Input Area - 简化布局并采用ChatGPT风格，整体上移 */}
+        <div className="fixed bottom-0 left-0 right-0 pb-6 pt-2 bg-gradient-to-t from-neutral-950 via-neutral-950 to-transparent">
+          <div className="max-w-3xl mx-auto px-4">
+            {/* 模型选择 - 使用更紧凑的布局 */}
+            <div className="mb-3 flex flex-wrap gap-2 justify-center">
               <Button
-                onClick={handleSend}
-                disabled={isLoading}
-                className="h-10 w-10 mr-2 mb-1.5 rounded-full"
+                variant="outline"
+                size="sm"
+                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+                  currentModel === "search" ? "border-blue-500" : "border-neutral-700"
+                }`}
+                onClick={() => setCurrentModel("search")}
               >
-                <Send className="h-5 w-5" />
+                <Search className="w-3.5 h-3.5 mr-1.5" />
+                网络搜索
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+                  currentModel === "deep" ? "border-blue-500" : "border-neutral-700"
+                }`}
+                onClick={() => setCurrentModel("deep")}
+              >
+                <Brain className="w-3.5 h-3.5 mr-1.5" />
+                深度推理
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+                  currentModel === "gemini" ? "border-blue-500" : "border-neutral-700"
+                }`}
+                onClick={() => setCurrentModel("gemini")}
+              >
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                Gemini
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+                  currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700"
+                }`}
+                onClick={() => setCurrentModel("deepseek")}
+              >
+                <Code className="w-3.5 h-3.5 mr-1.5" />
+                Deepseek
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+                  currentModel === "grok" ? "border-blue-500" : "border-neutral-700"
+                }`}
+                onClick={() => setCurrentModel("grok")}
+              >
+                <Rocket className="w-3.5 h-3.5 mr-1.5" />
+                Grok
               </Button>
             </div>
-          </div>
-          <div className="text-center mt-2 text-xs text-neutral-500">
-            启发式对话导师 - 使用先进AI模型，由专家团队精心训练
+
+            {/* 输入框区域 - 使用ChatGPT风格 */}
+            <div className="relative rounded-xl border border-neutral-700 bg-neutral-800 shadow-lg">
+              <div className="flex items-end">
+                <div className="flex-1 relative">
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="输入消息..."
+                    disabled={isLoading}
+                    className="w-full h-[50px] min-h-[50px] max-h-[200px] py-3 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0"
+                  />
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute bottom-1.5 left-2 h-8 w-8 rounded-full hover:bg-neutral-700"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <ImageIcon className="h-5 w-5 text-neutral-400" />
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleSend}
+                  disabled={isLoading}
+                  className="h-10 w-10 mr-2 mb-1.5 rounded-full"
+                >
+                  <Send className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+            <div className="text-center mt-2 text-xs text-neutral-500">
+              启发式对话导师 - 使用先进AI模型，由专家团队精心训练
+            </div>
           </div>
         </div>
+        {/* 添加底部空间，避免内容被固定位置的输入框覆盖 */}
+        <div className="h-48"></div>
       </div>
 
       {/* Password Change Dialog */}
