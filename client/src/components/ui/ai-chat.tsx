@@ -18,7 +18,8 @@ import {
   Edit,
   User,
   ChevronDown,
-  MessageSquare
+  MessageSquare,
+  Pencil
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -334,7 +335,6 @@ export function AIChat({ userData }: AIChatProps) {
         }`}
       >
         <ChatHistory
-          onNewChat={handleNewChat}
           currentChatId={currentChatId}
           onSelectChat={handleSelectChat}
           user={user}
@@ -391,7 +391,7 @@ export function AIChat({ userData }: AIChatProps) {
               className="h-9 w-9 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
               title="新对话"
             >
-              <Plus className="h-5 w-5" />
+              <Pencil className="h-5 w-5" />
             </Button>
 
             {/* 用户下拉菜单 */}

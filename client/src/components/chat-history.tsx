@@ -87,8 +87,7 @@ export function ChatHistory({
   }
 
   return (
-    <div className="w-full flex flex-col h-full">
-      {/* 移除了多余的新对话按钮 */}="outline"
+    <div className="w-full flex flex-col h-full">话按钮 */}="outline"
             onClick={onNewChat}
           >
             <Plus className="mr-2 h-4 w-4" />
