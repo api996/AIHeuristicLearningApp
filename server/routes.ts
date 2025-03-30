@@ -191,31 +191,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userIdToDelete = parseInt(req.params.userId);
       const requesterId = parseInt(req.query.userId as string);
 
-      // Check if requester is admin
+      // 验证请求者身份
       const requester = await storage.getUser(requesterId);
-      if (!requester || requester.role !== "admin") {
-        return res.status(403).json({ message: "Permission denied" });
+      if (!requester) {
+        return res.status(401).json({ 
+          success: false, 
+          message: "请先登录" 
+        });
       }
 
-      // Don't allow deleting admin
+      // 检查身份，用户可以删除自己的账号，管理员可以删除任何非管理员账号
+      const isSelfDelete = requesterId === userIdToDelete;
+      const isAdminRequest = requester.role === "admin";
+      
+      if (!isSelfDelete && !isAdminRequest) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "没有权限执行此操作" 
+        });
+      }
+
+      // 不允许删除管理员账号（即使是管理员自己）
       const userToDelete = await storage.getUser(userIdToDelete);
-      if (!userToDelete || userToDelete.role === "admin") {
-        return res.status(400).json({ message: "Cannot delete admin account" });
+      if (!userToDelete) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "用户不存在" 
+        });
+      }
+      
+      if (userToDelete.role === "admin") {
+        return res.status(400).json({ 
+          success: false, 
+          message: "不能删除管理员账号" 
+        });
       }
 
-      // Delete all user's chats first
+      // 删除用户的所有聊天记录
+      log(`Deleting all chats for user ${userIdToDelete}`);
       const userChats = await storage.getUserChats(userIdToDelete, true);
       for (const chat of userChats) {
         await storage.deleteChat(chat.id, userIdToDelete, true);
       }
 
-      // Delete the user
+      // 删除用户
+      log(`Deleting user ${userIdToDelete}`);
       await storage.deleteUser(userIdToDelete);
 
-      res.json({ success: true });
+      // 如果是自删除账号，清除会话
+      if (isSelfDelete) {
+        return res.json({ 
+          success: true, 
+          logoutRequired: true,
+          message: "账号已成功删除" 
+        });
+      }
+
+      res.json({ 
+        success: true,
+        message: "用户已成功删除" 
+      });
     } catch (error) {
       log(`Error deleting user: ${error}`);
-      res.status(500).json({ message: "Failed to delete user" });
+      res.status(500).json({ 
+        success: false, 
+        message: "删除用户失败，请稍后重试" 
+      });
     }
   });
 
@@ -308,10 +349,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(response);
     } catch (error) {
-      log("Chat error:", error);
+      const errorText = error instanceof Error ? error.message : String(error);
+      log("Chat error: " + errorText);
       res.status(500).json({
         message: "Failed to process chat message",
-        error: error instanceof Error ? error.message : String(error)
+        error: errorText
       });
     }
   });
