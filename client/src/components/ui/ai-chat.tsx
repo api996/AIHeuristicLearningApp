@@ -186,9 +186,15 @@ export function AIChat({ userData }: AIChatProps) {
     if (!input.trim() || isLoading) return;
 
     try {
+      // 开始加载状态
       setIsLoading(true);
-      const newMessages = [...messages, { role: "user" as const, content: input }];
+      
+      // 添加用户消息
+      const userMessage = { role: "user" as const, content: input };
+      const newMessages = [...messages, userMessage];
       setMessages(newMessages);
+      
+      // 清空输入框
       setInput("");
 
       // Create a new chat if none exists
@@ -199,6 +205,9 @@ export function AIChat({ userData }: AIChatProps) {
         });
       }
 
+      // 发送给后端 API - 故意延迟200-300ms以显示思考状态
+      await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 200));
+      
       const response = await apiRequest("POST", "/api/chat", {
         message: input,
         model: currentModel,
@@ -208,16 +217,23 @@ export function AIChat({ userData }: AIChatProps) {
       });
       const data = await response.json();
 
-      setMessages([
-        ...newMessages,
-        {
-          role: "assistant" as const,
-          content: data.text || "抱歉，我现在无法回答这个问题。",
-        },
-      ]);
+      // AI 回复
+      const assistantMessage = {
+        role: "assistant" as const,
+        content: data.text || "抱歉，我现在无法回答这个问题。",
+      };
+      
+      // 更新消息列表，添加AI回复
+      setMessages([...newMessages, assistantMessage]);
     } catch (error) {
       console.error("Failed to send message:", error);
+      // 出错时添加错误消息
+      setMessages([
+        ...messages,
+        { role: "assistant" as const, content: "抱歉，发生了一些错误，请稍后再试。" }
+      ]);
     } finally {
+      // 关闭加载状态
       setIsLoading(false);
     }
   };
@@ -434,9 +450,22 @@ export function AIChat({ userData }: AIChatProps) {
               </div>
             </div>
           ) : (
-            messages.map((msg, i) => (
-              <ChatMessage key={i} message={msg} />
-            ))
+            <>
+              {messages.map((msg, i) => (
+                <ChatMessage 
+                  key={i} 
+                  message={msg} 
+                  isThinking={isLoading && i === messages.length - 1 && msg.role === "assistant"} 
+                />
+              ))}
+              {/* 如果正在等待AI响应，且最后一条是用户消息，显示思考中的占位消息 */}
+              {isLoading && messages[messages.length - 1]?.role === "user" && (
+                <ChatMessage 
+                  message={{ role: "assistant", content: "" }} 
+                  isThinking={true} 
+                />
+              )}
+            </>
           )}
         </div>
 
