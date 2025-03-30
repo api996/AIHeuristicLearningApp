@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TurnstileWidget } from "@/components/ui/turnstile";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2 } from "lucide-react";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -97,112 +96,84 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-black to-neutral-900">
-      <div className="w-full max-w-md px-4">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">多语言AI聊天平台</h1>
-          <p className="text-neutral-400">安全可靠的智能助手</p>
-        </div>
-
-        <Card className="bg-neutral-900/70 text-white border-neutral-800 backdrop-blur-sm shadow-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-center text-xl">
-              {isRegistering ? "创建账户" : "欢迎回来"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <Card className="w-[350px] bg-neutral-900 text-white border-neutral-800">
+        <CardHeader>
+          <CardTitle className="text-center">
+            {isRegistering ? "注册" : "登录"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm">用户名</label>
+              <Input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="bg-neutral-800 border-neutral-700"
+                disabled={isVerifying}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm">密码</label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-neutral-800 border-neutral-700"
+                disabled={isVerifying}
+              />
+            </div>
+            {isRegistering && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-300">用户名</label>
+                <label className="text-sm">确认密码</label>
                 <Input
-                  id="usernameInput"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="bg-neutral-800/80 border-neutral-700 focus:border-blue-500 focus:ring-blue-500 transition-colors"
-                  disabled={isVerifying}
-                  required
-                  autoComplete="username"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-300">密码</label>
-                <Input
-                  id="passwordInput"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-neutral-800/80 border-neutral-700 focus:border-blue-500 focus:ring-blue-500 transition-colors"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="bg-neutral-800 border-neutral-700"
                   disabled={isVerifying}
-                  required
-                  autoComplete={isRegistering ? "new-password" : "current-password"}
                 />
               </div>
-              {isRegistering && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-neutral-300">确认密码</label>
-                  <Input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="bg-neutral-800/80 border-neutral-700 focus:border-blue-500 focus:ring-blue-500 transition-colors"
-                    disabled={isVerifying}
-                    required
-                    autoComplete="new-password"
-                  />
-                </div>
-              )}
+            )}
 
-              <div className="pt-2">
-                <TurnstileWidget 
-                  onVerify={setTurnstileToken}
-                  onError={() => setError("人机验证加载失败，请刷新页面重试")}
-                />
-              </div>
+            <div className="space-y-2">
+              <TurnstileWidget 
+                onVerify={setTurnstileToken}
+                onError={() => setError("人机验证加载失败，请刷新页面重试")}
+              />
+            </div>
 
-              {error && (
-                <div className="px-3 py-2 rounded bg-red-900/30 border border-red-800 text-red-300 text-sm text-center">
-                  {error}
-                </div>
-              )}
+            {error && (
+              <div className="text-red-500 text-sm text-center">{error}</div>
+            )}
 
-              <Button 
-                type="submit" 
-                className="w-full bg-blue-600 hover:bg-blue-700 transition-colors py-5"
-                disabled={isVerifying || !turnstileToken}
+            <Button 
+              type="submit" 
+              className="w-full"
+              disabled={isVerifying || !turnstileToken}
+            >
+              {isVerifying ? "验证中..." : (isRegistering ? "注册" : "登录")}
+            </Button>
+
+            <div className="text-center">
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-sm text-neutral-400 hover:text-white"
+                onClick={() => {
+                  setIsRegistering(!isRegistering);
+                  setError("");
+                }}
+                disabled={isVerifying}
               >
-                {isVerifying ? (
-                  <span className="flex items-center justify-center">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    验证中...
-                  </span>
-                ) : (
-                  isRegistering ? "注册账户" : "登录"
-                )}
+                {isRegistering ? "已有账号？去登录" : "没有账号？去注册"}
               </Button>
-
-              <div className="text-center pt-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-sm text-blue-400 hover:text-blue-300 hover:bg-transparent"
-                  onClick={() => {
-                    setIsRegistering(!isRegistering);
-                    setError("");
-                  }}
-                  disabled={isVerifying}
-                >
-                  {isRegistering ? "已有账号？去登录" : "没有账号？去注册"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        <div className="mt-6 text-center text-xs text-neutral-500">
-          <p>安全保障 • Cloudflare Turnstile验证 • 多重加密</p>
-        </div>
-      </div>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
