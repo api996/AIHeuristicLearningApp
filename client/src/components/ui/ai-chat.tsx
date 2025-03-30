@@ -353,10 +353,11 @@ export function AIChat({ userData }: AIChatProps) {
               size="icon"
               className="mr-3 hover:bg-neutral-800 rounded-lg"
               onClick={toggleSidebar}
+              aria-label="显示侧边栏"
             >
               <Menu className="h-5 w-5 text-neutral-300" />
             </Button>
-            
+
             {/* 当前对话标题 */}
             {currentChatId ? (
               <div className="flex items-center">
@@ -384,13 +385,13 @@ export function AIChat({ userData }: AIChatProps) {
           <div className="flex items-center gap-3">
             {/* 新对话按钮 */}
             <Button 
-              variant="ghost" 
+              variant="default" 
               size="icon" 
               onClick={handleNewChat}
-              className="h-9 w-9 rounded-lg hover:bg-neutral-800 text-neutral-300"
+              className="h-9 w-9 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
               title="新对话"
             >
-              <MessageSquare className="h-5 w-5" />
+              <Plus className="h-5 w-5" />
             </Button>
 
             {/* 用户下拉菜单 */}
@@ -398,11 +399,14 @@ export function AIChat({ userData }: AIChatProps) {
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="ghost" 
-                  className="h-9 w-9 p-0 rounded-full hover:bg-neutral-800 transition-all duration-200 overflow-hidden"
+                  className="h-9 w-9 p-0 rounded-full hover:bg-neutral-800 transition-all duration-200 overflow-hidden relative"
                 >
                   <div className="bg-gradient-to-br from-blue-500 to-purple-600 h-full w-full flex items-center justify-center">
                     <User className="h-5 w-5 text-white" />
                   </div>
+                  <span className="absolute -bottom-1 -right-1 text-xs bg-neutral-800 px-1 rounded-sm border border-neutral-700">
+                    用户
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent 
