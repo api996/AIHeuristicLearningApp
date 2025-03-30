@@ -337,6 +337,14 @@ export function AIChat({ userData }: AIChatProps) {
         <ChatHistory
           currentChatId={currentChatId}
           onSelectChat={handleSelectChat}
+          onLogout={handleLogout}
+          onNewChat={handleNewChat}
+          onDeleteChat={(id) => {
+            if (id === currentChatId) {
+              setCurrentChatId(null);
+            }
+          }}
+          setCurrentChatId={setCurrentChatId}
           user={user}
           chats={chatsToRender} // Pass chatsToRender to ChatHistory
         />
@@ -351,11 +359,11 @@ export function AIChat({ userData }: AIChatProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="mr-3 hover:bg-neutral-800 rounded-lg"
+              className="mr-3 hover:bg-neutral-800 rounded-lg h-10 w-10"
               onClick={toggleSidebar}
               aria-label="显示侧边栏"
             >
-              <Menu className="h-5 w-5 text-neutral-300" />
+              <Menu className="h-6 w-6 text-neutral-300" />
             </Button>
 
             {/* 当前对话标题 */}
@@ -381,85 +389,18 @@ export function AIChat({ userData }: AIChatProps) {
             )}
           </div>
 
-          {/* 右侧功能区 */}
-          <div className="flex items-center gap-3">
-            {/* 新对话按钮 */}
+          {/* 右侧功能区 - 只保留新对话按钮，改为ChatGPT风格 */}
+          <div className="flex items-center">
+            {/* 新对话按钮 - 使用ChatGPT风格 */}
             <Button 
-              variant="default" 
-              size="icon" 
+              variant="outline" 
               onClick={handleNewChat}
-              className="h-9 w-9 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+              className="h-10 px-4 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700 flex items-center transition-colors"
               title="新对话"
             >
-              <Pencil className="h-5 w-5" />
+              <Plus className="h-5 w-5 mr-2" />
+              <span>新对话</span>
             </Button>
-
-            {/* 用户下拉菜单 */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  className="h-9 w-9 p-0 rounded-full hover:bg-neutral-800 transition-all duration-200 overflow-hidden relative"
-                >
-                  <div className="bg-gradient-to-br from-blue-500 to-purple-600 h-full w-full flex items-center justify-center">
-                    <User className="h-5 w-5 text-white" />
-                  </div>
-                  <span className="absolute -bottom-1 -right-1 text-xs bg-neutral-800 px-1 rounded-sm border border-neutral-700">
-                    用户
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent 
-                align="end" 
-                sideOffset={8} 
-                className="w-56 bg-neutral-800 border border-neutral-700 text-white rounded-xl shadow-lg animate-in slide-in-from-top-5 fade-in-80 data-[side=bottom]:animate-in data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2"
-              >
-                <div className="flex items-center gap-2 px-3 py-3 border-b border-neutral-700">
-                  <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full">
-                    <User className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{user.username}</span>
-                    <span className="text-xs text-neutral-400">用户</span>
-                  </div>
-                </div>
-                <DropdownMenuGroup className="py-1">
-                  <DropdownMenuItem 
-                    className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
-                  >
-                    <User className="mr-2.5 h-4 w-4 text-blue-400" />
-                    <span>个人资料</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
-                    onClick={() => setShowPasswordDialog(true)}
-                  >
-                    <Settings className="mr-2.5 h-4 w-4 text-green-400" />
-                    <span>修改密码</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
-                  >
-                    <Brain className="mr-2.5 h-4 w-4 text-purple-400" />
-                    <span>会话记录</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
-                  >
-                    <Sparkles className="mr-2.5 h-4 w-4 text-yellow-400" />
-                    <span>偏好设置</span>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator className="bg-neutral-700" />
-                <DropdownMenuItem 
-                  className="cursor-pointer flex items-center text-red-400 hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="mr-2.5 h-4 w-4" />
-                  <span>退出登录</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </header>
 
