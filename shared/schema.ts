@@ -1,12 +1,18 @@
 import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  role: text("role", { enum: ["admin", "user"] }).notNull().default("user"),
 });
+
+export const usersRelations = relations(users, ({ many }) => ({
+  chats: many(chats),
+}));
 
 export const chats = pgTable("chats", {
   id: serial("id").primaryKey(),
@@ -16,6 +22,14 @@ export const chats = pgTable("chats", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const chatsRelations = relations(chats, ({ one, many }) => ({
+  user: one(users, {
+    fields: [chats.userId],
+    references: [users.id],
+  }),
+  messages: many(messages),
+}));
+
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
   chatId: serial("chat_id").references(() => chats.id),
@@ -23,6 +37,13 @@ export const messages = pgTable("messages", {
   role: text("role").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  chat: one(chats, {
+    fields: [messages.chatId],
+    references: [chats.id],
+  }),
+}));
 
 export const insertUserSchema = createInsertSchema(users);
 export const insertChatSchema = createInsertSchema(chats);

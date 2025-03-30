@@ -1,4 +1,5 @@
 import fetch from "node-fetch";
+import { log } from "../vite";
 
 interface ModelConfig {
   endpoint?: string;
@@ -20,6 +21,7 @@ export class ChatService {
     }
     this.apiKey = apiKey;
     this.currentModel = "deep"; // Default model
+    log("ChatService initialized");
 
     this.modelConfigs = {
       gemini: {
@@ -37,18 +39,22 @@ export class ChatService {
           inputs: {},
         }),
         getResponse: async (message: string) => {
-          const response = await fetch(this.modelConfigs.gemini.endpoint!, {
+          log(`Calling Dify API with message: ${message}`);
+          const response = await fetchWithRetry(this.modelConfigs.gemini.endpoint!, {
             method: "POST",
             headers: this.modelConfigs.gemini.headers!,
             body: JSON.stringify(this.modelConfigs.gemini.transformRequest!(message)),
-          });
+            timeout: 30000, // 30秒超时
+          }, 3, 500);
 
           if (!response.ok) {
             const errorText = await response.text();
+            log(`Dify API error: ${response.status} - ${errorText}`);
             throw new Error(`API error: ${response.status} - ${errorText}`);
           }
 
           const data = await response.json();
+          log(`Received Dify API response: ${JSON.stringify(data)}`);
           return {
             text: data.answer || "Gemini暂时无法回应",
             model: "gemini"
@@ -57,33 +63,44 @@ export class ChatService {
       },
       deepseek: {
         isSimulated: true,
-        getResponse: async (message: string) => ({
-          text: `[Deepseek模型] 分析您的问题："${message}"...\n这是一个模拟的Deepseek回应。`,
-          model: "deepseek"
-        })
+        getResponse: async (message: string) => {
+          log(`Simulating Deepseek response for: ${message}`);
+          return {
+            text: `[Deepseek模型] 分析您的问题："${message}"...\n这是一个模拟的Deepseek回应。`,
+            model: "deepseek"
+          };
+        }
       },
       grok: {
         isSimulated: true,
-        getResponse: async (message: string) => ({
-          text: `[Grok模型] 处理您的问题："${message}"...\n这是一个模拟的Grok回应。`,
-          model: "grok"
-        })
+        getResponse: async (message: string) => {
+          log(`Simulating Grok response for: ${message}`);
+          return {
+            text: `[Grok模型] 处理您的问题："${message}"...\n这是一个模拟的Grok回应。`,
+            model: "grok"
+          };
+        }
       },
       search: {
         isSimulated: true,
-        getResponse: async (message: string) => ({
-          text: `[Search模型] 搜索您的问题："${message}"...\n这是一个模拟的Search回应。`,
-          model: "search"
-        })
+        getResponse: async (message: string) => {
+          log(`Simulating Search response for: ${message}`);
+          return {
+            text: `[Search模型] 搜索您的问题："${message}"...\n这是一个模拟的Search回应。`,
+            model: "search"
+          };
+        }
       },
       deep: {
         isSimulated: true,
-        getResponse: async (message: string) => ({
-          text: `[Deep模型] 分析您的问题："${message}"...\n这是一个模拟的Deep回应。`,
-          model: "deep"
-        })
+        getResponse: async (message: string) => {
+          log(`Simulating Deep response for: ${message}`);
+          return {
+            text: `[Deep模型] 分析您的问题："${message}"...\n这是一个模拟的Deep回应。`,
+            model: "deep"
+          };
+        }
       }
-
     };
   }
 
@@ -91,18 +108,52 @@ export class ChatService {
     if (!this.modelConfigs[model]) {
       throw new Error(`Unsupported model: ${model}`);
     }
+    log(`Switching to model: ${model}`);
     this.currentModel = model;
   }
 
   async sendMessage(message: string) {
     try {
+      log(`Processing message with ${this.currentModel} model: ${message}`);
       const config = this.modelConfigs[this.currentModel];
       return await config.getResponse(message);
     } catch (error) {
-      console.error(`Error in ${this.currentModel} chat:`, error);
+      log(`Error in ${this.currentModel} chat: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
 }
 
 export const chatService = new ChatService();
+
+// 添加重试逻辑，避免504超时问题
+const fetchWithRetry = async (url: string, options: any, retries = 3, backoff = 300) => {
+  let lastError;
+  
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok) return response;
+      
+      // 如果服务器返回504，等待后重试
+      if (response.status === 504) {
+        lastError = new Error(`Gateway timeout (504) on attempt ${i + 1} of ${retries}`);
+        log(`Gateway timeout, retrying in ${backoff}ms...`);
+        await new Promise(resolve => setTimeout(resolve, backoff));
+        backoff *= 2; // 指数退避策略
+        continue;
+      }
+      
+      // 其他错误直接返回
+      return response;
+    } catch (error) {
+      lastError = error;
+      log(`Network error on attempt ${i + 1} of ${retries}: ${error}`);
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      backoff *= 2;
+    }
+  }
+  
+  // 所有重试都失败了
+  throw lastError || new Error('Failed after retries');
+};
