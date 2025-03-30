@@ -61,18 +61,18 @@ export function ChatMessage({ message }: ChatMessageProps) {
       "flex w-full max-w-3xl mx-auto group",
       message.role === "assistant" ? "bg-neutral-900/50" : "bg-transparent"
     )}>
-      <div className="flex items-start gap-3 px-3 py-3 w-full">
+      <div className="flex items-start gap-4 px-4 py-6 w-full">
         {message.role === "assistant" ? (
-          <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1 rounded-sm mt-0.5 shrink-0">
-            <Brain className="h-3.5 w-3.5 text-white" />
+          <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-sm mt-0.5">
+            <Brain className="h-4 w-4 text-white" />
           </div>
         ) : (
-          <div className="bg-blue-600 p-1 rounded-sm mt-0.5 shrink-0">
-            <User className="h-3.5 w-3.5 text-white" />
+          <div className="bg-blue-600 p-1.5 rounded-sm mt-0.5">
+            <User className="h-4 w-4 text-white" />
           </div>
         )}
         
-        <div className="flex-1 overflow-hidden text-sm">
+        <div className="flex-1 overflow-hidden">
           {isImage && imageUrl ? (
             <img 
               src={imageUrl} 
