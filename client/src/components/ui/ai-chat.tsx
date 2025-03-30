@@ -15,13 +15,24 @@ import {
   Plus,
   LogOut,
   Settings,
-  Edit
+  Edit,
+  User,
+  ChevronDown
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type Message = {
   role: "user" | "assistant";
@@ -43,7 +54,11 @@ const readFileAsBase64 = (file: File): Promise<string> => {
   });
 };
 
-export function AIChat() {
+interface AIChatProps {
+  userData: any;
+}
+
+export function AIChat({ userData }: AIChatProps) {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -65,8 +80,8 @@ export function AIChat() {
   const [newTitle, setNewTitle] = useState("");
   const [titleError, setTitleError] = useState("");
 
-  // Get user from localStorage
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  // Use the passed in userData
+  const user = userData;
 
   // Update the query to include user context
   const { data: currentChat } = useQuery({
@@ -340,6 +355,7 @@ export function AIChat() {
               <Menu className="h-6 w-6" />
             </Button>
             <div className="flex items-center">
+              <h1 className="text-lg font-bold text-white hidden md:block mr-4">AI 对话助手</h1>
               {currentChatId && (
                 <>
                   <h1 className="text-xl font-semibold mr-2">{currentChat?.title}</h1>
@@ -352,22 +368,41 @@ export function AIChat() {
 
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowPasswordDialog(true)}
-              className="text-neutral-400 hover:text-white"
-            >
-              <Settings className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              className="text-red-500 hover:text-red-400"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
+            {/* 用户下拉菜单 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="flex items-center gap-2 bg-neutral-800 hover:bg-neutral-700 px-3 py-2 rounded-md"
+                >
+                  <div className="flex items-center">
+                    <User className="h-4 w-4 mr-2 text-neutral-300" />
+                    <span className="text-sm font-medium text-neutral-300 mr-1">{user.username}</span>
+                    <ChevronDown className="h-4 w-4 text-neutral-500" />
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-48 bg-neutral-800 border-neutral-700 text-white">
+                <DropdownMenuLabel>用户中心</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-neutral-700" />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem 
+                    className="cursor-pointer flex items-center hover:bg-neutral-700"
+                    onClick={() => setShowPasswordDialog(true)}
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>修改密码</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="cursor-pointer flex items-center text-red-500 hover:bg-neutral-700"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>退出登录</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
