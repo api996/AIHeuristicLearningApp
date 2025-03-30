@@ -355,49 +355,93 @@ export function AIChat({ userData }: AIChatProps) {
               <Menu className="h-6 w-6" />
             </Button>
             <div className="flex items-center">
-              <h1 className="text-lg font-bold text-white hidden md:block mr-4">AI 对话助手</h1>
+              <div className="flex items-center mr-6">
+                <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg mr-3 hidden md:flex">
+                  <Brain className="h-6 w-6 text-white" />
+                </div>
+                <h1 className="text-xl font-bold text-white hidden md:block">AI 对话助手</h1>
+              </div>
               {currentChatId && (
-                <>
-                  <h1 className="text-xl font-semibold mr-2">{currentChat?.title}</h1>
-                  <Button variant="ghost" size="icon" onClick={() => setShowTitleDialog(true)}>
-                    <Edit className="h-5 w-5" />
+                <div className="flex items-center bg-neutral-800/60 px-4 py-2 rounded-lg border border-neutral-700/50">
+                  <h1 className="text-base font-medium mr-2 text-neutral-200">{currentChat?.title}</h1>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setShowTitleDialog(true)}
+                    className="h-7 w-7 ml-1 rounded-full hover:bg-neutral-700"
+                  >
+                    <Edit className="h-3.5 w-3.5 text-neutral-400" />
                   </Button>
-                </>
+                </div>
               )}
             </div>
 
           </div>
           <div className="flex items-center gap-2">
-            {/* 用户下拉菜单 */}
+            {/* 用户下拉菜单 - 优化设计 */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="ghost" 
-                  className="flex items-center gap-2 bg-neutral-800 hover:bg-neutral-700 px-3 py-2 rounded-md"
+                  className="flex items-center gap-2 bg-neutral-800/50 hover:bg-neutral-700 px-4 py-2.5 rounded-lg transition-all duration-200 border border-neutral-700/50"
                 >
                   <div className="flex items-center">
-                    <User className="h-4 w-4 mr-2 text-neutral-300" />
-                    <span className="text-sm font-medium text-neutral-300 mr-1">{user.username}</span>
-                    <ChevronDown className="h-4 w-4 text-neutral-500" />
+                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full mr-2.5">
+                      <User className="h-5 w-5 text-white" />
+                    </div>
+                    <span className="text-base font-medium text-white mr-2">{user.username}</span>
+                    <ChevronDown className="h-4 w-4 text-neutral-400 transition-transform duration-300 group-data-[state=open]:rotate-180" />
                   </div>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-48 bg-neutral-800 border-neutral-700 text-white">
-                <DropdownMenuLabel>用户中心</DropdownMenuLabel>
+              <DropdownMenuContent 
+                align="end" 
+                alignOffset={-5}
+                sideOffset={8} 
+                className="w-56 bg-neutral-800 border border-neutral-700 text-white rounded-xl shadow-lg animate-in slide-in-from-top-5 fade-in-80 data-[side=bottom]:animate-in data-[side=bottom]:slide-in-from-top-2"
+              >
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-neutral-700">
+                  <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full">
+                    <User className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{user.username}</span>
+                    <span className="text-xs text-neutral-400">用户</span>
+                  </div>
+                </div>
                 <DropdownMenuSeparator className="bg-neutral-700" />
                 <DropdownMenuGroup>
                   <DropdownMenuItem 
-                    className="cursor-pointer flex items-center hover:bg-neutral-700"
+                    className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                  >
+                    <User className="mr-2.5 h-4 w-4 text-blue-400" />
+                    <span>个人资料</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
                     onClick={() => setShowPasswordDialog(true)}
                   >
-                    <Settings className="mr-2 h-4 w-4" />
+                    <Settings className="mr-2.5 h-4 w-4 text-green-400" />
                     <span>修改密码</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem 
-                    className="cursor-pointer flex items-center text-red-500 hover:bg-neutral-700"
+                    className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                  >
+                    <Brain className="mr-2.5 h-4 w-4 text-purple-400" />
+                    <span>会话记录</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                  >
+                    <Sparkles className="mr-2.5 h-4 w-4 text-yellow-400" />
+                    <span>偏好设置</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-neutral-700" />
+                  <DropdownMenuItem 
+                    className="cursor-pointer flex items-center text-red-400 hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
                     onClick={handleLogout}
                   >
-                    <LogOut className="mr-2 h-4 w-4" />
+                    <LogOut className="mr-2.5 h-4 w-4" />
                     <span>退出登录</span>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
