@@ -194,22 +194,29 @@ export function AIChat({ userData }: AIChatProps) {
       const newMessages = [...messages, userMessage];
       setMessages(newMessages);
       
+      // 保存用户输入内容
+      const userInput = input.trim();
+      
       // 清空输入框
       setInput("");
 
       // Create a new chat if none exists
       if (!currentChatId) {
         const chat = await createChatMutation.mutateAsync({
-          title: input.slice(0, 50), // Use first 50 chars of message as title
+          title: userInput.slice(0, 50), // Use first 50 chars of message as title
           model: currentModel,
         });
       }
 
-      // 发送给后端 API - 故意延迟200-300ms以显示思考状态
-      await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 200));
+      // 添加占位思考消息
+      // 注意：我们先添加一个空内容的消息，显示思考动画
+      setMessages([...newMessages, { role: "assistant" as const, content: "" }]);
+      
+      // 发送给后端 API - 故意延迟300-600ms以显示思考状态
+      await new Promise(resolve => setTimeout(resolve, Math.random() * 300 + 300));
       
       const response = await apiRequest("POST", "/api/chat", {
-        message: input,
+        message: userInput,
         model: currentModel,
         chatId: currentChatId,
         userId: user.userId,
@@ -217,21 +224,44 @@ export function AIChat({ userData }: AIChatProps) {
       });
       const data = await response.json();
 
-      // AI 回复
-      const assistantMessage = {
-        role: "assistant" as const,
-        content: data.text || "抱歉，我现在无法回答这个问题。",
-      };
+      // 获取AI响应内容
+      const aiResponse = data.text || "抱歉，我现在无法回答这个问题。";
       
-      // 更新消息列表，添加AI回复
-      setMessages([...newMessages, assistantMessage]);
+      // 更新现有的思考消息为真实响应
+      setMessages(prev => {
+        // 复制当前消息数组
+        const updatedMessages = [...prev];
+        // 最后一条消息应该是我们添加的占位思考消息
+        if (updatedMessages.length > 0 && updatedMessages[updatedMessages.length - 1].role === "assistant") {
+          // 用真实响应替换它
+          updatedMessages[updatedMessages.length - 1] = {
+            role: "assistant" as const,
+            content: aiResponse
+          };
+        }
+        return updatedMessages;
+      });
     } catch (error) {
       console.error("Failed to send message:", error);
       // 出错时添加错误消息
-      setMessages([
-        ...messages,
-        { role: "assistant" as const, content: "抱歉，发生了一些错误，请稍后再试。" }
-      ]);
+      setMessages(prev => {
+        // 检查最后一条消息是否是我们添加的思考消息
+        if (prev.length > 0 && prev[prev.length - 1].role === "assistant" && !prev[prev.length - 1].content) {
+          // 如果是，替换为错误消息
+          const updatedMessages = [...prev];
+          updatedMessages[updatedMessages.length - 1] = { 
+            role: "assistant" as const, 
+            content: "抱歉，发生了一些错误，请稍后再试。" 
+          };
+          return updatedMessages;
+        } else {
+          // 否则，添加新的错误消息
+          return [
+            ...prev,
+            { role: "assistant" as const, content: "抱歉，发生了一些错误，请稍后再试。" }
+          ];
+        }
+      });
     } finally {
       // 关闭加载状态
       setIsLoading(false);

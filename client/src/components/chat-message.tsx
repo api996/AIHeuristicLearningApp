@@ -63,12 +63,61 @@ export function ChatMessage({ message, isThinking = false }: ChatMessageProps) {
   const imageUrl = isImage ? 
     message.content.match(/\((.*?)\)/)?.[1] : null;
 
-  // 思考中动画组件
+  // 思考过程状态列表
+  const thinkingSteps = [
+    "接收到您的问题...",
+    "分析问题中...",
+    "理解问题关键点...",
+    "搜索相关知识...",
+    "检索相关信息...",
+    "整合可用信息...",
+    "深入思考中...",
+    "考虑不同角度...",
+    "分析可能解释...",
+    "评估最佳方案...",
+    "反思中...",
+    "优化答案...",
+    "组织回答中...",
+    "准备输出中..."
+  ];
+  
+  // 跟踪思考步骤
+  const [currentThinkingStep, setCurrentThinkingStep] = useState(0);
+  
+  // 更新思考步骤的效果
+  useEffect(() => {
+    if (!isThinking) return;
+    
+    const interval = setInterval(() => {
+      setCurrentThinkingStep(prev => (prev + 1) % thinkingSteps.length);
+    }, 1500); // 每1.5秒更新一次思考状态
+    
+    return () => clearInterval(interval);
+  }, [isThinking, thinkingSteps.length]);
+  
+  // 增强的思考中动画组件
   const ThinkingAnimation = () => (
-    <div className="flex items-center space-x-2 mt-2 h-6">
-      <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: "0ms" }}></div>
-      <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: "300ms" }}></div>
-      <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: "600ms" }}></div>
+    <div className="mt-2 space-y-2">
+      <div className="flex items-center space-x-3">
+        <div className="flex space-x-1">
+          <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: "0ms" }}></div>
+          <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: "300ms" }}></div>
+          <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: "600ms" }}></div>
+        </div>
+        <div className="text-blue-400 text-sm font-medium animate-pulse">
+          {thinkingSteps[currentThinkingStep]}
+        </div>
+      </div>
+      <div className="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
+        <div 
+          className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 rounded-full animate-shimmer"
+          style={{ 
+            width: `${((currentThinkingStep + 1) / thinkingSteps.length) * 100}%`,
+            backgroundSize: '200% 100%',
+            transition: 'width 1s ease-in-out'
+          }}
+        ></div>
+      </div>
     </div>
   );
 
@@ -114,21 +163,39 @@ export function ChatMessage({ message, isThinking = false }: ChatMessageProps) {
 
   return (
     <div className={cn(
-      "flex w-full max-w-3xl mx-auto group",
-      message.role === "assistant" ? "bg-neutral-900/50" : "bg-transparent"
+      "w-full max-w-3xl mx-auto px-4 py-2 message-appear",
+      message.role === "assistant" ? "bg-neutral-900/30" : "bg-transparent"
     )}>
-      <div className="flex items-start gap-4 px-4 py-6 w-full">
-        {message.role === "assistant" ? (
-          <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-sm mt-0.5">
-            <Brain className="h-4 w-4 text-white" />
-          </div>
-        ) : (
-          <div className="bg-blue-600 p-1.5 rounded-sm mt-0.5">
-            <User className="h-4 w-4 text-white" />
-          </div>
+      {/* 实现左右交错布局 */}
+      <div 
+        className={cn(
+          "flex max-w-[80%] animate-scale-in",
+          message.role === "user" ? "flex-row-reverse ml-auto" : "mr-auto",
         )}
+      >
+        {/* 头像 */}
+        <div className={cn(
+          "flex-shrink-0 flex items-center",
+          message.role === "user" ? "ml-3" : "mr-3"
+        )}>
+          {message.role === "assistant" ? (
+            <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full">
+              <Brain className="h-4 w-4 text-white" />
+            </div>
+          ) : (
+            <div className="bg-blue-600 p-1.5 rounded-full">
+              <User className="h-4 w-4 text-white" />
+            </div>
+          )}
+        </div>
         
-        <div className="flex-1 overflow-hidden">
+        {/* 消息内容 */}
+        <div className={cn(
+          "py-3 px-4 rounded-2xl",
+          message.role === "assistant" 
+            ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20 text-white border border-blue-800/30" 
+            : "bg-blue-600 text-white"
+        )}>
           {isImage && imageUrl ? (
             <img 
               src={imageUrl} 
@@ -143,7 +210,7 @@ export function ChatMessage({ message, isThinking = false }: ChatMessageProps) {
                   {renderContent(displayedText)}
                   {/* 如果打字尚未完成，显示光标 */}
                   {!completed && !isThinking && 
-                    <span className="inline-block h-4 w-1 bg-blue-400 animate-pulse ml-0.5 align-middle"></span>
+                    <span className="inline-block h-4 w-1 bg-blue-400 animate-blink ml-0.5 align-middle"></span>
                   }
                   {/* 如果正在思考中，显示思考动画 */}
                   {isThinking && <ThinkingAnimation />}
