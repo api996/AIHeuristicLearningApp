@@ -21,6 +21,9 @@ interface ChatHistoryProps {
   onDeleteChat?: (id: number) => void;
   onLogout?: () => void;
   onChangePassword?: () => void;
+  onShowProfile?: () => void;
+  onShowLearningPath?: () => void;
+  onShowPreferences?: () => void;
   chats?: any[];
   user?: { userId: number; role: string; username?: string };
 }
@@ -33,6 +36,9 @@ export function ChatHistory({
   onDeleteChat,
   onLogout,
   onChangePassword,
+  onShowProfile,
+  onShowLearningPath,
+  onShowPreferences,
   chats: propsChats,
   user 
 }: ChatHistoryProps) {
@@ -183,6 +189,7 @@ export function ChatHistory({
             <DropdownMenuGroup className="py-1">
               <DropdownMenuItem 
                 className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                onClick={onShowProfile}
               >
                 <User className="mr-2.5 h-4 w-4 text-blue-400" />
                 <span>个人资料</span>
@@ -196,12 +203,14 @@ export function ChatHistory({
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                onClick={onShowLearningPath}
               >
                 <Brain className="mr-2.5 h-4 w-4 text-purple-400" />
-                <span>会话记录</span>
+                <span>学习轨迹</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                onClick={onShowPreferences}
               >
                 <Sparkles className="mr-2.5 h-4 w-4 text-yellow-400" />
                 <span>偏好设置</span>
