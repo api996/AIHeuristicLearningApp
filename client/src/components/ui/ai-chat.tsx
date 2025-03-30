@@ -341,7 +341,7 @@ export function AIChat({ userData }: AIChatProps) {
           onNewChat={handleNewChat}
           onDeleteChat={(id) => {
             if (id === currentChatId) {
-              setCurrentChatId(null);
+              setCurrentChatId(undefined);
             }
           }}
           setCurrentChatId={setCurrentChatId}
@@ -353,30 +353,30 @@ export function AIChat({ userData }: AIChatProps) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header - 按照主流AI聊天助手设计 */}
-        <header className="h-16 flex items-center justify-between px-4 border-b border-neutral-800">
+        <header className="h-16 flex items-center justify-between px-6 border-b border-neutral-800 py-4 bg-neutral-900">
           <div className="flex items-center">
             {/* 左侧菜单按钮 - 显示历史记录 */}
             <Button
               variant="ghost"
               size="icon"
-              className="mr-3 hover:bg-neutral-800 rounded-lg h-10 w-10"
+              className="mr-4 hover:bg-neutral-800 rounded-lg h-12 w-12"
               onClick={toggleSidebar}
               aria-label="显示侧边栏"
             >
-              <Menu className="h-6 w-6 text-neutral-300" />
+              <Menu className="h-7 w-7 text-neutral-300" />
             </Button>
 
             {/* 当前对话标题 */}
             {currentChatId ? (
               <div className="flex items-center">
-                <h1 className="text-base font-medium text-neutral-200 mr-2 truncate max-w-[180px] sm:max-w-[320px] md:max-w-[400px]">{currentChat?.title}</h1>
+                <h1 className="text-lg font-medium text-neutral-200 mr-2 truncate max-w-[180px] sm:max-w-[320px] md:max-w-[400px]">{currentChat?.title}</h1>
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   onClick={() => setShowTitleDialog(true)}
-                  className="h-7 w-7 rounded-full hover:bg-neutral-800"
+                  className="h-8 w-8 rounded-full hover:bg-neutral-800"
                 >
-                  <Edit className="h-3.5 w-3.5 text-neutral-400" />
+                  <Edit className="h-4 w-4 text-neutral-400" />
                 </Button>
               </div>
             ) : (
@@ -384,7 +384,7 @@ export function AIChat({ userData }: AIChatProps) {
                 <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-lg mr-2.5">
                   <Brain className="h-5 w-5 text-white" />
                 </div>
-                <h1 className="text-lg font-bold text-white">AI 对话助手</h1>
+                <h1 className="text-lg font-bold text-white">启发式对话导师</h1>
               </div>
             )}
           </div>
@@ -395,10 +395,10 @@ export function AIChat({ userData }: AIChatProps) {
             <Button 
               variant="outline" 
               onClick={handleNewChat}
-              className="h-10 px-4 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700 flex items-center transition-colors"
+              className="h-12 px-6 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700 flex items-center transition-colors"
               title="新对话"
             >
-              <Plus className="h-5 w-5 mr-2" />
+              <Plus className="h-6 w-6 mr-2" />
               <span>新对话</span>
             </Button>
           </div>
@@ -427,69 +427,70 @@ export function AIChat({ userData }: AIChatProps) {
           )}
         </div>
 
-        {/* Model Selection and Input Area */}
+        {/* Input Area - 简化布局并采用ChatGPT风格 */}
         <div className="p-4 border-t border-neutral-800">
-          <div className="flex flex-wrap gap-2 justify-center">
+          {/* 模型选择 - 使用更紧凑的布局 */}
+          <div className="mb-3 flex flex-wrap gap-2 justify-center">
             <Button
               variant="outline"
               size="sm"
-              className={`bg-neutral-900 hover:bg-neutral-800 ${
-                currentModel === "search" ? "border-blue-500" : ""
+              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+                currentModel === "search" ? "border-blue-500" : "border-neutral-700"
               }`}
               onClick={() => setCurrentModel("search")}
             >
-              <Search className="w-4 h-4 mr-2" />
+              <Search className="w-3.5 h-3.5 mr-1.5" />
               网络搜索
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className={`bg-neutral-900 hover:bg-neutral-800 ${
-                currentModel === "deep" ? "border-blue-500" : ""
+              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+                currentModel === "deep" ? "border-blue-500" : "border-neutral-700"
               }`}
               onClick={() => setCurrentModel("deep")}
             >
-              <Brain className="w-4 h-4 mr-2" />
+              <Brain className="w-3.5 h-3.5 mr-1.5" />
               深度推理
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className={`bg-neutral-900 hover:bg-neutral-800 ${
-                currentModel === "gemini" ? "border-blue-500" : ""
+              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+                currentModel === "gemini" ? "border-blue-500" : "border-neutral-700"
               }`}
               onClick={() => setCurrentModel("gemini")}
             >
-              <Sparkles className="w-4 h-4 mr-2" />
+              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
               Gemini
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className={`bg-neutral-900 hover:bg-neutral-800 ${
-                currentModel === "deepseek" ? "border-blue-500" : ""
+              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+                currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700"
               }`}
               onClick={() => setCurrentModel("deepseek")}
             >
-              <Code className="w-4 h-4 mr-2" />
+              <Code className="w-3.5 h-3.5 mr-1.5" />
               Deepseek
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className={`bg-neutral-900 hover:bg-neutral-800 ${
-                currentModel === "grok" ? "border-blue-500" : ""
+              className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
+                currentModel === "grok" ? "border-blue-500" : "border-neutral-700"
               }`}
               onClick={() => setCurrentModel("grok")}
             >
-              <Rocket className="w-4 h-4 mr-2" />
+              <Rocket className="w-3.5 h-3.5 mr-1.5" />
               Grok
             </Button>
           </div>
 
-          {/* Input Area */}
-          <div className="p-4 border-t border-neutral-800">
-            <div className="flex space-x-2">
+          {/* 输入框区域 - 使用ChatGPT风格 */}
+          <div className="relative max-w-3xl mx-auto rounded-xl border border-neutral-700 bg-neutral-800 shadow-lg">
+            <div className="flex items-end">
               <div className="flex-1 relative">
                 <textarea
                   value={input}
@@ -497,7 +498,7 @@ export function AIChat({ userData }: AIChatProps) {
                   onKeyDown={handleKeyDown}
                   placeholder="输入消息..."
                   disabled={isLoading}
-                  className="w-full h-[60px] min-h-[60px] max-h-[200px] p-3 bg-neutral-900 border border-neutral-800 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-neutral-700"
+                  className="w-full h-[50px] min-h-[50px] max-h-[200px] py-3 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0"
                 />
                 <input
                   type="file"
@@ -509,20 +510,23 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute bottom-2 left-2"
+                  className="absolute bottom-1.5 left-2 h-8 w-8 rounded-full hover:bg-neutral-700"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <ImageIcon className="h-5 w-5" />
+                  <ImageIcon className="h-5 w-5 text-neutral-400" />
                 </Button>
               </div>
               <Button
                 onClick={handleSend}
                 disabled={isLoading}
-                className="h-[60px] px-6"
+                className="h-10 w-10 mr-2 mb-1.5 rounded-full"
               >
                 <Send className="h-5 w-5" />
               </Button>
             </div>
+          </div>
+          <div className="text-center mt-2 text-xs text-neutral-500">
+            启发式对话导师 - 使用先进AI模型，由专家团队精心训练
           </div>
         </div>
       </div>
