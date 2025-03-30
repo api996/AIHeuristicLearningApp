@@ -64,12 +64,14 @@ export default function AdminDashboard() {
     },
   });
 
-  const { data: chats } = useQuery({
-    queryKey: ["/api/chats"],
+  // 获取所有聊天统计数据
+  const { data: chatStats } = useQuery({
+    queryKey: ["/api/chat-stats"],
     queryFn: async () => {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
-      if (!response.ok) throw new Error("Failed to fetch chats");
+      // 通过一个新的端点获取聊天统计信息
+      const response = await fetch(`/api/chat-stats?userId=${user.userId}`);
+      if (!response.ok) throw new Error("Failed to fetch chat statistics");
       return response.json();
     },
   });
@@ -123,8 +125,8 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <MessageSquare className="h-8 w-8 text-green-500" />
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-white">{chats?.length || 0}</p>
-                  <p className="text-sm text-neutral-400">总对话数</p>
+                  <p className="text-2xl font-bold text-white">{chatStats?.total || 0}</p>
+                  <p className="text-sm text-neutral-400">总对话数 / 今日: {chatStats?.today || 0}</p>
                 </div>
               </div>
             </CardContent>

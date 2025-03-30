@@ -11,7 +11,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [turnstileToken, setTurnstileToken] = useState<string>();
+  const [turnstileToken, setTurnstileToken] = useState<string | undefined>(undefined);
   const [isVerifying, setIsVerifying] = useState(false);
 
   // 检查是否已登录
@@ -20,14 +20,55 @@ export default function Login() {
     const user = localStorage.getItem("user");
     if (user) {
       console.log('[Login] Found existing user session');
-      const userData = JSON.parse(user);
-      if (userData.role === 'admin') {
-        setLocation("/admin");
-      } else {
-        setLocation("/");
+      try {
+        const userData = JSON.parse(user);
+        if (userData && userData.userId) {
+          if (userData.role === 'admin') {
+            setLocation("/admin");
+          } else {
+            setLocation("/");
+          }
+        } else {
+          console.log('[Login] Invalid user data, clearing');
+          localStorage.removeItem("user");
+        }
+      } catch (e) {
+        console.error('[Login] Error parsing user data:', e);
+        localStorage.removeItem("user");
       }
     }
   }, [setLocation]);
+
+  // 验证Turnstile令牌
+  const verifyTurnstileToken = async (token: string) => {
+    try {
+      console.log('[Login] Verifying Turnstile token');
+      const response = await fetch('/api/verify-turnstile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        console.log('[Login] Turnstile verification successful');
+        setTurnstileToken(token);
+        return true;
+      } else {
+        console.error('[Login] Turnstile verification failed:', data.message);
+        setError(data.message || "人机验证失败");
+        setTurnstileToken(undefined);
+        return false;
+      }
+    } catch (err) {
+      console.error('[Login] Turnstile verification error:', err);
+      setError("人机验证服务暂时不可用");
+      setTurnstileToken(undefined);
+      return false;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,21 +94,37 @@ export default function Login() {
     try {
       console.log('[Login] Starting authentication process');
       const endpoint = isRegistering ? '/api/register' : '/api/login';
-      const response = await apiRequest({
-        endpoint,
+      const response = await fetch(endpoint, {
         method: 'POST',
-        data: { username, password, turnstileToken }
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          username, 
+          password, 
+          turnstileToken 
+        }),
       });
 
-      if (response.success) {
-        localStorage.setItem("user", JSON.stringify(response.user));
-        if (response.user.role === 'admin') {
+      const data = await response.json();
+      
+      if (data.success) {
+        // 设置用户会话数据
+        const userData = {
+          userId: data.userId,
+          role: data.role,
+          username: username
+        };
+        localStorage.setItem("user", JSON.stringify(userData));
+        
+        // 根据角色导航到相应页面
+        if (data.role === 'admin') {
           setLocation("/admin");
         } else {
           setLocation("/");
         }
       } else {
-        setError(response.message || "验证失败，请稍后重试");
+        setError(data.message || "验证失败，请稍后重试");
       }
     } catch (err) {
       console.error('[Login] Authentication error:', err);
@@ -131,7 +188,7 @@ export default function Login() {
 
           <div className="space-y-2 mt-4">
             <TurnstileWidget 
-              onVerify={setTurnstileToken}
+              onVerify={verifyTurnstileToken}
               onError={() => setError("人机验证加载失败，请刷新页面重试")}
             />
           </div>
