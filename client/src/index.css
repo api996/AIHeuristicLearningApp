@@ -119,6 +119,54 @@
   }
 }
 
+/* 主题设置和字体大小 */
+:root {
+  --primary-foreground: #f8f9fa;
+  --primary-background: #131518;
+  --secondary-foreground: #a0a6ab;
+  --secondary-background: #1c1e24;
+  --border-color: #2a2d35;
+  --input-background: #18191c;
+  --selected-background: #2c2e35;
+  --hover-background: #25272e;
+  font-size: 16px; /* 默认字体大小 */
+}
+
+:root.dark {
+  --primary-foreground: #f8f9fa;
+  --primary-background: #131518;
+  --secondary-foreground: #a0a6ab;
+  --secondary-background: #1c1e24;
+  --border-color: #2a2d35;
+  --input-background: #18191c;
+  --selected-background: #2c2e35;
+  --hover-background: #25272e;
+}
+
+:root.light {
+  --primary-foreground: #1c1e24;
+  --primary-background: #ffffff;
+  --secondary-foreground: #4d5358;
+  --secondary-background: #f2f3f5;
+  --border-color: #d0d5dd;
+  --input-background: #f9f9fb;
+  --selected-background: #e9eef7;
+  --hover-background: #eaecf0;
+}
+
+/* 字体大小设置 */
+:root.text-sm {
+  font-size: 14px;
+}
+
+:root.text-md {
+  font-size: 16px;
+}
+
+:root.text-lg {
+  font-size: 18px;
+}
+
 /* 根据字体大小的自定义样式 */
 .text-size-small {
   font-size: 0.875rem;
