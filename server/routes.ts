@@ -132,6 +132,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch chat history" });
     }
   });
+  
+  // 学习轨迹分析API
+  app.get("/api/learning-path", async (req, res) => {
+    try {
+      const { userId, role } = req.query;
+      if (!userId || isNaN(Number(userId))) {
+        return res.status(401).json({ message: "Invalid user ID" });
+      }
+      
+      const targetUserId = Number(userId);
+      
+      // 获取用户的所有聊天记录及其消息
+      const chats = await storage.getUserChats(targetUserId, role === "admin");
+      
+      if (!chats || chats.length === 0) {
+        return res.json({
+          topics: [],
+          progress: [],
+          suggestions: []
+        });
+      }
+      
+      // 收集所有聊天消息内容
+      const allMessages: string[] = [];
+      for (const chat of chats) {
+        const messages = await storage.getChatMessages(chat.id, targetUserId, role === "admin");
+        // 只将用户发送的消息添加到分析中
+        const userMessages = messages.filter(msg => msg.role === "user").map(msg => msg.content);
+        allMessages.push(...userMessages);
+      }
+      
+      // 提取关键主题
+      // 简单实现：基于一些关键词匹配的主题提取
+      const topicKeywords: Record<string, string[]> = {
+        "人工智能": ["ai", "人工智能", "机器学习", "深度学习", "神经网络", "nlp", "自然语言处理"],
+        "编程开发": ["编程", "开发", "代码", "程序", "软件", "工程", "前端", "后端", "全栈"],
+        "数据科学": ["数据", "分析", "统计", "可视化", "大数据", "数据挖掘", "数据清洗"],
+        "计算机科学": ["算法", "数据结构", "计算机", "操作系统", "网络", "安全", "计算理论"],
+        "网络技术": ["网络", "http", "tcp", "ip", "协议", "互联网", "路由", "服务器"],
+        "数学": ["数学", "微积分", "线性代数", "概率", "统计", "离散数学", "逻辑"]
+      };
+      
+      // 计算主题出现次数
+      const topicCounts: Record<string, number> = {};
+      for (const message of allMessages) {
+        for (const [topic, keywords] of Object.entries(topicKeywords)) {
+          const messageLower = message.toLowerCase();
+          for (const keyword of keywords) {
+            if (messageLower.includes(keyword.toLowerCase())) {
+              topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+              break; // 一条消息只计算一个关键词对应的主题
+            }
+          }
+        }
+      }
+      
+      // 排序并选择前3个主题
+      const topics = Object.entries(topicCounts)
+        .sort(([, countA], [, countB]) => countB - countA)
+        .slice(0, 3)
+        .map(([topic]) => topic);
+      
+      // 随机生成学习进度 (在实际应用中，这应该基于对话内容深度分析)
+      const progress = topics.map(topic => ({
+        topic,
+        percentage: Math.floor(Math.random() * 60) + 20 // 20% 到 80%
+      }));
+      
+      // 生成学习建议
+      const suggestions = [
+        "深入学习更多关于" + (topics[0] || "相关主题") + "的实际应用场景",
+        "尝试实践一些小型项目，巩固理论知识",
+        "探索更多关于" + (topics[1] || "感兴趣领域") + "的高级话题"
+      ];
+      
+      res.json({
+        topics,
+        progress,
+        suggestions
+      });
+    } catch (error) {
+      log(`Error analyzing learning path: ${error}`);
+      res.status(500).json({ message: "无法分析学习轨迹" });
+    }
+  });
 
   app.get("/api/chats/:chatId/messages", async (req, res) => {
     try {
