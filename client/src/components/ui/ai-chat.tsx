@@ -330,6 +330,12 @@ export function AIChat({ userData }: AIChatProps) {
     }
 
     try {
+      // 关闭键盘 - 先将焦点从输入框移开
+      const activeElement = document.activeElement as HTMLElement;
+      if (activeElement && activeElement.blur) {
+        activeElement.blur();
+      }
+      
       // 开始加载状态
       setIsLoading(true);
       
@@ -568,6 +574,12 @@ export function AIChat({ userData }: AIChatProps) {
         }));
 
         setMessages(formattedMessages);
+        
+        // 确保消息加载后滚动到顶部
+        setTimeout(() => {
+          scrollTo('top');
+        }, 100); // 短暂延迟确保DOM更新后再滚动
+        
       } catch (error) {
         console.error("Error loading chat messages:", error);
       } finally {
@@ -605,25 +617,101 @@ export function AIChat({ userData }: AIChatProps) {
     }
   };
 
-  // 自动滚动到消息底部
-  const scrollToBottom = () => {
+  // 自动滚动到消息顶部或底部
+  const scrollTo = (position: 'top' | 'bottom') => {
     if (messagesContainerRef.current) {
       const container = messagesContainerRef.current;
-      container.scrollTop = container.scrollHeight;
+      if (position === 'top') {
+        container.scrollTop = 0;
+      } else {
+        container.scrollTop = container.scrollHeight;
+      }
     }
   };
 
-  // 消息更新时自动滚动到底部
+  // 消息更新时根据情况滚动
   useEffect(() => {
-    scrollToBottom();
+    // 如果是新对话或只有一条消息，滚动到顶部
+    if (messages.length <= 1) {
+      scrollTo('top');
+    } else {
+      // 否则滚动到底部查看最新消息
+      scrollTo('bottom');
+    }
   }, [messages]);
 
-  // 检查用户登录状态
+  // 检查用户登录状态和初始化偏好设置
   useEffect(() => {
+    // 1. 检查用户登录状态
     const user = localStorage.getItem("user");
     if (!user) {
       setLocation("/login");
+      return;
     }
+
+    // 2. 初始化主题设置
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | "system" | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+      // 根据系统设置应用主题
+      if (savedTheme === "system") {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.classList.remove('light');
+        } else {
+          document.documentElement.classList.add('light');
+          document.documentElement.classList.remove('dark');
+        }
+      } else if (savedTheme === "dark") {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+      } else {
+        document.documentElement.classList.add('light');
+        document.documentElement.classList.remove('dark');
+      }
+    }
+    
+    // 3. 初始化字体大小设置
+    const savedFontSize = localStorage.getItem("fontSize") as "small" | "medium" | "large" | null;
+    if (savedFontSize) {
+      setFontSize(savedFontSize);
+      document.documentElement.classList.remove('text-sm', 'text-md', 'text-lg');
+      
+      switch(savedFontSize) {
+        case 'small':
+          document.documentElement.classList.add('text-sm');
+          break;
+        case 'medium':
+          document.documentElement.classList.add('text-md');
+          break;
+        case 'large':
+          document.documentElement.classList.add('text-lg');
+          break;
+      }
+    }
+    
+    // 4. 添加系统主题变化监听
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleThemeChange = (e: MediaQueryListEvent) => {
+      const currTheme = localStorage.getItem("theme");
+      if (currTheme === 'system') {
+        if (e.matches) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.classList.remove('light');
+        } else {
+          document.documentElement.classList.add('light');
+          document.documentElement.classList.remove('dark');
+        }
+      }
+    };
+    
+    // 添加监听
+    mediaQuery.addEventListener('change', handleThemeChange);
+    
+    // 清除监听
+    return () => {
+      mediaQuery.removeEventListener('change', handleThemeChange);
+    };
   }, [setLocation]);
 
   const handleLogout = () => {
@@ -1283,7 +1371,53 @@ export function AIChat({ userData }: AIChatProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" onClick={() => setShowPreferencesDialog(false)}>
+            <Button 
+              type="button" 
+              onClick={() => {
+                // 保存所有偏好设置
+                localStorage.setItem('theme', theme);
+                localStorage.setItem('fontSize', fontSize);
+                
+                // 应用主题设置
+                if (theme === "system") {
+                  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.classList.remove('light');
+                  } else {
+                    document.documentElement.classList.add('light');
+                    document.documentElement.classList.remove('dark');
+                  }
+                } else if (theme === "dark") {
+                  document.documentElement.classList.add('dark');
+                  document.documentElement.classList.remove('light');
+                } else {
+                  document.documentElement.classList.add('light');
+                  document.documentElement.classList.remove('dark');
+                }
+                
+                // 应用字体大小设置
+                document.documentElement.classList.remove('text-sm', 'text-md', 'text-lg');
+                switch(fontSize) {
+                  case 'small':
+                    document.documentElement.classList.add('text-sm');
+                    break;
+                  case 'medium':
+                    document.documentElement.classList.add('text-md');
+                    break;
+                  case 'large':
+                    document.documentElement.classList.add('text-lg');
+                    break;
+                }
+                
+                // 关闭设置对话框
+                setShowPreferencesDialog(false);
+                
+                toast({
+                  title: "设置已保存",
+                  description: "您的偏好设置已成功更新",
+                });
+              }}
+            >
               保存设置
             </Button>
           </DialogFooter>
