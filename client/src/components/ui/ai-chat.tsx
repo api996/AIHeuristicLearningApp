@@ -83,12 +83,12 @@ export function AIChat({ userData }: AIChatProps) {
   // 修改标题相关状态
   const [showTitleDialog, setShowTitleDialog] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [titleError, setTitleError] = useState("");
   
   // 编辑消息相关状态
   const [isEditing, setIsEditing] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<number | undefined>();
   const [originalContent, setOriginalContent] = useState("");
+  const [titleError, setTitleError] = useState("");
   
   // 新增对话框状态
   const [showProfileDialog, setShowProfileDialog] = useState(false);
