@@ -17,6 +17,7 @@ export interface IStorage {
   getUserChats(userId: number, isAdmin: boolean): Promise<(Chat & { username?: string })[]>;
   deleteChat(chatId: number, userId: number, isAdmin: boolean): Promise<void>;
   getChatById(chatId: number, userId: number, isAdmin: boolean): Promise<Chat | undefined>;
+  updateChatTitle(chatId: number, title: string): Promise<void>;
 
   // Message methods
   createMessage(chatId: number, content: string, role: string): Promise<Message>;
@@ -48,7 +49,24 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     try {
-      const [user] = await db.insert(users).values(insertUser).returning();
+      // 验证用户输入
+      if (!insertUser.username || typeof insertUser.username !== 'string' || insertUser.username.length > 50) {
+        throw new Error("Invalid username format");
+      }
+      
+      if (!insertUser.password || typeof insertUser.password !== 'string') {
+        throw new Error("Invalid password format");
+      }
+      
+      // 清理输入以防止恶意注入
+      const sanitizedUser = {
+        username: insertUser.username.trim(),
+        password: insertUser.password,
+        role: insertUser.role || "user"
+      };
+      
+      // 使用Drizzle ORM的参数化查询防止SQL注入
+      const [user] = await db.insert(users).values(sanitizedUser).returning();
       return user;
     } catch (error) {
       log(`Error creating user: ${error}`);
@@ -104,7 +122,7 @@ export class DatabaseStorage implements IStorage {
     try {
       if (isAdmin) {
         // 管理员查看特定用户的聊天记录
-        return await db.select({
+        const results = await db.select({
             id: chats.id,
             userId: chats.userId,
             title: chats.title,
@@ -116,6 +134,12 @@ export class DatabaseStorage implements IStorage {
           .leftJoin(users, eq(chats.userId, users.id))
           .where(eq(chats.userId, userId)) // 只返回指定用户的聊天记录
           .orderBy(desc(chats.createdAt));
+        
+        // 处理username为null的情况，将其转换为undefined
+        return results.map(chat => ({
+          ...chat,
+          username: chat.username || undefined
+        }));
       } else {
         // 普通用户只能看到自己的聊天记录
         return await db.select()
@@ -147,14 +171,19 @@ export class DatabaseStorage implements IStorage {
 
   async getChatById(chatId: number, userId: number, isAdmin: boolean): Promise<Chat | undefined> {
     try {
+      if (!chatId || isNaN(chatId)) {
+        log(`无效的聊天ID: ${chatId}`);
+        return undefined;
+      }
+      
       if (isAdmin) {
-        // Admin can access any chat
+        // 即使是管理员，仍然要验证聊天记录是否存在
         const [chat] = await db.select()
           .from(chats)
           .where(eq(chats.id, chatId));
         return chat;
       } else {
-        // Regular users can only access their own chats
+        // 普通用户只能访问自己的聊天记录
         const [chat] = await db.select()
           .from(chats)
           .where(and(
@@ -165,6 +194,33 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       log(`Error getting chat by id: ${error}`);
+      throw error;
+    }
+  }
+  
+  async updateChatTitle(chatId: number, title: string): Promise<void> {
+    try {
+      if (!chatId || isNaN(chatId)) {
+        log(`Invalid chat ID for title update: ${chatId}`);
+        throw new Error("Invalid chat ID");
+      }
+      
+      if (!title || typeof title !== 'string') {
+        log(`Invalid title format: ${title}`);
+        throw new Error("Invalid title format");
+      }
+      
+      // 限制标题长度，防止数据库存储问题
+      const trimmedTitle = title.trim().substring(0, 100);
+      
+      // 更新聊天标题
+      await db.update(chats)
+        .set({ title: trimmedTitle })
+        .where(eq(chats.id, chatId));
+        
+      log(`Chat title updated for chat ${chatId}: "${trimmedTitle}"`);
+    } catch (error) {
+      log(`Error updating chat title: ${error}`);
       throw error;
     }
   }
