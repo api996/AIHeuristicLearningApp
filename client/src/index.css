@@ -47,6 +47,19 @@
   animation: scale-in 0.3s ease-out;
 }
 
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
 /* 消息框动画 */
 .message-appear {
   opacity: 0;
