@@ -361,18 +361,29 @@ export function ChatMessage({
       pressTimer = setTimeout(() => {
         setIsLongPressing(true);
         
-        // 计算菜单位置
+        // 计算菜单位置 - 现在改为显示在消息下方
         const rect = messageRef.current?.getBoundingClientRect();
         if (rect) {
           setMenuPosition({
             x: rect.left + rect.width / 2,
-            y: rect.top - 10
+            y: rect.bottom + 12 // 将菜单向下移动，显示在消息下方
           });
+        }
+        
+        // 添加音效反馈 (iOS风格)
+        try {
+          // 创建一个非常短暂的振动
+          if (navigator.vibrate) {
+            navigator.vibrate(10);
+          }
+        } catch (e) {
+          // 可能在某些设备上不支持
+          console.log("振动反馈不可用");
         }
         
         // 显示上下文菜单
         setShowContextMenu(true);
-      }, 500); // 长按500ms触发
+      }, 450); // 减少触发时间为450ms，使响应更快
     };
     
     const handleTouchMove = (e: TouchEvent) => {
@@ -411,11 +422,20 @@ export function ChatMessage({
       
       e.preventDefault();
       
-      // 计算菜单位置
-      setMenuPosition({
-        x: e.clientX,
-        y: e.clientY
-      });
+      // 计算菜单位置 - 改为固定在消息下方
+      const rect = messageRef.current?.getBoundingClientRect();
+      if (rect) {
+        setMenuPosition({
+          x: rect.left + rect.width / 2, 
+          y: rect.bottom + 12
+        });
+      } else {
+        // 如果无法获取消息元素位置，则使用鼠标位置
+        setMenuPosition({
+          x: e.clientX,
+          y: e.clientY + 10
+        });
+      }
       
       // 显示上下文菜单
       setShowContextMenu(true);
@@ -483,36 +503,37 @@ export function ChatMessage({
           }}
           ref={menuRef}
         >
-          {/* 菜单指示箭头 */}
-          <div className="w-3 h-3 bg-neutral-800 rotate-45 mx-auto mb-[-6px] rounded-sm" />
+          {/* 菜单指示箭头 - 现在改为向上的箭头，指向消息 */}
+          <div className="w-3 h-3 bg-gray-800/95 rotate-45 mx-auto mt-[-6px] rounded-[2px] border-t border-l border-gray-700/60" />
           
-          {/* 菜单内容 */}
-          <div className="bg-neutral-800 backdrop-blur-lg text-white rounded-xl overflow-hidden shadow-xl animate-scale-in-menu border border-neutral-700">
-            <div className="grid grid-cols-2 divide-x divide-neutral-700">
+          {/* 菜单内容 - 更新使其更接近iOS风格 */}
+          <div className="bg-gray-800/95 backdrop-blur-md text-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in-menu border border-gray-700/60">
+            <div className="grid grid-cols-2 divide-x divide-gray-700/60">
               <button
                 onClick={handleCopyMessage}
-                className="px-5 py-3 hover:bg-neutral-700 transition-colors duration-200 flex flex-col items-center justify-center"
+                className="px-4 py-2.5 hover:bg-gray-700/60 active:bg-gray-700/80 transition-colors duration-150 flex flex-col items-center justify-center"
               >
-                <Copy className="h-5 w-5 mb-1" />
-                <span className="text-xs">复制</span>
+                <Copy className="h-4 w-4 mb-1 text-blue-400" />
+                <span className="text-xs font-medium">复制</span>
               </button>
               
               <button
                 onClick={handleEditMessage}
-                className="px-5 py-3 hover:bg-neutral-700 transition-colors duration-200 flex flex-col items-center justify-center"
+                className="px-4 py-2.5 hover:bg-gray-700/60 active:bg-gray-700/80 transition-colors duration-150 flex flex-col items-center justify-center"
               >
-                <Pencil className="h-5 w-5 mb-1" />
-                <span className="text-xs">编辑</span>
+                <Pencil className="h-4 w-4 mb-1 text-blue-400" />
+                <span className="text-xs font-medium">编辑</span>
               </button>
             </div>
           </div>
         </div>
       )}
       
-      {/* 页面暗化遮罩 */}
+      {/* 页面暗化遮罩 - 增强iOS风格的背景模糊效果 */}
       {showContextMenu && (
         <div 
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 animate-fade-in"
+          className="fixed inset-0 bg-black/30 backdrop-blur-md z-40 animate-fade-in"
+          style={{ backdropFilter: 'blur(8px)' }}
           onClick={() => setShowContextMenu(false)}
         />
       )}
