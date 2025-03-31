@@ -361,15 +361,22 @@ export function ChatMessage({
       pressTimer = setTimeout(() => {
         setIsLongPressing(true);
         
-        // 计算菜单位置 - 现在改为显示在消息中间位置
+        // 计算菜单位置 - 现在改为显示在消息正下方
         const rect = messageRef.current?.getBoundingClientRect();
         if (rect) {
           const screenWidth = window.innerWidth;
           const isRightHalf = rect.left > screenWidth / 2;
           
+          // 将菜单显示在消息正下方
           setMenuPosition({
             x: rect.left + rect.width / 2,
-            y: rect.top + rect.height / 2 // 将菜单显示在消息中间位置
+            y: rect.bottom + 15 // 菜单显示在消息正下方，给一定间距
+          });
+          
+          // 确保消息框在屏幕上方可见
+          window.scrollTo({
+            top: Math.max(0, rect.top - 100),
+            behavior: 'smooth'
           });
         }
         
@@ -425,23 +432,28 @@ export function ChatMessage({
       
       e.preventDefault();
       
-      // 计算菜单位置 - 现在改为显示在消息中间
+      // 计算菜单位置 - 现在改为显示在消息正下方
       const rect = messageRef.current?.getBoundingClientRect();
       if (rect) {
         const screenWidth = window.innerWidth;
         const isRightHalf = rect.left > screenWidth / 2;
         
-        // 判断是在屏幕左侧还是右侧来调整菜单位置
-        // 在消息中间位置显示菜单，避免超出屏幕边缘
+        // 将菜单显示在消息正下方
         setMenuPosition({
           x: rect.left + rect.width / 2,
-          y: rect.top + rect.height / 2 // 将菜单显示在消息中间位置
+          y: rect.bottom + 15 // 菜单显示在消息正下方，给一定间距
+        });
+        
+        // 确保消息框在屏幕上方可见
+        window.scrollTo({
+          top: Math.max(0, rect.top - 100),
+          behavior: 'smooth'
         });
       } else {
         // 如果无法获取消息元素位置，则使用鼠标位置
         setMenuPosition({
           x: e.clientX,
-          y: e.clientY
+          y: e.clientY + 20
         });
       }
       
@@ -507,38 +519,44 @@ export function ChatMessage({
           style={{ 
             top: `${menuPosition.y}px`, 
             left: `${menuPosition.x}px`, 
-            transform: 'translate(-50%, -50%)' 
+            transform: 'translate(-50%, 0)' 
           }}
           ref={menuRef}
         >
+          {/* 向上的箭头指示 */}
+          <div className="w-4 h-4 bg-neutral-900/90 rotate-45 mx-auto mt-[-8px] rounded-sm border-t border-l border-neutral-700/30"></div>
+          
           {/* 菜单内容 - 现代iOS风格菜单，使用半透明玻璃拟态效果 */}
-          <div className="bg-neutral-900/75 backdrop-blur-xl text-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in-menu border border-neutral-700/30 w-52 sm:w-[260px]">
+          <div className="bg-neutral-900/90 backdrop-blur-xl text-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in-menu border border-neutral-700/30 w-64 sm:w-[280px] mt-[-8px]">
             <div className="flex flex-col divide-y divide-neutral-700/30">
               <button
                 onClick={handleCopyMessage}
-                className="px-6 py-4 hover:bg-neutral-800/60 active:bg-neutral-800/80 transition-colors duration-150 flex items-center"
+                className="px-6 py-4 hover:bg-neutral-800/60 active:bg-neutral-800/80 transition-colors duration-150 flex items-center justify-between"
               >
-                <Copy className="h-5 w-5 mr-4 text-blue-400" />
                 <span className="text-sm font-medium">复制</span>
+                <Copy className="h-5 w-5 text-blue-400" />
               </button>
               
               <button
                 onClick={handleEditMessage}
-                className="px-6 py-4 hover:bg-neutral-800/60 active:bg-neutral-800/80 transition-colors duration-150 flex items-center"
+                className="px-6 py-4 hover:bg-neutral-800/60 active:bg-neutral-800/80 transition-colors duration-150 flex items-center justify-between"
               >
-                <Pencil className="h-5 w-5 mr-4 text-blue-400" />
                 <span className="text-sm font-medium">编辑</span>
+                <Pencil className="h-5 w-5 text-blue-400" />
               </button>
             </div>
           </div>
         </div>
       )}
       
-      {/* 页面暗化遮罩 - 使用iOS 16+风格的背景模糊效果 */}
+      {/* 页面暗化遮罩 - 使用iOS 16+风格的背景模糊效果，但保持消息清晰可见 */}
       {showContextMenu && (
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-md z-40 animate-fade-in"
-          style={{ backdropFilter: 'blur(16px)' }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-lg z-40 animate-fade-in"
+          style={{ 
+            backdropFilter: 'blur(14px)', 
+            transition: 'backdrop-filter 0.3s ease-out' 
+          }}
           onClick={() => {
             setShowContextMenu(false);
             setIsLongPressing(false);
@@ -590,8 +608,8 @@ export function ChatMessage({
                 message.role === "assistant" 
                   ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20 text-white border border-blue-800/30" 
                   : "bg-blue-500/20 backdrop-blur-sm text-white border border-blue-500/30",
-                // 长按时的视觉效果
-                isLongPressing && message.role === "user" && "scale-110 shadow-xl border-blue-500/70 z-50 relative brightness-125 bg-blue-500/40 ring-2 ring-blue-400/50"
+                // 长按时的视觉效果，使消息和菜单同时可见且更加突出
+                isLongPressing && message.role === "user" && "scale-110 shadow-2xl border-blue-500/70 z-[60] relative brightness-125 bg-blue-600/30 ring-4 ring-blue-500/50"
               )}
             >
               {isImage && imageUrl ? (
