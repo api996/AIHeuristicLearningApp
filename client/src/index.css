@@ -19,6 +19,11 @@
   animation: blink 1s ease-in-out infinite;
 }
 
+/* 增强亮度效果，用于高亮选中的消息 */
+.brightness-130 {
+  filter: brightness(1.3);
+}
+
 @keyframes shimmer {
   0% {
     background-position: 0% 0;
