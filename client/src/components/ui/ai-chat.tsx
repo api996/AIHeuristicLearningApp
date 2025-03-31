@@ -491,9 +491,10 @@ export function AIChat({ userData }: AIChatProps) {
         </header>
 
         {/* Messages */}
-        <div className={`flex-1 p-6 md:p-8 flex flex-col gap-4 pb-48 ${messages.length > 0 ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+        <div className={`flex-1 flex flex-col p-6 md:p-8 pb-48 ${messages.length === 0 ? 'hide-empty-scrollbar' : ''}`}>
           {messages.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-center">
+            // 欢迎页面 - 垂直居中不需要滚动，完全隐藏滚动条
+            <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
               <div className="space-y-3">
                 <div className="flex justify-center">
                   <div className="p-4 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-600/20">
@@ -507,7 +508,8 @@ export function AIChat({ userData }: AIChatProps) {
               </div>
             </div>
           ) : (
-            <>
+            // 有消息时显示滚动区域
+            <div className="flex-1 overflow-y-auto flex flex-col gap-4">
               {messages.map((msg, i) => (
                 <ChatMessage 
                   key={i} 
@@ -522,7 +524,7 @@ export function AIChat({ userData }: AIChatProps) {
                   isThinking={true} 
                 />
               )}
-            </>
+            </div>
           )}
         </div>
 
@@ -743,79 +745,187 @@ export function AIChat({ userData }: AIChatProps) {
           <DialogHeader>
             <DialogTitle>学习轨迹分析</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6 py-4 px-1">
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium text-neutral-200">学习主题</h3>
-              <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
-                根据您的对话内容，以下是您感兴趣的主要学习主题：
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <div className="px-2.5 py-1 bg-blue-600/20 border border-blue-500/20 rounded-full text-blue-400 text-xs">
-                    人工智能
+          
+          {(() => {
+            // 定义API返回的数据类型
+            interface LearningPathData {
+              topics: string[];
+              progress: Array<{
+                topic: string;
+                percentage: number;
+              }>;
+              suggestions: string[];
+            }
+            
+            // 使用React Query获取学习轨迹数据
+            const { isLoading, error, data } = useQuery<LearningPathData>({
+              queryKey: ["/api/learning-path", user.userId, user.role],
+              queryFn: async () => {
+                const response = await fetch(`/api/learning-path?userId=${user.userId}&role=${user.role}`);
+                if (!response.ok) {
+                  throw new Error("获取学习轨迹数据失败");
+                }
+                return response.json();
+              }
+            });
+            
+            // 主题颜色映射
+            const topicColors: Record<string, string> = {
+              "人工智能": "blue",
+              "编程开发": "purple",
+              "数据科学": "green",
+              "计算机科学": "yellow",
+              "网络技术": "pink",
+              "数学": "orange"
+            };
+            
+            // 获取主题对应的颜色
+            const getTopicColor = (topic: string): string => {
+              return topicColors[topic] || "blue";
+            };
+            
+            if (isLoading) {
+              return (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <div className="h-10 w-10 animate-spin rounded-full border-t-2 border-b-2 border-blue-500"></div>
+                  <p className="mt-3 text-neutral-400 text-sm">分析您的学习数据中...</p>
+                </div>
+              );
+            }
+            
+            if (error) {
+              return (
+                <div className="p-6">
+                  <div className="p-4 bg-red-900/20 border border-red-700 rounded-md">
+                    <p className="text-red-400">无法加载学习轨迹数据。请稍后再试。</p>
                   </div>
-                  <div className="px-2.5 py-1 bg-purple-600/20 border border-purple-500/20 rounded-full text-purple-400 text-xs">
-                    深度学习
+                  <DialogFooter className="mt-4">
+                    <Button type="button" variant="outline" onClick={() => setShowLearningPathDialog(false)}>
+                      关闭
+                    </Button>
+                  </DialogFooter>
+                </div>
+              );
+            }
+            
+            if (!data || !data.topics || data.topics.length === 0) {
+              return (
+                <div className="py-8 px-4">
+                  <div className="text-center text-neutral-400">
+                    <div className="flex justify-center mb-4">
+                      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 16V10M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-medium mb-2">暂无学习数据</h3>
+                    <p className="text-sm">
+                      开始与AI助手对话，我们将分析您的学习兴趣和进度。聊天越多，分析越准确！
+                    </p>
                   </div>
-                  <div className="px-2.5 py-1 bg-green-600/20 border border-green-500/20 rounded-full text-green-400 text-xs">
-                    计算机科学
+                  <DialogFooter className="mt-8">
+                    <Button type="button" variant="outline" onClick={() => setShowLearningPathDialog(false)}>
+                      关闭
+                    </Button>
+                  </DialogFooter>
+                </div>
+              );
+            }
+            
+            return (
+              <div className="space-y-6 py-4 px-1">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium text-neutral-200">学习主题</h3>
+                  <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
+                    根据您的对话内容，以下是您感兴趣的主要学习主题：
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {data.topics.map((topic: string, index: number) => {
+                        const color = getTopicColor(topic);
+                        // 使用条件类名而不是模板字符串，确保Tailwind正确识别
+                        const tagClass = (() => {
+                          switch(color) {
+                            case 'blue': return 'bg-blue-600/20 border-blue-500/20 text-blue-400';
+                            case 'purple': return 'bg-purple-600/20 border-purple-500/20 text-purple-400';
+                            case 'green': return 'bg-green-600/20 border-green-500/20 text-green-400';
+                            case 'yellow': return 'bg-yellow-600/20 border-yellow-500/20 text-yellow-400';
+                            case 'pink': return 'bg-pink-600/20 border-pink-500/20 text-pink-400';
+                            case 'orange': return 'bg-orange-600/20 border-orange-500/20 text-orange-400';
+                            default: return 'bg-blue-600/20 border-blue-500/20 text-blue-400';
+                          }
+                        })();
+                        
+                        return (
+                          <div 
+                            key={index}
+                            className={`px-2.5 py-1 ${tagClass} border rounded-full text-xs`}
+                          >
+                            {topic}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium text-neutral-200">学习进度</h3>
-              <div className="p-4 bg-neutral-800 rounded-md">
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-neutral-300">人工智能基础</span>
-                      <span className="text-xs text-neutral-400">75%</span>
-                    </div>
-                    <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500 rounded-full" style={{ width: "75%" }}></div>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-neutral-300">机器学习算法</span>
-                      <span className="text-xs text-neutral-400">40%</span>
-                    </div>
-                    <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
-                      <div className="h-full bg-purple-500 rounded-full" style={{ width: "40%" }}></div>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-neutral-300">数据结构</span>
-                      <span className="text-xs text-neutral-400">60%</span>
-                    </div>
-                    <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500 rounded-full" style={{ width: "60%" }}></div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium text-neutral-200">学习进度</h3>
+                  <div className="p-4 bg-neutral-800 rounded-md">
+                    <div className="space-y-3">
+                      {data.progress.map((item: { topic: string, percentage: number }, index: number) => {
+                        const color = getTopicColor(item.topic);
+                        // 使用相同的条件类名方法
+                        const progressBarClass = (() => {
+                          switch(color) {
+                            case 'blue': return 'bg-blue-500';
+                            case 'purple': return 'bg-purple-500';
+                            case 'green': return 'bg-green-500';
+                            case 'yellow': return 'bg-yellow-500';
+                            case 'pink': return 'bg-pink-500';
+                            case 'orange': return 'bg-orange-500';
+                            default: return 'bg-blue-500';
+                          }
+                        })();
+                        
+                        return (
+                          <div key={index} className="space-y-1">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-neutral-300">{item.topic}</span>
+                              <span className="text-xs text-neutral-400">{item.percentage}%</span>
+                            </div>
+                            <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full ${progressBarClass} rounded-full`} 
+                                style={{ width: `${item.percentage}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium text-neutral-200">学习建议</h3>
+                  <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
+                    <p>
+                      根据您的对话历史，我们为您提供以下学习建议：
+                    </p>
+                    <ul className="list-disc pl-5 mt-2 space-y-1 text-neutral-400">
+                      {data.suggestions.map((suggestion: string, index: number) => (
+                        <li key={index}>{suggestion}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setShowLearningPathDialog(false)}>
+                    关闭
+                  </Button>
+                </DialogFooter>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium text-neutral-200">学习建议</h3>
-              <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
-                <p>
-                  根据您的对话历史，您对算法和数据结构方面有较强的兴趣，但在机器学习应用上可以进一步加强。建议您可以：
-                </p>
-                <ul className="list-disc pl-5 mt-2 space-y-1 text-neutral-400">
-                  <li>深入学习更多机器学习实际应用场景</li>
-                  <li>尝试实践一些小型AI项目，巩固理论知识</li>
-                  <li>探索更多关于神经网络架构的高级话题</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowLearningPathDialog(false)}>
-              关闭
-            </Button>
-          </DialogFooter>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

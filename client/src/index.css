@@ -108,3 +108,30 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+/* 自定义滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #3a3a3a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #555;
+}
+
+/* 隐藏空内容区域的滚动条 */
+.hide-empty-scrollbar {
+  scrollbar-width: none; /* Firefox */
+}
+
+.hide-empty-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
