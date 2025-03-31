@@ -491,7 +491,7 @@ export function AIChat({ userData }: AIChatProps) {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 p-6 md:p-8 overflow-y-auto flex flex-col gap-4 pb-48">
+        <div className={`flex-1 p-6 md:p-8 flex flex-col gap-4 pb-48 ${messages.length > 0 ? 'overflow-y-auto' : 'overflow-hidden'}`}>
           {messages.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-center">
               <div className="space-y-3">

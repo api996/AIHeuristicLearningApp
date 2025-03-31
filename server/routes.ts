@@ -193,6 +193,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete chat" });
     }
   });
+  
+  // 添加修改聊天标题的端点
+  app.put("/api/chats/:chatId/title", async (req, res) => {
+    try {
+      const chatId = parseInt(req.params.chatId);
+      const { userId, role } = req.query;
+      const { title } = req.body;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Please login first" });
+      }
+      
+      if (!title || typeof title !== 'string') {
+        return res.status(400).json({ message: "Invalid title" });
+      }
+      
+      // 获取聊天记录以验证权限
+      const isAdmin = role === "admin";
+      const chat = await storage.getChatById(chatId, Number(userId), isAdmin);
+      
+      if (!chat) {
+        return res.status(403).json({ message: "Access denied or chat not found" });
+      }
+      
+      // 更新标题 (需要在storage.ts中添加updateChatTitle方法)
+      await storage.updateChatTitle(chatId, title);
+      
+      res.json({ success: true });
+    } catch (error) {
+      log(`Error updating chat title: ${error}`);
+      res.status(500).json({ message: "Failed to update chat title" });
+    }
+  });
 
   // User management routes
   app.get("/api/users", async (req, res) => {
