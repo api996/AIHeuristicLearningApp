@@ -18,7 +18,7 @@ localPort = 5001
 externalPort = 3000
 
 [workflows]
-runButton = "启动修复后的应用"
+runButton = "重启并修复背景"
 
 [[workflows.workflow]]
 name = "Project"
@@ -169,6 +169,27 @@ args = "npm run dev"
 
 [[workflows.workflow]]
 name = "启动修复后的应用"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"tsx server/index.ts\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:3000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+
+[[workflows.workflow]]
+name = "重启并修复背景"
 author = 40327554
 mode = "sequential"
 
