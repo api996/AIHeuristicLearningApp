@@ -184,13 +184,40 @@ export function AIChat({ userData }: AIChatProps) {
   // 处理消息重新生成的变异函数
   const regenerateMessageMutation = useMutation({
     mutationFn: async (messageId: number | undefined) => {
-      if (!messageId) throw new Error("消息ID不存在");
-      const response = await apiRequest("POST", `/api/messages/${messageId}/regenerate`, {
-        userId: userData.userId,
-        userRole: userData.role,
-        chatId: currentChatId
-      });
-      return response.json();
+      // 如果没有消息ID，尝试获取当前聊天中的最后一条AI消息
+      if (!messageId) {
+        console.log("尝试通过上下文定位最后一条AI消息");
+        if (!currentChatId) {
+          throw new Error("无法识别当前对话");
+        }
+        
+        // 获取当前对话的所有消息
+        const messagesResponse = await apiRequest("GET", `/api/chats/${currentChatId}/messages`);
+        const messages = await messagesResponse.json();
+        
+        // 查找最后一条AI消息
+        const lastAIMessage = [...messages].reverse().find(msg => msg.role === "assistant");
+        
+        if (!lastAIMessage) {
+          throw new Error("找不到可重新生成的AI消息");
+        }
+        
+        messageId = lastAIMessage.id;
+        console.log("已找到最后一条AI消息ID:", messageId);
+      }
+      
+      // 发送重新生成请求
+      try {
+        const response = await apiRequest("POST", `/api/messages/${messageId}/regenerate`, {
+          userId: userData.userId,
+          userRole: userData.role,
+          chatId: currentChatId
+        });
+        return response.json();
+      } catch (error) {
+        console.error("重新生成请求失败:", error);
+        throw new Error("无法重新生成回答，请稍后再试");
+      }
     },
     onSuccess: () => {
       // 成功重新生成消息后刷新当前对话消息列表
@@ -472,13 +499,35 @@ export function AIChat({ userData }: AIChatProps) {
   // 处理消息重新生成
   const handleRegenerateMessage = async (messageId: number | undefined) => {
     try {
+      // 开始加载状态，可以添加视觉反馈
+      setIsLoading(true);
+      
+      // 添加一个占位思考消息
+      if (messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
+        // 如果最后一条不是AI消息，可能需要添加一个占位消息
+        if (lastMessage.role !== "assistant") {
+          setMessages([...messages, { role: "assistant" as const, content: "" }]);
+        }
+      }
+      
+      // 调用重新生成API
       await regenerateMessageMutation.mutateAsync(messageId);
+      
       toast({
         title: "重新生成中",
         description: "AI正在重新生成回答",
       });
     } catch (error) {
       console.error("重新生成消息失败:", error);
+      toast({
+        title: "重新生成失败",
+        description: "无法重新生成回答，请稍后再试",
+        variant: "destructive",
+      });
+    } finally {
+      // 结束加载状态
+      setIsLoading(false);
     }
   };
 
@@ -692,7 +741,7 @@ export function AIChat({ userData }: AIChatProps) {
             </div>
           ) : (
             // 有消息时显示滚动区域
-            <div className="flex-1 overflow-y-auto flex flex-col gap-4">
+            <div className="flex-1 overflow-y-auto content-scrollbar auto-hide-scrollbar flex flex-col gap-4">
               {messages.map((msg, i) => (
                 <ChatMessage 
                   key={i} 

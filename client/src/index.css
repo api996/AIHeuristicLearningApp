@@ -158,8 +158,35 @@
 /* 隐藏空内容区域的滚动条 */
 .hide-empty-scrollbar {
   scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  overflow: -moz-scrollbars-none; /* 旧版Firefox */
 }
 
 .hide-empty-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Edge */
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* 滚动条控制 */
+.content-scrollbar {
+  scrollbar-width: thin;
+  -ms-overflow-style: auto;
+}
+
+.content-scrollbar::-webkit-scrollbar {
+  width: 6px; /* 当内容足够时显示滚动条 */
+}
+
+/* 自动隐藏/显示滚动条 */
+@media (hover: hover) {
+  .auto-hide-scrollbar::-webkit-scrollbar {
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  
+  .auto-hide-scrollbar:hover::-webkit-scrollbar {
+    opacity: 1;
+  }
 }
