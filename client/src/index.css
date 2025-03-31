@@ -182,11 +182,13 @@
 /* 自动隐藏/显示滚动条 */
 @media (hover: hover) {
   .auto-hide-scrollbar::-webkit-scrollbar {
+    width: 0;
     opacity: 0;
-    transition: opacity 0.3s;
+    transition: all 0.3s;
   }
   
   .auto-hide-scrollbar:hover::-webkit-scrollbar {
+    width: 6px;
     opacity: 1;
   }
 }

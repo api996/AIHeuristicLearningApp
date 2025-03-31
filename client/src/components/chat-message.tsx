@@ -506,23 +506,23 @@ export function ChatMessage({
           {/* 菜单指示箭头 - 现在改为向上的箭头，指向消息 */}
           <div className="w-3 h-3 bg-gray-800/95 rotate-45 mx-auto mt-[-6px] rounded-[2px] border-t border-l border-gray-700/60" />
           
-          {/* 菜单内容 - 更新使其更接近iOS风格 */}
+          {/* 菜单内容 - 更新使其更接近iOS风格，改为垂直排列 */}
           <div className="bg-gray-800/95 backdrop-blur-md text-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in-menu border border-gray-700/60">
-            <div className="grid grid-cols-2 divide-x divide-gray-700/60">
+            <div className="flex flex-col divide-y divide-gray-700/60">
               <button
                 onClick={handleCopyMessage}
-                className="px-4 py-2.5 hover:bg-gray-700/60 active:bg-gray-700/80 transition-colors duration-150 flex flex-col items-center justify-center"
+                className="px-6 py-3.5 hover:bg-gray-700/60 active:bg-gray-700/80 transition-colors duration-150 flex items-center"
               >
-                <Copy className="h-4 w-4 mb-1 text-blue-400" />
-                <span className="text-xs font-medium">复制</span>
+                <Copy className="h-4.5 w-4.5 mr-3 text-blue-400" />
+                <span className="text-sm font-medium">复制</span>
               </button>
               
               <button
                 onClick={handleEditMessage}
-                className="px-4 py-2.5 hover:bg-gray-700/60 active:bg-gray-700/80 transition-colors duration-150 flex flex-col items-center justify-center"
+                className="px-6 py-3.5 hover:bg-gray-700/60 active:bg-gray-700/80 transition-colors duration-150 flex items-center"
               >
-                <Pencil className="h-4 w-4 mb-1 text-blue-400" />
-                <span className="text-xs font-medium">编辑</span>
+                <Pencil className="h-4.5 w-4.5 mr-3 text-blue-400" />
+                <span className="text-sm font-medium">编辑</span>
               </button>
             </div>
           </div>
@@ -532,8 +532,8 @@ export function ChatMessage({
       {/* 页面暗化遮罩 - 增强iOS风格的背景模糊效果 */}
       {showContextMenu && (
         <div 
-          className="fixed inset-0 bg-black/30 backdrop-blur-md z-40 animate-fade-in"
-          style={{ backdropFilter: 'blur(8px)' }}
+          className="fixed inset-0 bg-black/40 backdrop-blur-lg z-40 animate-fade-in"
+          style={{ backdropFilter: 'blur(12px)' }}
           onClick={() => setShowContextMenu(false)}
         />
       )}
@@ -583,7 +583,7 @@ export function ChatMessage({
                   ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20 text-white border border-blue-800/30" 
                   : "bg-blue-500/20 backdrop-blur-sm text-white border border-blue-500/30",
                 // 长按时的视觉效果
-                isLongPressing && message.role === "user" && "scale-105 shadow-lg border-blue-500/50"
+                isLongPressing && message.role === "user" && "scale-105 shadow-lg border-blue-500/50 z-50 relative brightness-125 bg-blue-500/30"
               )}
             >
               {isImage && imageUrl ? (
