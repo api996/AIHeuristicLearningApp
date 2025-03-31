@@ -7,18 +7,10 @@ import {
   ThumbsUp, 
   ThumbsDown, 
   RotateCcw, 
-  Check,
-  X,
   Edit
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader
-} from "@/components/ui/dialog";
 
 interface ChatMessageProps {
   message: {
@@ -85,10 +77,7 @@ export function ChatMessage({
   );
   
   // 状态管理
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState(message.content);
   const [isHovering, setIsHovering] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [userRating, setUserRating] = useState<"like" | "dislike" | null>(null);
   
   // 用户消息长按相关状态
@@ -255,30 +244,6 @@ export function ChatMessage({
       )}
     </div>
   );
-
-  // 处理消息编辑
-  const handleSaveEdit = async () => {
-    if (!onEdit || !editedContent.trim() || isSaving) return;
-    
-    try {
-      setIsSaving(true);
-      await onEdit(message.id, editedContent.trim());
-      setIsEditing(false);
-      toast({
-        title: "修改成功",
-        description: "您的消息已更新",
-      });
-    } catch (error) {
-      toast({
-        title: "修改失败",
-        description: "无法保存更改，请稍后再试",
-        variant: "destructive"
-      });
-      console.error("编辑消息失败:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
   
   // 复制消息内容
   const copyMessageContent = () => {
@@ -383,8 +348,8 @@ export function ChatMessage({
 
   // 处理编辑开始 - 从对话框选项
   const handleEditStart = () => {
-    if (onEdit) {
-      setIsEditing(true);
+    if (onEdit && message.id) {
+      onEdit(message.id, message.content);
       setShowOptionsDialog(false);
     }
   };
@@ -422,33 +387,45 @@ export function ChatMessage({
 
   return (
     <>
-      {/* 选项对话框 */}
-      <Dialog open={showOptionsDialog} onOpenChange={setShowOptionsDialog}>
-        <DialogContent className="sm:max-w-[280px] p-0 overflow-hidden">
-          <DialogHeader className="p-4 pb-2">
-            <h3 className="text-center text-lg font-medium">消息选项</h3>
-          </DialogHeader>
-          <div className="p-0">
-            <button
-              className="w-full flex items-center space-x-2 p-4 hover:bg-neutral-800 transition-colors"
-              onClick={copyMessageContent}
-            >
-              <Copy className="h-5 w-5 text-neutral-400" />
-              <span>复制消息</span>
-            </button>
-            
-            {onEdit && (
+      {/* 选项对话框 - 美化版本，模拟iOS/主流App的交互效果 */}
+      {showOptionsDialog && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in"
+          onClick={() => setShowOptionsDialog(false)}
+        >
+          <div 
+            className="bg-neutral-900/90 backdrop-blur-lg border border-neutral-800 rounded-2xl shadow-xl overflow-hidden max-w-[300px] w-full transform scale-110 animate-scale-in transition-all"
+            onClick={(e) => e.stopPropagation()} // 防止点击内部时关闭
+          >
+            <div className="p-4 pb-2 border-b border-neutral-800">
+              <h3 className="text-center text-lg font-medium">消息选项</h3>
+            </div>
+            <div className="p-0">
               <button
-                className="w-full flex items-center space-x-2 p-4 hover:bg-neutral-800 transition-colors"
-                onClick={handleEditStart}
+                className="w-full flex items-center space-x-3 p-4 hover:bg-neutral-800/50 transition-colors"
+                onClick={copyMessageContent}
               >
-                <Edit className="h-5 w-5 text-neutral-400" />
-                <span>编辑消息</span>
+                <div className="bg-blue-600/30 p-2 rounded-full">
+                  <Copy className="h-5 w-5 text-blue-400" />
+                </div>
+                <span className="font-medium">复制消息</span>
               </button>
-            )}
+              
+              {onEdit && (
+                <button
+                  className="w-full flex items-center space-x-3 p-4 hover:bg-neutral-800/50 transition-colors"
+                  onClick={handleEditStart}
+                >
+                  <div className="bg-purple-600/30 p-2 rounded-full">
+                    <Edit className="h-5 w-5 text-purple-400" />
+                  </div>
+                  <span className="font-medium">编辑消息</span>
+                </button>
+              )}
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     
       <div 
         className={cn(
@@ -498,65 +475,28 @@ export function ChatMessage({
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
-              {isEditing && message.role === "user" ? (
-                <div className="min-w-[300px]">
-                  <Textarea
-                    value={editedContent}
-                    onChange={(e) => setEditedContent(e.target.value)}
-                    className="bg-blue-700 border-blue-600 text-white min-h-[100px] mb-2"
-                    placeholder="编辑您的消息..."
-                  />
-                  <div className="flex justify-end space-x-2 mt-2">
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="h-8 text-xs text-neutral-200"
-                      onClick={() => {
-                        setIsEditing(false);
-                        setEditedContent(message.content);
-                      }}
-                      disabled={isSaving}
-                    >
-                      <X className="h-3.5 w-3.5 mr-1" />
-                      取消
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      className="h-8 text-xs"
-                      onClick={handleSaveEdit}
-                      disabled={isSaving || editedContent.trim() === message.content}
-                    >
-                      <Check className="h-3.5 w-3.5 mr-1" />
-                      保存
-                    </Button>
-                  </div>
-                </div>
+              {isImage && imageUrl ? (
+                <img 
+                  src={imageUrl} 
+                  alt="Uploaded" 
+                  className="max-w-full max-h-[300px] rounded-md object-contain"
+                />
               ) : (
                 <>
-                  {isImage && imageUrl ? (
-                    <img 
-                      src={imageUrl} 
-                      alt="Uploaded" 
-                      className="max-w-full max-h-[300px] rounded-md object-contain"
-                    />
-                  ) : (
+                  {message.role === "assistant" ? (
                     <>
-                      {message.role === "assistant" ? (
-                        <>
-                          {/* 对AI消息使用打字机效果 */}
-                          {renderContent(displayedText)}
-                          {/* 如果打字尚未完成，显示光标 */}
-                          {!completed && !isThinking && 
-                            <span className="inline-block h-4 w-1 bg-blue-400 animate-blink ml-0.5 align-middle"></span>
-                          }
-                          {/* 如果正在思考中，显示思考动画 */}
-                          {isThinking && <ThinkingAnimation />}
-                        </>
-                      ) : (
-                        // 对用户消息直接显示
-                        renderContent(message.content)
-                      )}
+                      {/* 对AI消息使用打字机效果 */}
+                      {renderContent(displayedText)}
+                      {/* 如果打字尚未完成，显示光标 */}
+                      {!completed && !isThinking && 
+                        <span className="inline-block h-4 w-1 bg-blue-400 animate-blink ml-0.5 align-middle"></span>
+                      }
+                      {/* 如果正在思考中，显示思考动画 */}
+                      {isThinking && <ThinkingAnimation />}
                     </>
+                  ) : (
+                    // 对用户消息直接显示
+                    renderContent(message.content)
                   )}
                 </>
               )}
