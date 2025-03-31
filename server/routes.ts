@@ -515,35 +515,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Chat not found or access denied" });
       }
       
-      // 获取需要重新生成的消息
-      const message = await storage.regenerateMessage(messageId);
-      
-      // 初始化聊天服务使用对应模型
-      chatService.setModel(chat.model || "deep");
-      
-      // 找到触发此AI回复的用户消息
-      const chatMessages = await storage.getChatMessages(chatId, userId, isAdmin);
-      const messageIndex = chatMessages.findIndex(m => m.id === messageId);
-      
-      // 找到最近的用户消息作为提示
-      let promptMessage = "请重新回答";
-      for (let i = messageIndex - 1; i >= 0; i--) {
-        if (chatMessages[i].role === "user") {
-          promptMessage = chatMessages[i].content;
-          break;
+      try {
+        // 获取需要重新生成的消息
+        const message = await storage.regenerateMessage(messageId);
+        
+        // 初始化聊天服务使用对应模型
+        chatService.setModel(chat.model || "deep");
+        
+        // 找到触发此AI回复的用户消息
+        const chatMessages = await storage.getChatMessages(chatId, userId, isAdmin);
+        const messageIndex = chatMessages.findIndex(m => m.id === messageId);
+        
+        // 找到最近的用户消息作为提示
+        let promptMessage = "请重新回答";
+        for (let i = messageIndex - 1; i >= 0; i--) {
+          if (chatMessages[i].role === "user") {
+            promptMessage = chatMessages[i].content;
+            break;
+          }
         }
+        
+        // 重新生成回复
+        const response = await chatService.sendMessage(promptMessage);
+        
+        // 更新数据库中的消息
+        const updatedMessage = await storage.updateMessage(messageId, response.text, false);
+        
+        res.json({
+          ...updatedMessage,
+          model: response.model
+        });
+      } catch (error) {
+        // 如果找不到消息，尝试从聊天记录中直接获取
+        log(`Error with specific message ID, trying fallback approach: ${error}`);
+        
+        // 获取所有消息并尝试找到最近的AI消息
+        const chatMessages = await storage.getChatMessages(chatId, userId, isAdmin);
+        
+        // 确保有至少一条AI回复
+        const aiMessages = chatMessages.filter(m => m.role === "assistant");
+        if (aiMessages.length === 0) {
+          return res.status(404).json({ message: "No AI messages found to regenerate" });
+        }
+        
+        // 使用最后一条AI消息
+        const lastAiMessage = aiMessages[aiMessages.length - 1];
+        const messageIndex = chatMessages.findIndex(m => m.id === lastAiMessage.id);
+        
+        // 找到触发该AI回复的用户消息
+        let promptMessage = "请重新回答";
+        for (let i = messageIndex - 1; i >= 0; i--) {
+          if (chatMessages[i].role === "user") {
+            promptMessage = chatMessages[i].content;
+            break;
+          }
+        }
+        
+        // 重新生成回复
+        chatService.setModel(chat.model || "deep");
+        const response = await chatService.sendMessage(promptMessage);
+        
+        // 更新数据库中的消息
+        const updatedMessage = await storage.updateMessage(lastAiMessage.id, response.text, false);
+        
+        res.json({
+          ...updatedMessage,
+          model: response.model
+        });
       }
-      
-      // 重新生成回复
-      const response = await chatService.sendMessage(promptMessage);
-      
-      // 更新数据库中的消息
-      const updatedMessage = await storage.updateMessage(messageId, response.text, false);
-      
-      res.json({
-        ...updatedMessage,
-        model: response.model
-      });
     } catch (error) {
       log(`Error regenerating message: ${error}`);
       res.status(500).json({ message: "Failed to regenerate message" });
