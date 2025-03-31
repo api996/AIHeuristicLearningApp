@@ -95,10 +95,15 @@ export function AIChat({ userData }: AIChatProps) {
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [showLearningPathDialog, setShowLearningPathDialog] = useState(false);
   const [showPreferencesDialog, setShowPreferencesDialog] = useState(false);
+  const [showBackgroundDialog, setShowBackgroundDialog] = useState(false);
   
   // 偏好设置状态
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("dark");
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("light"); // 默认设置为浅色主题以展示苹果风格效果
   const [fontSize, setFontSize] = useState<"small" | "medium" | "large">("medium");
+  
+  // 背景图片相关状态
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const backgroundInputRef = useRef<HTMLInputElement>(null);
 
   // Use the passed in userData
   const user = userData;
@@ -550,6 +555,52 @@ export function AIChat({ userData }: AIChatProps) {
       console.error("提交反馈失败:", error);
     }
   };
+  
+
+  
+  // 应用主题设置到DOM
+  const applyTheme = (newTheme: "light" | "dark" | "system") => {
+    // 移除所有主题类
+    document.documentElement.classList.remove('light', 'dark');
+    
+    // 应用新主题
+    if (newTheme === "system") {
+      // 根据系统偏好设置主题
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.add('light');
+      }
+    } else {
+      // 直接应用指定主题
+      document.documentElement.classList.add(newTheme);
+    }
+    
+    // 保存设置到本地存储
+    localStorage.setItem('theme', newTheme);
+  };
+  
+  // 应用字体大小设置
+  const applyFontSize = (size: "small" | "medium" | "large") => {
+    // 移除所有字体大小类
+    document.documentElement.classList.remove('text-sm', 'text-md', 'text-lg');
+    
+    // 应用新字体大小
+    switch (size) {
+      case "small":
+        document.documentElement.classList.add('text-sm');
+        break;
+      case "medium":
+        document.documentElement.classList.add('text-md');
+        break;
+      case "large":
+        document.documentElement.classList.add('text-lg');
+        break;
+    }
+    
+    // 保存设置到本地存储
+    localStorage.setItem('font-size', size);
+  };
 
   // Update handleSelectChat to properly load messages
   const handleSelectChat = (chatId: number) => {
@@ -591,6 +642,7 @@ export function AIChat({ userData }: AIChatProps) {
     fetchMessages();
   };
 
+  // 处理消息中图片上传
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -613,6 +665,38 @@ export function AIChat({ userData }: AIChatProps) {
       setIsLoading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
+      }
+    }
+  };
+  
+  // 处理背景图片上传
+  const handleBackgroundImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const base64Image = await readFileAsBase64(file);
+      
+      // 保存到本地存储，这样刷新页面后依然能看到
+      localStorage.setItem('backgroundImage', base64Image);
+      
+      // 更新状态以立即显示图片
+      setBackgroundImage(base64Image);
+      
+      toast({
+        title: "背景已更新",
+        description: "您的自定义背景已成功设置",
+      });
+    } catch (error) {
+      console.error("背景图片上传失败:", error);
+      toast({
+        title: "上传失败",
+        description: "背景图片上传失败，请稍后再试",
+        variant: "destructive"
+      });
+    } finally {
+      if (backgroundInputRef.current) {
+        backgroundInputRef.current.value = '';
       }
     }
   };
@@ -643,58 +727,41 @@ export function AIChat({ userData }: AIChatProps) {
   // 检查用户登录状态和初始化偏好设置
   useEffect(() => {
     // 1. 检查用户登录状态
-    const user = localStorage.getItem("user");
-    if (!user) {
+    const userJson = localStorage.getItem("user");
+    if (!userJson) {
       setLocation("/login");
       return;
     }
 
-    // 2. 初始化主题设置
+    // 2. 加载用户设置
+    // 2.1 初始化主题
     const savedTheme = localStorage.getItem("theme") as "light" | "dark" | "system" | null;
     if (savedTheme) {
       setTheme(savedTheme);
-      // 根据系统设置应用主题
-      if (savedTheme === "system") {
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-          document.documentElement.classList.add('dark');
-          document.documentElement.classList.remove('light');
-        } else {
-          document.documentElement.classList.add('light');
-          document.documentElement.classList.remove('dark');
-        }
-      } else if (savedTheme === "dark") {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
-      } else {
-        document.documentElement.classList.add('light');
-        document.documentElement.classList.remove('dark');
-      }
+      applyTheme(savedTheme);
+    } else {
+      // 默认使用浅色主题
+      setTheme("light");
+      applyTheme("light");
     }
-    
-    // 3. 初始化字体大小设置
-    const savedFontSize = localStorage.getItem("fontSize") as "small" | "medium" | "large" | null;
+
+    // 2.2 初始化字体大小
+    const savedFontSize = localStorage.getItem("font-size") as "small" | "medium" | "large" | null;
     if (savedFontSize) {
       setFontSize(savedFontSize);
-      document.documentElement.classList.remove('text-sm', 'text-md', 'text-lg');
-      
-      switch(savedFontSize) {
-        case 'small':
-          document.documentElement.classList.add('text-sm');
-          break;
-        case 'medium':
-          document.documentElement.classList.add('text-md');
-          break;
-        case 'large':
-          document.documentElement.classList.add('text-lg');
-          break;
-      }
+      applyFontSize(savedFontSize);
     }
-    
-    // 4. 添加系统主题变化监听
+
+    // 2.3 加载背景图片
+    const savedBackgroundImage = localStorage.getItem("background-image");
+    if (savedBackgroundImage) {
+      setBackgroundImage(savedBackgroundImage);
+    }
+
+    // 3. 添加系统主题变化监听
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleThemeChange = (e: MediaQueryListEvent) => {
-      const currTheme = localStorage.getItem("theme");
-      if (currTheme === 'system') {
+      if (theme === "system") {
         if (e.matches) {
           document.documentElement.classList.add('dark');
           document.documentElement.classList.remove('light');
@@ -712,7 +779,7 @@ export function AIChat({ userData }: AIChatProps) {
     return () => {
       mediaQuery.removeEventListener('change', handleThemeChange);
     };
-  }, [setLocation]);
+  }, [setLocation, theme]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -736,7 +803,34 @@ export function AIChat({ userData }: AIChatProps) {
 
 
   return (
-    <div className="flex h-screen text-white">
+    <div className="flex h-screen text-white relative">
+      {/* 背景图片容器 */}
+      {backgroundImage && (
+        <div className="bg-container">
+          <img src={backgroundImage} alt="背景" className="bg-image" />
+        </div>
+      )}
+      
+      {/* 背景图片上传按钮 */}
+      <input
+        type="file"
+        ref={backgroundInputRef}
+        onChange={handleBackgroundImageUpload}
+        accept="image/*"
+        className="hidden"
+        id="background-upload"
+      />
+      <label 
+        htmlFor="background-upload" 
+        className="bg-upload-btn"
+        title="上传背景图片"
+      >
+        <ImageIcon className="h-5 w-5 text-white opacity-70" />
+      </label>
+      
+      {/* 磨砂玻璃效果容器 - 根据主题应用不同的效果 */}
+      <div className={`absolute inset-0 z-0 ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}`}></div>
+      
       {/* Overlay for mobile */}
       {showSidebar && (
         <div
@@ -745,11 +839,11 @@ export function AIChat({ userData }: AIChatProps) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - 使用磨砂玻璃效果 */}
       <div
-        className={`fixed lg:static lg:flex w-64 h-full bg-neutral-900 transform transition-transform duration-200 ease-in-out z-30 ${
+        className={`fixed lg:static lg:flex w-64 h-full transform transition-transform duration-200 ease-in-out z-30 ${
           showSidebar ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        } ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}`}
       >
         <ChatHistory
           currentChatId={currentChatId}
@@ -773,8 +867,8 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header - 按照主流AI聊天助手设计 */}
-        <header className="h-16 flex items-center justify-between px-6 border-b border-neutral-800 py-4 bg-neutral-900">
+        {/* Header - 苹果风格磨砂透明 */}
+        <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${theme === 'dark' ? 'frosted-glass-dark border-neutral-800' : 'frosted-glass border-neutral-200/20'}`}>
           <div className="flex items-center">
             {/* 左侧菜单按钮 - 显示历史记录 */}
             <Button
@@ -870,8 +964,8 @@ export function AIChat({ userData }: AIChatProps) {
           )}
         </div>
 
-        {/* Input Area - 简化布局并采用ChatGPT风格，整体上移 */}
-        <div className="fixed bottom-0 left-0 right-0 pb-6 pt-2 bg-gradient-to-t from-neutral-950 via-neutral-950 to-transparent">
+        {/* Input Area - 苹果风格磨砂透明 */}
+        <div className={`fixed bottom-0 left-0 right-0 pb-6 pt-2 ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}`}>
           <div className="max-w-3xl mx-auto px-4">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
@@ -951,8 +1045,8 @@ export function AIChat({ userData }: AIChatProps) {
               </div>
             )}
             
-            {/* 输入框区域 - 使用ChatGPT风格 */}
-            <div className="relative rounded-xl border border-neutral-700 bg-neutral-800 shadow-lg">
+            {/* 输入框区域 - 苹果风格磨砂玻璃效果 */}
+            <div className={`relative rounded-xl border shadow-lg ${theme === 'dark' ? 'border-neutral-700/50 bg-neutral-800/30 backdrop-blur-md' : 'border-neutral-300/20 bg-white/30 backdrop-blur-md'}`}>
               <div className="flex items-end">
                 <div className="flex-1 relative">
                   <textarea
@@ -1309,7 +1403,10 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant={theme === "light" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setTheme("light")}
+                  onClick={() => {
+                    setTheme("light");
+                    applyTheme("light");
+                  }}
                   className="flex-1"
                 >
                   浅色
@@ -1317,7 +1414,10 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant={theme === "dark" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setTheme("dark")}
+                  onClick={() => {
+                    setTheme("dark");
+                    applyTheme("dark");
+                  }}
                   className="flex-1"
                 >
                   深色
@@ -1325,7 +1425,10 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant={theme === "system" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setTheme("system")}
+                  onClick={() => {
+                    setTheme("system");
+                    applyTheme("system");
+                  }}
                   className="flex-1"
                 >
                   跟随系统
@@ -1339,7 +1442,10 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant={fontSize === "small" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setFontSize("small")}
+                  onClick={() => {
+                    setFontSize("small");
+                    applyFontSize("small");
+                  }}
                   className="flex-1"
                 >
                   小
@@ -1347,7 +1453,10 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant={fontSize === "medium" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setFontSize("medium")}
+                  onClick={() => {
+                    setFontSize("medium");
+                    applyFontSize("medium");
+                  }}
                   className="flex-1"
                 >
                   中
@@ -1355,7 +1464,10 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant={fontSize === "large" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setFontSize("large")}
+                  onClick={() => {
+                    setFontSize("large");
+                    applyFontSize("large");
+                  }}
                   className="flex-1"
                 >
                   大
@@ -1376,38 +1488,11 @@ export function AIChat({ userData }: AIChatProps) {
               onClick={() => {
                 // 保存所有偏好设置
                 localStorage.setItem('theme', theme);
-                localStorage.setItem('fontSize', fontSize);
+                localStorage.setItem('font-size', fontSize);
                 
-                // 应用主题设置
-                if (theme === "system") {
-                  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    document.documentElement.classList.add('dark');
-                    document.documentElement.classList.remove('light');
-                  } else {
-                    document.documentElement.classList.add('light');
-                    document.documentElement.classList.remove('dark');
-                  }
-                } else if (theme === "dark") {
-                  document.documentElement.classList.add('dark');
-                  document.documentElement.classList.remove('light');
-                } else {
-                  document.documentElement.classList.add('light');
-                  document.documentElement.classList.remove('dark');
-                }
-                
-                // 应用字体大小设置
-                document.documentElement.classList.remove('text-sm', 'text-md', 'text-lg');
-                switch(fontSize) {
-                  case 'small':
-                    document.documentElement.classList.add('text-sm');
-                    break;
-                  case 'medium':
-                    document.documentElement.classList.add('text-md');
-                    break;
-                  case 'large':
-                    document.documentElement.classList.add('text-lg');
-                    break;
-                }
+                // 应用设置
+                applyTheme(theme);
+                applyFontSize(fontSize);
                 
                 // 关闭设置对话框
                 setShowPreferencesDialog(false);
