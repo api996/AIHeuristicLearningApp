@@ -361,19 +361,27 @@ export function ChatMessage({
       pressTimer = setTimeout(() => {
         setIsLongPressing(true);
         
-        // 计算菜单位置 - 现在改为显示在消息正下方
+        // 计算菜单位置 - 现在改为显示在消息正下方，中心对齐
         const rect = messageRef.current?.getBoundingClientRect();
         if (rect) {
-          const screenWidth = window.innerWidth;
-          const isRightHalf = rect.left > screenWidth / 2;
+          // 消息宽度和位置
+          const messageWidth = rect.width;
+          const messageCenterX = rect.left + (messageWidth / 2);
           
-          // 将菜单显示在消息正下方
-          setMenuPosition({
-            x: rect.left + rect.width / 2,
-            y: rect.bottom + 15 // 菜单显示在消息正下方，给一定间距
+          // 记录调试信息
+          console.log('长按菜单定位计算:', {
+            messageCenterX,
+            messageBottom: rect.bottom,
+            messageWidth
           });
           
-          // 确保消息框在屏幕上方可见
+          // 将菜单显示在消息正下方，中心对齐
+          setMenuPosition({
+            x: messageCenterX,
+            y: rect.bottom + 10 // 菜单显示在消息正下方
+          });
+          
+          // 确保消息在屏幕中央可见
           window.scrollTo({
             top: Math.max(0, rect.top - 100),
             behavior: 'smooth'
@@ -432,21 +440,31 @@ export function ChatMessage({
       
       e.preventDefault();
       
-      // 计算菜单位置 - 现在改为显示在消息正下方
+      // 计算菜单位置 - 现在改为显示在消息正下方，中心对齐
       const rect = messageRef.current?.getBoundingClientRect();
       if (rect) {
-        const screenWidth = window.innerWidth;
-        const isRightHalf = rect.left > screenWidth / 2;
+        // 消息宽度和位置
+        const messageWidth = rect.width;
+        const messageCenterX = rect.left + (messageWidth / 2);
         
-        // 将菜单显示在消息正下方
-        setMenuPosition({
-          x: rect.left + rect.width / 2,
-          y: rect.bottom + 15 // 菜单显示在消息正下方，给一定间距
+        // 根据屏幕宽度做调整
+        const screenWidth = window.innerWidth;
+        console.log('菜单定位计算:', {
+          messageCenterX,
+          screenWidth, 
+          messageBottom: rect.bottom,
+          messageWidth
         });
         
-        // 确保消息框在屏幕上方可见
-        window.scrollTo({
-          top: Math.max(0, rect.top - 100),
+        // 将菜单显示在消息正下方，中心对齐
+        setMenuPosition({
+          x: messageCenterX,
+          y: rect.bottom + 10 // 菜单显示在消息正下方，距离适中
+        });
+        
+        // 确保消息在屏幕中央可见
+        messageRef.current.scrollIntoView({
+          block: 'center',
           behavior: 'smooth'
         });
       } else {
@@ -515,19 +533,20 @@ export function ChatMessage({
       {/* iOS风格上下文菜单 */}
       {showContextMenu && (
         <div 
-          className="fixed z-50 animate-fade-in"
+          className="fixed z-50 animate-fade-in pointer-events-auto"
           style={{ 
             top: `${menuPosition.y}px`, 
             left: `${menuPosition.x}px`, 
-            transform: 'translate(-50%, 0)' 
+            transform: 'translate(-50%, 0)',
+            filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))'
           }}
           ref={menuRef}
         >
-          {/* 向上的箭头指示 */}
-          <div className="w-4 h-4 bg-neutral-900/90 rotate-45 mx-auto mt-[-8px] rounded-sm border-t border-l border-neutral-700/30"></div>
+          {/* 向上的箭头指示，调整大小和定位 */}
+          <div className="w-5 h-5 bg-neutral-900/90 rotate-45 mx-auto mt-[-10px] rounded-sm border-t border-l border-neutral-700/60 shadow-lg"></div>
           
           {/* 菜单内容 - 现代iOS风格菜单，使用半透明玻璃拟态效果 */}
-          <div className="bg-neutral-900/90 backdrop-blur-xl text-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in-menu border border-neutral-700/30 w-64 sm:w-[280px] mt-[-8px]">
+          <div className="bg-neutral-900/90 backdrop-blur-xl text-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in-menu border border-neutral-700/30 w-64 sm:w-[280px] mt-[-10px]">
             <div className="flex flex-col divide-y divide-neutral-700/30">
               <button
                 onClick={handleCopyMessage}
@@ -609,7 +628,7 @@ export function ChatMessage({
                   ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20 text-white border border-blue-800/30" 
                   : "bg-blue-500/20 backdrop-blur-sm text-white border border-blue-500/30",
                 // 长按时的视觉效果，使消息和菜单同时可见且更加突出
-                isLongPressing && message.role === "user" && "scale-110 shadow-2xl border-blue-500/70 z-[60] relative brightness-125 bg-blue-600/30 ring-4 ring-blue-500/50"
+                isLongPressing && message.role === "user" && "scale-110 shadow-2xl border-blue-500/80 z-[60] relative brightness-130 bg-blue-600/40 ring-4 ring-blue-400/70 text-white font-medium"
               )}
             >
               {isImage && imageUrl ? (
