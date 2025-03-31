@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
@@ -287,7 +286,7 @@
     opacity: 0;
     transition: all 0.3s;
   }
-  
+
   .auto-hide-scrollbar:hover::-webkit-scrollbar {
     width: 6px;
     opacity: 1;
@@ -308,9 +307,6 @@
   backdrop-filter: blur(12px) saturate(120%);
   -webkit-backdrop-filter: blur(12px) saturate(120%);
   border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.25);
-}lur(12px) saturate(120%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.25);
 }
 
