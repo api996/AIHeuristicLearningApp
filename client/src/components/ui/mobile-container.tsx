@@ -1,7 +1,7 @@
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { useDeviceInfo } from '../../hooks/use-mobile';
-import { useIPhoneSafeAreas } from '../../hooks/use-device-detection';
+import { useIPhoneSafeAreas, useIPhoneCSSClasses } from '../../hooks/use-device-detection';
 
 interface MobileContainerProps {
   children: ReactNode;
@@ -14,6 +14,9 @@ export function MobileContainer({ children, className = '' }: MobileContainerPro
   // 启用 iPhone 安全区域
   useIPhoneSafeAreas();
   
+  // 应用iPhone CSS类
+  const cssClasses = useIPhoneCSSClasses();
+  
   return (
     <div 
       className={`app-container ${
@@ -22,7 +25,7 @@ export function MobileContainer({ children, className = '' }: MobileContainerPro
         deviceInfo.isIOS ? 'ios-device safe-area-top safe-area-bottom' : ''
       } ${
         deviceInfo.isAndroid ? 'android-device' : ''
-      } ${className}`}
+      } ${cssClasses} ${className}`}
     >
       {children}
     </div>
@@ -48,12 +51,14 @@ export function MobileScrollContainer({ children, className = '' }: MobileContai
 
 // 头部导航栏容器，处理不同设备的样式
 export function MobileNavbar({ children, className = '' }: MobileContainerProps) {
-  const { isMobile } = useDeviceInfo();
+  const { isMobile, isIOS } = useDeviceInfo();
   
   return (
     <header 
       className={`${
         isMobile ? 'navbar-mobile py-2 px-3' : 'py-4 px-6'
+      } ${
+        isIOS ? 'safe-area-top' : ''
       } ${className}`}
     >
       {children}
@@ -61,14 +66,31 @@ export function MobileNavbar({ children, className = '' }: MobileContainerProps)
   );
 }
 
-// 对话框容器，确保在移动设备上正确显示
-export function MobileDialog({ children, className = '' }: MobileContainerProps) {
-  const { isMobile } = useDeviceInfo();
+// 底部导航栏或工具栏容器
+export function MobileFooter({ children, className = '' }: MobileContainerProps) {
+  const { isMobile, isIOS } = useDeviceInfo();
+  
+  return (
+    <footer 
+      className={`${
+        isMobile ? 'footer-mobile py-2 px-3' : 'py-3 px-6'
+      } ${
+        isIOS ? 'safe-area-bottom' : ''
+      } ${className}`}
+    >
+      {children}
+    </footer>
+  );
+}
+
+// 适用于固定在底部的内容容器
+export function MobileFixedBottom({ children, className = '' }: MobileContainerProps) {
+  const { isIOS } = useDeviceInfo();
   
   return (
     <div 
-      className={`dialog-content ${
-        isMobile ? 'mobile-dialog max-w-[90vw]' : ''
+      className={`fixed bottom-0 left-0 right-0 ${
+        isIOS ? 'safe-area-bottom' : 'pb-4'
       } ${className}`}
     >
       {children}

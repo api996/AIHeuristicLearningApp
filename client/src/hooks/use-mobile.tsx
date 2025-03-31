@@ -131,13 +131,20 @@ export function useDeviceInfo(): DeviceInfo {
   return deviceInfo
 }
 
-// 检测 iPhone 型号（近似值）
+// 检测 iPhone 型号（近似值），并支持默认为 iPhone 15 Pro Max
 export function useIPhoneModel(): string {
   const { isIOS, width, height, userAgent } = useDeviceInfo()
-  const [model, setModel] = React.useState<string>('unknown')
+  const [model, setModel] = React.useState<string>('iphone-pro-max') // 默认为 iPhone 15 Pro Max
   
   React.useEffect(() => {
-    if (!isIOS) {
+    // 如果不是iOS设备但强制使用iPhone模式，则保持默认值
+    if (!isIOS && width <= 0) {
+      // 保持默认值 'iphone-pro-max'
+      return;
+    }
+    
+    // 如果确实不是iOS设备，则设置为非iPhone
+    if (!isIOS && width > 0) {
       setModel('not-iphone')
       return
     }
@@ -145,7 +152,7 @@ export function useIPhoneModel(): string {
     // 根据屏幕分辨率和用户代理推断 iPhone 型号
     const maxDimension = Math.max(width, height)
     
-    // 非常简单的判断逻辑，实际情况更复杂
+    // 更详细的判断逻辑
     if (maxDimension <= 667) {
       setModel('iphone-8-or-smaller') // iPhone 8 或更老机型
     } else if (maxDimension <= 812) {
@@ -154,8 +161,10 @@ export function useIPhoneModel(): string {
       setModel('iphone-xr-xs-max-11') // iPhone XR、XS Max、11
     } else if (maxDimension <= 926) {
       setModel('iphone-12-13-14') // iPhone 12、13、14 系列
+    } else if (maxDimension <= 932) {
+      setModel('iphone-pro-max') // 15 Pro Max
     } else {
-      setModel('iphone-pro-max') // 12 Pro Max 及更大型号
+      setModel('iphone-pro-max') // 默认使用最新Pro Max型号
     }
   }, [isIOS, width, height, userAgent])
   

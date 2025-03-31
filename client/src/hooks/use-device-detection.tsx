@@ -18,22 +18,47 @@ export function useDeviceReport({ userId, onSuccess, onError }: DeviceReportProp
   const [reportStatus, setReportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [error, setError] = useState<Error | null>(null);
   
+  // 默认使用iPhone 15 Pro Max的设备信息
+  const effectiveDeviceInfo = useMemo(() => {
+    // 如果设备信息无法获取或不完整，使用默认值
+    if (!deviceInfo || deviceInfo.width <= 0) {
+      return {
+        ...deviceInfo,
+        isMobile: true,
+        isTablet: false,
+        isDesktop: false,
+        deviceType: DeviceType.MOBILE,
+        width: 430, // iPhone 15 Pro Max 宽度
+        height: 932, // iPhone 15 Pro Max 高度
+        isIOS: true,
+        isAndroid: false,
+        isPortrait: true,
+        isLandscape: false,
+        userAgent: 'iPhone'
+      };
+    }
+    return deviceInfo;
+  }, [deviceInfo]);
+  
+  // 强制使用iPhone 15 Pro Max作为机型
+  const effectiveIphoneModel = 'iphone-pro-max';
+  
   // 当设备信息加载完成后，发送到服务器
   useEffect(() => {
-    // 确保设备信息已经获取到
-    if (deviceInfo.width > 0 && reportStatus === 'idle') {
+    // 使用默认值或检测到的设备信息
+    if (reportStatus === 'idle') {
       setReportStatus('loading');
       
       const reportDevice = async () => {
         try {
           const response = await apiRequest('POST', '/api/device-info', {
-            userAgent: deviceInfo.userAgent,
-            screenWidth: deviceInfo.width,
-            screenHeight: deviceInfo.height,
-            deviceType: deviceInfo.deviceType,
-            isIOS: deviceInfo.isIOS,
-            isAndroid: deviceInfo.isAndroid,
-            iphoneModel: iphoneModel,
+            userAgent: effectiveDeviceInfo.userAgent,
+            screenWidth: effectiveDeviceInfo.width,
+            screenHeight: effectiveDeviceInfo.height,
+            deviceType: effectiveDeviceInfo.deviceType,
+            isIOS: effectiveDeviceInfo.isIOS,
+            isAndroid: effectiveDeviceInfo.isAndroid,
+            iphoneModel: effectiveIphoneModel,
             userId: userId
           });
           
@@ -60,7 +85,12 @@ export function useDeviceReport({ userId, onSuccess, onError }: DeviceReportProp
     }
   }, [deviceInfo, iphoneModel, userId, reportStatus, onSuccess, onError]);
   
-  return { deviceInfo, iphoneModel, reportStatus, error };
+  return { 
+    deviceInfo: effectiveDeviceInfo, 
+    iphoneModel: effectiveIphoneModel, 
+    reportStatus, 
+    error 
+  };
 }
 
 /**
