@@ -661,11 +661,14 @@ export function ChatMessage({
                 isLongPressing && message.role === "user" && "scale-110 shadow-2xl border-blue-500/80 z-[60] relative brightness-130 bg-blue-600/40 ring-4 ring-blue-400/70 text-white font-medium"
               )}
               style={{ 
-                WebkitUserSelect: 'none', 
-                MozUserSelect: 'none',
-                msUserSelect: 'none',
-                userSelect: 'none',
-                WebkitTouchCallout: 'none'
+                // 只对用户消息应用选择限制，避免影响输入框和AI消息的文本选择
+                ...(message.role === "user" ? {
+                  WebkitUserSelect: 'none', 
+                  MozUserSelect: 'none',
+                  msUserSelect: 'none',
+                  userSelect: 'none',
+                  WebkitTouchCallout: 'none'
+                } : {})
               }}
             >
               {isImage && imageUrl ? (

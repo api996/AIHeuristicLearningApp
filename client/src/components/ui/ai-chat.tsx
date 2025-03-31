@@ -857,7 +857,13 @@ export function AIChat({ userData }: AIChatProps) {
                     onKeyDown={handleKeyDown}
                     placeholder="输入消息..."
                     disabled={isLoading}
-                    className="w-full h-[50px] min-h-[50px] max-h-[200px] py-3 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0"
+                    className="w-full h-[50px] min-h-[50px] max-h-[200px] py-3 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 select-text"
+                    style={{
+                      WebkitUserSelect: 'text',
+                      MozUserSelect: 'text',
+                      msUserSelect: 'text',
+                      userSelect: 'text'
+                    }}
                   />
                   <input
                     type="file"
