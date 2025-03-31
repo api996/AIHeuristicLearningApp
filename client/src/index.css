@@ -333,27 +333,4 @@
   opacity: 1;
 }
 
-/* 背景图片上传按钮样式 */
-.bg-upload-btn {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  z-index: 1000;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.bg-upload-btn:hover {
-  transform: scale(1.1);
-  background: rgba(255, 255, 255, 0.3);
-}
+/* 这里之前是背景图片上传按钮样式，现在已移至偏好设置对话框中 */

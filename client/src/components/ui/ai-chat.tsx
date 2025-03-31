@@ -20,7 +20,8 @@ import {
   ChevronDown,
   MessageSquare,
   Pencil,
-  X
+  X,
+  Trash
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -819,29 +820,14 @@ export function AIChat({ userData }: AIChatProps) {
 
   return (
     <div className="flex h-screen text-white relative">
-      {/* 背景图片容器 */}
-      {backgroundImage && (
-        <div className="bg-container">
+      {/* 背景图片容器 - 如果有背景图片则显示，否则使用默认背景 */}
+      <div className="bg-container">
+        {backgroundImage ? (
           <img src={backgroundImage} alt="背景" className="bg-image" />
-        </div>
-      )}
-
-      {/* 背景图片上传按钮 */}
-      <input
-        type="file"
-        ref={backgroundInputRef}
-        onChange={handleBackgroundImageUpload}
-        accept="image/*"
-        className="hidden"
-        id="background-upload"
-      />
-      <label 
-        htmlFor="background-upload" 
-        className="bg-upload-btn"
-        title="上传背景图片"
-      >
-        <ImageIcon className="h-5 w-5 text-white opacity-70" />
-      </label>
+        ) : (
+          <div className={`bg-default absolute inset-0 w-full h-full`}></div>
+        )}
+      </div>
 
       {/* 磨砂玻璃效果容器 - 根据主题应用不同的效果 */}
       <div className={`absolute inset-0 z-0 ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}`}></div>
@@ -1491,7 +1477,69 @@ export function AIChat({ userData }: AIChatProps) {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">自定义功能 <span className="text-xs text-neutral-500">(即将推出)</span></h3>
+              <h3 className="text-sm font-medium text-neutral-300">背景设置</h3>
+              <div className="p-3 bg-neutral-800 rounded-md">
+                {/* 当前背景预览 */}
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm text-neutral-400">自定义背景</span>
+                  <div className="flex gap-2">
+                    {/* 背景图片上传按钮 */}
+                    <input
+                      type="file"
+                      ref={backgroundInputRef}
+                      onChange={handleBackgroundImageUpload}
+                      accept="image/*"
+                      className="hidden"
+                      id="background-upload"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => backgroundInputRef.current?.click()}
+                      className="h-8 text-xs"
+                    >
+                      <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
+                      选择图片
+                    </Button>
+                    
+                    {/* 清除背景按钮 */}
+                    {backgroundImage && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setBackgroundImage(null);
+                          localStorage.removeItem('background-image');
+                          toast({
+                            title: "背景已移除",
+                            description: "已恢复默认背景",
+                          });
+                        }}
+                        className="h-8 text-xs"
+                      >
+                        <Trash className="h-3.5 w-3.5 mr-1.5" />
+                        移除背景
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* 背景预览 */}
+                <div className="h-32 rounded-md overflow-hidden bg-neutral-900 flex items-center justify-center">
+                  {backgroundImage ? (
+                    <img src={backgroundImage} alt="背景预览" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-neutral-500 text-sm flex flex-col items-center">
+                      <ImageIcon className="h-6 w-6 mb-2 opacity-60" />
+                      <span>无自定义背景</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-neutral-300">其他自定义 <span className="text-xs text-neutral-500">(即将推出)</span></h3>
               <div className="p-3 bg-neutral-800 rounded-md text-neutral-400 text-sm">
                 更多自定义功能将在后续版本推出，敬请期待！
               </div>
@@ -1504,7 +1552,7 @@ export function AIChat({ userData }: AIChatProps) {
                 // 保存所有偏好设置
                 localStorage.setItem('theme', theme);
                 localStorage.setItem('font-size', fontSize);
-
+                
                 // 应用设置
                 applyTheme(theme);
                 applyFontSize(fontSize);
