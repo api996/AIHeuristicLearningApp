@@ -740,11 +740,10 @@ export function AIChat({ userData }: AIChatProps) {
               </div>
             </div>
           ) : (
-            // 有消息时显示滚动区域 - 根据消息数量智能判断是否需要滚动条
+            // 有消息时显示滚动区域 - 将内容固定在顶部并去除滚动条
             <div 
-              className={`flex-1 overflow-y-auto flex flex-col gap-4 py-1 ${
-                messages.length < 3 ? 'minimal-content hide-empty-scrollbar' : 'content-scrollbar auto-hide-scrollbar'
-              }`}
+              className={`flex-1 flex flex-col gap-4 py-1 hide-empty-scrollbar content-start justify-start items-stretch`}
+              style={{ overflowY: messages.length > 4 ? 'auto' : 'visible' }}
             >
               {messages.map((msg, i) => (
                 <ChatMessage 
