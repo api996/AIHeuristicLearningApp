@@ -72,47 +72,69 @@ export function useIPhoneCSSClasses() {
   const [cssClasses, setCssClasses] = useState<string>('');
   
   useEffect(() => {
-    if (!isIOS) {
+    // 清理之前的所有设备相关类
+    document.documentElement.classList.remove(
+      'iphone', 'iphone-small', 'iphone-x', 'iphone-xr', 
+      'iphone-12', 'iphone-pro-max', 'iphone-modern',
+      'android', 'mobile-device'
+    );
+    
+    // 为所有移动设备添加通用移动设备类
+    if (deviceInfo.isMobile || deviceInfo.isTablet) {
+      document.documentElement.classList.add('mobile-device');
+    }
+    
+    if (!isIOS && !deviceInfo.isAndroid) {
       setCssClasses('');
       return;
     }
     
-    // 根据iPhone型号添加特定的CSS类
-    let classes = 'iphone ';
+    let classes = '';
     
-    switch(iphoneModel) {
-      case 'iphone-8-or-smaller':
-        classes += 'iphone-small';
-        break;
-      case 'iphone-x-xs-11pro':
-        classes += 'iphone-x';
-        break;
-      case 'iphone-xr-xs-max-11':
-        classes += 'iphone-xr';
-        break;
-      case 'iphone-12-13-14':
-        classes += 'iphone-12';
-        break;
-      case 'iphone-pro-max':
-        classes += 'iphone-pro-max';
-        break;
-      default:
-        classes += 'iphone-modern';
+    // iOS 设备处理
+    if (isIOS) {
+      classes = 'iphone ';
+      
+      switch(iphoneModel) {
+        case 'iphone-8-or-smaller':
+          classes += 'iphone-small';
+          break;
+        case 'iphone-x-xs-11pro':
+          classes += 'iphone-x';
+          break;
+        case 'iphone-xr-xs-max-11':
+          classes += 'iphone-xr';
+          break;
+        case 'iphone-12-13-14':
+          classes += 'iphone-12';
+          break;
+        case 'iphone-pro-max':
+          classes += 'iphone-pro-max';
+          break;
+        default:
+          classes += 'iphone-modern';
+      }
+    } 
+    // Android 设备处理
+    else if (deviceInfo.isAndroid) {
+      classes = 'android';
     }
     
     setCssClasses(classes);
     
-    // 将这些类添加到根元素
-    document.documentElement.className += ' ' + classes;
+    // 添加设备类到根元素
+    const classesToAdd = classes.split(' ').filter(c => c);
+    classesToAdd.forEach(cls => {
+      document.documentElement.classList.add(cls);
+    });
     
     return () => {
-      // 清理类
-      const classesToRemove = classes.split(' ');
-      classesToRemove.forEach(cls => {
+      // 清理添加的类
+      classesToAdd.forEach(cls => {
         document.documentElement.classList.remove(cls);
       });
     };
-  }, [isIOS, iphoneModel]);
+  }, [isIOS, deviceInfo.isAndroid, deviceInfo.isMobile, deviceInfo.isTablet, iphoneModel]);
   
   return cssClasses;
 }

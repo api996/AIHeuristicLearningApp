@@ -31,14 +31,28 @@ export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
 
   React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
+    // 使用更可靠的检测方法
+    const checkIsMobile = () => {
+      return window.innerWidth < MOBILE_BREAKPOINT || 
+        /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    };
+    
     const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    }
-    mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
-  }, [])
+      setIsMobile(checkIsMobile());
+    };
+    
+    // 添加多种事件监听以确保检测准确性
+    window.addEventListener("resize", onChange);
+    window.addEventListener("orientationchange", onChange);
+    
+    // 初始设置
+    setIsMobile(checkIsMobile());
+    
+    return () => {
+      window.removeEventListener("resize", onChange);
+      window.removeEventListener("orientationchange", onChange);
+    };
+  }, []);
 
   return !!isMobile
 }
