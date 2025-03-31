@@ -79,6 +79,7 @@ export function ChatMessage({
   // 状态管理
   const [isHovering, setIsHovering] = useState(false);
   const [userRating, setUserRating] = useState<"like" | "dislike" | null>(null);
+  const [regenerateLoading, setRegenerateLoading] = useState(false);
   
   // 用户消息长按相关状态
   const [showOptionsDialog, setShowOptionsDialog] = useState(false);
@@ -269,15 +270,25 @@ export function ChatMessage({
   const handleRegenerate = async () => {
     if (!onRegenerate || isThinking) return;
     
+    // 防止重复点击
+    if (regenerateLoading) return;
+    
     try {
+      setRegenerateLoading(true);
+      // 确保消息ID存在
+      if (!message.id) {
+        throw new Error("消息ID不存在，无法重新生成");
+      }
       await onRegenerate(message.id);
     } catch (error) {
+      console.error("重新生成回答失败:", error);
       toast({
         title: "重新生成失败",
         description: "无法重新生成回答，请稍后再试",
         variant: "destructive"
       });
-      console.error("重新生成回答失败:", error);
+    } finally {
+      setRegenerateLoading(false);
     }
   };
   
@@ -387,41 +398,61 @@ export function ChatMessage({
 
   return (
     <>
-      {/* 选项对话框 - 美化版本，模拟iOS/主流App的交互效果 */}
+      {/* 选项对话框 - 高级iOS风格交互效果 */}
       {showOptionsDialog && (
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in"
+          className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in"
           onClick={() => setShowOptionsDialog(false)}
         >
           <div 
-            className="bg-neutral-900/90 backdrop-blur-lg border border-neutral-800 rounded-2xl shadow-xl overflow-hidden max-w-[300px] w-full transform scale-110 animate-scale-in transition-all"
-            onClick={(e) => e.stopPropagation()} // 防止点击内部时关闭
+            className="absolute inset-0 flex items-center justify-center"
+            onClick={() => setShowOptionsDialog(false)}
           >
-            <div className="p-4 pb-2 border-b border-neutral-800">
-              <h3 className="text-center text-lg font-medium">消息选项</h3>
+            {/* 消息预览 - 放大效果 */}
+            <div 
+              className="relative max-w-[85%] mb-36 transform scale-105 transition-all duration-300"
+            >
+              <div className={cn(
+                "py-4 px-5 rounded-2xl shadow-lg border",
+                message.role === "user" 
+                  ? "bg-blue-500/30 backdrop-blur-md text-white border-blue-500/40" 
+                  : "bg-gradient-to-br from-blue-600/30 to-purple-600/30 text-white border-blue-800/40"
+              )}>
+                {renderContent(message.content)}
+              </div>
             </div>
-            <div className="p-0">
-              <button
-                className="w-full flex items-center space-x-3 p-4 hover:bg-neutral-800/50 transition-colors"
-                onClick={copyMessageContent}
-              >
-                <div className="bg-blue-600/30 p-2 rounded-full">
-                  <Copy className="h-5 w-5 text-blue-400" />
-                </div>
-                <span className="font-medium">复制消息</span>
-              </button>
-              
-              {onEdit && (
+            
+            {/* 浮动菜单面板 */}
+            <div 
+              className="absolute bottom-24 bg-neutral-900/95 backdrop-blur-xl border border-neutral-800/80 rounded-2xl shadow-2xl overflow-hidden max-w-[340px] w-full animate-slide-up transition-all"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 pb-2 border-b border-neutral-800/80">
+                <h3 className="text-center text-base font-medium text-neutral-200">消息选项</h3>
+              </div>
+              <div className="p-0">
                 <button
-                  className="w-full flex items-center space-x-3 p-4 hover:bg-neutral-800/50 transition-colors"
-                  onClick={handleEditStart}
+                  className="w-full flex items-center space-x-3 p-4 hover:bg-neutral-800/70 active:bg-neutral-700/70 transition-colors"
+                  onClick={copyMessageContent}
                 >
-                  <div className="bg-purple-600/30 p-2 rounded-full">
-                    <Edit className="h-5 w-5 text-purple-400" />
+                  <div className="bg-blue-600/20 p-2 rounded-full">
+                    <Copy className="h-5 w-5 text-blue-400" />
                   </div>
-                  <span className="font-medium">编辑消息</span>
+                  <span className="font-medium text-neutral-200">复制消息</span>
                 </button>
-              )}
+                
+                {onEdit && (
+                  <button
+                    className="w-full flex items-center space-x-3 p-4 hover:bg-neutral-800/70 active:bg-neutral-700/70 transition-colors"
+                    onClick={handleEditStart}
+                  >
+                    <div className="bg-purple-600/20 p-2 rounded-full">
+                      <Edit className="h-5 w-5 text-purple-400" />
+                    </div>
+                    <span className="font-medium text-neutral-200">编辑消息</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -524,8 +555,14 @@ export function ChatMessage({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 rounded-full hover:bg-neutral-800 text-neutral-400"
+                  className={cn(
+                    "h-7 w-7 rounded-full hover:bg-neutral-800",
+                    regenerateLoading 
+                      ? "text-blue-400 animate-spin" 
+                      : "text-neutral-400"
+                  )}
                   onClick={handleRegenerate}
+                  disabled={regenerateLoading}
                   title="重新生成"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
