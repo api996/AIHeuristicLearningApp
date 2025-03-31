@@ -5,6 +5,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 长按菜单动画效果 */
+@keyframes scale-in-menu {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in-menu {
+  animation: scale-in-menu 0.2s ease-out forwards;
+}
+
+/* 禁用移动端长按选择菜单 */
+.user-select-none {
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 /* 自定义动画 */
 @keyframes blink {
   0%, 100% {

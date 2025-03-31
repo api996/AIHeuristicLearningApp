@@ -342,7 +342,7 @@ export function ChatMessage({
 
   // 长按手势和弹出菜单功能
   const [showContextMenu, setShowContextMenu] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [menuPosition, setMenuPosition] = useState({ right: 16, y: 0 });
   const messageRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [isLongPressing, setIsLongPressing] = useState(false);
@@ -375,9 +375,11 @@ export function ChatMessage({
             messageWidth
           });
           
-          // 将菜单显示在消息正下方，中心对齐
+          // 将菜单显示在消息正下方，右对齐
+          const screenWidth = window.innerWidth;
+          const rightOffset = screenWidth - (rect.left + rect.width);
           setMenuPosition({
-            x: messageCenterX,
+            right: rightOffset,
             y: rect.bottom + 10 // 菜单显示在消息正下方
           });
           
@@ -456,9 +458,10 @@ export function ChatMessage({
           messageWidth
         });
         
-        // 将菜单显示在消息正下方，中心对齐
+        // 将菜单显示在消息正下方，右对齐
+        const rightOffset = screenWidth - (rect.left + rect.width);
         setMenuPosition({
-          x: messageCenterX,
+          right: rightOffset,
           y: rect.bottom + 10 // 菜单显示在消息正下方，距离适中
         });
         
@@ -468,9 +471,10 @@ export function ChatMessage({
           behavior: 'smooth'
         });
       } else {
-        // 如果无法获取消息元素位置，则使用鼠标位置
+        // 如果无法获取消息元素位置，则使用鼠标位置但仍然右对齐
+        const rightOffset = window.innerWidth - e.clientX;
         setMenuPosition({
-          x: e.clientX,
+          right: rightOffset,
           y: e.clientY + 20
         });
       }
@@ -536,14 +540,14 @@ export function ChatMessage({
           className="fixed z-50 animate-fade-in pointer-events-auto"
           style={{ 
             top: `${menuPosition.y}px`, 
-            left: `${menuPosition.x}px`, 
-            transform: 'translate(-50%, 0)',
+            right: `${menuPosition.right}px`, 
+            transform: 'translate(0, 0)',
             filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))'
           }}
           ref={menuRef}
         >
-          {/* 向上的箭头指示，调整大小和定位 */}
-          <div className="w-5 h-5 bg-neutral-900/90 rotate-45 mx-auto mt-[-10px] rounded-sm border-t border-l border-neutral-700/60 shadow-lg"></div>
+          {/* 向上的箭头指示，调整大小和定位，放在右侧 */}
+          <div className="w-5 h-5 bg-neutral-900/90 rotate-45 ml-auto mr-6 mt-[-10px] rounded-sm border-t border-l border-neutral-700/60 shadow-lg"></div>
           
           {/* 菜单内容 - 现代iOS风格菜单，使用半透明玻璃拟态效果 */}
           <div className="bg-neutral-900/90 backdrop-blur-xl text-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in-menu border border-neutral-700/30 w-64 sm:w-[280px] mt-[-10px]">
@@ -623,13 +627,20 @@ export function ChatMessage({
             <div 
               ref={messageRef}
               className={cn(
-                "py-3 px-4 rounded-2xl relative transition-all duration-200",
+                "py-3 px-4 rounded-2xl relative transition-all duration-200 user-select-none",
                 message.role === "assistant" 
                   ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20 text-white border border-blue-800/30" 
                   : "bg-blue-500/20 backdrop-blur-sm text-white border border-blue-500/30",
                 // 长按时的视觉效果，使消息和菜单同时可见且更加突出
                 isLongPressing && message.role === "user" && "scale-110 shadow-2xl border-blue-500/80 z-[60] relative brightness-130 bg-blue-600/40 ring-4 ring-blue-400/70 text-white font-medium"
               )}
+              style={{ 
+                WebkitUserSelect: 'none', 
+                MozUserSelect: 'none',
+                msUserSelect: 'none',
+                userSelect: 'none',
+                WebkitTouchCallout: 'none'
+              }}
             >
               {isImage && imageUrl ? (
                 <img 
