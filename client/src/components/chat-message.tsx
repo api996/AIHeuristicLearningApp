@@ -352,8 +352,14 @@ export function ChatMessage({
     let startX = 0;
     let startY = 0;
     
+    // 用于标记长按是否被取消
+    let longPressActive = false;
+    
     const handleTouchStart = (e: TouchEvent) => {
       if (message.role !== "user" || !messageRef.current) return;
+      
+      // 标记长按开始激活
+      longPressActive = true;
       
       // 阻止默认行为，包括系统复制菜单
       e.preventDefault();
@@ -362,6 +368,9 @@ export function ChatMessage({
       startY = e.touches[0].clientY;
       
       pressTimer = setTimeout(() => {
+        // 如果长按已被取消，不执行后续操作
+        if (!longPressActive) return;
+        
         setIsLongPressing(true);
         
         // 计算菜单位置 - 现在改为显示在消息正下方，右对齐
@@ -369,13 +378,6 @@ export function ChatMessage({
         if (rect) {
           // 消息宽度和位置
           const messageWidth = rect.width;
-          
-          // 记录调试信息
-          console.log('长按菜单定位计算:', {
-            messageRight: rect.right,
-            messageBottom: rect.bottom,
-            messageWidth
-          });
           
           // 将菜单显示在消息正下方，右对齐
           const screenWidth = window.innerWidth;
@@ -403,9 +405,13 @@ export function ChatMessage({
           console.log("振动反馈不可用");
         }
         
-        // 显示上下文菜单
-        setShowContextMenu(true);
-      }, 380); // 减少触发时间为380ms，使响应更快
+        // 先标记高亮状态，再显示菜单，确保渲染顺序正确
+        setTimeout(() => {
+          if (longPressActive) {
+            setShowContextMenu(true);
+          }
+        }, 10);
+      }, 380); // 触发时间为380ms，使响应更快
     };
     
     const handleTouchMove = (e: TouchEvent) => {
@@ -417,7 +423,10 @@ export function ChatMessage({
       const moveY = Math.abs(e.touches[0].clientY - startY);
       
       if (moveX > 10 || moveY > 10) {
+        // 取消长按激活标记
+        longPressActive = false;
         clearTimeout(pressTimer);
+        
         if (!showContextMenu) {
           // 只有在菜单未显示时才取消高亮
           setIsLongPressing(false);
@@ -428,6 +437,9 @@ export function ChatMessage({
     const handleTouchEnd = (e: TouchEvent) => {
       // 阻止默认行为
       e.preventDefault();
+      
+      // 取消长按激活标记
+      longPressActive = false;
       clearTimeout(pressTimer);
       
       // 如果菜单已经显示，则保持高亮效果，否则取消高亮
@@ -570,7 +582,7 @@ export function ChatMessage({
           ref={menuRef}
         >
           {/* 向上的箭头指示，调整大小和定位，放在右侧 */}
-          <div className="w-5 h-5 bg-neutral-900/90 rotate-45 ml-auto mr-6 mt-[-10px] rounded-sm border-t border-l border-neutral-700/60 shadow-lg"></div>
+          <div className="w-5 h-5 bg-neutral-900/90 rotate-45 ml-auto mr-8 mt-[-10px] rounded-sm border-t border-l border-neutral-700/60 shadow-lg"></div>
           
           {/* 菜单内容 - 现代iOS风格菜单，使用半透明玻璃拟态效果 */}
           <div className="bg-neutral-900/90 backdrop-blur-xl text-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in-menu border border-neutral-700/30 w-64 sm:w-[280px] mt-[-10px]">
@@ -656,9 +668,9 @@ export function ChatMessage({
                 "py-3 px-4 rounded-2xl relative transition-all duration-200 user-select-none",
                 message.role === "assistant" 
                   ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20 text-white border border-blue-800/30" 
-                  : "bg-blue-500/20 backdrop-blur-sm text-white border border-blue-500/30",
+                  : "bg-blue-600/30 backdrop-blur-sm text-white border border-blue-500/40 shadow-md",
                 // 长按时的视觉效果，使消息和菜单同时可见且更加突出
-                isLongPressing && message.role === "user" && "scale-110 shadow-2xl border-blue-500/80 z-[60] relative brightness-130 bg-blue-600/40 ring-4 ring-blue-400/70 text-white font-medium"
+                isLongPressing && message.role === "user" && "scale-110 shadow-2xl border-blue-500/80 z-[60] relative brightness-130 bg-blue-600/40 ring-4 ring-blue-400/30 text-white font-medium focus:outline-none"
               )}
               style={{ 
                 // 只对用户消息应用选择限制，避免影响输入框和AI消息的文本选择

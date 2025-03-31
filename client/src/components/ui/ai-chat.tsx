@@ -72,6 +72,7 @@ export function AIChat({ userData }: AIChatProps) {
   const [currentModel, setCurrentModel] = useState<Model>("deep");
   const [currentChatId, setCurrentChatId] = useState<number>();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
 
   // Password change state
@@ -604,6 +605,20 @@ export function AIChat({ userData }: AIChatProps) {
     }
   };
 
+  // 自动滚动到消息底部
+  const scrollToBottom = () => {
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      container.scrollTop = container.scrollHeight;
+    }
+  };
+
+  // 消息更新时自动滚动到底部
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // 检查用户登录状态
   useEffect(() => {
     const user = localStorage.getItem("user");
     if (!user) {
@@ -742,6 +757,7 @@ export function AIChat({ userData }: AIChatProps) {
           ) : (
             // 有消息时显示滚动区域 - 将内容固定在顶部并去除滚动条
             <div 
+              ref={messagesContainerRef}
               className={`flex-1 flex flex-col gap-4 py-1 hide-empty-scrollbar content-start justify-start items-stretch`}
               style={{ overflowY: messages.length > 4 ? 'auto' : 'visible' }}
             >
