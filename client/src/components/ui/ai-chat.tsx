@@ -341,6 +341,17 @@ export function AIChat({ userData }: AIChatProps) {
         activeElement.blur();
       }
       
+      // 如果是移动设备，手动触发键盘收起的焦点操作
+      if (window.innerWidth <= 768) {
+        const inputs = document.querySelectorAll('input, textarea');
+        inputs.forEach(input => {
+          (input as HTMLElement).blur();
+        });
+      }
+      
+      // 立即滚动到底部
+      setTimeout(() => scrollTo('bottom'), 10);
+      
       // 开始加载状态
       setIsLoading(true);
       
@@ -678,7 +689,7 @@ export function AIChat({ userData }: AIChatProps) {
       const base64Image = await readFileAsBase64(file);
       
       // 保存到本地存储，这样刷新页面后依然能看到
-      localStorage.setItem('backgroundImage', base64Image);
+      localStorage.setItem('background-image', base64Image);
       
       // 更新状态以立即显示图片
       setBackgroundImage(base64Image);
