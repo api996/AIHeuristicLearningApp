@@ -4,9 +4,14 @@ import React, { useState, useEffect } from 'react';
 interface BackgroundProps {
   customImage?: string;
   children?: React.ReactNode;
+  className?: string;
 }
 
-export const Background: React.FC<BackgroundProps> = ({ customImage, children }) => {
+export const Background: React.FC<BackgroundProps> = ({ 
+  customImage, 
+  children,
+  className = '' 
+}) => {
   const [bgImage, setBgImage] = useState<string | null>(null);
   
   useEffect(() => {
@@ -16,7 +21,7 @@ export const Background: React.FC<BackgroundProps> = ({ customImage, children })
       return;
     }
     
-    // 否则尝试从本地存储加载
+    // 尝试从本地存储加载背景
     const savedBg = localStorage.getItem('background-image');
     if (savedBg) {
       setBgImage(savedBg);
@@ -24,21 +29,25 @@ export const Background: React.FC<BackgroundProps> = ({ customImage, children })
   }, [customImage]);
 
   return (
-    <>
-      <div className="bg-container">
+    <div className={`relative w-full h-full ${className}`}>
+      <div className="fixed inset-0 w-full h-full -z-10 overflow-hidden">
         {bgImage ? (
           <img 
             src={bgImage} 
             alt="Background" 
-            className="bg-image" 
+            className="w-full h-full object-cover"
+            style={{
+              filter: 'none',
+              backdropFilter: 'none',
+              WebkitBackdropFilter: 'none'
+            }}
           />
         ) : (
-          // 默认背景 - 纯色或渐变
-          <div className="bg-default" />
+          <div className="bg-default w-full h-full" />
         )}
       </div>
       {children}
-    </>
+    </div>
   );
 };
 
