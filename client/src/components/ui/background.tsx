@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 
 interface BackgroundProps {
@@ -13,14 +12,14 @@ export const Background: React.FC<BackgroundProps> = ({
   className = '' 
 }) => {
   const [bgImage, setBgImage] = useState<string | null>(null);
-  
+
   useEffect(() => {
     // 如果提供了自定义图片，使用它
     if (customImage) {
       setBgImage(customImage);
       return;
     }
-    
+
     // 尝试从本地存储加载背景
     const savedBg = localStorage.getItem('background-image');
     if (savedBg) {
@@ -30,7 +29,7 @@ export const Background: React.FC<BackgroundProps> = ({
 
   return (
     <div className={`relative w-full h-full ${className}`}>
-      <div className="fixed inset-0 w-full h-full -z-10 overflow-hidden">
+      <div className="fixed inset-0 w-full h-full z-[-100] overflow-hidden">
         {bgImage ? (
           <img 
             src={bgImage} 

@@ -18,7 +18,7 @@ localPort = 5001
 externalPort = 3000
 
 [workflows]
-runButton = "重启并应用UI修复"
+runButton = "重启并修复背景"
 
 [[workflows.workflow]]
 name = "Project"
@@ -189,7 +189,7 @@ task = "shell.exec"
 args = "npm run dev"
 
 [[workflows.workflow]]
-name = "重启并应用UI修复"
+name = "重启并修复背景"
 author = 40327554
 mode = "sequential"
 
