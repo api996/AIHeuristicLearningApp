@@ -80,10 +80,7 @@ export function ChatMessage({
   );
   
   // 状态管理
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState(message.content);
   const [isHovering, setIsHovering] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [userRating, setUserRating] = useState<"like" | "dislike" | null>(null);
 
   // Check if the message contains an image markdown
@@ -249,29 +246,7 @@ export function ChatMessage({
     </div>
   );
 
-  // 处理消息编辑
-  const handleSaveEdit = async () => {
-    if (!onEdit || !editedContent.trim() || isSaving) return;
-    
-    try {
-      setIsSaving(true);
-      await onEdit(message.id, editedContent.trim());
-      setIsEditing(false);
-      toast({
-        title: "修改成功",
-        description: "您的消息已更新",
-      });
-    } catch (error) {
-      toast({
-        title: "修改失败",
-        description: "无法保存更改，请稍后再试",
-        variant: "destructive"
-      });
-      console.error("编辑消息失败:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  // 已移除handleSaveEdit函数，现在编辑功能直接由父组件AIChat负责
   
   // 复制消息内容
   const copyMessageContent = () => {
@@ -373,39 +348,7 @@ export function ChatMessage({
     return <div dangerouslySetInnerHTML={{ __html: formattedContent }} />;
   };
 
-  // 消息长按功能
-  useEffect(() => {
-    let pressTimer: ReturnType<typeof setTimeout>;
-    
-    const handleLongPress = () => {
-      if (message.role === "user" && onEdit) {
-        setIsEditing(true);
-      }
-    };
-    
-    const startPress = () => {
-      pressTimer = setTimeout(handleLongPress, 500); // 长按500ms触发
-    };
-    
-    const cancelPress = () => {
-      clearTimeout(pressTimer);
-    };
-    
-    document.addEventListener('mousedown', startPress);
-    document.addEventListener('mouseup', cancelPress);
-    document.addEventListener('mouseleave', cancelPress);
-    document.addEventListener('touchstart', startPress);
-    document.addEventListener('touchend', cancelPress);
-    
-    return () => {
-      document.removeEventListener('mousedown', startPress);
-      document.removeEventListener('mouseup', cancelPress);
-      document.removeEventListener('mouseleave', cancelPress);
-      document.removeEventListener('touchstart', startPress);
-      document.removeEventListener('touchend', cancelPress);
-      clearTimeout(pressTimer);
-    };
-  }, [message.role, onEdit]);
+  // 已移除消息长按功能，现在通过点击编辑按钮直接使用主输入框编辑
 
   return (
     <div 
@@ -450,40 +393,8 @@ export function ChatMessage({
               ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20 text-white border border-blue-800/30" 
               : "bg-blue-500/20 backdrop-blur-sm text-white border border-blue-500/30"
           )}>
-            {isEditing && message.role === "user" ? (
-              <div className="min-w-[300px]">
-                <Textarea
-                  value={editedContent}
-                  onChange={(e) => setEditedContent(e.target.value)}
-                  className="bg-blue-700 border-blue-600 text-white min-h-[100px] mb-2"
-                  placeholder="编辑您的消息..."
-                />
-                <div className="flex justify-end space-x-2 mt-2">
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="h-8 text-xs text-neutral-200"
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditedContent(message.content);
-                    }}
-                    disabled={isSaving}
-                  >
-                    <X className="h-3.5 w-3.5 mr-1" />
-                    取消
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    className="h-8 text-xs"
-                    onClick={handleSaveEdit}
-                    disabled={isSaving || editedContent.trim() === message.content}
-                  >
-                    <Check className="h-3.5 w-3.5 mr-1" />
-                    保存
-                  </Button>
-                </div>
-              </div>
-            ) : (
+            {/* 已移除内联编辑功能，现在使用主输入框进行编辑 */}
+            {(
               <>
                 {isImage && imageUrl ? (
                   <img 
@@ -514,7 +425,7 @@ export function ChatMessage({
             )}
             
             {/* 用户消息的编辑按钮 (显示在右上角) */}
-            {message.role === "user" && !isEditing && onEdit && (
+            {message.role === "user" && onEdit && (
               <Button
                 variant="ghost"
                 size="icon"
