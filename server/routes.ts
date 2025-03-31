@@ -458,6 +458,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 消息编辑
+  app.patch("/api/messages/:messageId", async (req, res) => {
+    try {
+      const { content, userId, userRole } = req.body;
+      const messageId = parseInt(req.params.messageId, 10);
+      
+      if (isNaN(messageId) || !content || !userId) {
+        return res.status(400).json({ message: "Invalid request parameters" });
+      }
+      
+      // 确保只有用户可以编辑自己的消息
+      const isAdmin = userRole === "admin";
+      const isUserOwned = !isAdmin; // 普通用户只能编辑自己的消息
+      
+      const updatedMessage = await storage.updateMessage(messageId, content, isUserOwned);
+      res.json(updatedMessage);
+    } catch (error) {
+      log(`Error updating message: ${error}`);
+      res.status(500).json({ message: "Failed to update message" });
+    }
+  });
+  
+  // 消息反馈（点赞/踩）
+  app.patch("/api/messages/:messageId/feedback", async (req, res) => {
+    try {
+      const { feedback } = req.body;
+      const messageId = parseInt(req.params.messageId, 10);
+      
+      if (isNaN(messageId) || !feedback || !["like", "dislike"].includes(feedback)) {
+        return res.status(400).json({ message: "Invalid feedback parameters" });
+      }
+      
+      const updatedMessage = await storage.updateMessageFeedback(messageId, feedback as "like" | "dislike");
+      res.json(updatedMessage);
+    } catch (error) {
+      log(`Error updating message feedback: ${error}`);
+      res.status(500).json({ message: "Failed to update message feedback" });
+    }
+  });
+  
+  // 重新生成AI回复
+  app.post("/api/messages/:messageId/regenerate", async (req, res) => {
+    try {
+      const { userId, userRole, chatId } = req.body;
+      const messageId = parseInt(req.params.messageId, 10);
+      
+      if (isNaN(messageId) || !userId || !chatId) {
+        return res.status(400).json({ message: "Invalid request parameters" });
+      }
+      
+      // 验证用户对此聊天的访问权限
+      const isAdmin = userRole === "admin";
+      const chat = await storage.getChatById(chatId, userId, isAdmin);
+      if (!chat) {
+        return res.status(404).json({ message: "Chat not found or access denied" });
+      }
+      
+      // 获取需要重新生成的消息
+      const message = await storage.regenerateMessage(messageId);
+      
+      // 初始化聊天服务使用对应模型
+      chatService.setModel(chat.model || "deep");
+      
+      // 找到触发此AI回复的用户消息
+      const chatMessages = await storage.getChatMessages(chatId, userId, isAdmin);
+      const messageIndex = chatMessages.findIndex(m => m.id === messageId);
+      
+      // 找到最近的用户消息作为提示
+      let promptMessage = "请重新回答";
+      for (let i = messageIndex - 1; i >= 0; i--) {
+        if (chatMessages[i].role === "user") {
+          promptMessage = chatMessages[i].content;
+          break;
+        }
+      }
+      
+      // 重新生成回复
+      const response = await chatService.sendMessage(promptMessage);
+      
+      // 更新数据库中的消息
+      const updatedMessage = await storage.updateMessage(messageId, response.text, false);
+      
+      res.json({
+        ...updatedMessage,
+        model: response.model
+      });
+    } catch (error) {
+      log(`Error regenerating message: ${error}`);
+      res.status(500).json({ message: "Failed to regenerate message" });
+    }
+  });
+  
+  // 创建消息
+  app.post("/api/messages", async (req, res) => {
+    try {
+      const { chatId, content, role, userId, userRole } = req.body;
+      
+      if (!chatId || !content || !role || !userId) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // 确保用户有权限向此聊天添加消息
+      const isAdmin = userRole === "admin";
+      const chat = await storage.getChatById(chatId, userId, isAdmin);
+      if (!chat) {
+        return res.status(404).json({ message: "Chat not found or access denied" });
+      }
+      
+      // 创建消息
+      const message = await storage.createMessage(chatId, content, role);
+      res.status(201).json(message);
+    } catch (error) {
+      log(`Error creating message: ${error}`);
+      res.status(500).json({ message: "Failed to create message" });
+    }
+  });
+  
+  // 更新聊天模型
+  app.patch("/api/chats/:chatId/model", async (req, res) => {
+    try {
+      const chatId = parseInt(req.params.chatId, 10);
+      const { model, userId, userRole } = req.body;
+      
+      if (isNaN(chatId) || !model || !userId) {
+        return res.status(400).json({ message: "Invalid request parameters" });
+      }
+      
+      // 验证用户对此聊天的访问权限
+      const isAdmin = userRole === "admin";
+      const chat = await storage.getChatById(chatId, userId, isAdmin);
+      if (!chat) {
+        return res.status(404).json({ message: "Chat not found or access denied" });
+      }
+      
+      // 更新聊天模型
+      await storage.updateChatModel(chatId, model);
+      res.json({ success: true });
+    } catch (error) {
+      log(`Error updating chat model: ${error}`);
+      res.status(500).json({ message: "Failed to update chat model" });
+    }
+  });
+
   app.post("/api/chat", async (req, res) => {
     try {
       const { message, model, chatId, userId, role } = req.body;
@@ -481,31 +624,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // 如果是新创建的聊天，可能没有chatId，这种情况直接在内存中处理
-      if (!chatId) {
-        log(`处理无chatId的临时消息: ${message}`);
-
-        if (model) {
-          try {
-            chatService.setModel(model);
-          } catch (error) {
-            return res.status(400).json({
-              message: "Invalid model selected",
-              error: error instanceof Error ? error.message : String(error)
-            });
-          }
-        }
-
-        const response = await chatService.sendMessage(message);
-        return res.json(response);
-      }
-
-      const isAdmin = role === "admin";
-      const chat = await storage.getChatById(chatId, Number(userId), isAdmin);
-      if (!chat) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-
       if (model) {
         try {
           chatService.setModel(model);
@@ -517,12 +635,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const response = await chatService.sendMessage(message);
+      // 确保我们有有效的聊天ID
+      if (!chatId) {
+        log(`警告: 收到没有chatId的消息请求`);
+        return res.status(400).json({
+          message: "Chat ID is required",
+          error: "MISSING_CHAT_ID"
+        });
+      }
 
-      if (chatId) {
-        // Store the messages in the database
-        await storage.createMessage(chatId, message, "user");
-        await storage.createMessage(chatId, response.text, "assistant");
+      // 验证聊天ID的有效性
+      const isAdmin = role === "admin";
+      const chat = await storage.getChatById(chatId, Number(userId), isAdmin);
+      if (!chat) {
+        log(`错误: 用户 ${userId} 无法访问聊天 ${chatId}`);
+        return res.status(403).json({ 
+          message: "Access denied or chat not found" 
+        });
+      }
+
+      // 获取AI响应
+      log(`处理来自用户 ${userId} 的聊天消息，聊天ID: ${chatId}`);
+      const response = await chatService.sendMessage(message);
+      
+      // 存储消息到数据库
+      try {
+        // 先存储用户消息
+        const userMsg = await storage.createMessage(chatId, message, "user");
+        log(`已存储用户消息，ID: ${userMsg.id}`);
+        
+        // 再存储AI响应
+        const aiMsg = await storage.createMessage(chatId, response.text, "assistant");
+        log(`已存储AI响应，ID: ${aiMsg.id}`);
+      } catch (dbError) {
+        log(`数据库存储消息错误: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
+        // 继续发送响应，但记录错误
       }
 
       res.json(response);

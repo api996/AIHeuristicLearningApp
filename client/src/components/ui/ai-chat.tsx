@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
@@ -62,6 +63,7 @@ interface AIChatProps {
 
 export function AIChat({ userData }: AIChatProps) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
@@ -150,6 +152,72 @@ export function AIChat({ userData }: AIChatProps) {
       setPasswordError(error.message);
     },
   });
+  
+  // 处理消息编辑的变异函数
+  const editMessageMutation = useMutation({
+    mutationFn: async ({ messageId, content }: { messageId: number | undefined; content: string }) => {
+      if (!messageId) throw new Error("消息ID不存在");
+      const response = await apiRequest("PATCH", `/api/messages/${messageId}`, { content });
+      return response.json();
+    },
+    onSuccess: () => {
+      // 成功编辑消息后刷新当前对话消息列表
+      if (currentChatId) {
+        queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "编辑消息失败",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // 处理消息重新生成的变异函数
+  const regenerateMessageMutation = useMutation({
+    mutationFn: async (messageId: number | undefined) => {
+      if (!messageId) throw new Error("消息ID不存在");
+      const response = await apiRequest("POST", `/api/messages/${messageId}/regenerate`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      // 成功重新生成消息后刷新当前对话消息列表
+      if (currentChatId) {
+        queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "重新生成消息失败",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // 处理消息反馈的变异函数
+  const feedbackMessageMutation = useMutation({
+    mutationFn: async ({ messageId, feedback }: { messageId: number | undefined; feedback: "like" | "dislike" }) => {
+      if (!messageId) throw new Error("消息ID不存在");
+      const response = await apiRequest("POST", `/api/messages/${messageId}/feedback`, { feedback });
+      return response.json();
+    },
+    onSuccess: () => {
+      // 成功提交反馈后刷新当前对话消息列表
+      if (currentChatId) {
+        queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "提交反馈失败",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,12 +295,24 @@ export function AIChat({ userData }: AIChatProps) {
       // 清空输入框
       setInput("");
 
-      // Create a new chat if none exists
-      if (!currentChatId) {
-        const chat = await createChatMutation.mutateAsync({
-          title: userInput.slice(0, 50), // Use first 50 chars of message as title
-          model: currentModel,
-        });
+      // 存储当前的聊天ID
+      let chatIdForRequest = currentChatId;
+      
+      // 如果不存在聊天ID，创建一个新的聊天
+      if (!chatIdForRequest) {
+        console.log("创建新聊天...");
+        try {
+          const chat = await createChatMutation.mutateAsync({
+            title: userInput.slice(0, 50), // Use first 50 chars of message as title
+            model: currentModel,
+          });
+          // 确保新创建的聊天ID被正确设置和使用
+          chatIdForRequest = chat.id;
+          console.log("新聊天创建成功，ID:", chatIdForRequest);
+        } catch (chatError) {
+          console.error("创建聊天失败:", chatError);
+          throw new Error("无法创建新对话，请稍后再试");
+        }
       }
 
       // 添加占位思考消息
@@ -242,10 +322,12 @@ export function AIChat({ userData }: AIChatProps) {
       // 发送给后端 API - 故意延迟300-600ms以显示思考状态
       await new Promise(resolve => setTimeout(resolve, Math.random() * 300 + 300));
       
+      // 确保使用正确的聊天ID发送消息
+      console.log("使用聊天ID发送消息:", chatIdForRequest);
       const response = await apiRequest("POST", "/api/chat", {
         message: userInput,
         model: currentModel,
-        chatId: currentChatId,
+        chatId: chatIdForRequest, // 使用可能新创建的聊天ID
         userId: user.userId,
         role: user.role,
       });
@@ -310,6 +392,45 @@ export function AIChat({ userData }: AIChatProps) {
     setMessages([]);
     setCurrentChatId(undefined);
     setShowSidebar(false);
+  };
+  
+  // 处理消息编辑
+  const handleEditMessage = async (messageId: number | undefined, newContent: string) => {
+    try {
+      await editMessageMutation.mutateAsync({ messageId, content: newContent });
+      toast({
+        title: "消息已编辑",
+        description: "您的消息已成功更新",
+      });
+    } catch (error) {
+      console.error("编辑消息失败:", error);
+    }
+  };
+
+  // 处理消息重新生成
+  const handleRegenerateMessage = async (messageId: number | undefined) => {
+    try {
+      await regenerateMessageMutation.mutateAsync(messageId);
+      toast({
+        title: "重新生成中",
+        description: "AI正在重新生成回答",
+      });
+    } catch (error) {
+      console.error("重新生成消息失败:", error);
+    }
+  };
+
+  // 处理消息反馈
+  const handleMessageFeedback = async (messageId: number | undefined, feedback: "like" | "dislike") => {
+    try {
+      await feedbackMessageMutation.mutateAsync({ messageId, feedback });
+      toast({
+        title: feedback === "like" ? "感谢您的好评!" : "感谢您的反馈",
+        description: "您的反馈将帮助我们改进系统",
+      });
+    } catch (error) {
+      console.error("提交反馈失败:", error);
+    }
   };
 
   // Update handleSelectChat to properly load messages
@@ -514,7 +635,10 @@ export function AIChat({ userData }: AIChatProps) {
                 <ChatMessage 
                   key={i} 
                   message={msg} 
-                  isThinking={isLoading && i === messages.length - 1 && msg.role === "assistant"} 
+                  isThinking={isLoading && i === messages.length - 1 && msg.role === "assistant"}
+                  onEdit={handleEditMessage}
+                  onRegenerate={handleRegenerateMessage}
+                  onFeedback={handleMessageFeedback}
                 />
               ))}
               {/* 如果正在等待AI响应，且最后一条是用户消息，显示思考中的占位消息 */}
