@@ -445,12 +445,6 @@ export function AIChat({ userData }: AIChatProps) {
     } finally {
       // 关闭加载状态
       setIsLoading(false);
-      // 如果处于编辑状态，发送完成后自动关闭编辑状态
-      if (editingMessageId) {
-        setEditingMessageId(undefined);
-        setIsEditing(false);
-        setInput("");
-      }
     }
   };
 
