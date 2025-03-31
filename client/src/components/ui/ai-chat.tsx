@@ -19,7 +19,8 @@ import {
   User,
   ChevronDown,
   MessageSquare,
-  Pencil
+  Pencil,
+  X
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -83,6 +84,11 @@ export function AIChat({ userData }: AIChatProps) {
   const [showTitleDialog, setShowTitleDialog] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [titleError, setTitleError] = useState("");
+  
+  // 编辑消息相关状态
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<number | undefined>();
+  const [originalContent, setOriginalContent] = useState("");
   
   // 新增对话框状态
   const [showProfileDialog, setShowProfileDialog] = useState(false);
@@ -179,7 +185,11 @@ export function AIChat({ userData }: AIChatProps) {
   const regenerateMessageMutation = useMutation({
     mutationFn: async (messageId: number | undefined) => {
       if (!messageId) throw new Error("消息ID不存在");
-      const response = await apiRequest("POST", `/api/messages/${messageId}/regenerate`, {});
+      const response = await apiRequest("POST", `/api/messages/${messageId}/regenerate`, {
+        userId: userData.userId,
+        userRole: userData.role,
+        chatId: currentChatId
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -201,7 +211,12 @@ export function AIChat({ userData }: AIChatProps) {
   const feedbackMessageMutation = useMutation({
     mutationFn: async ({ messageId, feedback }: { messageId: number | undefined; feedback: "like" | "dislike" }) => {
       if (!messageId) throw new Error("消息ID不存在");
-      const response = await apiRequest("POST", `/api/messages/${messageId}/feedback`, { feedback });
+      const response = await apiRequest("PATCH", `/api/messages/${messageId}/feedback`, { 
+        feedback,
+        userId: userData.userId,
+        userRole: userData.role,
+        chatId: currentChatId
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -279,6 +294,12 @@ export function AIChat({ userData }: AIChatProps) {
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+
+    // 如果正在编辑消息，则保存编辑
+    if (isEditing && editingMessageId) {
+      await saveEditMessage();
+      return;
+    }
 
     try {
       // 开始加载状态
@@ -382,6 +403,10 @@ export function AIChat({ userData }: AIChatProps) {
       e.preventDefault();
       handleSend();
     }
+    // 如果按下Escape键且正在编辑，则取消编辑
+    if (e.key === "Escape" && isEditing) {
+      cancelEditMessage();
+    }
   };
 
   const toggleSidebar = () => {
@@ -394,17 +419,54 @@ export function AIChat({ userData }: AIChatProps) {
     setShowSidebar(false);
   };
   
-  // 处理消息编辑
-  const handleEditMessage = async (messageId: number | undefined, newContent: string) => {
+  // 开始编辑消息
+  const startEditMessage = (messageId: number | undefined, content: string) => {
+    setIsEditing(true);
+    setEditingMessageId(messageId);
+    setOriginalContent(content);
+    setInput(content);
+  };
+  
+  // 取消编辑消息
+  const cancelEditMessage = () => {
+    setIsEditing(false);
+    setEditingMessageId(undefined);
+    setInput("");
+  };
+  
+  // 保存编辑的消息
+  const saveEditMessage = async () => {
+    if (!editingMessageId || !input.trim()) return;
+    
     try {
-      await editMessageMutation.mutateAsync({ messageId, content: newContent });
+      await editMessageMutation.mutateAsync({ 
+        messageId: editingMessageId, 
+        content: input.trim() 
+      });
+      
       toast({
         title: "消息已编辑",
         description: "您的消息已成功更新",
       });
+      
+      // 重置编辑状态
+      setIsEditing(false);
+      setEditingMessageId(undefined);
+      setInput("");
+      
     } catch (error) {
       console.error("编辑消息失败:", error);
+      toast({
+        title: "编辑失败",
+        description: "无法保存您的更改，请稍后再试",
+        variant: "destructive"
+      });
     }
+  };
+  
+  // 处理消息编辑 (用于传递给ChatMessage组件)
+  const handleEditMessage = async (messageId: number | undefined, content: string) => {
+    startEditMessage(messageId, content);
   };
 
   // 处理消息重新生成
@@ -714,6 +776,25 @@ export function AIChat({ userData }: AIChatProps) {
               </Button>
             </div>
 
+            {/* 编辑消息状态提示条 */}
+            {isEditing && (
+              <div className="bg-blue-500/20 backdrop-blur-sm border border-blue-500/30 p-2 mb-3 rounded-xl flex items-center justify-between">
+                <div className="text-sm text-blue-300 flex items-center">
+                  <Pencil className="h-4 w-4 mr-2 text-blue-400" />
+                  正在编辑消息
+                </div>
+                <button
+                  onClick={cancelEditMessage}
+                  className="h-7 w-7 rounded-full hover:bg-blue-700/30 flex items-center justify-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+                    <path d="M18 6 6 18"/>
+                    <path d="m6 6 12 12"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            
             {/* 输入框区域 - 使用ChatGPT风格 */}
             <div className="relative rounded-xl border border-neutral-700 bg-neutral-800 shadow-lg">
               <div className="flex items-end">
