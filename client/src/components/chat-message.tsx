@@ -355,31 +355,33 @@ export function ChatMessage({
     const handleTouchStart = (e: TouchEvent) => {
       if (message.role !== "user" || !messageRef.current) return;
       
+      // 阻止默认行为，包括系统复制菜单
+      e.preventDefault();
+      
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       
       pressTimer = setTimeout(() => {
         setIsLongPressing(true);
         
-        // 计算菜单位置 - 现在改为显示在消息正下方，中心对齐
+        // 计算菜单位置 - 现在改为显示在消息正下方，右对齐
         const rect = messageRef.current?.getBoundingClientRect();
         if (rect) {
           // 消息宽度和位置
           const messageWidth = rect.width;
-          const messageCenterX = rect.left + (messageWidth / 2);
           
           // 记录调试信息
           console.log('长按菜单定位计算:', {
-            messageCenterX,
+            messageRight: rect.right,
             messageBottom: rect.bottom,
             messageWidth
           });
           
           // 将菜单显示在消息正下方，右对齐
           const screenWidth = window.innerWidth;
-          const rightOffset = screenWidth - (rect.left + rect.width);
+          const rightOffset = screenWidth - rect.right;
           setMenuPosition({
-            right: rightOffset,
+            right: rightOffset + 16, // 添加一点右侧偏移量
             y: rect.bottom + 10 // 菜单显示在消息正下方
           });
           
@@ -403,26 +405,35 @@ export function ChatMessage({
         
         // 显示上下文菜单
         setShowContextMenu(true);
-      }, 450); // 减少触发时间为450ms，使响应更快
+      }, 380); // 减少触发时间为380ms，使响应更快
     };
     
     const handleTouchMove = (e: TouchEvent) => {
+      // 阻止默认行为
+      e.preventDefault();
+      
       // 如果移动超过一定距离，取消长按
       const moveX = Math.abs(e.touches[0].clientX - startX);
       const moveY = Math.abs(e.touches[0].clientY - startY);
       
       if (moveX > 10 || moveY > 10) {
         clearTimeout(pressTimer);
-        setIsLongPressing(false);
+        if (!showContextMenu) {
+          // 只有在菜单未显示时才取消高亮
+          setIsLongPressing(false);
+        }
       }
     };
     
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (e: TouchEvent) => {
+      // 阻止默认行为
+      e.preventDefault();
       clearTimeout(pressTimer);
-      // 不立即清除isLongPressing，以便动画完成
-      setTimeout(() => {
+      
+      // 如果菜单已经显示，则保持高亮效果，否则取消高亮
+      if (!showContextMenu) {
         setIsLongPressing(false);
-      }, 300);
+      }
     };
     
     // 点击页面其他地方关闭菜单
@@ -432,7 +443,11 @@ export function ChatMessage({
         !menuRef.current.contains(e.target as Node) && 
         showContextMenu
       ) {
+        // 关闭菜单同时取消高亮，保持和其他关闭逻辑一致
         setShowContextMenu(false);
+        setTimeout(() => {
+          setIsLongPressing(false);
+        }, 50); 
       }
     };
     
@@ -513,7 +528,11 @@ export function ChatMessage({
           title: "已复制到剪贴板",
           duration: 2000,
         });
+        // 关闭菜单同时取消高亮
         setShowContextMenu(false);
+        setTimeout(() => {
+          setIsLongPressing(false);
+        }, 50);
       })
       .catch(err => {
         toast({
@@ -528,7 +547,11 @@ export function ChatMessage({
   const handleEditMessage = () => {
     if (onEdit) {
       onEdit(message.id, message.content);
+      // 关闭菜单同时取消高亮
       setShowContextMenu(false);
+      setTimeout(() => {
+        setIsLongPressing(false);
+      }, 50);
     }
   };
 
@@ -581,8 +604,11 @@ export function ChatMessage({
             transition: 'backdrop-filter 0.3s ease-out' 
           }}
           onClick={() => {
+            // 关闭菜单同时取消高亮
             setShowContextMenu(false);
-            setIsLongPressing(false);
+            setTimeout(() => {
+              setIsLongPressing(false);
+            }, 50); // 小延迟确保菜单先消失
           }}
         />
       )}
