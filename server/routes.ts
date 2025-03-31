@@ -9,7 +9,143 @@ import fs from "fs";
 import express from 'express';
 import { verifyTurnstileToken } from './services/turnstile';
 
+// 设备信息接口
+interface DeviceInfo {
+  userAgent: string;
+  screenWidth: number;
+  screenHeight: number;
+  deviceType: string;
+  isIOS: boolean;
+  isAndroid: boolean;
+  iphoneModel?: string;
+  timestamp: number;
+}
+
+// 储存设备信息的映射表
+const deviceInfoMap = new Map<string, DeviceInfo>();
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // 设备信息API
+  app.post("/api/device-info", (req, res) => {
+    try {
+      const { userAgent, screenWidth, screenHeight, deviceType, isIOS, isAndroid, iphoneModel, userId } = req.body;
+      
+      if (!userAgent) {
+        return res.status(400).json({
+          success: false,
+          message: "用户代理信息缺失"
+        });
+      }
+      
+      // 创建设备信息对象
+      const deviceInfo: DeviceInfo = {
+        userAgent,
+        screenWidth: screenWidth || 0,
+        screenHeight: screenHeight || 0,
+        deviceType: deviceType || "unknown",
+        isIOS: isIOS || false,
+        isAndroid: isAndroid || false,
+        iphoneModel: iphoneModel,
+        timestamp: Date.now()
+      };
+      
+      // 使用用户ID或用户代理作为键
+      const key = userId ? `user-${userId}` : `ua-${userAgent.slice(0, 50)}`;
+      deviceInfoMap.set(key, deviceInfo);
+      
+      log(`设备信息已记录 [${deviceType}]: ${screenWidth}x${screenHeight}, iOS: ${isIOS}, iPhone型号: ${iphoneModel || 'N/A'}`);
+      
+      return res.status(200).json({
+        success: true,
+        message: "设备信息已记录",
+        deviceCount: deviceInfoMap.size
+      });
+    } catch (error) {
+      console.error("记录设备信息失败:", error);
+      return res.status(500).json({
+        success: false,
+        message: "服务器错误"
+      });
+    }
+  });
+  
+  // 获取设备信息API
+  app.get("/api/device-info", (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "缺少用户标识"
+        });
+      }
+      
+      const key = `user-${userId}`;
+      const deviceInfo = deviceInfoMap.get(key);
+      
+      if (!deviceInfo) {
+        return res.status(404).json({
+          success: false,
+          message: "未找到设备信息"
+        });
+      }
+      
+      return res.status(200).json({
+        success: true,
+        deviceInfo
+      });
+    } catch (error) {
+      console.error("获取设备信息失败:", error);
+      return res.status(500).json({
+        success: false,
+        message: "服务器错误"
+      });
+    }
+  });
+  
+  // 获取所有设备信息API (仅管理员)
+  app.get("/api/device-info/all", async (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      const role = req.query.role as string;
+      
+      // 检查是否是管理员
+      if (!userId || role !== "admin") {
+        return res.status(403).json({
+          success: false,
+          message: "权限不足"
+        });
+      }
+      
+      const user = await storage.getUser(parseInt(userId));
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({
+          success: false,
+          message: "无权访问"
+        });
+      }
+      
+      // 将Map转换为数组
+      const allDevices = Array.from(deviceInfoMap.entries()).map(([key, info]) => ({
+        id: key,
+        ...info
+      }));
+      
+      return res.status(200).json({
+        success: true,
+        devices: allDevices,
+        count: allDevices.length
+      });
+    } catch (error) {
+      console.error("获取所有设备信息失败:", error);
+      return res.status(500).json({
+        success: false,
+        message: "服务器错误"
+      });
+    }
+  });
   // User authentication routes
   // 处理注册请求
   app.post("/api/register", async (req, res) => {

@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
 import { useLocation } from "wouter";
+import { useDeviceReport, useIPhoneCSSClasses, useIPhoneSafeAreas } from "@/hooks/use-device-detection";
+import { useDeviceInfo } from "@/hooks/use-mobile";
 import {
   Search,
   Brain,
@@ -108,6 +110,23 @@ export function AIChat({ userData }: AIChatProps) {
 
   // Use the passed in userData
   const user = userData;
+  
+  // 使用设备检测钩子
+  const { deviceInfo } = useDeviceReport({ 
+    userId: user?.userId,
+    onSuccess: (data) => {
+      console.log("设备信息上报成功", data);
+    },
+    onError: (error) => {
+      console.error("设备信息上报失败", error);
+    }
+  });
+  
+  // 应用iPhone特定的CSS类
+  useIPhoneCSSClasses();
+  
+  // 设置安全区域
+  useIPhoneSafeAreas();
 
   // Update the query to include user context
   const { data: currentChat } = useQuery({
@@ -342,15 +361,39 @@ export function AIChat({ userData }: AIChatProps) {
         activeElement.blur();
       }
 
-      // 如果是移动设备，手动触发键盘收起的焦点操作
-      if (window.innerWidth <= 768) {
-        const inputs = document.querySelectorAll('input, textarea');
-        inputs.forEach(input => {
+      // 更彻底的键盘收起操作，特别是对iOS设备
+      const forceFocusOut = () => {
+        // 创建一个临时的不可见输入框并聚焦，然后移除它
+        const temp = document.createElement('input');
+        temp.style.position = 'absolute';
+        temp.style.opacity = '0';
+        temp.style.height = '0';
+        temp.style.top = '-999px';
+        document.body.appendChild(temp);
+        
+        // 先聚焦，然后立即模糊，这样可以欺骗iOS键盘
+        temp.focus();
+        setTimeout(() => {
+          temp.blur();
+          document.body.removeChild(temp);
+        }, 30);
+        
+        // 确保所有输入元素都失去焦点
+        document.querySelectorAll('input, textarea').forEach(input => {
           (input as HTMLElement).blur();
         });
+      };
+      
+      // 对所有设备应用，但特别是iOS设备
+      forceFocusOut();
+      
+      // iOS设备需要多次尝试
+      if (deviceInfo?.isIOS) {
+        setTimeout(forceFocusOut, 100);
+        setTimeout(forceFocusOut, 300);
       }
 
-      // 立即滚动到底部
+      // 立即滚动到底部，然后在短延迟后再次滚动确保消息可见
       setTimeout(() => scrollTo('bottom'), 10);
 
       // 开始加载状态
@@ -717,14 +760,30 @@ export function AIChat({ userData }: AIChatProps) {
     }
   };
 
-  // 自动滚动到消息顶部或底部
+  // 增强版自动滚动函数，处理iOS特殊情况
   const scrollTo = (position: 'top' | 'bottom') => {
     if (messagesContainerRef.current) {
       const container = messagesContainerRef.current;
-      if (position === 'top') {
-        container.scrollTop = 0;
-      } else {
-        container.scrollTop = container.scrollHeight;
+      
+      // 滚动函数
+      const performScroll = () => {
+        if (position === 'top') {
+          container.scrollTop = 0;
+        } else {
+          container.scrollTop = container.scrollHeight;
+        }
+      };
+      
+      // 立即滚动一次
+      performScroll();
+      
+      // iOS设备需要额外的延迟滚动
+      if (deviceInfo?.isIOS) {
+        // iOS设备上多次尝试滚动，确保在键盘隐藏和动画完成后正确滚动
+        setTimeout(performScroll, 50);
+        setTimeout(performScroll, 100);
+        setTimeout(performScroll, 300);
+        setTimeout(performScroll, 500);
       }
     }
   };
@@ -738,7 +797,14 @@ export function AIChat({ userData }: AIChatProps) {
       // 否则滚动到底部查看最新消息
       scrollTo('bottom');
     }
-  }, [messages]);
+  }, [messages, deviceInfo?.isIOS]);
+  
+  // 当设备信息变化时重新滚动
+  useEffect(() => {
+    if (deviceInfo && messages.length > 0) {
+      scrollTo('bottom');
+    }
+  }, [deviceInfo]);
 
   // 检查用户登录状态和初始化偏好设置
   useEffect(() => {
