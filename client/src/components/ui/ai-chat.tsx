@@ -83,12 +83,12 @@ export function AIChat({ userData }: AIChatProps) {
   // 修改标题相关状态
   const [showTitleDialog, setShowTitleDialog] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [titleError, setTitleError] = useState("");
   
   // 编辑消息相关状态
   const [isEditing, setIsEditing] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<number | undefined>();
   const [originalContent, setOriginalContent] = useState("");
-  const [titleError, setTitleError] = useState("");
   
   // 新增对话框状态
   const [showProfileDialog, setShowProfileDialog] = useState(false);
@@ -185,37 +185,23 @@ export function AIChat({ userData }: AIChatProps) {
   const regenerateMessageMutation = useMutation({
     mutationFn: async (messageId: number | undefined) => {
       if (!messageId) throw new Error("消息ID不存在");
-      if (!currentChatId) throw new Error("当前聊天ID不存在");
-      
       const response = await apiRequest("POST", `/api/messages/${messageId}/regenerate`, {
         userId: userData.userId,
         userRole: userData.role,
         chatId: currentChatId
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "重新生成失败");
-      }
-      
       return response.json();
     },
     onSuccess: () => {
       // 成功重新生成消息后刷新当前对话消息列表
       if (currentChatId) {
         queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
-        toast({
-          title: "重新生成成功",
-          description: "AI回答已更新",
-          variant: "default",
-        });
       }
     },
     onError: (error: Error) => {
-      console.error("重新生成消息错误:", error);
       toast({
         title: "重新生成消息失败",
-        description: error.message || "无法重新生成回答，请稍后再试",
+        description: error.message,
         variant: "destructive",
       });
     },

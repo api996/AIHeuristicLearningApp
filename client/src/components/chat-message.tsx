@@ -7,9 +7,12 @@ import {
   ThumbsUp, 
   ThumbsDown, 
   RotateCcw, 
-  Edit
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 
 interface ChatMessageProps {
@@ -77,14 +80,11 @@ export function ChatMessage({
   );
   
   // 状态管理
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(message.content);
   const [isHovering, setIsHovering] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [userRating, setUserRating] = useState<"like" | "dislike" | null>(null);
-  const [regenerateLoading, setRegenerateLoading] = useState(false);
-  
-  // 用户消息长按相关状态
-  const [showOptionsDialog, setShowOptionsDialog] = useState(false);
-  const messageRef = useRef<HTMLDivElement>(null);
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Check if the message contains an image markdown
   const isImage = message.content.startsWith("![");
@@ -143,6 +143,9 @@ export function ChatMessage({
     const step = Math.min(currentStepInPhase, thinkingPhases[phase].length - 1);
     return thinkingPhases[phase][step];
   };
+  
+  // 仅用于兼容性，可以删除
+  // const [currentThinkingStep, setCurrentThinkingStep] = useState(0);
   
   // 阶段间切换的迭代消息
   const phaseTransitionMessages = [
@@ -245,6 +248,30 @@ export function ChatMessage({
       )}
     </div>
   );
+
+  // 处理消息编辑
+  const handleSaveEdit = async () => {
+    if (!onEdit || !editedContent.trim() || isSaving) return;
+    
+    try {
+      setIsSaving(true);
+      await onEdit(message.id, editedContent.trim());
+      setIsEditing(false);
+      toast({
+        title: "修改成功",
+        description: "您的消息已更新",
+      });
+    } catch (error) {
+      toast({
+        title: "修改失败",
+        description: "无法保存更改，请稍后再试",
+        variant: "destructive"
+      });
+      console.error("编辑消息失败:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
   
   // 复制消息内容
   const copyMessageContent = () => {
@@ -254,7 +281,6 @@ export function ChatMessage({
           title: "已复制到剪贴板",
           duration: 2000,
         });
-        setShowOptionsDialog(false);
       })
       .catch(err => {
         toast({
@@ -270,25 +296,15 @@ export function ChatMessage({
   const handleRegenerate = async () => {
     if (!onRegenerate || isThinking) return;
     
-    // 防止重复点击
-    if (regenerateLoading) return;
-    
     try {
-      setRegenerateLoading(true);
-      // 确保消息ID存在
-      if (!message.id) {
-        throw new Error("消息ID不存在，无法重新生成");
-      }
       await onRegenerate(message.id);
     } catch (error) {
-      console.error("重新生成回答失败:", error);
       toast({
         title: "重新生成失败",
         description: "无法重新生成回答，请稍后再试",
         variant: "destructive"
       });
-    } finally {
-      setRegenerateLoading(false);
+      console.error("重新生成回答失败:", error);
     }
   };
   
@@ -357,251 +373,221 @@ export function ChatMessage({
     return <div dangerouslySetInnerHTML={{ __html: formattedContent }} />;
   };
 
-  // 处理编辑开始 - 从对话框选项
-  const handleEditStart = () => {
-    if (onEdit && message.id) {
-      onEdit(message.id, message.content);
-      setShowOptionsDialog(false);
-    }
-  };
-  
-  // 处理用户消息选项 - 长按/右键菜单处理
-  const handleUserMessagePress = () => {
-    if (message.role === "user" && onEdit) {
-      setShowOptionsDialog(true);
-    }
-  };
-  
-  // 用户消息长按处理
-  const handleTouchStart = () => {
-    if (message.role !== "user" || !onEdit) return;
+  // 消息长按功能
+  useEffect(() => {
+    let pressTimer: ReturnType<typeof setTimeout>;
     
-    longPressTimer.current = setTimeout(() => {
-      handleUserMessagePress();
-    }, 500); // 500ms长按触发
-  };
-  
-  const handleTouchEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
-  
-  // 处理右键菜单
-  const handleContextMenu = (e: React.MouseEvent) => {
-    if (message.role === "user" && onEdit) {
-      e.preventDefault();
-      handleUserMessagePress();
-    }
-  };
+    const handleLongPress = () => {
+      if (message.role === "user" && onEdit) {
+        setIsEditing(true);
+      }
+    };
+    
+    const startPress = () => {
+      pressTimer = setTimeout(handleLongPress, 500); // 长按500ms触发
+    };
+    
+    const cancelPress = () => {
+      clearTimeout(pressTimer);
+    };
+    
+    document.addEventListener('mousedown', startPress);
+    document.addEventListener('mouseup', cancelPress);
+    document.addEventListener('mouseleave', cancelPress);
+    document.addEventListener('touchstart', startPress);
+    document.addEventListener('touchend', cancelPress);
+    
+    return () => {
+      document.removeEventListener('mousedown', startPress);
+      document.removeEventListener('mouseup', cancelPress);
+      document.removeEventListener('mouseleave', cancelPress);
+      document.removeEventListener('touchstart', startPress);
+      document.removeEventListener('touchend', cancelPress);
+      clearTimeout(pressTimer);
+    };
+  }, [message.role, onEdit]);
 
   return (
-    <>
-      {/* 选项对话框 - 高级iOS风格交互效果 */}
-      {showOptionsDialog && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in"
-          onClick={() => setShowOptionsDialog(false)}
-        >
-          <div 
-            className="absolute inset-0 flex items-center justify-center"
-            onClick={() => setShowOptionsDialog(false)}
-          >
-            {/* 消息预览 - 放大效果 */}
-            <div 
-              className="relative max-w-[85%] mb-36 transform scale-105 transition-all duration-300"
-            >
-              <div className={cn(
-                "py-4 px-5 rounded-2xl shadow-lg border",
-                message.role === "user" 
-                  ? "bg-blue-500/30 backdrop-blur-md text-white border-blue-500/40" 
-                  : "bg-gradient-to-br from-blue-600/30 to-purple-600/30 text-white border-blue-800/40"
-              )}>
-                {renderContent(message.content)}
-              </div>
-            </div>
-            
-            {/* 浮动菜单面板 */}
-            <div 
-              className="absolute bottom-24 bg-neutral-900/95 backdrop-blur-xl border border-neutral-800/80 rounded-2xl shadow-2xl overflow-hidden max-w-[340px] w-full animate-slide-up transition-all"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-4 pb-2 border-b border-neutral-800/80">
-                <h3 className="text-center text-base font-medium text-neutral-200">消息选项</h3>
-              </div>
-              <div className="p-0">
-                <button
-                  className="w-full flex items-center space-x-3 p-4 hover:bg-neutral-800/70 active:bg-neutral-700/70 transition-colors"
-                  onClick={copyMessageContent}
-                >
-                  <div className="bg-blue-600/20 p-2 rounded-full">
-                    <Copy className="h-5 w-5 text-blue-400" />
-                  </div>
-                  <span className="font-medium text-neutral-200">复制消息</span>
-                </button>
-                
-                {onEdit && (
-                  <button
-                    className="w-full flex items-center space-x-3 p-4 hover:bg-neutral-800/70 active:bg-neutral-700/70 transition-colors"
-                    onClick={handleEditStart}
-                  >
-                    <div className="bg-purple-600/20 p-2 rounded-full">
-                      <Edit className="h-5 w-5 text-purple-400" />
-                    </div>
-                    <span className="font-medium text-neutral-200">编辑消息</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+    <div 
+      className={cn(
+        "w-full max-w-3xl mx-auto px-4 py-2 message-appear group",
+        message.role === "assistant" ? "bg-neutral-900/30" : "bg-transparent"
       )}
-    
-      <div 
-        className={cn(
-          "w-full max-w-3xl mx-auto px-4 py-2 message-appear group",
-          message.role === "assistant" ? "bg-neutral-900/30" : "bg-transparent"
-        )}
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-      >
-        {/* 实现左右交错布局 */}
-        <div className={cn(
-          "flex flex-col",
-          message.role === "user" ? "items-end" : "items-start",
-        )}>
-          <div 
-            className={cn(
-              "flex max-w-[80%] animate-scale-in",
-              message.role === "user" ? "flex-row-reverse ml-auto" : "mr-auto",
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
+      {/* 实现左右交错布局 */}
+      <div className={cn(
+        "flex flex-col",
+        message.role === "user" ? "items-end" : "items-start",
+      )}>
+        <div 
+          className={cn(
+            "flex max-w-[80%] animate-scale-in",
+            message.role === "user" ? "flex-row-reverse ml-auto" : "mr-auto",
+          )}
+        >
+          {/* 头像 */}
+          <div className={cn(
+            "flex-shrink-0 flex items-center",
+            message.role === "user" ? "ml-3" : "mr-3"
+          )}>
+            {message.role === "assistant" ? (
+              <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full">
+                <Brain className="h-4 w-4 text-white" />
+              </div>
+            ) : (
+              <div className="bg-blue-600 p-1.5 rounded-full">
+                <User className="h-4 w-4 text-white" />
+              </div>
             )}
-          >
-            {/* 头像 */}
-            <div className={cn(
-              "flex-shrink-0 flex items-center",
-              message.role === "user" ? "ml-3" : "mr-3"
-            )}>
-              {message.role === "assistant" ? (
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full">
-                  <Brain className="h-4 w-4 text-white" />
-                </div>
-              ) : (
-                <div className="bg-blue-600 p-1.5 rounded-full">
-                  <User className="h-4 w-4 text-white" />
-                </div>
-              )}
-            </div>
-            
-            {/* 消息内容 */}
-            <div 
-              ref={messageRef}
-              className={cn(
-                "py-3 px-4 rounded-2xl relative",
-                message.role === "assistant" 
-                  ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20 text-white border border-blue-800/30" 
-                  : "bg-blue-500/20 backdrop-blur-sm text-white border border-blue-500/30"
-              )}
-              onContextMenu={handleContextMenu}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-            >
-              {isImage && imageUrl ? (
-                <img 
-                  src={imageUrl} 
-                  alt="Uploaded" 
-                  className="max-w-full max-h-[300px] rounded-md object-contain"
-                />
-              ) : (
-                <>
-                  {message.role === "assistant" ? (
-                    <>
-                      {/* 对AI消息使用打字机效果 */}
-                      {renderContent(displayedText)}
-                      {/* 如果打字尚未完成，显示光标 */}
-                      {!completed && !isThinking && 
-                        <span className="inline-block h-4 w-1 bg-blue-400 animate-blink ml-0.5 align-middle"></span>
-                      }
-                      {/* 如果正在思考中，显示思考动画 */}
-                      {isThinking && <ThinkingAnimation />}
-                    </>
-                  ) : (
-                    // 对用户消息直接显示
-                    renderContent(message.content)
-                  )}
-                </>
-              )}
-            </div>
           </div>
           
-          {/* AI消息的底部操作栏 */}
-          {message.role === "assistant" && completed && !isThinking && (
-            <div 
-              className="flex items-center space-x-2 mt-1 text-xs opacity-100"
+          {/* 消息内容 */}
+          <div className={cn(
+            "py-3 px-4 rounded-2xl relative",
+            message.role === "assistant" 
+              ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20 text-white border border-blue-800/30" 
+              : "bg-blue-500/20 backdrop-blur-sm text-white border border-blue-500/30"
+          )}>
+            {isEditing && message.role === "user" ? (
+              <div className="min-w-[300px]">
+                <Textarea
+                  value={editedContent}
+                  onChange={(e) => setEditedContent(e.target.value)}
+                  className="bg-blue-700 border-blue-600 text-white min-h-[100px] mb-2"
+                  placeholder="编辑您的消息..."
+                />
+                <div className="flex justify-end space-x-2 mt-2">
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-8 text-xs text-neutral-200"
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditedContent(message.content);
+                    }}
+                    disabled={isSaving}
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" />
+                    取消
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    className="h-8 text-xs"
+                    onClick={handleSaveEdit}
+                    disabled={isSaving || editedContent.trim() === message.content}
+                  >
+                    <Check className="h-3.5 w-3.5 mr-1" />
+                    保存
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {isImage && imageUrl ? (
+                  <img 
+                    src={imageUrl} 
+                    alt="Uploaded" 
+                    className="max-w-full max-h-[300px] rounded-md object-contain"
+                  />
+                ) : (
+                  <>
+                    {message.role === "assistant" ? (
+                      <>
+                        {/* 对AI消息使用打字机效果 */}
+                        {renderContent(displayedText)}
+                        {/* 如果打字尚未完成，显示光标 */}
+                        {!completed && !isThinking && 
+                          <span className="inline-block h-4 w-1 bg-blue-400 animate-blink ml-0.5 align-middle"></span>
+                        }
+                        {/* 如果正在思考中，显示思考动画 */}
+                        {isThinking && <ThinkingAnimation />}
+                      </>
+                    ) : (
+                      // 对用户消息直接显示
+                      renderContent(message.content)
+                    )}
+                  </>
+                )}
+              </>
+            )}
+            
+            {/* 用户消息的编辑按钮 (显示在右上角) */}
+            {message.role === "user" && !isEditing && onEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-1 right-1 h-6 w-6 rounded-full bg-blue-700/50 hover:bg-blue-700/70 text-white"
+                onClick={() => onEdit(message.id, message.content)}
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        </div>
+        
+        {/* AI消息的底部操作栏 */}
+        {message.role === "assistant" && completed && !isThinking && (
+          <div 
+            className="flex items-center space-x-2 mt-1 text-xs opacity-100"
+          >
+            {/* 复制按钮 */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full hover:bg-neutral-800 text-neutral-400"
+              onClick={copyMessageContent}
+              title="复制"
             >
-              {/* 复制按钮 */}
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+            
+            {/* 重新生成按钮 */}
+            {onRegenerate && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 rounded-full hover:bg-neutral-800 text-neutral-400"
-                onClick={copyMessageContent}
-                title="复制"
+                onClick={handleRegenerate}
+                title="重新生成"
               >
-                <Copy className="h-3.5 w-3.5" />
+                <RotateCcw className="h-3.5 w-3.5" />
               </Button>
-              
-              {/* 重新生成按钮 */}
-              {onRegenerate && (
+            )}
+            
+            {/* 点赞/踩按钮 */}
+            {onFeedback && (
+              <div className="flex items-center space-x-1">
                 <Button
                   variant="ghost"
                   size="icon"
                   className={cn(
                     "h-7 w-7 rounded-full hover:bg-neutral-800",
-                    regenerateLoading 
-                      ? "text-blue-400 animate-spin" 
-                      : "text-neutral-400"
+                    userRating === "like" ? "text-green-500" : "text-neutral-400"
                   )}
-                  onClick={handleRegenerate}
-                  disabled={regenerateLoading}
-                  title="重新生成"
+                  onClick={() => handleFeedback("like")}
+                  title="赞"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
+                  <ThumbsUp className="h-3.5 w-3.5" />
                 </Button>
-              )}
-              
-              {/* 点赞/踩按钮 */}
-              {onFeedback && (
-                <div className="flex items-center space-x-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "h-7 w-7 rounded-full hover:bg-neutral-800",
-                      userRating === "like" ? "text-green-500" : "text-neutral-400"
-                    )}
-                    onClick={() => handleFeedback("like")}
-                    title="赞"
-                  >
-                    <ThumbsUp className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "h-7 w-7 rounded-full hover:bg-neutral-800",
-                      userRating === "dislike" ? "text-red-500" : "text-neutral-400"
-                    )}
-                    onClick={() => handleFeedback("dislike")}
-                    title="踩"
-                  >
-                    <ThumbsDown className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-7 w-7 rounded-full hover:bg-neutral-800",
+                    userRating === "dislike" ? "text-red-500" : "text-neutral-400"
+                  )}
+                  onClick={() => handleFeedback("dislike")}
+                  title="踩"
+                >
+                  <ThumbsDown className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }
