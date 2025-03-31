@@ -7,9 +7,12 @@ import {
   ThumbsUp, 
   ThumbsDown, 
   RotateCcw, 
-  Pencil
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 
 interface ChatMessageProps {
@@ -138,6 +141,9 @@ export function ChatMessage({
     return thinkingPhases[phase][step];
   };
   
+  // 仅用于兼容性，可以删除
+  // const [currentThinkingStep, setCurrentThinkingStep] = useState(0);
+  
   // 阶段间切换的迭代消息
   const phaseTransitionMessages = [
     "继续分析更多相关信息...",
@@ -239,6 +245,8 @@ export function ChatMessage({
       )}
     </div>
   );
+
+  // 已移除handleSaveEdit函数，现在编辑功能直接由父组件AIChat负责
   
   // 复制消息内容
   const copyMessageContent = () => {
@@ -590,6 +598,8 @@ export function ChatMessage({
                   )}
                 </>
               )}
+              
+              {/* 移除固定的编辑按钮，改为使用长按菜单 */}
             </div>
           </div>
           
