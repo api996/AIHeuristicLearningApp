@@ -135,15 +135,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/chats/:chatId/messages", async (req, res) => {
     try {
-      const chatId = parseInt(req.params.chatId);
-      const { userId, role } = req.query;
-
-      if (!userId || isNaN(Number(userId))) {
-        return res.status(401).json({ message: "Invalid user ID" });
+      // 严格的参数验证
+      const chatIdParam = req.params.chatId;
+      if (!chatIdParam || !/^\d+$/.test(chatIdParam)) {
+        return res.status(400).json({ message: "Invalid chat ID format" });
       }
-
+      
+      const chatId = parseInt(chatIdParam, 10);
+      
+      // 验证用户ID
+      const userIdParam = req.query.userId as string;
+      if (!userIdParam || !/^\d+$/.test(userIdParam)) {
+        return res.status(401).json({ message: "Invalid user ID format" });
+      }
+      
+      const userId = parseInt(userIdParam, 10);
+      const role = req.query.role as string;
+      
+      // 验证角色
       const isAdmin = role === "admin";
-      const messages = await storage.getChatMessages(chatId, Number(userId), isAdmin);
+      
+      // 获取消息，通过Drizzle ORM的参数化查询防止SQL注入
+      const messages = await storage.getChatMessages(chatId, userId, isAdmin);
       res.json(messages || []);
     } catch (error) {
       log(`Error fetching messages: ${error}`);

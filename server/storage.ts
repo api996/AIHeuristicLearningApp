@@ -48,7 +48,24 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     try {
-      const [user] = await db.insert(users).values(insertUser).returning();
+      // 验证用户输入
+      if (!insertUser.username || typeof insertUser.username !== 'string' || insertUser.username.length > 50) {
+        throw new Error("Invalid username format");
+      }
+      
+      if (!insertUser.password || typeof insertUser.password !== 'string') {
+        throw new Error("Invalid password format");
+      }
+      
+      // 清理输入以防止恶意注入
+      const sanitizedUser = {
+        username: insertUser.username.trim(),
+        password: insertUser.password,
+        role: insertUser.role || "user"
+      };
+      
+      // 使用Drizzle ORM的参数化查询防止SQL注入
+      const [user] = await db.insert(users).values(sanitizedUser).returning();
       return user;
     } catch (error) {
       log(`Error creating user: ${error}`);
@@ -147,14 +164,19 @@ export class DatabaseStorage implements IStorage {
 
   async getChatById(chatId: number, userId: number, isAdmin: boolean): Promise<Chat | undefined> {
     try {
+      if (!chatId || isNaN(chatId)) {
+        log(`无效的聊天ID: ${chatId}`);
+        return undefined;
+      }
+      
       if (isAdmin) {
-        // Admin can access any chat
+        // 即使是管理员，仍然要验证聊天记录是否存在
         const [chat] = await db.select()
           .from(chats)
           .where(eq(chats.id, chatId));
         return chat;
       } else {
-        // Regular users can only access their own chats
+        // 普通用户只能访问自己的聊天记录
         const [chat] = await db.select()
           .from(chats)
           .where(and(
