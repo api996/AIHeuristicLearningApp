@@ -317,7 +317,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: -1;
+  z-index: -50;
   overflow: hidden;
   /* 明确移除任何可能的滤镜效果 */
   filter: none;

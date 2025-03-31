@@ -30,7 +30,7 @@ export const Background: React.FC<BackgroundProps> = ({
 
   return (
     <div className={`relative w-full h-full ${className}`}>
-      <div className="fixed inset-0 w-full h-full -z-10 overflow-hidden">
+      <div className="fixed inset-0 w-full h-full -z-50 overflow-hidden">
         {bgImage ? (
           <img 
             src={bgImage} 
