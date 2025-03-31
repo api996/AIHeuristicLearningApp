@@ -448,7 +448,7 @@ export function ChatMessage({
             "py-3 px-4 rounded-2xl relative",
             message.role === "assistant" 
               ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20 text-white border border-blue-800/30" 
-              : "bg-blue-600 text-white"
+              : "bg-blue-500/20 backdrop-blur-sm text-white border border-blue-500/30"
           )}>
             {isEditing && message.role === "user" ? (
               <div className="min-w-[300px]">
@@ -514,12 +514,12 @@ export function ChatMessage({
             )}
             
             {/* 用户消息的编辑按钮 (显示在右上角) */}
-            {message.role === "user" && !isEditing && onEdit && isHovering && (
+            {message.role === "user" && !isEditing && onEdit && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="absolute top-1 right-1 h-6 w-6 rounded-full bg-blue-700/50 hover:bg-blue-700/70 text-white"
-                onClick={() => setIsEditing(true)}
+                onClick={() => onEdit(message.id, message.content)}
               >
                 <Pencil className="h-3 w-3" />
               </Button>
@@ -530,10 +530,7 @@ export function ChatMessage({
         {/* AI消息的底部操作栏 */}
         {message.role === "assistant" && completed && !isThinking && (
           <div 
-            className={cn(
-              "flex items-center space-x-2 mt-1 transition-opacity duration-200 text-xs",
-              isHovering ? "opacity-100" : "opacity-0"
-            )}
+            className="flex items-center space-x-2 mt-1 text-xs opacity-100"
           >
             {/* 复制按钮 */}
             <Button
