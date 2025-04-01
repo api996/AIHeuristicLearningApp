@@ -1,85 +1,11 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 移动设备通用样式 */
-.mobile-device {
-  max-width: 100%;
-  overflow-x: hidden;
-}
-
-/* iPhone特定样式 */
-.iphone {
-  /* 适用于所有iPhone机型的基础样式 */
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-.iphone-pro-max {
-  /* iPhone 15 Pro Max 特定样式 */
-  --safe-area-top: 59px;
-  --safe-area-bottom: 34px;
-  --device-width: 430px;
-  --device-height: 932px;
-}
-
-/* 安全区域适配 */
-.safe-area-top {
-  padding-top: var(--safe-area-top, 0);
-}
-
-.safe-area-bottom {
-  padding-bottom: var(--safe-area-bottom, 0);
-}
-
-/* 移动设备内容滚动 */
-.mobile-scroll {
-  -webkit-overflow-scrolling: touch;
-  overflow-y: auto;
-  height: calc(100vh - var(--safe-area-top, 0) - var(--safe-area-bottom, 0));
-}
-
-/* 针对iPhone的滚动优化 */
-.ios-scroll {
-  scroll-behavior: smooth;
-}
-
-/* 移动视图容器 */
-.mobile-view {
-  width: 100%;
-  max-width: 100vw;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 移动导航栏 */
-.navbar-mobile {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background-color: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
 /* 长按菜单动画效果 */
-
-/* 默认背景样式 */
-.bg-default {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-}
-
-/* 深色模式下的默认背景 */
-.dark .bg-default {
-  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-}
-
 @keyframes scale-in-menu {
   0% {
     transform: scale(0.9);
@@ -268,95 +194,17 @@
   top: -5px !important;
 }
 
-/* 移动设备通用样式 */
-@media (max-width: 768px) {
+@media (max-width: 360px) {
   .wrapper {
     width: 100%;
     height: 100vh;
     border: none;
-    border-radius: 0;
-    padding: 12px;
+    border-radius: 0px;
   }
 
   .wrapper .input-box {
-    width: 100%;
-    max-width: 290px;
+    width: 290px;
   }
-  
-  /* 确保内容区域适应小屏幕 */
-  .content-container {
-    padding: 12px 8px;
-  }
-  
-  /* 调整顶部导航栏在移动设备上的布局 */
-  .navbar-mobile {
-    padding: 8px 12px;
-  }
-  
-  /* 调整按钮大小和间距 */
-  .mobile-button {
-    padding: 8px 12px;
-    font-size: 0.875rem;
-  }
-  
-  /* 确保对话框在移动设备上不会溢出 */
-  .dialog-content {
-    width: 90vw;
-    max-width: 350px;
-  }
-}
-
-/* 更小屏幕的设备 */
-@media (max-width: 360px) {
-  .wrapper {
-    padding: 8px;
-  }
-
-  .wrapper .input-box {
-    width: 90%;
-    max-width: 280px;
-  }
-  
-  /* 进一步缩小文字和元素 */
-  html {
-    font-size: 14px;
-  }
-}
-
-/* 处理横屏模式 */
-@media (max-width: 768px) and (orientation: landscape) {
-  .content-container {
-    height: calc(100vh - 100px);
-    overflow-y: auto;
-  }
-}
-
-/* 特定设备类型样式 */
-.mobile-device button {
-  touch-action: manipulation; /* 优化触摸操作 */
-}
-
-/* iPhone 特定调整 */
-.iphone .safe-area-top {
-  padding-top: var(--safe-area-top, 0px);
-}
-
-.iphone .safe-area-bottom {
-  padding-bottom: var(--safe-area-bottom, 0px);
-}
-
-/* iPhone X 及以上的刘海屏设备 */
-.iphone-x .app-container,
-.iphone-xr .app-container,
-.iphone-12 .app-container,
-.iphone-pro-max .app-container {
-  padding-top: env(safe-area-inset-top, 47px);
-  padding-bottom: env(safe-area-inset-bottom, 34px);
-}
-
-/* Android 设备特定调整 */
-.android .app-container {
-  padding-top: 12px;
 }
 
 @layer base {
@@ -426,42 +274,38 @@
     opacity: 0;
     transition: all 0.3s;
   }
-
+  
   .auto-hide-scrollbar:hover::-webkit-scrollbar {
     width: 6px;
     opacity: 1;
   }
 }
 
-/* 苹果风格的磨砂玻璃效果 - 严格只用于UI组件，不用于背景 */
+/* 苹果风格的磨砂玻璃效果 */
 .frosted-glass {
-  background-color: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(8px) saturate(100%);
-  -webkit-backdrop-filter: blur(8px) saturate(100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.15);
-  position: relative;
-  z-index: 5;
+  background-color: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.07);
 }
 
 .frosted-glass-dark {
-  background-color: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(8px) saturate(100%);
-  -webkit-backdrop-filter: blur(8px) saturate(100%);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.15);
-  position: relative;
-  z-index: 5;
+  background-color: rgba(17, 25, 40, 0.65);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.25);
 }
 
-/* 自定义背景图片容器 - 使用更高的z-index负值确保它在最底层 */
+/* 自定义背景图片容器 */
 .bg-container {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: -999;
+  z-index: -1;
   overflow: hidden;
 }
 
@@ -470,7 +314,30 @@
   height: 100%;
   object-fit: cover;
   transition: all 0.5s ease;
-  opacity: 1;
+  opacity: 0.8;
 }
 
-/* 这里之前是背景图片上传按钮样式，现在已移至偏好设置对话框中 */
+/* 背景图片上传按钮样式 */
+.bg-upload-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.bg-upload-btn:hover {
+  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.3);
+}
