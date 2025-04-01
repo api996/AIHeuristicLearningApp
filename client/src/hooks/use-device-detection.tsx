@@ -97,7 +97,8 @@ export function useDeviceReport({ userId, onSuccess, onError }: DeviceReportProp
  * 为iPhone设备提供特殊CSS类的钩子
  */
 export function useIPhoneCSSClasses() {
-  const { isIOS } = useDeviceInfo();
+  const deviceInfo = useDeviceInfo();
+  const { isIOS } = deviceInfo;
   const iphoneModel = useIPhoneModel();
   const [cssClasses, setCssClasses] = useState<string>('');
   
@@ -109,14 +110,12 @@ export function useIPhoneCSSClasses() {
       'android', 'mobile-device'
     );
     
-    const deviceInfo = useDeviceInfo();
-    
     // 为所有移动设备添加通用移动设备类
     if (deviceInfo.isMobile || deviceInfo.isTablet) {
       document.documentElement.classList.add('mobile-device');
     }
     
-    if (!isIOS && !deviceInfo.isAndroid) {
+    if (!deviceInfo.isIOS && !deviceInfo.isAndroid) {
       setCssClasses('');
       return;
     }
@@ -124,7 +123,7 @@ export function useIPhoneCSSClasses() {
     let classes = '';
     
     // iOS 设备处理
-    if (isIOS) {
+    if (deviceInfo.isIOS) {
       classes = 'iphone ';
       
       // 如果未检测到或数据不完整，直接使用iPhone 15 Pro Max
@@ -230,5 +229,5 @@ export function useIPhoneSafeAreas() {
       window.removeEventListener('orientationchange', handleOrientationChange);
       window.removeEventListener('resize', handleOrientationChange);
     };
-  }, [isIOS, iphoneModel]);
+  }, [deviceInfo?.isIOS, iphoneModel]);
 }
