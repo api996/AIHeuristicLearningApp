@@ -839,8 +839,8 @@ export function AIChat({ userData }: AIChatProps) {
         <ImageIcon className="h-5 w-5 text-white opacity-70" />
       </label>
       
-      {/* 磨砂玻璃效果容器 - 根据主题应用不同的效果 */}
-      <div className={`absolute inset-0 z-0 ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}`}></div>
+      {/* 轻微的全局透明效果，不使用磨砂玻璃效果在背景图片上 */}
+      <div className="absolute inset-0 z-0 bg-black bg-opacity-20"></div>
       
       {/* Overlay for mobile */}
       {showSidebar && (
