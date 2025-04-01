@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useDeviceInfo, DeviceType, useIPhoneModel } from './use-mobile';
 import { apiRequest } from '../lib/queryClient';
 
@@ -109,8 +109,10 @@ export function useIPhoneCSSClasses() {
       'android', 'mobile-device'
     );
     
+    const { isMobile, isTablet } = useDeviceInfo();
+    
     // 为所有移动设备添加通用移动设备类
-    if (deviceInfo.isMobile || deviceInfo.isTablet) {
+    if (isMobile || isTablet) {
       document.documentElement.classList.add('mobile-device');
     }
     
