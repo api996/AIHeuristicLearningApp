@@ -971,17 +971,21 @@ export function AIChat({ userData }: AIChatProps) {
             )}
           </div>
 
-          {/* 右侧功能区 - 只保留新对话按钮，改为ChatGPT风格 */}
+          {/* 右侧功能区 - 只保留新对话按钮，改为ChatGPT风格，添加移动设备兼容性 */}
           <div className="flex items-center">
-            {/* 新对话按钮 - 使用ChatGPT风格 */}
+            {/* 新对话按钮 - 使用ChatGPT风格，添加移动响应式样式 */}
             <Button 
               variant="outline" 
               onClick={handleNewChat}
-              className="h-12 px-6 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700 flex items-center transition-colors"
+              className={`${deviceInfo.isMobile 
+                ? 'h-10 px-3 py-2 rounded-lg text-sm' 
+                : 'h-12 px-6 rounded-lg'} 
+                bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700 
+                flex items-center transition-colors mobile-button`}
               title="新对话"
             >
-              <Plus className="h-6 w-6 mr-2" />
-              <span>新对话</span>
+              <Plus className={`${deviceInfo.isMobile ? 'h-4 w-4 mr-1' : 'h-6 w-6 mr-2'}`} />
+              <span>{deviceInfo.isMobile ? '新建' : '新对话'}</span>
             </Button>
           </div>
         </header>

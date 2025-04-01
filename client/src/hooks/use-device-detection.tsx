@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useDeviceInfo, DeviceType, useIPhoneModel } from './use-mobile';
 import { apiRequest } from '../lib/queryClient';
 
@@ -18,22 +18,47 @@ export function useDeviceReport({ userId, onSuccess, onError }: DeviceReportProp
   const [reportStatus, setReportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [error, setError] = useState<Error | null>(null);
   
+  // 默认使用iPhone 15 Pro Max的设备信息
+  const effectiveDeviceInfo = useMemo(() => {
+    // 如果设备信息无法获取或不完整，使用默认值
+    if (!deviceInfo || deviceInfo.width <= 0) {
+      return {
+        ...deviceInfo,
+        isMobile: true,
+        isTablet: false,
+        isDesktop: false,
+        deviceType: DeviceType.MOBILE,
+        width: 430, // iPhone 15 Pro Max 宽度
+        height: 932, // iPhone 15 Pro Max 高度
+        isIOS: true,
+        isAndroid: false,
+        isPortrait: true,
+        isLandscape: false,
+        userAgent: 'iPhone'
+      };
+    }
+    return deviceInfo;
+  }, [deviceInfo]);
+  
+  // 强制使用iPhone 15 Pro Max作为机型
+  const effectiveIphoneModel = 'iphone-pro-max';
+  
   // 当设备信息加载完成后，发送到服务器
   useEffect(() => {
-    // 确保设备信息已经获取到
-    if (deviceInfo.width > 0 && reportStatus === 'idle') {
+    // 使用默认值或检测到的设备信息
+    if (reportStatus === 'idle') {
       setReportStatus('loading');
       
       const reportDevice = async () => {
         try {
           const response = await apiRequest('POST', '/api/device-info', {
-            userAgent: deviceInfo.userAgent,
-            screenWidth: deviceInfo.width,
-            screenHeight: deviceInfo.height,
-            deviceType: deviceInfo.deviceType,
-            isIOS: deviceInfo.isIOS,
-            isAndroid: deviceInfo.isAndroid,
-            iphoneModel: iphoneModel,
+            userAgent: effectiveDeviceInfo.userAgent,
+            screenWidth: effectiveDeviceInfo.width,
+            screenHeight: effectiveDeviceInfo.height,
+            deviceType: effectiveDeviceInfo.deviceType,
+            isIOS: effectiveDeviceInfo.isIOS,
+            isAndroid: effectiveDeviceInfo.isAndroid,
+            iphoneModel: effectiveIphoneModel,
             userId: userId
           });
           
@@ -60,59 +85,92 @@ export function useDeviceReport({ userId, onSuccess, onError }: DeviceReportProp
     }
   }, [deviceInfo, iphoneModel, userId, reportStatus, onSuccess, onError]);
   
-  return { deviceInfo, iphoneModel, reportStatus, error };
+  return { 
+    deviceInfo: effectiveDeviceInfo, 
+    iphoneModel: effectiveIphoneModel, 
+    reportStatus, 
+    error 
+  };
 }
 
 /**
  * 为iPhone设备提供特殊CSS类的钩子
  */
 export function useIPhoneCSSClasses() {
-  const { isIOS } = useDeviceInfo();
+  const deviceInfo = useDeviceInfo();
+  const { isIOS } = deviceInfo;
   const iphoneModel = useIPhoneModel();
   const [cssClasses, setCssClasses] = useState<string>('');
   
   useEffect(() => {
-    if (!isIOS) {
+    // 清理之前的所有设备相关类
+    document.documentElement.classList.remove(
+      'iphone', 'iphone-small', 'iphone-x', 'iphone-xr', 
+      'iphone-12', 'iphone-pro-max', 'iphone-modern',
+      'android', 'mobile-device'
+    );
+    
+    // 为所有移动设备添加通用移动设备类
+    if (deviceInfo.isMobile || deviceInfo.isTablet) {
+      document.documentElement.classList.add('mobile-device');
+    }
+    
+    if (!deviceInfo.isIOS && !deviceInfo.isAndroid) {
       setCssClasses('');
       return;
     }
     
-    // 根据iPhone型号添加特定的CSS类
-    let classes = 'iphone ';
+    let classes = '';
     
-    switch(iphoneModel) {
-      case 'iphone-8-or-smaller':
-        classes += 'iphone-small';
-        break;
-      case 'iphone-x-xs-11pro':
-        classes += 'iphone-x';
-        break;
-      case 'iphone-xr-xs-max-11':
-        classes += 'iphone-xr';
-        break;
-      case 'iphone-12-13-14':
-        classes += 'iphone-12';
-        break;
-      case 'iphone-pro-max':
+    // iOS 设备处理
+    if (deviceInfo.isIOS) {
+      classes = 'iphone ';
+      
+      // 如果未检测到或数据不完整，直接使用iPhone 15 Pro Max
+      if (!iphoneModel || iphoneModel === '') {
         classes += 'iphone-pro-max';
-        break;
-      default:
-        classes += 'iphone-modern';
+      } else {
+        switch(iphoneModel) {
+          case 'iphone-8-or-smaller':
+            classes += 'iphone-small';
+            break;
+          case 'iphone-x-xs-11pro':
+            classes += 'iphone-x';
+            break;
+          case 'iphone-xr-xs-max-11':
+            classes += 'iphone-xr';
+            break;
+          case 'iphone-12-13-14':
+            classes += 'iphone-12';
+            break;
+          case 'iphone-pro-max':
+            classes += 'iphone-pro-max';
+            break;
+          default:
+            classes += 'iphone-pro-max'; // 默认使用iPhone 15 Pro Max
+        }
+      }
+    } 
+    // Android 设备处理
+    else if (deviceInfo.isAndroid) {
+      classes = 'android';
     }
     
     setCssClasses(classes);
     
-    // 将这些类添加到根元素
-    document.documentElement.className += ' ' + classes;
+    // 添加设备类到根元素
+    const classesToAdd = classes.split(' ').filter(c => c);
+    classesToAdd.forEach(cls => {
+      document.documentElement.classList.add(cls);
+    });
     
     return () => {
-      // 清理类
-      const classesToRemove = classes.split(' ');
-      classesToRemove.forEach(cls => {
+      // 清理添加的类
+      classesToAdd.forEach(cls => {
         document.documentElement.classList.remove(cls);
       });
     };
-  }, [isIOS, iphoneModel]);
+  }, [isIOS, deviceInfo.isAndroid, deviceInfo.isMobile, deviceInfo.isTablet, iphoneModel]);
   
   return cssClasses;
 }
@@ -121,24 +179,27 @@ export function useIPhoneCSSClasses() {
  * 动态调整iPhone上的安全区域
  */
 export function useIPhoneSafeAreas() {
-  const { isIOS } = useDeviceInfo();
+  const deviceInfo = useDeviceInfo();
   const iphoneModel = useIPhoneModel();
   
   useEffect(() => {
-    if (!isIOS) return;
+    // 如果设备信息不完整或不是iOS，默认使用iPhone 15 Pro Max的安全区域
+    const isIOS = deviceInfo?.isIOS ?? true; // 默认为true，使用iOS样式
     
     // 设置CSS变量
     const setCSSVariable = (name: string, value: string) => {
       document.documentElement.style.setProperty(name, value);
     };
     
-    // 根据不同iPhone型号设置安全区域
-    if (iphoneModel.includes('iphone-x') || 
+    // 根据不同iPhone型号设置安全区域，如果无法检测则默认使用iPhone 15 Pro Max
+    if (!iphoneModel || 
+        iphoneModel === '' || 
+        iphoneModel.includes('iphone-x') || 
         iphoneModel.includes('iphone-11') || 
         iphoneModel.includes('iphone-12') || 
         iphoneModel.includes('iphone-pro-max')) {
       
-      // 有刘海的iPhone
+      // 有刘海的iPhone (默认使用iPhone 15 Pro Max)
       setCSSVariable('--safe-area-top', '47px');
       setCSSVariable('--safe-area-bottom', '34px');
     } else {
@@ -168,5 +229,5 @@ export function useIPhoneSafeAreas() {
       window.removeEventListener('orientationchange', handleOrientationChange);
       window.removeEventListener('resize', handleOrientationChange);
     };
-  }, [isIOS, iphoneModel]);
+  }, [deviceInfo?.isIOS, iphoneModel]);
 }
