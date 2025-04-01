@@ -109,10 +109,10 @@ export function useIPhoneCSSClasses() {
       'android', 'mobile-device'
     );
     
-    const { isMobile, isTablet } = useDeviceInfo();
+    const deviceInfo = useDeviceInfo();
     
     // 为所有移动设备添加通用移动设备类
-    if (isMobile || isTablet) {
+    if (deviceInfo.isMobile || deviceInfo.isTablet) {
       document.documentElement.classList.add('mobile-device');
     }
     
@@ -127,24 +127,29 @@ export function useIPhoneCSSClasses() {
     if (isIOS) {
       classes = 'iphone ';
       
-      switch(iphoneModel) {
-        case 'iphone-8-or-smaller':
-          classes += 'iphone-small';
-          break;
-        case 'iphone-x-xs-11pro':
-          classes += 'iphone-x';
-          break;
-        case 'iphone-xr-xs-max-11':
-          classes += 'iphone-xr';
-          break;
-        case 'iphone-12-13-14':
-          classes += 'iphone-12';
-          break;
-        case 'iphone-pro-max':
-          classes += 'iphone-pro-max';
-          break;
-        default:
-          classes += 'iphone-modern';
+      // 如果未检测到或数据不完整，直接使用iPhone 15 Pro Max
+      if (!iphoneModel || iphoneModel === '') {
+        classes += 'iphone-pro-max';
+      } else {
+        switch(iphoneModel) {
+          case 'iphone-8-or-smaller':
+            classes += 'iphone-small';
+            break;
+          case 'iphone-x-xs-11pro':
+            classes += 'iphone-x';
+            break;
+          case 'iphone-xr-xs-max-11':
+            classes += 'iphone-xr';
+            break;
+          case 'iphone-12-13-14':
+            classes += 'iphone-12';
+            break;
+          case 'iphone-pro-max':
+            classes += 'iphone-pro-max';
+            break;
+          default:
+            classes += 'iphone-pro-max'; // 默认使用iPhone 15 Pro Max
+        }
       }
     } 
     // Android 设备处理
@@ -175,24 +180,27 @@ export function useIPhoneCSSClasses() {
  * 动态调整iPhone上的安全区域
  */
 export function useIPhoneSafeAreas() {
-  const { isIOS } = useDeviceInfo();
+  const deviceInfo = useDeviceInfo();
   const iphoneModel = useIPhoneModel();
   
   useEffect(() => {
-    if (!isIOS) return;
+    // 如果设备信息不完整或不是iOS，默认使用iPhone 15 Pro Max的安全区域
+    const isIOS = deviceInfo?.isIOS ?? true; // 默认为true，使用iOS样式
     
     // 设置CSS变量
     const setCSSVariable = (name: string, value: string) => {
       document.documentElement.style.setProperty(name, value);
     };
     
-    // 根据不同iPhone型号设置安全区域
-    if (iphoneModel.includes('iphone-x') || 
+    // 根据不同iPhone型号设置安全区域，如果无法检测则默认使用iPhone 15 Pro Max
+    if (!iphoneModel || 
+        iphoneModel === '' || 
+        iphoneModel.includes('iphone-x') || 
         iphoneModel.includes('iphone-11') || 
         iphoneModel.includes('iphone-12') || 
         iphoneModel.includes('iphone-pro-max')) {
       
-      // 有刘海的iPhone
+      // 有刘海的iPhone (默认使用iPhone 15 Pro Max)
       setCSSVariable('--safe-area-top', '47px');
       setCSSVariable('--safe-area-bottom', '34px');
     } else {
