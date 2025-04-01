@@ -314,7 +314,7 @@
   height: 100%;
   object-fit: cover;
   transition: all 0.5s ease;
-  opacity: 0.8;
+  opacity: 1; /* 将不透明度设为1，以便显示完整图像 */
 }
 
 /* 背景图片上传按钮样式 */
