@@ -20,7 +20,7 @@ class EmbeddingService:
 
     def __init__(self):
         # 使用最新的Gemini嵌入模型
-        self.model_name = "gemini-embedding-exp-03-07"  # 保持原有模型名称不变
+        self.model_name = "models/gemini-embedding-exp-03-07"  # 添加models/前缀以符合API要求
 
     async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
