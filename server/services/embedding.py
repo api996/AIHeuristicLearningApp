@@ -3,7 +3,7 @@ import os
 from typing import List
 from dotenv import load_dotenv
 import numpy as np
-from google import genai
+import google.generativeai as genai
 
 # 加载环境变量
 load_dotenv()
@@ -14,7 +14,7 @@ if not GEMINI_API_KEY:
     raise ValueError("缺少GEMINI_API_KEY环境变量")
 
 # 初始化客户端
-client = genai.Client(api_key=GEMINI_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
 
 class EmbeddingService:
     """提供文本嵌入服务"""
@@ -48,17 +48,17 @@ class EmbeddingService:
                 for text in batch_texts:
                     print(f"处理文本: {text[:30]}...")
                     try:
-                        # 使用您提供的新方法获取嵌入向量
-                        print(f"调用Client.models.embed_content({self.model_name}, {text[:20]}...)")
+                        # 使用新的API获取嵌入向量
+                        print(f"调用genai.embed_content(model={self.model_name}, content={text[:20]}...)")
                         
-                        # 使用客户端进行嵌入
-                        result = client.models.embed_content(
+                        # 使用更新后的API进行嵌入
+                        result = genai.embed_content(
                             model=self.model_name,
-                            contents=text
+                            content=text
                         )
                         
                         # 解析嵌入结果
-                        vector = result.embeddings
+                        vector = result['embedding']
                         print(f"嵌入向量生成成功，维度: {len(vector)}")
                         embeddings.append(vector)
                             
