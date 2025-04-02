@@ -974,7 +974,7 @@ export function AIChat({ userData }: AIChatProps) {
             // 有消息时显示滚动区域 - 将内容固定在顶部并去除滚动条
             <div 
               ref={messagesContainerRef}
-              className={`flex-1 flex flex-col gap-4 py-1 hide-empty-scrollbar content-start justify-start items-stretch`}
+              className="flex-1 flex flex-col gap-4 py-1 hide-empty-scrollbar content-start justify-start items-stretch"
               style={{ overflowY: messages.length > 4 ? 'auto' : 'visible' }}
             >
               {messages.map((msg, i) => (
