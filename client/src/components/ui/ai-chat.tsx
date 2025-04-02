@@ -954,7 +954,7 @@ export function AIChat({ userData }: AIChatProps) {
         </header>
 
         {/* Messages */}
-        <div className={`flex-1 flex flex-col p-6 md:p-8 pb-48 ${messages.length === 0 ? 'hide-empty-scrollbar' : ''}``}>
+        <div className={"flex-1 flex flex-col p-6 md:p-8 pb-48 " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
           {messages.length === 0 ? (
             // 欢迎页面 - 垂直居中不需要滚动，完全隐藏滚动条
             <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
@@ -1080,7 +1080,7 @@ export function AIChat({ userData }: AIChatProps) {
             )}
 
             {/* 输入框区域 - 苹果风格磨砂玻璃效果 */}
-            <div className={`relative rounded-xl border shadow-lg ${theme === 'dark' ? 'border-neutral-700/50 bg-neutral-800/30 backdrop-blur-md' : 'border-neutral-300/20 bg-white/30 backdrop-blur-md'}`}>
+            <div className={"relative rounded-xl border shadow-lg " + (theme === 'dark' ? 'border-neutral-700/50 bg-neutral-800/30 backdrop-blur-md' : 'border-neutral-300/20 bg-white/30 backdrop-blur-md')}>
               <div className="flex items-end">
                 <div className="flex-1 relative">
                   <textarea
