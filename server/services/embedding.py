@@ -20,7 +20,7 @@ class EmbeddingService:
     
     def __init__(self):
         # 初始化embedding模型
-        self.model_name = "gemini-embedding-exp-03-07"
+        self.model_name = "models/gemini-embedding-exp-03-07"
         
     async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
