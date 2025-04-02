@@ -2,7 +2,7 @@ import os
 from typing import List
 from dotenv import load_dotenv
 import numpy as np
-from google import genai
+import google.generativeai as genai
 
 # 加载环境变量
 load_dotenv()

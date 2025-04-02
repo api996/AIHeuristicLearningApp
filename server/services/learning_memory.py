@@ -182,13 +182,13 @@ class LearningMemoryService:
         
     async def analyze_learning_path(self, user_id: int) -> Dict[str, Any]:
         """
-        分析用户的学习轨迹
+        分析用户的学习轨迹，采用动态话题发现和语义分析
         
         Args:
             user_id: 用户ID
             
         Returns:
-            学习轨迹分析结果
+            学习轨迹分析结果 - 动态生成的知识记忆空间
         """
         try:
             user_dir = os.path.join(self.memory_dir, str(user_id))
@@ -197,100 +197,354 @@ class LearningMemoryService:
                 
             # 收集所有记忆
             memories = []
-            for filename in os.listdir(user_dir):
+            memory_files = sorted(os.listdir(user_dir))  # 按文件名排序（通常包含时间戳）
+            for filename in memory_files:
                 if filename.endswith('.json'):
                     file_path = os.path.join(user_dir, filename)
                     with open(file_path, 'r', encoding='utf-8') as f:
                         memory = json.load(f)
+                        # 添加文件名作为ID，方便后续引用
+                        memory["id"] = filename.replace(".json", "")
                         memories.append(memory)
             
             if not memories:
                 return self.default_analysis()
+            
+            # 知识图谱构建 - 记忆节点和语义关联
+            knowledge_nodes = []
+            semantic_links = []
+            
+            # STEP 1: 构建初始记忆节点（按时间顺序）
+            for i, memory in enumerate(memories):
+                content = memory.get("content", "").lower()
+                timestamp = memory.get("timestamp", "")
+                memory_id = memory.get("id", f"mem_{i}")
                 
-            # 常用学科关键词，用于主题发现
-            subject_keywords = {
-                "数学": ["数学", "微积分", "导数", "积分", "方程", "极限", "连续", "收敛", "级数", "数列", "函数", "几何"],
-                "物理": ["物理", "牛顿", "力学", "能量", "电磁", "热力学", "光学", "相对论", "量子", "电子", "原子"],
-                "化学": ["化学", "元素", "分子", "原子", "反应", "化合物", "酸碱", "氧化", "还原", "溶液", "周期表"],
-                "生物": ["生物", "细胞", "DNA", "基因", "蛋白质", "进化", "生态", "遗传", "代谢", "光合作用"],
-                "计算机": ["编程", "算法", "数据结构", "代码", "软件", "函数", "变量", "类", "对象", "网络", "数据库"],
-                "医学": ["医学", "疾病", "治疗", "药物", "症状", "检查", "手术", "健康", "解剖", "生理"],
-                "历史": ["历史", "朝代", "国家", "战争", "文明", "革命", "政治", "文化", "人物", "年代", "时期"],
-                "地理": ["地理", "地形", "气候", "地图", "国家", "城市", "河流", "山脉", "海洋", "洲", "天气"],
-                "经济": ["经济", "市场", "金融", "投资", "货币", "股票", "通货膨胀", "需求", "供给", "宏观", "微观"],
-                "艺术": ["艺术", "绘画", "音乐", "文学", "雕塑", "建筑", "设计", "创作", "表演", "美学"]
-            }
-            
-            # 动态发现主题 - 先分析已知的主题
-            known_topics = {}
-            for subject, keywords in subject_keywords.items():
-                known_topics[subject] = 0
-                for memory in memories:
-                    content = memory["content"].lower()
-                    for keyword in keywords:
-                        if keyword.lower() in content:
-                            known_topics[subject] += 1
-                            break
-            
-            # 过滤掉零提及的主题
-            active_topics = {topic: count for topic, count in known_topics.items() if count > 0}
-            
-            # 如果没有找到已知主题，尝试从内容中提取可能的主题
-            custom_topics = {}
-            if not active_topics:
-                # 提取用户常用词汇作为可能的主题
-                all_words = []
-                for memory in memories:
-                    content = memory["content"].lower()
-                    # 仅保留字母词汇，过滤掉标点、数字等
-                    words = [word for word in content.split() if word.isalpha() and len(word) > 1]
-                    all_words.extend(words)
+                # 提取该记忆中的关键主题词和重要概念
+                keywords = self.extract_keywords_from_text(content)
                 
-                # 统计词频
-                word_counts = {}
-                for word in all_words:
-                    if word not in word_counts:
-                        word_counts[word] = 1
-                    else:
-                        word_counts[word] += 1
+                # 创建记忆节点
+                node = {
+                    "id": memory_id,
+                    "content": content[:100] + "..." if len(content) > 100 else content,  # 截断显示
+                    "timestamp": timestamp,
+                    "keywords": keywords,
+                    "type": "memory_node"
+                }
+                knowledge_nodes.append(node)
+            
+            # STEP 2: 对记忆节点进行聚类，发现主题群组
+            topic_clusters = await self.cluster_memories(memories)
+            
+            # STEP 3: 为每个主题群组创建主题节点
+            for topic_name, topic_data in topic_clusters.items():
+                topic_node = {
+                    "id": f"topic_{topic_name.replace(' ', '_')}",
+                    "name": topic_name,
+                    "relevance": topic_data["relevance"],
+                    "type": "topic_node",
+                    "related_memories": topic_data["memory_ids"],
+                    "keywords": topic_data["keywords"]
+                }
+                knowledge_nodes.append(topic_node)
                 
-                # 提取高频词作为可能的主题（可能是学习领域）
-                sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
-                for word, count in sorted_words[:5]:  # 取前5个高频词作为自定义主题
-                    if count > 1:  # 至少出现2次
-                        custom_topics[word] = count
+                # 建立主题与相关记忆之间的连接
+                for memory_id in topic_data["memory_ids"]:
+                    link = {
+                        "source": topic_node["id"],
+                        "target": memory_id,
+                        "strength": self.calculate_relevance(topic_name, memory_id, memories)
+                    }
+                    semantic_links.append(link)
             
-            # 合并已知主题和自定义主题
-            final_topics = {**active_topics, **custom_topics}
+            # STEP 4: 构建主题之间的关联（如果它们共享相同的记忆或关键词）
+            topic_nodes = [node for node in knowledge_nodes if node["type"] == "topic_node"]
+            for i in range(len(topic_nodes)):
+                for j in range(i+1, len(topic_nodes)):
+                    topic1 = topic_nodes[i]
+                    topic2 = topic_nodes[j]
+                    
+                    # 计算两个主题的关联度
+                    relation_strength = self.calculate_topic_relation(topic1, topic2)
+                    if relation_strength > 0.2:  # 仅保留强关联
+                        link = {
+                            "source": topic1["id"],
+                            "target": topic2["id"],
+                            "strength": relation_strength,
+                            "type": "topic_relation"
+                        }
+                        semantic_links.append(link)
             
-            # 如果仍然没有发现主题，返回默认分析
-            if not final_topics:
-                return self.default_analysis()
-            
-            # 计算主题进度
-            total_memories = len(memories)
+            # STEP 5: 提取学习进度数据（与之前逻辑类似，但基于新的主题聚类）
             progress = []
-            for topic, count in final_topics.items():
-                percentage = round((count / max(1, total_memories)) * 100)
-                progress.append({
-                    "topic": topic,
-                    "percentage": percentage
-                })
+            topic_names = [node["name"] for node in knowledge_nodes if node.get("type") == "topic_node"]
             
-            # 排序进度，按百分比降序
+            for topic_node in topic_nodes:
+                topic_name = topic_node["name"]
+                related_count = len(topic_node.get("related_memories", []))
+                relevance = topic_node.get("relevance", 0)
+                
+                if related_count > 0:
+                    progress.append({
+                        "topic": topic_name,
+                        "percentage": min(100, int(relevance * 100)),  # 转换为百分比
+                        "memory_count": related_count
+                    })
+            
+            # 按相关度排序
             progress.sort(key=lambda x: x["percentage"], reverse=True)
             
-            # 生成建议
-            suggestions = self.generate_suggestions(progress)
+            # 生成更加上下文相关的学习建议
+            suggestions = self.generate_dynamic_suggestions(progress, knowledge_nodes, semantic_links)
             
+            # 返回完整的知识空间数据
             return {
-                "topics": list(final_topics.keys()),
-                "progress": progress,
-                "suggestions": suggestions
+                "topics": topic_names,
+                "progress": progress[:10],  # 限制显示数量，避免界面过载
+                "suggestions": suggestions,
+                "knowledge_graph": {
+                    "nodes": knowledge_nodes,
+                    "links": semantic_links
+                }
             }
+            
         except Exception as e:
             print(f"分析学习轨迹时出错: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             return self.default_analysis()
+            
+    def extract_keywords_from_text(self, text: str) -> List[str]:
+        """从文本中提取关键词"""
+        try:
+            # 分词并过滤停用词
+            words = text.lower().split()
+            # 简单的停用词表（可以扩展）
+            stopwords = {"的", "了", "和", "是", "在", "我", "有", "这", "个", "你", "们", "他", "她", "它", "一个", "就是"}
+            filtered_words = [w for w in words if w not in stopwords and len(w) > 1]
+            
+            # 计数并找出高频词
+            word_counts = {}
+            for word in filtered_words:
+                if word not in word_counts:
+                    word_counts[word] = 1
+                else:
+                    word_counts[word] += 1
+            
+            # 按频率排序并返回前N个关键词
+            sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
+            keywords = [word for word, count in sorted_words[:10] if count > 1]  # 选择前10个高频词
+            return keywords
+        except Exception as e:
+            print(f"提取关键词时出错: {str(e)}")
+            return []
+    
+    async def cluster_memories(self, memories: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """使用语义相似性对记忆进行聚类，发现主题"""
+        try:
+            if not memories:
+                return {}
+                
+            # 为所有记忆内容生成嵌入向量（如果尚未有嵌入）
+            memory_texts = [mem.get("content", "") for mem in memories]
+            embedding_present = all("embedding" in mem and mem["embedding"] for mem in memories)
+            
+            if not embedding_present:
+                try:
+                    # 获取新的嵌入向量
+                    embeddings = await self.embedding_service.get_embeddings(memory_texts)
+                    for i, embedding in enumerate(embeddings):
+                        if i < len(memories):
+                            memories[i]["embedding"] = embedding
+                except Exception as e:
+                    print(f"获取嵌入向量时出错: {str(e)}")
+                    # 继续执行，使用基于关键词的聚类
+            
+            # 方法一：基于语义相似性的聚类（如果有嵌入向量）
+            clusters = {}
+            
+            # 收集所有可能的主题词
+            all_keywords = set()
+            for memory in memories:
+                content = memory.get("content", "").lower()
+                keywords = self.extract_keywords_from_text(content)
+                all_keywords.update(keywords)
+            
+            # 尝试将每个高频词作为一个潜在主题
+            for keyword in list(all_keywords)[:20]:  # 限制主题数量
+                # 计算该关键词与每个记忆的相关性
+                related_memories = []
+                keyword_relevance = []
+                total_relevance = 0
+                
+                for memory in memories:
+                    memory_id = memory.get("id", "")
+                    content = memory.get("content", "").lower()
+                    
+                    # 计算相关性（简单版本 - 如果有嵌入可以用语义相似度）
+                    relevance = 0
+                    if keyword in content:
+                        # 简单的相关性计算：关键词出现的次数/总词数
+                        relevance = content.count(keyword) / max(1, len(content.split()))
+                        keyword_relevance.append((memory_id, relevance))
+                        total_relevance += relevance
+                        
+                        if relevance > 0.01:  # 相关性阈值
+                            related_memories.append(memory_id)
+                
+                # 只保存有足够相关记忆的主题
+                if len(related_memories) >= 1:
+                    clusters[keyword] = {
+                        "memory_ids": related_memories,
+                        "relevance": total_relevance,
+                        "keywords": [keyword]
+                    }
+            
+            # 合并高度重叠的主题（避免冗余）
+            merged_clusters = {}
+            cluster_items = list(clusters.items())
+            for i, (topic1, data1) in enumerate(cluster_items):
+                if topic1 not in merged_clusters:
+                    merged_set = set(data1["memory_ids"])
+                    merged_keywords = set(data1["keywords"])
+                    merged_relevance = data1["relevance"]
+                    should_merge = False
+                    
+                    for j, (topic2, data2) in enumerate(cluster_items[i+1:], i+1):
+                        if topic2 not in merged_clusters:
+                            # 计算两个集合的Jaccard相似度
+                            set2 = set(data2["memory_ids"])
+                            if not merged_set or not set2:
+                                continue
+                                
+                            jaccard = len(merged_set.intersection(set2)) / len(merged_set.union(set2))
+                            
+                            if jaccard > 0.5:  # 合并阈值
+                                should_merge = True
+                                merged_set.update(set2)
+                                merged_keywords.update(data2["keywords"])
+                                merged_relevance += data2["relevance"]
+                                merged_clusters[topic2] = True  # 标记为已合并
+                    
+                    if should_merge or topic1 not in merged_clusters:
+                        merged_name = "/".join(sorted(list(merged_keywords))[:3])  # 前3个关键词作为主题名
+                        merged_clusters[topic1] = True
+                        clusters[merged_name] = {
+                            "memory_ids": list(merged_set),
+                            "relevance": merged_relevance,
+                            "keywords": list(merged_keywords)
+                        }
+            
+            # 移除已合并的原始主题
+            for topic in list(merged_clusters.keys()):
+                if topic in clusters:
+                    del clusters[topic]
+            
+            return clusters
+            
+        except Exception as e:
+            print(f"聚类记忆时出错: {str(e)}")
+            return {}
+    
+    def calculate_relevance(self, topic: str, memory_id: str, memories: List[Dict[str, Any]]) -> float:
+        """计算主题和特定记忆之间的相关性强度"""
+        try:
+            # 简单实现 - 在真实场景中可以使用更复杂的算法
+            memory = next((mem for mem in memories if mem.get("id") == memory_id), None)
+            if not memory:
+                return 0.0
+                
+            content = memory.get("content", "").lower()
+            if topic.lower() in content:
+                return 0.8  # 高相关
+            return 0.5  # 中等相关（因为它已经在聚类中被识别为相关）
+        except Exception as e:
+            print(f"计算相关性时出错: {str(e)}")
+            return 0.3  # 默认中低相关
+    
+    def calculate_topic_relation(self, topic1: Dict[str, Any], topic2: Dict[str, Any]) -> float:
+        """计算两个主题之间的关联强度"""
+        try:
+            # 基于共享记忆计算关联
+            memories1 = set(topic1.get("related_memories", []))
+            memories2 = set(topic2.get("related_memories", []))
+            
+            if not memories1 or not memories2:
+                return 0.0
+                
+            # 计算Jaccard相似度
+            intersection = len(memories1.intersection(memories2))
+            union = len(memories1.union(memories2))
+            
+            memory_similarity = intersection / max(1, union)
+            
+            # 基于关键词计算关联
+            keywords1 = set(topic1.get("keywords", []))
+            keywords2 = set(topic2.get("keywords", []))
+            
+            if keywords1 and keywords2:
+                keyword_intersection = len(keywords1.intersection(keywords2))
+                keyword_union = len(keywords1.union(keywords2))
+                keyword_similarity = keyword_intersection / max(1, keyword_union)
+            else:
+                keyword_similarity = 0.0
+                
+            # 综合得分
+            return 0.7 * memory_similarity + 0.3 * keyword_similarity
+            
+        except Exception as e:
+            print(f"计算主题关联时出错: {str(e)}")
+            return 0.0
+            
+    def generate_dynamic_suggestions(self, progress: List[Dict[str, Any]], 
+                             nodes: List[Dict[str, Any]], 
+                             links: List[Dict[str, Any]]) -> List[str]:
+        """生成动态学习建议，基于知识图谱分析"""
+        suggestions = []
+        
+        try:
+            # 如果有进度数据
+            if progress:
+                # 找出进度最高的主题
+                top_topics = [p for p in progress if p.get("percentage", 0) > 30]
+                if top_topics:
+                    top_topic = top_topics[0]["topic"]
+                    suggestions.append(f"您对「{top_topic}」已有较深入的了解，可以继续探索相关高级概念")
+                
+                # 找出刚开始接触的主题
+                emerging_topics = [p for p in progress if 5 <= p.get("percentage", 0) <= 20]
+                if emerging_topics:
+                    topic = emerging_topics[0]["topic"]
+                    suggestions.append(f"「{topic}」是您最近开始探索的新领域，建议深入学习其基础概念")
+                
+                # 基于主题关联推荐相关主题
+                if links and len(progress) >= 2:
+                    topic_relations = [link for link in links if link.get("type") == "topic_relation"]
+                    if topic_relations:
+                        # 找出与高频主题相关，但目前进度较低的主题
+                        main_topic_id = f"topic_{progress[0]['topic'].replace(' ', '_')}"
+                        related_topics = [link["target"] for link in topic_relations 
+                                        if link["source"] == main_topic_id and link["strength"] > 0.3]
+                        
+                        if related_topics:
+                            # 从节点中找出这个主题的名称
+                            for node in nodes:
+                                if node.get("id") in related_topics:
+                                    suggestions.append(f"由于您熟悉「{progress[0]['topic']}」，可以尝试学习相关的「{node.get('name', '相关主题')}」")
+                                    break
+            
+            # 如果建议不足3条，添加一些通用建议
+            if len(suggestions) < 2:
+                suggestions.append("继续提问感兴趣的问题，系统会帮助您构建个性化的知识网络")
+            
+            if len(suggestions) < 3:
+                suggestions.append("尝试深入探讨某个特定概念，这将帮助您形成更完整的知识结构")
+            
+            return suggestions[:3]  # 最多返回3条建议
+            
+        except Exception as e:
+            print(f"生成动态建议时出错: {str(e)}")
+            return ["继续探索您感兴趣的主题", "尝试提问不同领域的问题", "系统会基于您的对话历史动态调整推荐"]
     
     def default_analysis(self) -> Dict[str, Any]:
         """返回默认的学习轨迹分析"""
