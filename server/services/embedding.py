@@ -1,6 +1,6 @@
 
 import os
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 from typing import List
 import numpy as np
@@ -13,14 +13,15 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise ValueError("缺少GEMINI_API_KEY环境变量")
 
-genai.configure(api_key=GEMINI_API_KEY)
+# 使用正确的方式初始化客户端
+genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 class EmbeddingService:
     """提供文本嵌入服务"""
     
     def __init__(self):
-        # 初始化embedding模型 - 使用Gemini模型但格式正确
-        self.model_name = "models/embedding-001"
+        # 使用最新的Gemini嵌入模型
+        self.model_name = "gemini-embedding-exp-03-07"
         
     async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
@@ -44,21 +45,18 @@ class EmbeddingService:
                 batch_texts = texts[i:i+batch_size]
                 print(f"使用嵌入模型: {self.model_name}，请求嵌入向量，文本数量: {len(batch_texts)}")
                 try:
-                    result = genai.embed_content(
-                        model=self.model_name,
-                        content=batch_texts,
-                        task_type="retrieval_document"
-                    )
-                    
-                    if result and hasattr(result, 'embeddings') and result.embeddings:
-                        print(f"嵌入向量生成成功，维度: {len(result.embeddings[0].values) if result.embeddings else '未知'}")
+                    # 使用正确的API调用方式获取嵌入向量
+                    for text in batch_texts:
+                        result = genai_client.models.embed_content(
+                            model=self.model_name,
+                            contents=text
+                        )
                         
-                        # 将结果添加到列表中
-                        for embedding in result.embeddings:
-                            embeddings.append(embedding.values)
-                    else:
-                        print(f"警告: API返回了空结果或无效结果")
-                        for _ in batch_texts:
+                        if result and hasattr(result, 'embedding'):
+                            print(f"嵌入向量生成成功，维度: {len(result.embedding) if result.embedding else '未知'}")
+                            embeddings.append(result.embedding)
+                        else:
+                            print(f"警告: API返回了空结果或无效结果")
                             embeddings.append([])
                 except Exception as batch_error:
                     print(f"处理批次 {i} 时出错: {str(batch_error)}")
