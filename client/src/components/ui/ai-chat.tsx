@@ -999,7 +999,7 @@ export function AIChat({ userData }: AIChatProps) {
         </div>
 
         {/* Input Area - 苹果风格磨砂透明 */}
-        <div className={`fixed bottom-0 left-0 right-0 pb-6 pt-2 ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}`}>
+        <div className={"fixed bottom-0 left-0 right-0 pb-6 pt-2 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
           <div className="max-w-3xl mx-auto px-4">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
