@@ -207,30 +207,70 @@ class LearningMemoryService:
             if not memories:
                 return self.default_analysis()
                 
-            # 定义主题关键词
-            topic_keywords = {
-                "高等数学": ["微积分", "导数", "积分", "微分方程", "极限", "连续", "收敛", "级数"],
-                "线性代数": ["矩阵", "向量", "特征值", "特征向量", "线性变换", "行列式", "线性空间"],
-                "概率统计": ["概率", "统计", "分布", "期望", "方差", "假设检验", "回归分析"],
-                "编程基础": ["算法", "数据结构", "编程", "代码", "函数", "变量", "类", "对象"],
-                "机器学习": ["模型", "训练", "预测", "神经网络", "分类", "聚类", "回归", "强化学习"]
+            # 常用学科关键词，用于主题发现
+            subject_keywords = {
+                "数学": ["数学", "微积分", "导数", "积分", "方程", "极限", "连续", "收敛", "级数", "数列", "函数", "几何"],
+                "物理": ["物理", "牛顿", "力学", "能量", "电磁", "热力学", "光学", "相对论", "量子", "电子", "原子"],
+                "化学": ["化学", "元素", "分子", "原子", "反应", "化合物", "酸碱", "氧化", "还原", "溶液", "周期表"],
+                "生物": ["生物", "细胞", "DNA", "基因", "蛋白质", "进化", "生态", "遗传", "代谢", "光合作用"],
+                "计算机": ["编程", "算法", "数据结构", "代码", "软件", "函数", "变量", "类", "对象", "网络", "数据库"],
+                "医学": ["医学", "疾病", "治疗", "药物", "症状", "检查", "手术", "健康", "解剖", "生理"],
+                "历史": ["历史", "朝代", "国家", "战争", "文明", "革命", "政治", "文化", "人物", "年代", "时期"],
+                "地理": ["地理", "地形", "气候", "地图", "国家", "城市", "河流", "山脉", "海洋", "洲", "天气"],
+                "经济": ["经济", "市场", "金融", "投资", "货币", "股票", "通货膨胀", "需求", "供给", "宏观", "微观"],
+                "艺术": ["艺术", "绘画", "音乐", "文学", "雕塑", "建筑", "设计", "创作", "表演", "美学"]
             }
             
-            # 分析主题出现情况
-            topic_counts = {}
-            for topic, keywords in topic_keywords.items():
-                topic_counts[topic] = 0
+            # 动态发现主题 - 先分析已知的主题
+            known_topics = {}
+            for subject, keywords in subject_keywords.items():
+                known_topics[subject] = 0
                 for memory in memories:
                     content = memory["content"].lower()
                     for keyword in keywords:
                         if keyword.lower() in content:
-                            topic_counts[topic] += 1
+                            known_topics[subject] += 1
                             break
+            
+            # 过滤掉零提及的主题
+            active_topics = {topic: count for topic, count in known_topics.items() if count > 0}
+            
+            # 如果没有找到已知主题，尝试从内容中提取可能的主题
+            custom_topics = {}
+            if not active_topics:
+                # 提取用户常用词汇作为可能的主题
+                all_words = []
+                for memory in memories:
+                    content = memory["content"].lower()
+                    # 仅保留字母词汇，过滤掉标点、数字等
+                    words = [word for word in content.split() if word.isalpha() and len(word) > 1]
+                    all_words.extend(words)
+                
+                # 统计词频
+                word_counts = {}
+                for word in all_words:
+                    if word not in word_counts:
+                        word_counts[word] = 1
+                    else:
+                        word_counts[word] += 1
+                
+                # 提取高频词作为可能的主题（可能是学习领域）
+                sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
+                for word, count in sorted_words[:5]:  # 取前5个高频词作为自定义主题
+                    if count > 1:  # 至少出现2次
+                        custom_topics[word] = count
+            
+            # 合并已知主题和自定义主题
+            final_topics = {**active_topics, **custom_topics}
+            
+            # 如果仍然没有发现主题，返回默认分析
+            if not final_topics:
+                return self.default_analysis()
             
             # 计算主题进度
             total_memories = len(memories)
             progress = []
-            for topic, count in topic_counts.items():
+            for topic, count in final_topics.items():
                 percentage = round((count / max(1, total_memories)) * 100)
                 progress.append({
                     "topic": topic,
@@ -244,7 +284,7 @@ class LearningMemoryService:
             suggestions = self.generate_suggestions(progress)
             
             return {
-                "topics": list(topic_keywords.keys()),
+                "topics": list(final_topics.keys()),
                 "progress": progress,
                 "suggestions": suggestions
             }
@@ -255,14 +295,8 @@ class LearningMemoryService:
     def default_analysis(self) -> Dict[str, Any]:
         """返回默认的学习轨迹分析"""
         return {
-            "topics": ["高等数学", "线性代数", "概率统计", "编程基础", "机器学习"],
-            "progress": [
-                {"topic": "高等数学", "percentage": 0},
-                {"topic": "线性代数", "percentage": 0},
-                {"topic": "概率统计", "percentage": 0},
-                {"topic": "编程基础", "percentage": 0},
-                {"topic": "机器学习", "percentage": 0}
-            ],
+            "topics": [],
+            "progress": [],
             "suggestions": [
                 "开始提问关于您感兴趣的学习主题",
                 "尝试询问特定领域的知识点",
