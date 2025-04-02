@@ -19,8 +19,8 @@ class EmbeddingService:
     """提供文本嵌入服务"""
     
     def __init__(self):
-        # 初始化embedding模型
-        self.model_name = "models/gemini-embedding-exp-03-07"
+        # 初始化embedding模型 - 使用Gemini模型但格式正确
+        self.model_name = "models/embedding-001"
         
     async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
@@ -38,11 +38,13 @@ class EmbeddingService:
             batch_size = 10
             for i in range(0, len(texts), batch_size):
                 batch_texts = texts[i:i+batch_size]
+                print(f"使用嵌入模型: {self.model_name}，请求嵌入向量，文本数量: {len(batch_texts)}")
                 result = genai.embed_content(
                     model=self.model_name,
                     content=batch_texts,
                     task_type="retrieval_document"
                 )
+                print(f"嵌入向量生成成功，维度: {len(result.embeddings[0].values) if result.embeddings else '未知'}")
                 
                 # 将结果添加到列表中
                 for embedding in result.embeddings:
