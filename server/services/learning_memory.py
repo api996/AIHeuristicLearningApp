@@ -7,7 +7,7 @@ from datetime import datetime
 from .embedding import EmbeddingService
 
 # 初始化嵌入服务
-embedding_service = EmbeddingService()ddingService()
+embedding_service = EmbeddingService()
 
 class LearningMemoryService:
     """提供学习轨迹记忆空间服务"""
@@ -128,9 +128,37 @@ class LearningMemoryService:
             # 计算相似度并排序
             scored_memories = []
             for memory in memories:
-                memory_vector = np.array(memory["embedding"])
-                similarity = self.cosine_similarity(query_vector, memory_vector)
-                scored_memories.append((memory, similarity))
+                # 确保有embedding字段，并且不为空
+                if "embedding" not in memory or not memory["embedding"]:
+                    print(f"跳过没有嵌入向量的记忆: {memory.get('content', '')[:30]}...")
+                    continue
+                    
+                try:
+                    memory_vector = np.array(memory["embedding"])
+                    # 确保维度匹配，这是应对之前生成的替代向量和API生成的真实向量可能维度不同的问题
+                    if len(memory_vector) != len(query_vector):
+                        print(f"嵌入向量维度不匹配: 查询={len(query_vector)}, 记忆={len(memory_vector)}")
+                        # 使用字符串匹配作为替代方案
+                        if "content" in memory and memory["content"]:
+                            query_words = set(query.lower().split())
+                            memory_words = set(memory["content"].lower().split())
+                            
+                            if not query_words or not memory_words:
+                                similarity = 0.0
+                            else:
+                                intersection = query_words.intersection(memory_words)
+                                union = query_words.union(memory_words)
+                                similarity = len(intersection) / max(1, len(union))
+                        else:
+                            similarity = 0.0
+                    else:
+                        # 正常使用余弦相似度
+                        similarity = self.cosine_similarity(query_vector, memory_vector)
+                        
+                    scored_memories.append((memory, similarity))
+                except Exception as e:
+                    print(f"计算单个记忆相似度时出错: {str(e)}")
+                    # 跳过有问题的记忆项
                 
             # 按相似度降序排序
             scored_memories.sort(key=lambda x: x[1], reverse=True)
