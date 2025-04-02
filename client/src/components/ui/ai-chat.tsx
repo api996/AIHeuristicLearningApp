@@ -954,7 +954,7 @@ export function AIChat({ userData }: AIChatProps) {
         </header>
 
         {/* Messages */}
-        <div className={`flex-1 flex flex-col p-6 md:p-8 pb-48 ${messages.length === 0 ? 'hide-empty-scrollbar' : ''}``}>
+        <div className={"flex-1 flex flex-col p-6 md:p-8 pb-48 " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
           {messages.length === 0 ? (
             // 欢迎页面 - 垂直居中不需要滚动，完全隐藏滚动条
             <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
@@ -974,7 +974,7 @@ export function AIChat({ userData }: AIChatProps) {
             // 有消息时显示滚动区域 - 将内容固定在顶部并去除滚动条
             <div 
               ref={messagesContainerRef}
-              className={`flex-1 flex flex-col gap-4 py-1 hide-empty-scrollbar content-start justify-start items-stretch`}
+              className="flex-1 flex flex-col gap-4 py-1 hide-empty-scrollbar content-start justify-start items-stretch"
               style={{ overflowY: messages.length > 4 ? 'auto' : 'visible' }}
             >
               {messages.map((msg, i) => (
@@ -999,16 +999,16 @@ export function AIChat({ userData }: AIChatProps) {
         </div>
 
         {/* Input Area - 苹果风格磨砂透明 */}
-        <div className={`fixed bottom-0 left-0 right-0 pb-6 pt-2 ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}`}>
+        <div className={"fixed bottom-0 left-0 right-0 pb-6 pt-2 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
           <div className="max-w-3xl mx-auto px-4">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "search" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "search" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("search")}
               >
                 <Search className="w-3.5 h-3.5 mr-1.5" />
@@ -1017,9 +1017,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "deep" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "deep" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("deep")}
               >
                 <Brain className="w-3.5 h-3.5 mr-1.5" />
@@ -1028,9 +1028,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "gemini" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "gemini" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("gemini")}
               >
                 <Sparkles className="w-3.5 h-3.5 mr-1.5" />
@@ -1039,9 +1039,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("deepseek")}
               >
                 <Code className="w-3.5 h-3.5 mr-1.5" />
@@ -1050,9 +1050,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "grok" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "grok" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("grok")}
               >
                 <Rocket className="w-3.5 h-3.5 mr-1.5" />
@@ -1080,7 +1080,7 @@ export function AIChat({ userData }: AIChatProps) {
             )}
 
             {/* 输入框区域 - 苹果风格磨砂玻璃效果 */}
-            <div className={`relative rounded-xl border shadow-lg ${theme === 'dark' ? 'border-neutral-700/50 bg-neutral-800/30 backdrop-blur-md' : 'border-neutral-300/20 bg-white/30 backdrop-blur-md'}`}>
+            <div className={"relative rounded-xl border shadow-lg " + (theme === 'dark' ? 'border-neutral-700/50 bg-neutral-800/30 backdrop-blur-md' : 'border-neutral-300/20 bg-white/30 backdrop-blur-md')}>
               <div className="flex items-end">
                 <div className="flex-1 relative">
                   <textarea
