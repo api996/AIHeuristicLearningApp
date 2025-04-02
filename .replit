@@ -13,8 +13,12 @@ run = ["sh", "-c", "npm run dev"]
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 5001
+externalPort = 3000
+
 [workflows]
-runButton = "重启并修复问题"
+runButton = "重启服务器"
 
 [[workflows.workflow]]
 name = "Project"
@@ -112,6 +116,10 @@ args = "pkill -f \"tsx server/index.ts\" || true"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "kill $(lsof -t -i:3000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"

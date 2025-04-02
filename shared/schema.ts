@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -35,6 +35,8 @@ export const messages = pgTable("messages", {
   chatId: serial("chat_id").references(() => chats.id),
   content: text("content").notNull(),
   role: text("role").notNull(),
+  feedback: text("feedback", { enum: ["like", "dislike"] }),
+  isEdited: boolean("is_edited").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
