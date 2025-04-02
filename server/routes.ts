@@ -531,8 +531,8 @@ asyncio.run(analyze())
           }
         }
 
-        // 重新生成回复
-        const response = await chatService.sendMessage(promptMessage);
+        // 重新生成回复，传入userId用于记忆检索
+        const response = await chatService.sendMessage(promptMessage, userId);
 
         // 更新数据库中的消息
         const updatedMessage = await storage.updateMessage(messageId, response.text, false);
@@ -569,7 +569,7 @@ asyncio.run(analyze())
 
         // 重新生成回复
         chatService.setModel(chat.model || "deep");
-        const response = await chatService.sendMessage(promptMessage);
+        const response = await chatService.sendMessage(promptMessage, userId);
 
         // 更新数据库中的消息
         const updatedMessage = await storage.updateMessage(lastAiMessage.id, response.text, false);
@@ -689,9 +689,9 @@ asyncio.run(analyze())
         });
       }
 
-      // 获取AI响应
+      // 获取AI响应，传入userId用于记忆检索
       log(`处理来自用户 ${userId} 的聊天消息，聊天ID: ${chatId}`);
-      const response = await chatService.sendMessage(message);
+      const response = await chatService.sendMessage(message, Number(userId));
 
       // 存储消息到数据库
       try {
@@ -916,6 +916,67 @@ asyncio.run(save())
     }
   });
   
+  // 添加检索相似记忆API
+  app.post('/api/similar-memories', async (req, res) => {
+    try {
+      const { userId, query, limit = 5 } = req.body;
+      
+      if (!userId || !query || isNaN(Number(userId))) {
+        return res.status(400).json({ error: "无效的请求参数" });
+      }
+      
+      log(`尝试检索相似记忆: 用户=${userId}, 查询=${query.substring(0, 50)}...`);
+      
+      // 调用Python服务检索相似记忆
+      const pythonProcess = spawn('python3', ['-c', `
+import asyncio
+import sys
+import json
+sys.path.append('server')
+from services.learning_memory import learning_memory_service
+
+async def retrieve_memories():
+    # 检索相似记忆
+    memories = await learning_memory_service.retrieve_similar_memories(${userId}, """${query.replace(/"/g, '\\"')}""", ${limit})
+    # 转换为JSON输出
+    print(json.dumps(memories, ensure_ascii=False))
+
+asyncio.run(retrieve_memories())
+      `]);
+      
+      let output = '';
+      pythonProcess.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+      
+      let errorOutput = '';
+      pythonProcess.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+        log(`检索记忆错误: ${data.toString().trim()}`);
+      });
+      
+      pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+          log(`检索记忆进程退出，错误码 ${code}: ${errorOutput}`);
+          return res.status(500).json({ error: "检索记忆失败" });
+        }
+        
+        try {
+          // 解析输出为JSON
+          const memories = output.trim() ? JSON.parse(output) : [];
+          log(`成功检索到 ${memories.length} 条相似记忆`);
+          return res.json({ success: true, memories });
+        } catch (parseError) {
+          log(`解析记忆结果错误: ${parseError}, 原始输出: ${output}`);
+          return res.status(500).json({ error: "解析记忆结果失败" });
+        }
+      });
+    } catch (error) {
+      log(`检索记忆API错误: ${error}`);
+      return res.status(500).json({ error: "检索记忆服务错误" });
+    }
+  });
+  
   // 添加记忆系统测试API
   app.get('/api/memory-test', async (req, res) => {
     try {
@@ -986,7 +1047,14 @@ asyncio.run(test_memory())
       });
 
       pythonProcess.on('close', (code) => {
-        const result = {
+        const result: {
+          code: number | null;
+          success: boolean;
+          output: string;
+          error: string;
+          filesExist: { memoryDir: boolean; userDir: boolean };
+          userFiles?: { count?: number; examples?: string[]; error?: string };
+        } = {
           code: code,
           success: code === 0,
           output: output,
