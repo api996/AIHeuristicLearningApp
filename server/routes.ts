@@ -142,6 +142,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId || isNaN(Number(userId))) {
         return res.status(400).json({ error: "无效的用户ID" });
       }
+      
+      // 检查记忆目录状态
+      const memoryDir = "memory_space";
+      const userDir = path.join(memoryDir, String(userId));
+      log(`检查学习记忆目录: ${memoryDir} 存在=${fs.existsSync(memoryDir)}`);
+      log(`检查用户记忆目录: ${userDir} 存在=${fs.existsSync(userDir)}`);
+      
+      // 如果用户目录存在，查看其中的文件数量
+      if (fs.existsSync(userDir)) {
+        const files = fs.readdirSync(userDir);
+        log(`用户${userId}的记忆文件数量: ${files.length}`);
+        if (files.length > 0) {
+          log(`示例记忆文件: ${files[0]}`);
+          try {
+            const filePath = path.join(userDir, files[0]);
+            const fileContent = fs.readFileSync(filePath, 'utf8');
+            log(`记忆文件内容示例: ${fileContent.substring(0, 100)}...`);
+          } catch (e) {
+            log(`读取记忆文件失败: ${e}`);
+          }
+        }
+      }
 
       const pythonProcess = spawn('python3', ['-c', `
 import asyncio
@@ -675,6 +697,57 @@ asyncio.run(analyze())
         // 再存储AI响应
         const aiMsg = await storage.createMessage(chatId, response.text, "assistant");
         log(`已存储AI响应，ID: ${aiMsg.id}`);
+        
+        // 保存到记忆系统
+        try {
+          // 调用Python记忆服务保存用户消息
+          const saveUserMemoryProcess = spawn('python3', ['-c', `
+import asyncio
+import sys
+sys.path.append('server')
+from services.learning_memory import learning_memory_service
+
+async def save_memory():
+    await learning_memory_service.save_memory(${userId}, """${message.replace(/"/g, '\\"')}""", "chat")
+    print("用户消息已保存到记忆系统")
+
+asyncio.run(save_memory())
+          `]);
+          
+          saveUserMemoryProcess.stdout.on('data', (data) => {
+            log(`记忆保存结果(用户): ${data.toString().trim()}`);
+          });
+          
+          saveUserMemoryProcess.stderr.on('data', (data) => {
+            log(`记忆保存错误(用户): ${data.toString().trim()}`);
+          });
+          
+          // 也保存AI回复到记忆系统
+          const saveAIMemoryProcess = spawn('python3', ['-c', `
+import asyncio
+import sys
+sys.path.append('server')
+from services.learning_memory import learning_memory_service
+
+async def save_memory():
+    await learning_memory_service.save_memory(${userId}, """${response.text.replace(/"/g, '\\"')}""", "assistant")
+    print("AI回复已保存到记忆系统")
+
+asyncio.run(save_memory())
+          `]);
+          
+          saveAIMemoryProcess.stdout.on('data', (data) => {
+            log(`记忆保存结果(AI): ${data.toString().trim()}`);
+          });
+          
+          saveAIMemoryProcess.stderr.on('data', (data) => {
+            log(`记忆保存错误(AI): ${data.toString().trim()}`);
+          });
+          
+          log(`已尝试将消息保存到记忆系统，用户ID: ${userId}`);
+        } catch (memoryError) {
+          log(`保存消息到记忆系统失败: ${memoryError instanceof Error ? memoryError.message : String(memoryError)}`);
+        }
       } catch (dbError) {
         log(`数据库存储消息错误: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
         // 继续发送响应，但记录错误
@@ -794,6 +867,8 @@ asyncio.run(analyze())
       if (!userId || !content || isNaN(Number(userId))) {
         return res.status(400).json({ error: "无效的请求参数" });
       }
+      
+      log(`尝试保存记忆: 用户=${userId}, 内容长度=${content.length}, 类型=${type || 'chat'}`);
 
       // 调用Python服务保存记忆
       const pythonProcess = spawn('python3', ['-c', `
@@ -812,11 +887,13 @@ asyncio.run(save())
       let output = '';
       pythonProcess.stdout.on('data', (data) => {
         output += data.toString();
+        log(`记忆保存输出: ${data.toString().trim()}`);
       });
 
       let errorOutput = '';
       pythonProcess.stderr.on('data', (data) => {
         errorOutput += data.toString();
+        log(`记忆保存错误: ${data.toString().trim()}`);
       });
 
       pythonProcess.on('close', (code) => {
@@ -824,12 +901,117 @@ asyncio.run(save())
           log(`保存记忆进程退出，错误码 ${code}: ${errorOutput}`);
           return res.status(500).json({ error: "保存记忆失败" });
         }
-
+        
+        log(`记忆保存成功，用户ID: ${userId}`);
         return res.json({ success: true });
       });
     } catch (error) {
       log(`保存记忆API错误: ${error}`);
       return res.status(500).json({ error: "保存记忆服务错误" });
+    }
+  });
+  
+  // 添加记忆系统测试API
+  app.get('/api/memory-test', async (req, res) => {
+    try {
+      const { userId } = req.query;
+      
+      if (!userId || isNaN(Number(userId))) {
+        return res.status(400).json({ error: "无效的用户ID" });
+      }
+      
+      // 检查记忆目录状态
+      const memoryDir = "memory_space";
+      const userDir = path.join(memoryDir, String(userId));
+      
+      // 确保目录存在
+      if (!fs.existsSync(memoryDir)) {
+        fs.mkdirSync(memoryDir);
+        log(`创建记忆目录: ${memoryDir}`);
+      }
+      
+      if (!fs.existsSync(userDir)) {
+        fs.mkdirSync(userDir);
+        log(`创建用户记忆目录: ${userDir}`);
+      }
+      
+      // 尝试写入一条测试记忆
+      const testContent = "这是一条测试记忆，用于验证记忆系统是否正常工作";
+      
+      const pythonProcess = spawn('python3', ['-c', `
+import asyncio
+import sys
+import os
+sys.path.append('server')
+from services.learning_memory import learning_memory_service
+
+async def test_memory():
+    # 打印当前工作目录
+    print(f"当前工作目录: {os.getcwd()}")
+    print(f"memory_space目录是否存在: {os.path.exists('memory_space')}")
+    print(f"用户目录是否存在: {os.path.exists('memory_space/${userId}')}")
+    
+    # 尝试保存一条测试记忆
+    await learning_memory_service.save_memory(${userId}, "${testContent}", "test")
+    print("测试记忆已保存")
+    
+    # 尝试检索这条测试记忆
+    memories = await learning_memory_service.retrieve_similar_memories(${userId}, "${testContent}", 1)
+    
+    # 打印检索结果
+    print(f"找到 {len(memories)} 条相似记忆")
+    for memory in memories:
+        print(f"记忆内容: {memory['content'][:50]}...")
+        print(f"记忆类型: {memory['type']}")
+        print(f"记忆时间: {memory['timestamp']}")
+
+asyncio.run(test_memory())
+      `]);
+      
+      let output = '';
+      pythonProcess.stdout.on('data', (data) => {
+        output += data.toString();
+        log(`记忆测试输出: ${data.toString().trim()}`);
+      });
+
+      let errorOutput = '';
+      pythonProcess.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+        log(`记忆测试错误: ${data.toString().trim()}`);
+      });
+
+      pythonProcess.on('close', (code) => {
+        const result = {
+          code: code,
+          success: code === 0,
+          output: output,
+          error: errorOutput,
+          filesExist: {
+            memoryDir: fs.existsSync(memoryDir),
+            userDir: fs.existsSync(userDir)
+          }
+        };
+        
+        if (fs.existsSync(userDir)) {
+          try {
+            const files = fs.readdirSync(userDir);
+            result.userFiles = {
+              count: files.length,
+              examples: files.slice(0, 5)
+            };
+          } catch (e) {
+            result.userFiles = { error: String(e) };
+          }
+        }
+        
+        return res.json(result);
+      });
+    } catch (error) {
+      log(`记忆测试API错误: ${error}`);
+      return res.status(500).json({ 
+        error: "记忆测试失败",
+        message: String(error)
+      });
     }
   });
 

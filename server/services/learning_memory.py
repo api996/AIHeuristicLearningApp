@@ -13,14 +13,19 @@ class LearningMemoryService:
     """提供学习轨迹记忆空间服务"""
     
     def __init__(self):
-        self.memory_dir = "memory_space"
+        # 使用绝对路径确保在任何工作目录下都能找到memory_space
+        self.memory_dir = os.path.join(os.getcwd(), "memory_space")
         self.ensure_memory_dir()
         self.embedding_service = embedding_service
+        print(f"初始化学习记忆服务，记忆目录: {self.memory_dir}")
         
     def ensure_memory_dir(self) -> None:
         """确保记忆空间目录存在"""
         if not os.path.exists(self.memory_dir):
+            print(f"创建记忆目录: {self.memory_dir}")
             os.makedirs(self.memory_dir)
+        else:
+            print(f"记忆目录已存在: {self.memory_dir}")
             
     async def save_memory(self, user_id: int, content: str, type: str = "chat") -> None:
         """
@@ -32,16 +37,26 @@ class LearningMemoryService:
             type: 记忆类型 (chat, query, etc)
         """
         try:
+            print(f"开始保存记忆: 用户ID={user_id}, 类型={type}, 内容长度={len(content)}")
+            
+            # 确保主记忆目录存在
+            self.ensure_memory_dir()
+            
             # 为用户创建目录
             user_dir = os.path.join(self.memory_dir, str(user_id))
             if not os.path.exists(user_dir):
+                print(f"创建用户记忆目录: {user_dir}")
                 os.makedirs(user_dir)
+            else:
+                print(f"用户记忆目录已存在: {user_dir}")
                 
             # 获取内容的嵌入向量
+            print("开始生成嵌入向量...")
             embeddings = await self.embedding_service.get_embeddings([content])
             if not embeddings or not embeddings[0]:
                 print(f"无法为内容生成嵌入向量: {content[:50]}...")
-                return
+                # 使用空向量继续保存，这样至少保存了文本内容
+                embeddings = [[]]
                 
             # 创建记忆项
             memory_item = {
@@ -55,13 +70,27 @@ class LearningMemoryService:
             filename = f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}.json"
             file_path = os.path.join(user_dir, filename)
             
+            print(f"准备保存记忆到文件: {file_path}")
+            
             # 保存到文件
             with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(memory_item, f, ensure_ascii=False)
+                json_str = json.dumps(memory_item, ensure_ascii=False)
+                f.write(json_str)
                 
-            print(f"成功保存用户{user_id}的记忆：{content[:50]}...")
+            print(f"成功保存用户{user_id}的记忆到文件: {filename}")
+            print(f"记忆内容摘要: {content[:50]}...")
+            
+            # 验证文件是否真的被保存
+            if os.path.exists(file_path):
+                file_size = os.path.getsize(file_path)
+                print(f"确认文件已保存，大小为 {file_size} 字节")
+            else:
+                print(f"警告：文件似乎未被保存")
+                
         except Exception as e:
             print(f"保存记忆时出错: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             
     async def retrieve_similar_memories(self, user_id: int, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
