@@ -1006,9 +1006,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "search" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "search" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("search")}
               >
                 <Search className="w-3.5 h-3.5 mr-1.5" />
@@ -1017,9 +1017,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "deep" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "deep" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("deep")}
               >
                 <Brain className="w-3.5 h-3.5 mr-1.5" />
@@ -1028,9 +1028,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "gemini" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "gemini" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("gemini")}
               >
                 <Sparkles className="w-3.5 h-3.5 mr-1.5" />
@@ -1039,9 +1039,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("deepseek")}
               >
                 <Code className="w-3.5 h-3.5 mr-1.5" />
@@ -1050,9 +1050,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "grok" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "grok" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("grok")}
               >
                 <Rocket className="w-3.5 h-3.5 mr-1.5" />
