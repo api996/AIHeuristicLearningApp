@@ -7,7 +7,7 @@ from datetime import datetime
 from .embedding import EmbeddingService
 
 # 初始化嵌入服务
-embedding_service = EmbeddingService()
+embedding_service = EmbeddingService()ddingService()
 
 class LearningMemoryService:
     """提供学习轨迹记忆空间服务"""
