@@ -170,10 +170,15 @@ import asyncio
 import json
 import sys
 sys.path.append('server')
+import logging
+# 重定向所有print输出到stderr，保留stdout只用于JSON输出
+sys.stdout = sys.stderr
 from services.learning_memory import learning_memory_service
 
 async def analyze():
     result = await learning_memory_service.analyze_learning_path(${userId})
+    # 恢复stdout并只输出JSON结果
+    sys.stdout = sys.__stdout__
     print(json.dumps(result, ensure_ascii=False))
 
 asyncio.run(analyze())
