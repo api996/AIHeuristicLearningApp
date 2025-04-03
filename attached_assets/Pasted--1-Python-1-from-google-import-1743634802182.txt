@@ -1,0 +1,117 @@
+看起来最有可能的原因有以下几种，建议你逐一排查：
+
+---
+
+## 1. 是否正确安装了对应的 Python 包
+
+### （1）确认依赖包名称
+
+从你贴出来的 `from google import genai` 来看，你使用的应该是「Google 的 Generative AI」Python 库。不过要注意，目前官方有好几个名字比较像的库，需要确保安装的是正确的那个。
+
+- 如果你参考的是官方示例，大多是 `import google.generativeai as palm` 或者 `import genai` 之类。  
+- 也有些版本是 `pip install google-generativeai` 或者 `pip install genai`。
+
+你可以先试试在命令行里查看已安装的库：
+
+```bash
+pip list | grep genai
+```
+
+如果完全没有安装对应的库，请先安装。例如（具体要以官方文档为准）：
+
+```bash
+pip install google-generativeai
+```
+
+然后在 Python 里尝试：
+
+```python
+import google.generativeai as palm
+```
+
+如果你使用的确实是 `from google import genai` 这样的写法，那就要看看你参考的文档是否明确说明安装哪个包。因为有的示例用的是
+
+```python
+from genai import gpt
+```
+
+或者
+
+```python
+import google.generativeai as palm
+```
+
+而你截图里是
+
+```python
+from google import genai
+```
+
+所以第一步要确保安装的包和 import 的写法对应得上。
+
+---
+
+## 2. 检查是否「命名冲突」或「脚本命名」问题
+
+在 Python 里，如果你自己的项目目录或者脚本文件名叫做 `google.py`、`google` 文件夹，或者 `genai.py` 之类，就会导致 import 时出现冲突（因为 Python 先在本地同名文件/文件夹里找）。
+
+举例：
+- 如果你的项目里有个 `google.py`，那么 `from google import genai` 会先去找你本地的 `google.py`，而不是系统安装的库。
+- 如果你有个文件夹也叫 `google`，里面没这个 `genai` 模块，就会导致 `ImportError` 或 `ModuleNotFoundError`。
+
+解决方法：
+1. 把自己的脚本改个名字，不要跟库重名，比如把 `google.py` 改成 `test_google_api.py`。
+2. 把同名的文件夹或 `__init__.py` 去掉或改名，确保不会覆盖真正的第三方库命名空间。
+
+---
+
+## 3. 虚拟环境或 Python 版本导致的路径问题
+
+有时你在某个虚拟环境里装了库，但实际运行时并没有进入该虚拟环境，于是 `import` 失败。
+
+### （1）确认你用的 Python 路径
+可以在终端里做：
+```bash
+which python
+which pip
+```
+或者
+```bash
+python -m site
+pip show google-generativeai
+```
+确保自己运行代码时用的 Python 路径跟安装库时一致。
+
+### （2）Python 版本兼容性
+
+也要看看 Python 版本是否过旧（比如 3.6 之前可能有些库不支持），一般建议 3.8+。
+
+---
+
+## 4. 「KeyError: 'embedding'」之类与 import 无关的错误
+
+从你截图里还看到了一些日志，比如说什么 `KeyError: 'embedding'`，这可能跟后续使用返回数据的逻辑有关，而不一定是 import 本身的问题。
+
+- 有时是因为你在访问返回结果的某个字段，但实际接口返回数据结构跟预期不一样，比如没有 `'embedding'` 这个键。
+- 也可能是服务端报错后返回了错误 JSON，导致解析出错。
+
+如果你确认已经能成功 `import genai` 了，但又遇到 `'embedding'` KeyError，就要去看看你调用的 `client.models.embed_content()` 或者你取 `.embeddings` 的地方，是不是跟最新版本返回值的字段对不上。
+
+---
+
+## 总结
+
+1. **先确认安装了正确的包**  
+   - 建议先执行 `pip install google-generativeai`（或 `pip install genai`，看你用的是哪套文档），再尝试引用示例中提到的 import。
+
+2. **排查命名冲突**  
+   - 不要把自己的脚本或文件夹命名为 `google.py` 或 `genai.py`。
+
+3. **检查 Python 环境**  
+   - 看看你安装库的 Python 路径和运行项目时用的 Python 是否一致。  
+   - 同时注意 Python 版本。
+
+4. **如果依旧报错 KeyError**  
+   - 那就说明 import 已经成功，但获取 `'embedding'` 字段时失败，需要对照最新文档看一下返回结构。
+
+通常最常见的问题就是「包没安装 / 装了但 import 时冲突 / 环境错乱」。希望这些思路能帮助你快速找到根本原因。祝调试顺利！

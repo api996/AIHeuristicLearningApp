@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "bash", "web", "postgresql-16"]
+modules = ["nodejs-20", "bash", "web", "postgresql-16", "python-3.11", "python3"]
 run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
@@ -17,8 +17,12 @@ externalPort = 80
 localPort = 5001
 externalPort = 3000
 
+[[ports]]
+localPort = 5003
+externalPort = 3001
+
 [workflows]
-runButton = "重启服务器"
+runButton = "重启Gemini服务"
 
 [[workflows.workflow]]
 name = "Project"
@@ -145,3 +149,83 @@ args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
+
+[[workflows.workflow]]
+name = "启动调试模式"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=development npm run dev"
+
+[[workflows.workflow]]
+name = "重启RAG服务"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"tsx server/index.ts\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5001) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=development npm run dev"
+
+[[workflows.workflow]]
+name = "安装依赖并启动服务"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pip install --user google-generativeai"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"tsx server/index.ts\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5001) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=development npm run dev"
+
+[[workflows.workflow]]
+name = "重启Gemini服务"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pip install --upgrade google-generativeai"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"tsx server/index.ts\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5001) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=development npm run dev"

@@ -85,22 +85,22 @@ export function AIChat({ userData }: AIChatProps) {
   const [showTitleDialog, setShowTitleDialog] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [titleError, setTitleError] = useState("");
-  
+
   // 编辑消息相关状态
   const [isEditing, setIsEditing] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<number | undefined>();
   const [originalContent, setOriginalContent] = useState("");
-  
+
   // 新增对话框状态
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [showLearningPathDialog, setShowLearningPathDialog] = useState(false);
   const [showPreferencesDialog, setShowPreferencesDialog] = useState(false);
   const [showBackgroundDialog, setShowBackgroundDialog] = useState(false);
-  
+
   // 偏好设置状态
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light"); // 默认设置为浅色主题以展示苹果风格效果
   const [fontSize, setFontSize] = useState<"small" | "medium" | "large">("medium");
-  
+
   // 背景图片相关状态
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
@@ -164,7 +164,7 @@ export function AIChat({ userData }: AIChatProps) {
       setPasswordError(error.message);
     },
   });
-  
+
   // 处理消息编辑的变异函数
   const editMessageMutation = useMutation({
     mutationFn: async ({ messageId, content }: { messageId: number | undefined; content: string }) => {
@@ -196,22 +196,22 @@ export function AIChat({ userData }: AIChatProps) {
         if (!currentChatId) {
           throw new Error("无法识别当前对话");
         }
-        
+
         // 获取当前对话的所有消息
         const messagesResponse = await apiRequest("GET", `/api/chats/${currentChatId}/messages`);
         const messages = await messagesResponse.json();
-        
+
         // 查找最后一条AI消息
         const lastAIMessage = [...messages].reverse().find(msg => msg.role === "assistant");
-        
+
         if (!lastAIMessage) {
           throw new Error("找不到可重新生成的AI消息");
         }
-        
+
         messageId = lastAIMessage.id;
         console.log("已找到最后一条AI消息ID:", messageId);
       }
-      
+
       // 发送重新生成请求
       try {
         const response = await apiRequest("POST", `/api/messages/${messageId}/regenerate`, {
@@ -285,22 +285,22 @@ export function AIChat({ userData }: AIChatProps) {
   const handleTitleChange = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setTitleError("");
-    
+
     // 去除前后空白字符
     const trimmedTitle = newTitle.trim();
-    
+
     // 基本验证
     if (!trimmedTitle) {
       setTitleError("标题不能为空");
       return;
     }
-    
+
     // 长度验证
     if (trimmedTitle.length > 30) {
       setTitleError("标题不能超过30个字符");
       return;
     }
-    
+
     // 非常简单的验证 - 检查是否包含控制字符
     if (/[\x00-\x1F\x7F]/.test(trimmedTitle)) {
       setTitleError("标题包含不支持的字符");
@@ -312,10 +312,10 @@ export function AIChat({ userData }: AIChatProps) {
         chatId: currentChatId!, 
         title: trimmedTitle 
       });
-      
+
       // 更新对话框中的标题内容
       setNewTitle(trimmedTitle);
-      
+
       // 关闭对话框
       setShowTitleDialog(false);
     } catch (error) {
@@ -340,7 +340,7 @@ export function AIChat({ userData }: AIChatProps) {
       if (activeElement && activeElement.blur) {
         activeElement.blur();
       }
-      
+
       // 如果是移动设备，手动触发键盘收起的焦点操作
       if (window.innerWidth <= 768) {
         const inputs = document.querySelectorAll('input, textarea');
@@ -348,27 +348,27 @@ export function AIChat({ userData }: AIChatProps) {
           (input as HTMLElement).blur();
         });
       }
-      
+
       // 立即滚动到底部
       setTimeout(() => scrollTo('bottom'), 10);
-      
+
       // 开始加载状态
       setIsLoading(true);
-      
+
       // 添加用户消息
       const userMessage = { role: "user" as const, content: input };
       const newMessages = [...messages, userMessage];
       setMessages(newMessages);
-      
+
       // 保存用户输入内容
       const userInput = input.trim();
-      
+
       // 清空输入框
       setInput("");
 
       // 存储当前的聊天ID
       let chatIdForRequest = currentChatId;
-      
+
       // 如果不存在聊天ID，创建一个新的聊天
       if (!chatIdForRequest) {
         console.log("创建新聊天...");
@@ -389,10 +389,10 @@ export function AIChat({ userData }: AIChatProps) {
       // 添加占位思考消息
       // 注意：我们先添加一个空内容的消息，显示思考动画
       setMessages([...newMessages, { role: "assistant" as const, content: "" }]);
-      
+
       // 发送给后端 API - 故意延迟300-600ms以显示思考状态
       await new Promise(resolve => setTimeout(resolve, Math.random() * 300 + 300));
-      
+
       // 确保使用正确的聊天ID发送消息
       console.log("使用聊天ID发送消息:", chatIdForRequest);
       const response = await apiRequest("POST", "/api/chat", {
@@ -406,7 +406,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       // 获取AI响应内容
       const aiResponse = data.text || "抱歉，我现在无法回答这个问题。";
-      
+
       // 更新现有的思考消息为真实响应
       setMessages(prev => {
         // 复制当前消息数组
@@ -421,6 +421,11 @@ export function AIChat({ userData }: AIChatProps) {
         }
         return updatedMessages;
       });
+
+      // 保存用户消息到记忆空间
+      saveToMemorySpace(userInput, 'user');
+      // 保存AI回复到记忆空间
+      saveToMemorySpace(aiResponse, 'assistant');
     } catch (error) {
       console.error("Failed to send message:", error);
       // 出错时添加错误消息
@@ -468,7 +473,7 @@ export function AIChat({ userData }: AIChatProps) {
     setCurrentChatId(undefined);
     setShowSidebar(false);
   };
-  
+
   // 开始编辑消息
   const startEditMessage = (messageId: number | undefined, content: string) => {
     setIsEditing(true);
@@ -476,34 +481,34 @@ export function AIChat({ userData }: AIChatProps) {
     setOriginalContent(content);
     setInput(content);
   };
-  
+
   // 取消编辑消息
   const cancelEditMessage = () => {
     setIsEditing(false);
     setEditingMessageId(undefined);
     setInput("");
   };
-  
+
   // 保存编辑的消息
   const saveEditMessage = async () => {
     if (!editingMessageId || !input.trim()) return;
-    
+
     try {
       await editMessageMutation.mutateAsync({ 
         messageId: editingMessageId, 
         content: input.trim() 
       });
-      
+
       toast({
         title: "消息已编辑",
         description: "您的消息已成功更新",
       });
-      
+
       // 重置编辑状态
       setIsEditing(false);
       setEditingMessageId(undefined);
       setInput("");
-      
+
     } catch (error) {
       console.error("编辑消息失败:", error);
       toast({
@@ -513,7 +518,7 @@ export function AIChat({ userData }: AIChatProps) {
       });
     }
   };
-  
+
   // 处理消息编辑 (用于传递给ChatMessage组件)
   const handleEditMessage = async (messageId: number | undefined, content: string) => {
     startEditMessage(messageId, content);
@@ -524,7 +529,7 @@ export function AIChat({ userData }: AIChatProps) {
     try {
       // 开始加载状态，可以添加视觉反馈
       setIsLoading(true);
-      
+
       // 添加一个占位思考消息
       if (messages.length > 0) {
         const lastMessage = messages[messages.length - 1];
@@ -533,10 +538,10 @@ export function AIChat({ userData }: AIChatProps) {
           setMessages([...messages, { role: "assistant" as const, content: "" }]);
         }
       }
-      
+
       // 调用重新生成API
       await regenerateMessageMutation.mutateAsync(messageId);
-      
+
       toast({
         title: "重新生成中",
         description: "AI正在重新生成回答",
@@ -566,14 +571,14 @@ export function AIChat({ userData }: AIChatProps) {
       console.error("提交反馈失败:", error);
     }
   };
-  
 
-  
+
+
   // 应用主题设置到DOM
   const applyTheme = (newTheme: "light" | "dark" | "system") => {
     // 移除所有主题类
     document.documentElement.classList.remove('light', 'dark');
-    
+
     // 应用新主题
     if (newTheme === "system") {
       // 根据系统偏好设置主题
@@ -586,16 +591,16 @@ export function AIChat({ userData }: AIChatProps) {
       // 直接应用指定主题
       document.documentElement.classList.add(newTheme);
     }
-    
+
     // 保存设置到本地存储
     localStorage.setItem('theme', newTheme);
   };
-  
+
   // 应用字体大小设置
   const applyFontSize = (size: "small" | "medium" | "large") => {
     // 移除所有字体大小类
     document.documentElement.classList.remove('text-sm', 'text-md', 'text-lg');
-    
+
     // 应用新字体大小
     switch (size) {
       case "small":
@@ -608,7 +613,7 @@ export function AIChat({ userData }: AIChatProps) {
         document.documentElement.classList.add('text-lg');
         break;
     }
-    
+
     // 保存设置到本地存储
     localStorage.setItem('font-size', size);
   };
@@ -636,12 +641,12 @@ export function AIChat({ userData }: AIChatProps) {
         }));
 
         setMessages(formattedMessages);
-        
+
         // 确保消息加载后滚动到顶部
         setTimeout(() => {
           scrollTo('top');
         }, 100); // 短暂延迟确保DOM更新后再滚动
-        
+
       } catch (error) {
         console.error("Error loading chat messages:", error);
       } finally {
@@ -679,7 +684,7 @@ export function AIChat({ userData }: AIChatProps) {
       }
     }
   };
-  
+
   // 处理背景图片上传
   const handleBackgroundImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -687,13 +692,13 @@ export function AIChat({ userData }: AIChatProps) {
 
     try {
       const base64Image = await readFileAsBase64(file);
-      
+
       // 保存到本地存储，这样刷新页面后依然能看到
       localStorage.setItem('background-image', base64Image);
-      
+
       // 更新状态以立即显示图片
       setBackgroundImage(base64Image);
-      
+
       toast({
         title: "背景已更新",
         description: "您的自定义背景已成功设置",
@@ -782,10 +787,10 @@ export function AIChat({ userData }: AIChatProps) {
         }
       }
     };
-    
+
     // 添加监听
     mediaQuery.addEventListener('change', handleThemeChange);
-    
+
     // 清除监听
     return () => {
       mediaQuery.removeEventListener('change', handleThemeChange);
@@ -812,6 +817,24 @@ export function AIChat({ userData }: AIChatProps) {
 
   const greetingMessage = "你好！准备开始一段富有启发性的对话了吗？";
 
+  // Placeholder for the memory space saving function.  Replace with your actual implementation.
+  const saveToMemorySpace = async (message: string, role: 'user' | 'assistant') => {
+    console.log(`Saving message to memory space: Role: ${role}, Message: ${message}`);
+    //  Implementation to save message to your vector database here.  Example using a hypothetical API:
+    // try {
+    //   const response = await fetch('/api/memoryspace', {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify({ message, role })
+    //   });
+    //   if (!response.ok) {
+    //     console.error('Error saving message to memory space:', response.statusText);
+    //   }
+    // } catch (error) {
+    //   console.error('Error saving message to memory space:', error);
+    // }
+  };
+
 
   return (
     <div className="flex h-screen text-white relative">
@@ -821,7 +844,7 @@ export function AIChat({ userData }: AIChatProps) {
           <img src={backgroundImage} alt="背景" className="bg-image" />
         </div>
       )}
-      
+
       {/* 背景图片上传按钮 */}
       <input
         type="file"
@@ -838,10 +861,10 @@ export function AIChat({ userData }: AIChatProps) {
       >
         <ImageIcon className="h-5 w-5 text-white opacity-70" />
       </label>
-      
+
       {/* 轻微的全局透明效果，不使用磨砂玻璃效果在背景图片上 */}
       <div className="absolute inset-0 z-0 bg-black bg-opacity-20"></div>
-      
+
       {/* Overlay for mobile */}
       {showSidebar && (
         <div
@@ -931,7 +954,7 @@ export function AIChat({ userData }: AIChatProps) {
         </header>
 
         {/* Messages */}
-        <div className={`flex-1 flex flex-col p-6 md:p-8 pb-48 ${messages.length === 0 ? 'hide-empty-scrollbar' : ''}`}>
+        <div className={"flex-1 flex flex-col p-6 md:p-8 pb-48 " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
           {messages.length === 0 ? (
             // 欢迎页面 - 垂直居中不需要滚动，完全隐藏滚动条
             <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
@@ -951,7 +974,7 @@ export function AIChat({ userData }: AIChatProps) {
             // 有消息时显示滚动区域 - 将内容固定在顶部并去除滚动条
             <div 
               ref={messagesContainerRef}
-              className={`flex-1 flex flex-col gap-4 py-1 hide-empty-scrollbar content-start justify-start items-stretch`}
+              className="flex-1 flex flex-col gap-4 py-1 hide-empty-scrollbar content-start justify-start items-stretch"
               style={{ overflowY: messages.length > 4 ? 'auto' : 'visible' }}
             >
               {messages.map((msg, i) => (
@@ -976,16 +999,16 @@ export function AIChat({ userData }: AIChatProps) {
         </div>
 
         {/* Input Area - 苹果风格磨砂透明 */}
-        <div className={`fixed bottom-0 left-0 right-0 pb-6 pt-2 ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}`}>
+        <div className={"fixed bottom-0 left-0 right-0 pb-6 pt-2 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
           <div className="max-w-3xl mx-auto px-4">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "search" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "search" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("search")}
               >
                 <Search className="w-3.5 h-3.5 mr-1.5" />
@@ -994,9 +1017,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "deep" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "deep" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("deep")}
               >
                 <Brain className="w-3.5 h-3.5 mr-1.5" />
@@ -1005,9 +1028,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "gemini" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "gemini" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("gemini")}
               >
                 <Sparkles className="w-3.5 h-3.5 mr-1.5" />
@@ -1016,9 +1039,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("deepseek")}
               >
                 <Code className="w-3.5 h-3.5 mr-1.5" />
@@ -1027,9 +1050,9 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-neutral-900 hover:bg-neutral-800 ${
-                  currentModel === "grok" ? "border-blue-500" : "border-neutral-700"
-                }`}
+                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
+                  (currentModel === "grok" ? "border-blue-500" : "border-neutral-700")
+                }
                 onClick={() => setCurrentModel("grok")}
               >
                 <Rocket className="w-3.5 h-3.5 mr-1.5" />
@@ -1055,9 +1078,9 @@ export function AIChat({ userData }: AIChatProps) {
                 </button>
               </div>
             )}
-            
+
             {/* 输入框区域 - 苹果风格磨砂玻璃效果 */}
-            <div className={`relative rounded-xl border shadow-lg ${theme === 'dark' ? 'border-neutral-700/50 bg-neutral-800/30 backdrop-blur-md' : 'border-neutral-300/20 bg-white/30 backdrop-blur-md'}`}>
+            <div className={"relative rounded-xl border shadow-lg " + (theme === 'dark' ? 'border-neutral-700/50 bg-neutral-800/30 backdrop-blur-md' : 'border-neutral-300/20 bg-white/30 backdrop-blur-md')}>
               <div className="flex items-end">
                 <div className="flex-1 relative">
                   <textarea
@@ -1217,7 +1240,7 @@ export function AIChat({ userData }: AIChatProps) {
           <DialogHeader>
             <DialogTitle>学习轨迹分析</DialogTitle>
           </DialogHeader>
-          
+
           {(() => {
             // 定义API返回的数据类型
             interface LearningPathData {
@@ -1228,7 +1251,7 @@ export function AIChat({ userData }: AIChatProps) {
               }>;
               suggestions: string[];
             }
-            
+
             // 使用React Query获取学习轨迹数据
             const { isLoading, error, data } = useQuery<LearningPathData>({
               queryKey: ["/api/learning-path", user.userId, user.role],
@@ -1240,7 +1263,7 @@ export function AIChat({ userData }: AIChatProps) {
                 return response.json();
               }
             });
-            
+
             // 主题颜色映射
             const topicColors: Record<string, string> = {
               "人工智能": "blue",
@@ -1250,12 +1273,12 @@ export function AIChat({ userData }: AIChatProps) {
               "网络技术": "pink",
               "数学": "orange"
             };
-            
+
             // 获取主题对应的颜色
             const getTopicColor = (topic: string): string => {
               return topicColors[topic] || "blue";
             };
-            
+
             if (isLoading) {
               return (
                 <div className="flex flex-col items-center justify-center py-10">
@@ -1264,7 +1287,7 @@ export function AIChat({ userData }: AIChatProps) {
                 </div>
               );
             }
-            
+
             if (error) {
               return (
                 <div className="p-6">
@@ -1279,7 +1302,7 @@ export function AIChat({ userData }: AIChatProps) {
                 </div>
               );
             }
-            
+
             if (!data || !data.topics || data.topics.length === 0) {
               return (
                 <div className="py-8 px-4">
@@ -1302,7 +1325,7 @@ export function AIChat({ userData }: AIChatProps) {
                 </div>
               );
             }
-            
+
             return (
               <div className="space-y-6 py-4 px-1">
                 <div className="space-y-2">
@@ -1324,7 +1347,7 @@ export function AIChat({ userData }: AIChatProps) {
                             default: return 'bg-blue-600/20 border-blue-500/20 text-blue-400';
                           }
                         })();
-                        
+
                         return (
                           <div 
                             key={index}
@@ -1337,7 +1360,7 @@ export function AIChat({ userData }: AIChatProps) {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <h3 className="text-lg font-medium text-neutral-200">学习进度</h3>
                   <div className="p-4 bg-neutral-800 rounded-md">
@@ -1356,7 +1379,7 @@ export function AIChat({ userData }: AIChatProps) {
                             default: return 'bg-blue-500';
                           }
                         })();
-                        
+
                         return (
                           <div key={index} className="space-y-1">
                             <div className="flex justify-between items-center">
@@ -1375,7 +1398,7 @@ export function AIChat({ userData }: AIChatProps) {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <h3 className="text-lg font-medium text-neutral-200">学习建议</h3>
                   <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
@@ -1389,7 +1412,7 @@ export function AIChat({ userData }: AIChatProps) {
                     </ul>
                   </div>
                 </div>
-                
+
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setShowLearningPathDialog(false)}>
                     关闭
@@ -1446,7 +1469,7 @@ export function AIChat({ userData }: AIChatProps) {
                 </Button>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-neutral-300">字体大小</h3>
               <div className="flex flex-wrap gap-2">
@@ -1485,7 +1508,7 @@ export function AIChat({ userData }: AIChatProps) {
                 </Button>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-neutral-300">自定义功能 <span className="text-xs text-neutral-500">(即将推出)</span></h3>
               <div className="p-3 bg-neutral-800 rounded-md text-neutral-400 text-sm">
@@ -1500,14 +1523,14 @@ export function AIChat({ userData }: AIChatProps) {
                 // 保存所有偏好设置
                 localStorage.setItem('theme', theme);
                 localStorage.setItem('font-size', fontSize);
-                
+
                 // 应用设置
                 applyTheme(theme);
                 applyFontSize(fontSize);
-                
+
                 // 关闭设置对话框
                 setShowPreferencesDialog(false);
-                
+
                 toast({
                   title: "设置已保存",
                   description: "您的偏好设置已成功更新",

@@ -8,6 +8,7 @@ import path from "path";
 import fs from "fs";
 import express from 'express';
 import { verifyTurnstileToken } from './services/turnstile';
+import { spawn } from 'child_process';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
@@ -132,89 +133,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch chat history" });
     }
   });
-  
+
   // 学习轨迹分析API
   app.get("/api/learning-path", async (req, res) => {
     try {
-      const { userId, role } = req.query;
+      const { userId } = req.query;
+
       if (!userId || isNaN(Number(userId))) {
-        return res.status(401).json({ message: "Invalid user ID" });
+        return res.status(400).json({ error: "无效的用户ID" });
       }
       
-      const targetUserId = Number(userId);
+      // 检查记忆目录状态
+      const memoryDir = "memory_space";
+      const userDir = path.join(memoryDir, String(userId));
+      log(`检查学习记忆目录: ${memoryDir} 存在=${fs.existsSync(memoryDir)}`);
+      log(`检查用户记忆目录: ${userDir} 存在=${fs.existsSync(userDir)}`);
       
-      // 获取用户的所有聊天记录及其消息
-      const chats = await storage.getUserChats(targetUserId, role === "admin");
-      
-      if (!chats || chats.length === 0) {
-        return res.json({
-          topics: [],
-          progress: [],
-          suggestions: []
-        });
-      }
-      
-      // 收集所有聊天消息内容
-      const allMessages: string[] = [];
-      for (const chat of chats) {
-        const messages = await storage.getChatMessages(chat.id, targetUserId, role === "admin");
-        // 只将用户发送的消息添加到分析中
-        const userMessages = messages.filter(msg => msg.role === "user").map(msg => msg.content);
-        allMessages.push(...userMessages);
-      }
-      
-      // 提取关键主题
-      // 简单实现：基于一些关键词匹配的主题提取
-      const topicKeywords: Record<string, string[]> = {
-        "人工智能": ["ai", "人工智能", "机器学习", "深度学习", "神经网络", "nlp", "自然语言处理"],
-        "编程开发": ["编程", "开发", "代码", "程序", "软件", "工程", "前端", "后端", "全栈"],
-        "数据科学": ["数据", "分析", "统计", "可视化", "大数据", "数据挖掘", "数据清洗"],
-        "计算机科学": ["算法", "数据结构", "计算机", "操作系统", "网络", "安全", "计算理论"],
-        "网络技术": ["网络", "http", "tcp", "ip", "协议", "互联网", "路由", "服务器"],
-        "数学": ["数学", "微积分", "线性代数", "概率", "统计", "离散数学", "逻辑"]
-      };
-      
-      // 计算主题出现次数
-      const topicCounts: Record<string, number> = {};
-      for (const message of allMessages) {
-        for (const [topic, keywords] of Object.entries(topicKeywords)) {
-          const messageLower = message.toLowerCase();
-          for (const keyword of keywords) {
-            if (messageLower.includes(keyword.toLowerCase())) {
-              topicCounts[topic] = (topicCounts[topic] || 0) + 1;
-              break; // 一条消息只计算一个关键词对应的主题
-            }
+      // 如果用户目录存在，查看其中的文件数量
+      if (fs.existsSync(userDir)) {
+        const files = fs.readdirSync(userDir);
+        log(`用户${userId}的记忆文件数量: ${files.length}`);
+        if (files.length > 0) {
+          log(`示例记忆文件: ${files[0]}`);
+          try {
+            const filePath = path.join(userDir, files[0]);
+            const fileContent = fs.readFileSync(filePath, 'utf8');
+            log(`记忆文件内容示例: ${fileContent.substring(0, 100)}...`);
+          } catch (e) {
+            log(`读取记忆文件失败: ${e}`);
           }
         }
       }
-      
-      // 排序并选择前3个主题
-      const topics = Object.entries(topicCounts)
-        .sort(([, countA], [, countB]) => countB - countA)
-        .slice(0, 3)
-        .map(([topic]) => topic);
-      
-      // 随机生成学习进度 (在实际应用中，这应该基于对话内容深度分析)
-      const progress = topics.map(topic => ({
-        topic,
-        percentage: Math.floor(Math.random() * 60) + 20 // 20% 到 80%
-      }));
-      
-      // 生成学习建议
-      const suggestions = [
-        "深入学习更多关于" + (topics[0] || "相关主题") + "的实际应用场景",
-        "尝试实践一些小型项目，巩固理论知识",
-        "探索更多关于" + (topics[1] || "感兴趣领域") + "的高级话题"
-      ];
-      
-      res.json({
-        topics,
-        progress,
-        suggestions
+
+      const pythonProcess = spawn('python3', ['-c', `
+import asyncio
+import json
+import sys
+sys.path.append('server')
+import logging
+# 重定向所有print输出到stderr，保留stdout只用于JSON输出
+sys.stdout = sys.stderr
+from services.learning_memory import learning_memory_service
+
+async def analyze():
+    result = await learning_memory_service.analyze_learning_path(${userId})
+    # 恢复stdout并只输出JSON结果
+    sys.stdout = sys.__stdout__
+    print(json.dumps(result, ensure_ascii=False))
+
+asyncio.run(analyze())
+      `]);
+
+      let output = '';
+      pythonProcess.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+
+      let errorOutput = '';
+      pythonProcess.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+
+      pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+          log(`学习轨迹分析进程退出，错误码 ${code}: ${errorOutput}`);
+          return res.status(500).json({ error: "学习轨迹分析失败" });
+        }
+
+        try {
+          const result = JSON.parse(output);
+          return res.json(result);
+        } catch (e) {
+          log(`解析学习轨迹分析结果失败: ${e}`);
+          return res.status(500).json({ error: "解析学习轨迹分析结果失败" });
+        }
       });
     } catch (error) {
-      log(`Error analyzing learning path: ${error}`);
-      res.status(500).json({ message: "无法分析学习轨迹" });
+      log(`学习轨迹分析API错误: ${error}`);
+      return res.status(500).json({ error: "学习轨迹分析服务错误" });
     }
   });
 
@@ -225,21 +221,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!chatIdParam || !/^\d+$/.test(chatIdParam)) {
         return res.status(400).json({ message: "Invalid chat ID format" });
       }
-      
+
       const chatId = parseInt(chatIdParam, 10);
-      
+
       // 验证用户ID
       const userIdParam = req.query.userId as string;
       if (!userIdParam || !/^\d+$/.test(userIdParam)) {
         return res.status(401).json({ message: "Invalid user ID format" });
       }
-      
+
       const userId = parseInt(userIdParam, 10);
       const role = req.query.role as string;
-      
+
       // 验证角色
       const isAdmin = role === "admin";
-      
+
       // 获取消息，通过Drizzle ORM的参数化查询防止SQL注入
       const messages = await storage.getChatMessages(chatId, userId, isAdmin);
       res.json(messages || []);
@@ -278,33 +274,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete chat" });
     }
   });
-  
+
   // 添加修改聊天标题的端点
   app.put("/api/chats/:chatId/title", async (req, res) => {
     try {
       const chatId = parseInt(req.params.chatId);
       const { userId, role } = req.query;
       const { title } = req.body;
-      
+
       if (!userId) {
         return res.status(401).json({ message: "Please login first" });
       }
-      
+
       if (!title || typeof title !== 'string') {
         return res.status(400).json({ message: "Invalid title" });
       }
-      
+
       // 获取聊天记录以验证权限
       const isAdmin = role === "admin";
       const chat = await storage.getChatById(chatId, Number(userId), isAdmin);
-      
+
       if (!chat) {
         return res.status(403).json({ message: "Access denied or chat not found" });
       }
-      
+
       // 更新标题 (需要在storage.ts中添加updateChatTitle方法)
       await storage.updateChatTitle(chatId, title);
-      
+
       res.json({ success: true });
     } catch (error) {
       log(`Error updating chat title: ${error}`);
@@ -463,15 +459,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { content, userId, userRole } = req.body;
       const messageId = parseInt(req.params.messageId, 10);
-      
+
       if (isNaN(messageId) || !content || !userId) {
         return res.status(400).json({ message: "Invalid request parameters" });
       }
-      
+
       // 确保只有用户可以编辑自己的消息
       const isAdmin = userRole === "admin";
       const isUserOwned = !isAdmin; // 普通用户只能编辑自己的消息
-      
+
       const updatedMessage = await storage.updateMessage(messageId, content, isUserOwned);
       res.json(updatedMessage);
     } catch (error) {
@@ -479,17 +475,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to update message" });
     }
   });
-  
+
   // 消息反馈（点赞/踩）
   app.patch("/api/messages/:messageId/feedback", async (req, res) => {
     try {
       const { feedback } = req.body;
       const messageId = parseInt(req.params.messageId, 10);
-      
+
       if (isNaN(messageId) || !feedback || !["like", "dislike"].includes(feedback)) {
         return res.status(400).json({ message: "Invalid feedback parameters" });
       }
-      
+
       const updatedMessage = await storage.updateMessageFeedback(messageId, feedback as "like" | "dislike");
       res.json(updatedMessage);
     } catch (error) {
@@ -497,35 +493,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to update message feedback" });
     }
   });
-  
+
   // 重新生成AI回复
   app.post("/api/messages/:messageId/regenerate", async (req, res) => {
     try {
       const { userId, userRole, chatId } = req.body;
       const messageId = parseInt(req.params.messageId, 10);
-      
+
       if (isNaN(messageId) || !userId || !chatId) {
         return res.status(400).json({ message: "Invalid request parameters" });
       }
-      
+
       // 验证用户对此聊天的访问权限
       const isAdmin = userRole === "admin";
       const chat = await storage.getChatById(chatId, userId, isAdmin);
       if (!chat) {
         return res.status(404).json({ message: "Chat not found or access denied" });
       }
-      
+
       try {
         // 获取需要重新生成的消息
         const message = await storage.regenerateMessage(messageId);
-        
+
         // 初始化聊天服务使用对应模型
         chatService.setModel(chat.model || "deep");
-        
+
         // 找到触发此AI回复的用户消息
         const chatMessages = await storage.getChatMessages(chatId, userId, isAdmin);
         const messageIndex = chatMessages.findIndex(m => m.id === messageId);
-        
+
         // 找到最近的用户消息作为提示
         let promptMessage = "请重新回答";
         for (let i = messageIndex - 1; i >= 0; i--) {
@@ -534,13 +530,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             break;
           }
         }
-        
-        // 重新生成回复
-        const response = await chatService.sendMessage(promptMessage);
-        
+
+        // 重新生成回复，传入userId用于记忆检索
+        const response = await chatService.sendMessage(promptMessage, userId);
+
         // 更新数据库中的消息
         const updatedMessage = await storage.updateMessage(messageId, response.text, false);
-        
+
         res.json({
           ...updatedMessage,
           model: response.model
@@ -548,20 +544,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         // 如果找不到消息，尝试从聊天记录中直接获取
         log(`Error with specific message ID, trying fallback approach: ${error}`);
-        
+
         // 获取所有消息并尝试找到最近的AI消息
         const chatMessages = await storage.getChatMessages(chatId, userId, isAdmin);
-        
+
         // 确保有至少一条AI回复
         const aiMessages = chatMessages.filter(m => m.role === "assistant");
         if (aiMessages.length === 0) {
           return res.status(404).json({ message: "No AI messages found to regenerate" });
         }
-        
+
         // 使用最后一条AI消息
         const lastAiMessage = aiMessages[aiMessages.length - 1];
         const messageIndex = chatMessages.findIndex(m => m.id === lastAiMessage.id);
-        
+
         // 找到触发该AI回复的用户消息
         let promptMessage = "请重新回答";
         for (let i = messageIndex - 1; i >= 0; i--) {
@@ -570,14 +566,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             break;
           }
         }
-        
+
         // 重新生成回复
         chatService.setModel(chat.model || "deep");
-        const response = await chatService.sendMessage(promptMessage);
-        
+        const response = await chatService.sendMessage(promptMessage, userId);
+
         // 更新数据库中的消息
         const updatedMessage = await storage.updateMessage(lastAiMessage.id, response.text, false);
-        
+
         res.json({
           ...updatedMessage,
           model: response.model
@@ -588,23 +584,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to regenerate message" });
     }
   });
-  
+
   // 创建消息
   app.post("/api/messages", async (req, res) => {
     try {
       const { chatId, content, role, userId, userRole } = req.body;
-      
+
       if (!chatId || !content || !role || !userId) {
         return res.status(400).json({ message: "Missing required fields" });
       }
-      
+
       // 确保用户有权限向此聊天添加消息
       const isAdmin = userRole === "admin";
       const chat = await storage.getChatById(chatId, userId, isAdmin);
       if (!chat) {
         return res.status(404).json({ message: "Chat not found or access denied" });
       }
-      
+
       // 创建消息
       const message = await storage.createMessage(chatId, content, role);
       res.status(201).json(message);
@@ -613,24 +609,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create message" });
     }
   });
-  
+
   // 更新聊天模型
   app.patch("/api/chats/:chatId/model", async (req, res) => {
     try {
       const chatId = parseInt(req.params.chatId, 10);
       const { model, userId, userRole } = req.body;
-      
+
       if (isNaN(chatId) || !model || !userId) {
         return res.status(400).json({ message: "Invalid request parameters" });
       }
-      
+
       // 验证用户对此聊天的访问权限
       const isAdmin = userRole === "admin";
       const chat = await storage.getChatById(chatId, userId, isAdmin);
       if (!chat) {
         return res.status(404).json({ message: "Chat not found or access denied" });
       }
-      
+
       // 更新聊天模型
       await storage.updateChatModel(chatId, model);
       res.json({ success: true });
@@ -693,19 +689,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // 获取AI响应
+      // 获取AI响应，传入userId用于记忆检索
       log(`处理来自用户 ${userId} 的聊天消息，聊天ID: ${chatId}`);
-      const response = await chatService.sendMessage(message);
-      
+      const response = await chatService.sendMessage(message, Number(userId));
+
       // 存储消息到数据库
       try {
         // 先存储用户消息
         const userMsg = await storage.createMessage(chatId, message, "user");
         log(`已存储用户消息，ID: ${userMsg.id}`);
-        
+
         // 再存储AI响应
         const aiMsg = await storage.createMessage(chatId, response.text, "assistant");
         log(`已存储AI响应，ID: ${aiMsg.id}`);
+        
+        // 保存到记忆系统
+        try {
+          // 调用Python记忆服务保存用户消息
+          const saveUserMemoryProcess = spawn('python3', ['-c', `
+import asyncio
+import sys
+sys.path.append('server')
+from services.learning_memory import learning_memory_service
+
+async def save_memory():
+    await learning_memory_service.save_memory(${userId}, """${message.replace(/"/g, '\\"')}""", "chat")
+    print("用户消息已保存到记忆系统")
+
+asyncio.run(save_memory())
+          `]);
+          
+          saveUserMemoryProcess.stdout.on('data', (data) => {
+            log(`记忆保存结果(用户): ${data.toString().trim()}`);
+          });
+          
+          saveUserMemoryProcess.stderr.on('data', (data) => {
+            log(`记忆保存错误(用户): ${data.toString().trim()}`);
+          });
+          
+          // 也保存AI回复到记忆系统
+          const saveAIMemoryProcess = spawn('python3', ['-c', `
+import asyncio
+import sys
+sys.path.append('server')
+from services.learning_memory import learning_memory_service
+
+async def save_memory():
+    await learning_memory_service.save_memory(${userId}, """${response.text.replace(/"/g, '\\"')}""", "assistant")
+    print("AI回复已保存到记忆系统")
+
+asyncio.run(save_memory())
+          `]);
+          
+          saveAIMemoryProcess.stdout.on('data', (data) => {
+            log(`记忆保存结果(AI): ${data.toString().trim()}`);
+          });
+          
+          saveAIMemoryProcess.stderr.on('data', (data) => {
+            log(`记忆保存错误(AI): ${data.toString().trim()}`);
+          });
+          
+          log(`已尝试将消息保存到记忆系统，用户ID: ${userId}`);
+        } catch (memoryError) {
+          log(`保存消息到记忆系统失败: ${memoryError instanceof Error ? memoryError.message : String(memoryError)}`);
+        }
       } catch (dbError) {
         log(`数据库存储消息错误: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
         // 继续发送响应，但记录错误
@@ -813,6 +860,230 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false, 
         message: "验证失败，请稍后重试" 
+      });
+    }
+  });
+
+  // 添加记忆API（用于存储对话内容）
+  app.post('/api/memory', async (req, res) => {
+    try {
+      const { userId, content, type } = req.body;
+
+      if (!userId || !content || isNaN(Number(userId))) {
+        return res.status(400).json({ error: "无效的请求参数" });
+      }
+      
+      log(`尝试保存记忆: 用户=${userId}, 内容长度=${content.length}, 类型=${type || 'chat'}`);
+
+      // 调用Python服务保存记忆
+      const pythonProcess = spawn('python3', ['-c', `
+import asyncio
+import sys
+sys.path.append('server')
+from services.learning_memory import learning_memory_service
+
+async def save():
+    await learning_memory_service.save_memory(${userId}, """${content.replace(/"/g, '\\"')}""", "${type || 'chat'}")
+    print("success")
+
+asyncio.run(save())
+      `]);
+
+      let output = '';
+      pythonProcess.stdout.on('data', (data) => {
+        output += data.toString();
+        log(`记忆保存输出: ${data.toString().trim()}`);
+      });
+
+      let errorOutput = '';
+      pythonProcess.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+        log(`记忆保存错误: ${data.toString().trim()}`);
+      });
+
+      pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+          log(`保存记忆进程退出，错误码 ${code}: ${errorOutput}`);
+          return res.status(500).json({ error: "保存记忆失败" });
+        }
+        
+        log(`记忆保存成功，用户ID: ${userId}`);
+        return res.json({ success: true });
+      });
+    } catch (error) {
+      log(`保存记忆API错误: ${error}`);
+      return res.status(500).json({ error: "保存记忆服务错误" });
+    }
+  });
+  
+  // 添加检索相似记忆API
+  app.post('/api/similar-memories', async (req, res) => {
+    try {
+      const { userId, query, limit = 5 } = req.body;
+      
+      if (!userId || !query || isNaN(Number(userId))) {
+        return res.status(400).json({ error: "无效的请求参数" });
+      }
+      
+      log(`尝试检索相似记忆: 用户=${userId}, 查询=${query.substring(0, 50)}...`);
+      
+      // 调用Python服务检索相似记忆
+      const pythonProcess = spawn('python3', ['-c', `
+import asyncio
+import sys
+import json
+sys.path.append('server')
+from services.learning_memory import learning_memory_service
+
+async def retrieve_memories():
+    # 检索相似记忆
+    memories = await learning_memory_service.retrieve_similar_memories(${userId}, """${query.replace(/"/g, '\\"')}""", ${limit})
+    # 转换为JSON输出
+    print(json.dumps(memories, ensure_ascii=False))
+
+asyncio.run(retrieve_memories())
+      `]);
+      
+      let output = '';
+      pythonProcess.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+      
+      let errorOutput = '';
+      pythonProcess.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+        log(`检索记忆错误: ${data.toString().trim()}`);
+      });
+      
+      pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+          log(`检索记忆进程退出，错误码 ${code}: ${errorOutput}`);
+          return res.status(500).json({ error: "检索记忆失败" });
+        }
+        
+        try {
+          // 解析输出为JSON
+          const memories = output.trim() ? JSON.parse(output) : [];
+          log(`成功检索到 ${memories.length} 条相似记忆`);
+          return res.json({ success: true, memories });
+        } catch (parseError) {
+          log(`解析记忆结果错误: ${parseError}, 原始输出: ${output}`);
+          return res.status(500).json({ error: "解析记忆结果失败" });
+        }
+      });
+    } catch (error) {
+      log(`检索记忆API错误: ${error}`);
+      return res.status(500).json({ error: "检索记忆服务错误" });
+    }
+  });
+  
+  // 添加记忆系统测试API
+  app.get('/api/memory-test', async (req, res) => {
+    try {
+      const { userId } = req.query;
+      
+      if (!userId || isNaN(Number(userId))) {
+        return res.status(400).json({ error: "无效的用户ID" });
+      }
+      
+      // 检查记忆目录状态
+      const memoryDir = "memory_space";
+      const userDir = path.join(memoryDir, String(userId));
+      
+      // 确保目录存在
+      if (!fs.existsSync(memoryDir)) {
+        fs.mkdirSync(memoryDir);
+        log(`创建记忆目录: ${memoryDir}`);
+      }
+      
+      if (!fs.existsSync(userDir)) {
+        fs.mkdirSync(userDir);
+        log(`创建用户记忆目录: ${userDir}`);
+      }
+      
+      // 尝试写入一条测试记忆
+      const testContent = "这是一条测试记忆，用于验证记忆系统是否正常工作";
+      
+      const pythonProcess = spawn('python3', ['-c', `
+import asyncio
+import sys
+import os
+sys.path.append('server')
+from services.learning_memory import learning_memory_service
+
+async def test_memory():
+    # 打印当前工作目录
+    print(f"当前工作目录: {os.getcwd()}")
+    print(f"memory_space目录是否存在: {os.path.exists('memory_space')}")
+    print(f"用户目录是否存在: {os.path.exists('memory_space/${userId}')}")
+    
+    # 尝试保存一条测试记忆
+    await learning_memory_service.save_memory(${userId}, "${testContent}", "test")
+    print("测试记忆已保存")
+    
+    # 尝试检索这条测试记忆
+    memories = await learning_memory_service.retrieve_similar_memories(${userId}, "${testContent}", 1)
+    
+    # 打印检索结果
+    print(f"找到 {len(memories)} 条相似记忆")
+    for memory in memories:
+        print(f"记忆内容: {memory['content'][:50]}...")
+        print(f"记忆类型: {memory['type']}")
+        print(f"记忆时间: {memory['timestamp']}")
+
+asyncio.run(test_memory())
+      `]);
+      
+      let output = '';
+      pythonProcess.stdout.on('data', (data) => {
+        output += data.toString();
+        log(`记忆测试输出: ${data.toString().trim()}`);
+      });
+
+      let errorOutput = '';
+      pythonProcess.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+        log(`记忆测试错误: ${data.toString().trim()}`);
+      });
+
+      pythonProcess.on('close', (code) => {
+        const result: {
+          code: number | null;
+          success: boolean;
+          output: string;
+          error: string;
+          filesExist: { memoryDir: boolean; userDir: boolean };
+          userFiles?: { count?: number; examples?: string[]; error?: string };
+        } = {
+          code: code,
+          success: code === 0,
+          output: output,
+          error: errorOutput,
+          filesExist: {
+            memoryDir: fs.existsSync(memoryDir),
+            userDir: fs.existsSync(userDir)
+          }
+        };
+        
+        if (fs.existsSync(userDir)) {
+          try {
+            const files = fs.readdirSync(userDir);
+            result.userFiles = {
+              count: files.length,
+              examples: files.slice(0, 5)
+            };
+          } catch (e) {
+            result.userFiles = { error: String(e) };
+          }
+        }
+        
+        return res.json(result);
+      });
+    } catch (error) {
+      log(`记忆测试API错误: ${error}`);
+      return res.status(500).json({ 
+        error: "记忆测试失败",
+        message: String(error)
       });
     }
   });
