@@ -14,6 +14,8 @@ interface Memory {
   type: string;
   timestamp: string;
   embedding?: number[];
+  summary?: string;   // 内容摘要
+  keywords?: string[];  // 关键词列表
 }
 
 export class ChatService {
@@ -39,9 +41,19 @@ export class ChatService {
         },
         isSimulated: false,
         transformRequest: (message: string, contextMemories?: string) => {
-          // 如果有记忆上下文，就添加到请求中
+          // 使用提示注入技术构建更有针对性的上下文
           const query = contextMemories
-            ? `我需要你基于以下历史记忆回答用户的问题。\n\n历史记忆:\n${contextMemories}\n\n用户问题: ${message}`
+            ? `你是一个先进的AI学习助手，能够提供个性化学习体验。
+            
+以下是用户的历史学习记忆和对话上下文。请在回答用户当前问题时，自然地融入这些上下文信息，使回答更加连贯和个性化。
+不要明确提及"根据你的历史记忆"或"根据你之前提到的"等字眼，而是像熟悉用户的导师一样自然地利用这些信息提供帮助。
+
+为用户构建知识图谱:
+${contextMemories}
+
+用户当前问题: ${message}
+
+请提供详细、有帮助的回答，体现出你了解用户的学习历程。回答应当清晰、准确、富有教育意义，同时与用户之前的学习轨迹保持连贯性。`
             : message;
             
           return {
@@ -136,7 +148,7 @@ export class ChatService {
     this.currentModel = model;
   }
 
-  // 获取相似记忆
+  // 获取相似记忆并进行上下文增强
   private async getSimilarMemories(userId: number, message: string): Promise<string | undefined> {
     try {
       log(`Retrieving similar memories for user ${userId} and message: ${message.substring(0, 50)}...`);
@@ -145,7 +157,7 @@ export class ChatService {
       const response = await fetch('http://localhost:5000/api/similar-memories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, query: message, limit: 3 })
+        body: JSON.stringify({ userId, query: message, limit: 5 }) // 增加记忆条数上限
       });
       
       if (!response.ok) {
@@ -162,12 +174,37 @@ export class ChatService {
         return undefined;
       }
       
-      // 将记忆格式化为字符串
-      const memoryContext = memories.map((memory, index) => {
-        return `记忆 ${index + 1} [${memory.type}]: ${memory.content}`;
-      }).join('\n\n');
+      // 提取摘要和额外信息（如果有）
+      const enhancedMemories = memories.map(memory => {
+        const summary = memory.summary || memory.content.substring(0, 100) + (memory.content.length > 100 ? "..." : "");
+        const keywords = Array.isArray(memory.keywords) ? memory.keywords.join(", ") : "";
+        return {
+          ...memory,
+          summary,
+          keywords
+        };
+      });
       
-      log(`Retrieved ${memories.length} similar memories`);
+      // 构建增强的上下文提示（使用提示注入技术）
+      const contextPreamble = `
+以下是与用户当前问题相关的历史记忆，请结合这些记忆提供更加连贯、个性化的回答。
+用户的记忆显示了他们之前关注的主题、问题和学习路径。使用这些记忆来提供更有针对性的回答，
+但不要在回答中明确提及"根据你的记忆"或列举这些记忆内容。自然地融入这些上下文。
+`;
+
+      // 将记忆格式化为结构化字符串
+      const memoryContextItems = enhancedMemories.map((memory, index) => {
+        // 使用摘要、关键词和时间戳构建更丰富的记忆表示
+        const timestamp = memory.timestamp ? new Date(memory.timestamp).toLocaleString() : "未知时间";
+        const keywordInfo = memory.keywords ? `[关键词: ${memory.keywords}]` : "";
+        
+        return `记忆片段 ${index + 1} (${timestamp}) ${keywordInfo}:\n${memory.summary || memory.content}`;
+      });
+      
+      // 合并所有上下文
+      const memoryContext = contextPreamble + '\n\n' + memoryContextItems.join('\n\n');
+      
+      log(`Retrieved and enhanced ${memories.length} similar memories`);
       return memoryContext;
     } catch (error) {
       log(`Error in getSimilarMemories: ${error instanceof Error ? error.message : String(error)}`);

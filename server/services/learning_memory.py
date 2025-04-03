@@ -1,6 +1,7 @@
 
 import os
 import json
+import re
 from typing import List, Dict, Any, Optional
 import numpy as np
 from datetime import datetime
@@ -58,12 +59,20 @@ class LearningMemoryService:
                 # 使用空向量继续保存，这样至少保存了文本内容
                 embeddings = [[]]
                 
-            # 创建记忆项
+            # 生成内容摘要
+            summary = self.generate_content_summary(content)
+            
+            # 提取关键词
+            keywords = self.extract_keywords_from_text(content)
+            
+            # 创建记忆项，包含摘要和关键词
             memory_item = {
                 "content": content,
                 "type": type,
                 "embedding": embeddings[0],
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "summary": summary,
+                "keywords": keywords
             }
             
             # 生成唯一文件名
@@ -179,6 +188,59 @@ class LearningMemoryService:
             return 0.0
             
         return dot_product / (norm1 * norm2)
+        
+    def generate_content_summary(self, content: str) -> str:
+        """
+        为内容生成简短摘要
+        
+        Args:
+            content: 需要摘要的内容
+            
+        Returns:
+            摘要文本
+        """
+        try:
+            # 如果内容很短，直接返回
+            if len(content) <= 100:
+                return content
+                
+            # 分句
+            sentences = re.split(r'[。！？.!?]+', content)
+            sentences = [s.strip() for s in sentences if s.strip()]
+            
+            if not sentences:
+                return content[:100] + ("..." if len(content) > 100 else "")
+                
+            # 选择重要句子作为摘要
+            important_sentences = []
+            
+            # 1. 优先选择包含问题的句子（通常是用户的核心需求）
+            question_patterns = ["什么", "如何", "为什么", "怎么", "是否", "能否", "可以", "请问", "?", "？", "how", "what", "why", "when", "where", "which"]
+            for sentence in sentences:
+                for pattern in question_patterns:
+                    if pattern in sentence.lower():
+                        important_sentences.append(sentence)
+                        break
+                        
+            # 2. 如果没有找到问题句，选择第一句话（通常包含主题）
+            if not important_sentences and sentences:
+                important_sentences.append(sentences[0])
+                
+            # 3. 如果第一句话太短，添加下一句
+            if len(important_sentences) == 1 and len(important_sentences[0]) < 20 and len(sentences) > 1:
+                important_sentences.append(sentences[1])
+                
+            # 组合摘要，确保不超过150字符
+            summary = "；".join(important_sentences)
+            if len(summary) > 150:
+                summary = summary[:147] + "..."
+                
+            return summary
+            
+        except Exception as e:
+            print(f"生成内容摘要时出错: {str(e)}")
+            # 出错时返回简单截取
+            return content[:100] + ("..." if len(content) > 100 else "")
         
     async def analyze_learning_path(self, user_id: int) -> Dict[str, Any]:
         """
@@ -315,12 +377,16 @@ class LearningMemoryService:
             return self.default_analysis()
             
     def extract_keywords_from_text(self, text: str) -> List[str]:
-        """从文本中提取关键词"""
+        """从文本中提取关键词和主题短语，使用NLP技术提高可读性"""
         try:
             # 分词并过滤停用词
             words = text.lower().split()
-            # 简单的停用词表（可以扩展）
-            stopwords = {"的", "了", "和", "是", "在", "我", "有", "这", "个", "你", "们", "他", "她", "它", "一个", "就是"}
+            # 扩展的停用词表，包含更多常见词汇
+            stopwords = {
+                "的", "了", "和", "是", "在", "我", "有", "这", "个", "你", "们", "他", "她", "它", "一个", "就是",
+                "不", "也", "为", "吗", "什么", "怎么", "如何", "那么", "这样", "那样", "一样", "所以", "因为",
+                "可以", "能", "会", "要", "想", "需要", "应该", "可能", "或许", "大概", "比较", "非常", "很", "真的"
+            }
             filtered_words = [w for w in words if w not in stopwords and len(w) > 1]
             
             # 计数并找出高频词
@@ -331,13 +397,97 @@ class LearningMemoryService:
                 else:
                     word_counts[word] += 1
             
-            # 按频率排序并返回前N个关键词
+            # 尝试识别有意义的组合词和短语(2-3个词的组合)
+            phrases = []
+            for i in range(len(words) - 1):
+                if words[i] not in stopwords and words[i+1] not in stopwords:
+                    bigram = words[i] + words[i+1]
+                    phrases.append(bigram)
+                    
+                if i < len(words) - 2 and words[i] not in stopwords and words[i+2] not in stopwords:
+                    # 允许中间有一个停用词
+                    trigram = words[i] + words[i+1] + words[i+2]
+                    phrases.append(trigram)
+            
+            # 对短语计数
+            phrase_counts = {}
+            for phrase in phrases:
+                if phrase not in phrase_counts:
+                    phrase_counts[phrase] = 1
+                else:
+                    phrase_counts[phrase] += 1
+            
+            # 主题词汇相关性词典 - 帮助将关键词映射为可读的主题名
+            topic_mappings = {
+                # 学科映射
+                "物理": "物理学", "数学": "数学", "化学": "化学", "生物": "生物学", 
+                "编程": "计算机编程", "代码": "编程和开发", "程序": "程序设计", 
+                "历史": "历史", "地理": "地理", "文学": "文学", "小说": "小说创作",
+                "语言": "语言学习", "英语": "英语学习", "日语": "日语学习", "法语": "法语学习",
+                "艺术": "艺术", "音乐": "音乐欣赏", "绘画": "绘画技巧", "设计": "设计理念",
+                
+                # AI/技术相关映射
+                "ai": "人工智能", "机器学习": "机器学习", "深度学习": "深度学习",
+                "神经网络": "神经网络", "python": "Python编程", "javascript": "JavaScript编程",
+                "java": "Java编程", "c++": "C++编程", "数据": "数据分析", 
+                "tensorflow": "TensorFlow框架", "pytorch": "PyTorch框架",
+                "大模型": "大型语言模型", "gpt": "GPT模型", "chatgpt": "ChatGPT应用",
+                "prompt": "提示词工程", "embedding": "嵌入技术", "向量": "向量数据库",
+                "gemini": "Gemini模型", "api": "API设计与使用", "接口": "接口开发",
+                
+                # 学习行为映射
+                "学习": "学习方法", "复习": "复习技巧", "记忆": "记忆技巧", "理解": "概念理解",
+                "问题": "问题解决", "思考": "批判性思考", "分析": "分析方法", "写作": "写作技巧",
+                "阅读": "阅读理解", "创作": "创作技巧", "探索": "知识探索", "项目": "项目管理",
+                
+                # 常见学习主题组合映射
+                "如何学习": "学习方法", "知识点": "知识要点", "考试技巧": "考试准备",
+                "重要概念": "核心概念", "难点解析": "难点解析", "实战案例": "实践应用",
+                "入门教程": "入门指南", "高级技巧": "高级技术", "学习路径": "学习路线图",
+                "debug": "调试技巧", "错误处理": "错误处理", "优化方法": "性能优化",
+                "聊天机器人": "对话系统开发", "记忆系统": "记忆空间设计"
+            }
+            
+            # 集合高频词和高频短语，优先选择可读性强的
             sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
-            keywords = [word for word, count in sorted_words[:10] if count > 1]  # 选择前10个高频词
-            return keywords
+            sorted_phrases = sorted(phrase_counts.items(), key=lambda x: x[1], reverse=True)
+            
+            # 提取高频且有意义的关键词 (优先使用映射表中的词或短语)
+            keywords = []
+            
+            # 首先检查映射表中的关键词
+            for word, _ in sorted_words[:20]:  # 考虑前20个高频词
+                if word in topic_mappings:
+                    # 使用映射表转换为可读主题名
+                    readable_topic = topic_mappings[word]
+                    if readable_topic not in keywords:
+                        keywords.append(readable_topic)
+                elif word_counts[word] > 1:  # 至少出现2次
+                    keywords.append(word)
+            
+            # 如果关键词太少，添加有意义的短语
+            if len(keywords) < 5:
+                for phrase, count in sorted_phrases[:10]:
+                    if count > 1 and len(phrase) > 3:  # 过滤太短的短语
+                        # 检查短语是否能映射到可读主题
+                        mapped = False
+                        for key, value in topic_mappings.items():
+                            if key in phrase:
+                                if value not in keywords:
+                                    keywords.append(value)
+                                    mapped = True
+                                    break
+                        
+                        # 如果没有映射，直接添加短语
+                        if not mapped and phrase not in keywords and len(keywords) < 8:
+                            keywords.append(phrase)
+            
+            # 限制返回结果数量，保证可读性
+            return keywords[:10]  
+            
         except Exception as e:
             print(f"提取关键词时出错: {str(e)}")
-            return []
+            return ["学习主题"]  # 提供一个默认值而不是空列表
     
     async def cluster_memories(self, memories: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         """使用语义相似性对记忆进行聚类，发现主题"""
@@ -427,7 +577,25 @@ class LearningMemoryService:
                                 merged_clusters[topic2] = True  # 标记为已合并
                     
                     if should_merge or topic1 not in merged_clusters:
-                        merged_name = "/".join(sorted(list(merged_keywords))[:3])  # 前3个关键词作为主题名
+                        # 直接使用最有代表性的关键词作为主题名，避免使用斜线分隔
+                        keywords_list = sorted(list(merged_keywords), key=len, reverse=True)
+                        
+                        # 优先使用映射表中存在的关键词
+                        mapped_keywords = []
+                        for kw in keywords_list:
+                            if kw in self.extract_keywords_from_text.__globals__.get('topic_mappings', {}):
+                                mapped_keywords.append(kw)
+                        
+                        if mapped_keywords:
+                            # 使用映射表中的第一个关键词作为主题名
+                            merged_name = mapped_keywords[0]
+                        elif keywords_list:
+                            # 否则使用最长的关键词
+                            merged_name = keywords_list[0]
+                        else:
+                            # 默认主题名
+                            merged_name = "学习主题"
+                            
                         merged_clusters[topic1] = True
                         clusters[merged_name] = {
                             "memory_ids": list(merged_set),
