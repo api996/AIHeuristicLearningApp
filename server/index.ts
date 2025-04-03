@@ -6,6 +6,24 @@ const app = express();
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
+import { checkDbConnection } from "./db";
+
+// 添加数据库连接健康检查中间件
+app.use(async (req, res, next) => {
+  // 只对API请求检查数据库连接
+  if (req.path.startsWith("/api")) {
+    const isDbConnected = await checkDbConnection();
+    if (!isDbConnected) {
+      log("数据库连接不可用，请求被拒绝");
+      return res.status(503).json({ 
+        message: "数据库服务暂时不可用，请稍后再试",
+        code: "DB_UNAVAILABLE"
+      });
+    }
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

@@ -180,14 +180,21 @@ class LearningMemoryService:
             
     def cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
         """计算两个向量的余弦相似度"""
-        dot_product = np.dot(vec1, vec2)
-        norm1 = np.linalg.norm(vec1)
-        norm2 = np.linalg.norm(vec2)
-        
-        if norm1 == 0 or norm2 == 0:
-            return 0.0
+        try:
+            if vec1.size == 0 or vec2.size == 0:
+                return 0.0
+                
+            dot_product = np.dot(vec1, vec2)
+            norm1 = np.linalg.norm(vec1)
+            norm2 = np.linalg.norm(vec2)
             
-        return dot_product / (norm1 * norm2)
+            if norm1 == 0 or norm2 == 0:
+                return 0.0
+                
+            return dot_product / (norm1 * norm2)
+        except Exception as e:
+            print(f"余弦相似度计算错误: {str(e)}")
+            return 0.0
         
     def generate_content_summary(self, content: str) -> str:
         """
@@ -253,21 +260,42 @@ class LearningMemoryService:
             学习轨迹分析结果 - 动态生成的知识记忆空间
         """
         try:
+            print(f"开始分析用户 {user_id} 的学习轨迹")
             user_dir = os.path.join(self.memory_dir, str(user_id))
             if not os.path.exists(user_dir):
+                print(f"用户目录不存在: {user_dir}")
                 return self.default_analysis()
                 
             # 收集所有记忆
             memories = []
-            memory_files = sorted(os.listdir(user_dir))  # 按文件名排序（通常包含时间戳）
-            for filename in memory_files:
-                if filename.endswith('.json'):
-                    file_path = os.path.join(user_dir, filename)
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        memory = json.load(f)
-                        # 添加文件名作为ID，方便后续引用
-                        memory["id"] = filename.replace(".json", "")
-                        memories.append(memory)
+            try:
+                memory_files = sorted(os.listdir(user_dir))  # 按文件名排序（通常包含时间戳）
+                print(f"找到 {len(memory_files)} 个记忆文件")
+                
+                for filename in memory_files:
+                    if filename.endswith('.json'):
+                        file_path = os.path.join(user_dir, filename)
+                        try:
+                            with open(file_path, 'r', encoding='utf-8') as f:
+                                file_content = f.read()
+                                if not file_content.strip():
+                                    print(f"文件 {filename} 内容为空")
+                                    continue
+                                    
+                                memory = json.loads(file_content)
+                                # 添加文件名作为ID，方便后续引用
+                                memory["id"] = filename.replace(".json", "")
+                                memories.append(memory)
+                        except json.JSONDecodeError as je:
+                            print(f"解析记忆文件 {filename} 时出错: {str(je)}")
+                            continue
+                        except Exception as e:
+                            print(f"处理记忆文件 {filename} 时出错: {str(e)}")
+                            continue
+            except Exception as e:
+                print(f"读取记忆文件列表时出错: {str(e)}")
+                
+            print(f"成功加载 {len(memories)} 个有效记忆")
             
             if not memories:
                 return self.default_analysis()

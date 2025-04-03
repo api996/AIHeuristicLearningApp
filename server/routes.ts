@@ -159,6 +159,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const filePath = path.join(userDir, files[0]);
             const fileContent = fs.readFileSync(filePath, 'utf8');
             log(`记忆文件内容示例: ${fileContent.substring(0, 100)}...`);
+          } catch (readError) {
+            log(`读取记忆文件错误: ${readError}`);
+          }
+        }
+      }
+      
+      // 调用Python服务分析学习路径
+      const pythonProcess = spawn('python3', ['-c', `
+import asyncio
+import sys
+import json
+sys.path.append('server')
+from services.learning_memory import learning_memory_service
+
+async def analyze_learning_path():
+    try:
+        # 分析学习轨迹
+        analysis = await learning_memory_service.analyze_learning_path(${userId})
+        # 转换为JSON输出
+        print(json.dumps(analysis, ensure_ascii=False))
+    except Exception as e:
+        print(json.dumps({"error": str(e)}, ensure_ascii=False))
+
+asyncio.run(analyze_learning_path())
+      `]);
+      
+      let output = '';
+      pythonProcess.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+      
+      let errorOutput = '';
+      pythonProcess.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+        log(`学习路径分析错误: ${data.toString()}`);
+      });
+      
+      pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+          log(`学习路径分析进程退出，错误码 ${code}: ${errorOutput}`);
+          return res.status(500).json({ error: "分析学习路径失败" });
+        }
+        
+        try {
+          // 解析输出为JSON
+          const analysis = output.trim() ? JSON.parse(output) : { 
+            topics: [],
+            progress: [],
+            suggestions: ["开始提问以建立您的学习记忆"]
+          };
+          
+          log(`成功分析学习路径，主题数量: ${analysis.topics?.length || 0}`);
+          return res.json(analysis);
+        } catch (parseError) {
+          log(`解析学习路径结果错误: ${parseError}, 原始输出: ${output}`);
+          return res.status(500).json({ error: "解析学习路径结果失败" });
+        }
+      });
+    } catch (error) {
+      log(`学习路径分析API错误: ${error}`);
+      res.status(500).json({ error: "分析学习轨迹时出错" });
+    }
+  });件内容示例: ${fileContent.substring(0, 100)}...`);
           } catch (e) {
             log(`读取记忆文件失败: ${e}`);
           }
