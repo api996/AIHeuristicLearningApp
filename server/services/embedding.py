@@ -20,7 +20,7 @@ class EmbeddingService:
 
     def __init__(self):
         # 使用最新的Gemini嵌入模型
-        self.model_name = "gemini-embedding-exp-03-07"  # 保持原有模型名称不变
+        self.model_name = "embedding-001"  # 使用正确的Gemini嵌入模型名称
 
     async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
@@ -48,18 +48,19 @@ class EmbeddingService:
                     print(f"处理文本: {text[:30]}...")
                     try:
                         # 使用更新后的API方法获取嵌入向量
-                        print(f"调用genai.embed_content(model={self.model_name}, content={text[:20]}...)")
+                        print(f"调用genai.Embedding模型获取嵌入向量, model={self.model_name}")
                         
-                        # 使用新API进行嵌入
-                        result = genai.embed_content(
-                            model=self.model_name,
+                        # 获取嵌入模型
+                        embedding_model = genai.get_model(self.model_name)
+                        
+                        # 使用嵌入模型生成嵌入向量
+                        embedding_result = embedding_model.embed_content(
                             content=text,
-                            task_type="retrieval_document"
+                            task_type="RETRIEVAL_DOCUMENT"
                         )
                         
                         # 解析嵌入结果
-                        # 新API返回的是字典结构，嵌入向量在"embedding"键下
-                        vector = result["embedding"]
+                        vector = embedding_result.embedding
                         print(f"嵌入向量生成成功，维度: {len(vector)}")
                         embeddings.append(vector)
 
