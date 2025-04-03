@@ -22,7 +22,7 @@ localPort = 5003
 externalPort = 3001
 
 [workflows]
-runButton = "更新依赖并重启服务"
+runButton = "重启并修复记忆系统"
 
 [[workflows.workflow]]
 name = "Project"
@@ -250,6 +250,43 @@ args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "kill $(lsof -t -i:5001) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=development npm run dev"
+
+[[workflows.workflow]]
+name = "重启并修复记忆系统"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"tsx server/index.ts\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5001) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "# 修复可能的目录权限问题"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "mkdir -p memory_space"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "chmod -R 755 memory_space"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "# 重新启动应用"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"

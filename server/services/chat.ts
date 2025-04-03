@@ -224,9 +224,38 @@ ${contextMemories}
       }
       
       // 使用可能的记忆上下文发送消息
-      return await config.getResponse(message, userId, contextMemories);
+      const result = await config.getResponse(message, userId, contextMemories);
+      
+      // 在请求完成后更新用户记忆
+      if (userId) {
+        try {
+          // 可以在这里直接调用保存记忆的API
+          fetch('http://localhost:5000/api/save-memory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              userId, 
+              content: message,
+              type: "user_message" 
+            })
+          }).catch(memoryError => {
+            log(`记忆保存错误（非阻塞）: ${memoryError}`);
+          });
+        } catch (memoryError) {
+          // 非阻塞错误，即使记忆保存失败也返回聊天结果
+          log(`记忆处理错误（非阻塞）: ${memoryError}`);
+        }
+      }
+      
+      return result;
     } catch (error) {
       log(`Error in ${this.currentModel} chat: ${error instanceof Error ? error.message : String(error)}`);
+      // 尝试提供更友好的错误信息
+      if (error instanceof Error && error.message.includes('timeout')) {
+        throw new Error('服务器响应超时，请稍后再试');
+      } else if (error instanceof Error && error.message.includes('network')) {
+        throw new Error('网络连接问题，请检查您的连接');
+      }
       throw error;
     }
   }
