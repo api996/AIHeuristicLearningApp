@@ -217,10 +217,10 @@ ${contextMemories}
       log(`Processing message with ${this.currentModel} model: ${message}`);
       const config = this.modelConfigs[this.currentModel];
       
-      // 如果有用户ID，尝试获取相似记忆
-      let contextMemories: string | undefined = undefined;
+      // 如果有用户ID，// 尝试获取相似记忆
+      let contextMemories: string | undefined; = undefined;
       if (userId) {
-        contextMemories = await this.getSimilarMemories(userId, message);
+        contextMemories = await this.memoryService.getContextMemories(userId, inputText);s.getSimilarMemories(userId, message);
       }
       
       // 使用可能的记忆上下文发送消息
