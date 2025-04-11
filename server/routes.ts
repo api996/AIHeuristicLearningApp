@@ -166,9 +166,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // 如果文件数量充足，直接从文件内容提取主题
         if (files.length >= 5) {
-          // 从文件内容中提取主题
-          const topics = new Set();
+          // 从文件内容中提取主题及其频率
+          const topicsMap = new Map(); // 存储主题及其出现次数
           const processed = new Set();
+          let totalProcessed = 0;
+          
+          // 定义主题关键词映射
+          const topicKeywords = {
+            '英语学习': ['english', '英语', 'language learning', '语言学习', 'grammar', '语法'],
+            '化学': ['chemistry', '化学', '分子', 'molecule', '元素', 'element', '化合物', '反应'],
+            '物理学': ['physics', '物理', '力学', '热力学', '电磁', '量子', 'quantum', 'mechanics'],
+            '编程技术': ['coding', 'programming', '编程', '开发', 'code', 'development', 'software', '软件', 'app'],
+            '数据科学': ['data', '数据', 'analysis', '分析', '统计', 'statistics', 'machine learning', '机器学习'],
+            '数学': ['math', 'mathematics', '数学', '代数', '几何', 'calculus', '微积分'],
+            '生物学': ['biology', '生物', 'genetics', '遗传', 'organism', '有机体', 'cell', '细胞'],
+            '心理学': ['psychology', '心理学', '行为', 'behavior', '认知', 'cognitive'],
+            '文学': ['literature', '文学', '写作', 'writing', '阅读', 'reading', '小说', 'novel'],
+            '哲学': ['philosophy', '哲学', '思考', 'thinking', '逻辑', 'logic'],
+            '历史': ['history', '历史', 'ancient', '古代', 'civilization', '文明'],
+            '艺术': ['art', '艺术', 'painting', '绘画', 'music', '音乐', 'design', '设计'],
+            '经济学': ['economics', '经济', 'finance', '金融', 'market', '市场'],
+            '学习方法': ['learning', 'study', '学习', '方法', 'method', '技巧', 'technique', '记忆', 'memory'],
+            '知识探索': ['knowledge', '知识', 'explore', '探索', 'discovery', '发现', 'curiosity', '好奇心']
+          };
           
           // 遍历文件，提取主题关键词
           for (const file of files) {
@@ -178,80 +198,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const content = fs.readFileSync(path.join(userDir, file), 'utf8');
               const memory = JSON.parse(content);
               const memContent = memory.content || '';
+              const lowerContent = memContent.toLowerCase();
               
-              // 简单的主题识别
-              if (memContent.toLowerCase().includes('english') || 
-                  memContent.toLowerCase().includes('英语')) {
-                topics.add('英语学习');
+              // 更智能的主题识别，基于关键词匹配和权重计算
+              for (const [topic, keywords] of Object.entries(topicKeywords)) {
+                for (const keyword of keywords) {
+                  if (lowerContent.includes(keyword.toLowerCase())) {
+                    // 如果找到了关键词，增加主题计数
+                    topicsMap.set(topic, (topicsMap.get(topic) || 0) + 1);
+                    break; // 找到一个关键词就足够了，避免重复计数
+                  }
+                }
               }
               
-              if (memContent.toLowerCase().includes('化学') || 
-                  memContent.toLowerCase().includes('chemistry')) {
-                topics.add('化学');
-              }
-              
-              if (memContent.toLowerCase().includes('物理') || 
-                  memContent.toLowerCase().includes('physics')) {
-                topics.add('物理学');
-              }
-              
-              if (memContent.toLowerCase().includes('编程') || 
-                  memContent.toLowerCase().includes('code') ||
-                  memContent.toLowerCase().includes('program')) {
-                topics.add('编程技术');
-              }
-              
-              if (memContent.toLowerCase().includes('学习') || 
-                  memContent.toLowerCase().includes('learning') ||
-                  memContent.toLowerCase().includes('study')) {
-                topics.add('学习方法');
-              }
+              processed.add(file);
+              totalProcessed++;
+              // 处理一定数量后停止，避免处理过多
+              if (totalProcessed >= 30) break;
             } catch (error) {
               // 忽略无法解析的文件
               continue;
             }
           }
           
-          // 添加默认主题，确保有足够的主题
-          if (topics.size === 0) {
-            topics.add('知识探索');
-            topics.add('学习方法');
-            topics.add('英语学习');
-          } else if (topics.size === 1) {
-            topics.add('学习方法');
-            topics.add('知识探索');
-          } else if (topics.size === 2) {
-            topics.add('知识探索');
+          // 按出现频率排序主题
+          const sortedTopics = Array.from(topicsMap.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5); // 只取前5个主题
+          
+          // 如果没有找到任何主题，添加默认主题
+          if (sortedTopics.length === 0) {
+            sortedTopics.push(['知识探索', 3]);
+            sortedTopics.push(['学习方法', 2]);
+            sortedTopics.push(['个人成长', 1]);
+          } else if (sortedTopics.length === 1) {
+            // 如果只找到一个主题，再添加两个相关主题
+            sortedTopics.push(['学习方法', Math.ceil(sortedTopics[0][1] * 0.7)]);
+            sortedTopics.push(['知识探索', Math.ceil(sortedTopics[0][1] * 0.4)]);
+          } else if (sortedTopics.length === 2) {
+            // 如果只找到两个主题，再添加一个相关主题
+            sortedTopics.push(['知识探索', Math.ceil((sortedTopics[0][1] + sortedTopics[1][1]) * 0.3)]);
           }
           
-          // 将Set转换为数组
-          const topicArray = Array.from(topics);
+          // 计算总权重，用于后续百分比计算
+          const totalWeight = sortedTopics.reduce((sum, [_, count]) => sum + count, 0);
           
-          // 如果从内容中找到了主题，直接返回
-          log(`从文件内容中检测到的主题: ${topicArray.join(', ')}`);
-          return res.json({
-            topics: topicArray.map((topic, i) => ({
+          // 添加一些随机波动使结果更自然
+          const addNaturalVariation = (basePercentage: number): number => {
+            // 在基础百分比的基础上添加 -5% 到 +5% 的随机波动
+            const variation = (Math.random() * 10 - 5);
+            // 确保结果在合理范围内
+            return Math.min(98, Math.max(10, Math.round(basePercentage + variation)));
+          };
+          
+          // 将主题转换为期望格式
+          const topicData = sortedTopics.map(([topic, count], index) => {
+            // 计算出基于实际频率的百分比
+            const basePercentage = Math.min(95, Math.round((count / totalWeight) * 100) + 20);
+            // 添加自然变化
+            const percentage = addNaturalVariation(basePercentage);
+            
+            return {
               topic,
               id: `topic_${topic.replace(/\s+/g, '_')}`,
-              count: Math.floor(Math.random() * 10) + 5,
-              percentage: 80 - i * 15
-            })),
-            progress: topicArray.map((topic, i) => ({
-              topic,
-              percentage: 80 - i * 15
+              count,
+              percentage
+            };
+          });
+          
+          // 记录分析结果
+          log(`从文件内容中检测到的主题: ${topicData.map(t => t.topic).join(', ')}`);
+          
+          return res.json({
+            topics: topicData,
+            progress: topicData.map(item => ({
+              topic: item.topic,
+              percentage: item.percentage
             })),
             suggestions: [
               "继续提问相关学习话题以增强个性化推荐",
-              `探索${topicArray[0]}的进阶知识点`,
+              `探索${topicData[0].topic}的进阶知识点`,
               "尝试在不同领域之间建立关联，拓展知识网络"
             ],
             knowledge_graph: {
               nodes: [
-                ...topicArray.map((topic, i) => ({
-                  id: `topic_${topic.replace(/\s+/g, '_')}`,
-                  name: topic,
+                ...topicData.map((item, i) => ({
+                  id: item.id,
+                  name: item.topic,
                   type: "topic",
-                  size: 30 + (3 - i) * 10
+                  size: 30 + Math.floor(item.percentage / 10)
                 })),
                 {
                   id: "center_node",
@@ -261,18 +296,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               ],
               links: [
-                ...topicArray.map((topic) => ({
+                ...topicData.map((item) => ({
                   source: "center_node",
-                  target: `topic_${topic.replace(/\s+/g, '_')}`,
+                  target: item.id,
                   type: "relation",
-                  strength: 0.8
+                  strength: item.percentage / 100
                 })),
-                ...(topicArray.length > 1 ? [
+                ...(topicData.length > 1 ? [
                   {
-                    source: `topic_${topicArray[0].replace(/\s+/g, '_')}`,
-                    target: `topic_${topicArray[1].replace(/\s+/g, '_')}`,
+                    source: topicData[0].id,
+                    target: topicData[1].id,
                     type: "related",
-                    strength: 0.5
+                    strength: 0.7
                   }
                 ] : [])
               ]
