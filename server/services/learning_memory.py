@@ -7,21 +7,23 @@ try:
 except ImportError:
     # 回退到纯Python实现
     print("警告：无法导入numpy，将使用纯Python实现向量操作")
-    class NumpyFallback:
+    class NumpyLinalg:
         @staticmethod
-        def array(lst):
-            return lst
-            
-        @staticmethod
-        def dot(vec1, vec2):
-            # 手动计算点积
-            return sum(a*b for a, b in zip(vec1, vec2))
-            
-        @staticmethod
-        def linalg_norm(vec):
+        def norm(vec):
             # 手动计算向量的L2范数
             return (sum(x*x for x in vec)) ** 0.5
             
+    class NumpyFallback:
+        def __init__(self):
+            self.linalg = NumpyLinalg()
+            
+        def array(self, lst):
+            return lst
+            
+        def dot(self, vec1, vec2):
+            # 手动计算点积
+            return sum(a*b for a, b in zip(vec1, vec2))
+    
     np = NumpyFallback()
 from datetime import datetime
 from .embedding import EmbeddingService
@@ -200,16 +202,38 @@ class LearningMemoryService:
             print(f"检索记忆时出错: {str(e)}")
             return []
 
-    def cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
+    def cosine_similarity(self, vec1, vec2) -> float:
         """计算两个向量的余弦相似度"""
-        dot_product = np.dot(vec1, vec2)
-        norm1 = np.linalg.norm(vec1)
-        norm2 = np.linalg.norm(vec2)
+        try:
+            # 确保向量维度匹配
+            if len(vec1) != len(vec2):
+                print(f"警告：向量维度不匹配，无法计算余弦相似度: {len(vec1)} vs {len(vec2)}")
+                return 0.0
+                
+            # 计算点积
+            if hasattr(np, 'dot'):
+                dot_product = np.dot(vec1, vec2)
+            else:
+                # 手动计算点积
+                dot_product = sum(a*b for a, b in zip(vec1, vec2))
+            
+            # 计算向量范数
+            if hasattr(np, 'linalg') and hasattr(np.linalg, 'norm'):
+                norm1 = np.linalg.norm(vec1)
+                norm2 = np.linalg.norm(vec2)
+            else:
+                # 手动计算L2范数
+                norm1 = (sum(x*x for x in vec1)) ** 0.5
+                norm2 = (sum(x*x for x in vec2)) ** 0.5
+            
+            if norm1 == 0 or norm2 == 0:
+                return 0.0
 
-        if norm1 == 0 or norm2 == 0:
+            return dot_product / (norm1 * norm2)
+            
+        except Exception as e:
+            print(f"计算余弦相似度时出错: {str(e)}")
             return 0.0
-
-        return dot_product / (norm1 * norm2)
 
     def generate_content_summary(self, content: str) -> str:
         """
