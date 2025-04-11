@@ -9,6 +9,7 @@ import fs from "fs";
 import express from 'express';
 import { verifyTurnstileToken } from './services/turnstile';
 import { spawn } from 'child_process';
+import learningPathRoutes from './routes/learning-path';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
@@ -1263,6 +1264,9 @@ asyncio.run(test_memory())
       });
     }
   });
+
+  // 注册学习轨迹路由
+  app.use('/api/learning-path', learningPathRoutes);
 
   const httpServer = createServer(app);
   return httpServer;
