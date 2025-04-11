@@ -1017,8 +1017,8 @@ export function AIChat({ userData }: AIChatProps) {
           )}
         </div>
 
-        {/* Input Area - 使用底部定位+内部自适应高度布局 */}
-        <div className={"absolute bottom-0 left-0 right-0 pb-4 pt-2 px-2 z-20 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
+        {/* Input Area - 使用更灵活的定位方式 */}
+        <div className={"chat-input-area absolute bottom-0 left-0 right-0 pb-4 pt-2 px-2 z-20 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
           <div className="max-w-3xl mx-auto px-2 sm:px-4">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">

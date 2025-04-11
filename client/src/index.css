@@ -381,3 +381,35 @@
   overflow: visible; /* 确保内容不被截断 */
   transform: translateZ(0); /* 强制GPU渲染，提高性能 */
 }
+
+/* 键盘弹出时的修改 */
+.keyboard-open .chat-input-area {
+  position: static !important;
+  bottom: auto !important;
+  margin-top: auto !important;
+  z-index: 20 !important;
+}
+
+/* 确保键盘弹出时内容保持可见 */
+.keyboard-open .flex-1.overflow-y-auto {
+  margin-bottom: 0 !important;
+  padding-bottom: 10px !important;
+}
+
+/* 优化iOS键盘弹出时的滚动行为 */
+@supports (-webkit-touch-callout: none) {
+  /* 仅适用于iOS设备 */
+  .keyboard-open {
+    height: -webkit-fill-available !important;
+  }
+  
+  .keyboard-open .h-\[calc\(var\(--vh\)\*100\)\] {
+    height: auto !important;
+    min-height: -webkit-fill-available !important;
+  }
+}
+
+/* iOS输入框特殊处理 */
+.keyboard-open textarea {
+  font-size: 16px !important; /* 防止iOS自动缩放 */
+}
