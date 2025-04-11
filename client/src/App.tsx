@@ -7,6 +7,7 @@ import Login from "@/pages/login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import UserDetails from "@/pages/user-details";
 import ChatDetails from "@/pages/chat-details";
+import LearningPath from "@/pages/learning-path";
 import NotFound from "@/pages/not-found";
 
 function Router() {
