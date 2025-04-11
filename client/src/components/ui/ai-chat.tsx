@@ -852,7 +852,7 @@ export function AIChat({ userData }: AIChatProps) {
 
 
   return (
-    <div className="flex vh-chat-container text-white relative">
+    <div className="flex h-screen text-white relative" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
       {/* 背景图片容器 */}
       {backgroundImage && (
         <div className="bg-container">
@@ -915,7 +915,7 @@ export function AIChat({ userData }: AIChatProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col vh-chat-container">
+      <div className="flex-1 flex flex-col relative">
         {/* Header - 苹果风格磨砂透明 */}
         <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${theme === 'dark' ? 'frosted-glass-dark border-neutral-800' : 'frosted-glass border-neutral-200/20'}`}>
           <div className="flex items-center">
@@ -968,8 +968,8 @@ export function AIChat({ userData }: AIChatProps) {
           </div>
         </header>
 
-        {/* Messages */}
-        <div className={"flex-1 flex flex-col p-6 md:p-8 pb-48 " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
+        {/* Messages - 使用绝对定位, 避免滚动问题 */}
+        <div className={"flex-1 flex flex-col p-4 sm:p-6 md:p-8 pb-52 overflow-y-auto " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
           {messages.length === 0 ? (
             // 欢迎页面 - 垂直居中不需要滚动，完全隐藏滚动条
             <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
@@ -986,11 +986,13 @@ export function AIChat({ userData }: AIChatProps) {
               </div>
             </div>
           ) : (
-            // 有消息时显示滚动区域 - 将内容固定在顶部并去除滚动条
+            // 有消息时显示滚动区域 - 优化滚动体验与空间
             <div 
               ref={messagesContainerRef}
-              className="flex-1 flex flex-col gap-4 py-1 hide-empty-scrollbar content-start justify-start items-stretch"
-              style={{ overflowY: messages.length > 4 ? 'auto' : 'visible' }}
+              className="w-full flex flex-col gap-4 py-1 items-stretch"
+              style={{ 
+                minHeight: '100%'
+              }}
             >
               {messages.map((msg, i) => (
                 <ChatMessage 
@@ -1013,9 +1015,9 @@ export function AIChat({ userData }: AIChatProps) {
           )}
         </div>
 
-        {/* Input Area - 苹果风格磨砂透明 */}
-        <div className={"fixed bottom-0 left-0 right-0 pb-6 pt-2 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
-          <div className="max-w-3xl mx-auto px-4">
+        {/* Input Area - 使用底部定位+内部自适应高度布局 */}
+        <div className={"absolute bottom-0 left-0 right-0 pb-4 pt-2 px-2 z-20 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
+          <div className="max-w-3xl mx-auto px-2 sm:px-4">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
               <Button
@@ -1104,12 +1106,14 @@ export function AIChat({ userData }: AIChatProps) {
                     onKeyDown={handleKeyDown}
                     placeholder="输入消息..."
                     disabled={isLoading}
-                    className="w-full h-[50px] min-h-[50px] max-h-[200px] py-3 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 select-text"
+                    className="w-full h-[50px] min-h-[50px] max-h-[150px] py-3 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-[16px]"
                     style={{
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'none',
+                      appearance: 'none',
                       WebkitUserSelect: 'text',
-                      MozUserSelect: 'text',
-                      msUserSelect: 'text',
-                      userSelect: 'text'
+                      userSelect: 'text',
+                      caretColor: 'white'
                     }}
                   />
                   <input
@@ -1143,7 +1147,7 @@ export function AIChat({ userData }: AIChatProps) {
           </div>
         </div>
         {/* 添加底部空间，避免内容被固定位置的输入框覆盖 */}
-        <div className="h-48"></div>
+        <div className="h-72"></div>
       </div>
 
       {/* Password Change Dialog */}

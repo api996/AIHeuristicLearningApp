@@ -360,16 +360,24 @@
 .vh-chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 8px; /* 留出一些底部空间 */
+  padding-bottom: 60px; /* 增加底部空间，确保键盘弹出时内容可见 */
   overscroll-behavior: contain; /* 防止iOS弹性滚动影响容器外部 */
   -webkit-overflow-scrolling: touch; /* 平滑iOS滚动 */
+  will-change: transform; /* 优化滚动性能 */
+  scroll-behavior: smooth; /* 平滑滚动效果 */
 }
 
 .vh-chat-input {
-  position: sticky;
+  position: fixed; /* 固定定位而非粘性定位，确保在所有设备上一致 */
   bottom: 0;
-  padding: 12px;
+  left: 0;
+  right: 0;
+  padding: 12px 0;
   background-color: inherit; /* 继承父容器背景色 */
-  z-index: 10; /* 确保输入框始终可见 */
+  z-index: 30; /* 确保输入框始终可见，提高z-index避免被其他元素覆盖 */
   border-top: 1px solid var(--border-color);
+  margin-bottom: env(safe-area-inset-bottom, 0); /* 兼容iOS底部安全区域 */
+  max-height: 45vh; /* 增加最大高度，确保在小屏幕上也能容纳更多内容 */
+  overflow: visible; /* 确保内容不被截断 */
+  transform: translateZ(0); /* 强制GPU渲染，提高性能 */
 }
