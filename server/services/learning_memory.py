@@ -140,24 +140,63 @@ class LearningMemoryService:
         try:
             user_dir = os.path.join(self.memory_dir, str(user_id))
             if not os.path.exists(user_dir):
+                print(f"用户目录不存在: {user_dir}")
                 return []
 
             # 获取查询的嵌入向量
             query_embeddings = await self.embedding_service.get_embeddings([query])
             if not query_embeddings or not query_embeddings[0]:
+                print("无法获取查询的嵌入向量")
                 return []
 
             query_vector = np.array(query_embeddings[0])
+            print(f"查询向量维度: {len(query_vector)}")
 
-            # 收集所有记忆
+            # 收集所有记忆并处理缺失字段
             memories = []
             for filename in os.listdir(user_dir):
                 if filename.endswith('.json'):
                     file_path = os.path.join(user_dir, filename)
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        memory = json.load(f)
-                        memories.append(memory)
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            memory = json.load(f)
+                            
+                            # 添加文件名作为ID
+                            if "id" not in memory:
+                                memory["id"] = filename.replace(".json", "")
+                            
+                            # 检查并生成缺失的字段
+                            content = memory.get("content", "")
+                            need_update = False
+                            
+                            # 如果没有summary字段，生成一个
+                            if "summary" not in memory and content:
+                                memory["summary"] = self.generate_content_summary(content)
+                                need_update = True
+                                print(f"为记忆生成摘要: {memory['summary'][:30]}...")
+                            
+                            # 如果没有keywords字段，生成一个
+                            if "keywords" not in memory and content:
+                                memory["keywords"] = self.extract_keywords_from_text(content)
+                                need_update = True
+                                print(f"为记忆生成关键词: {memory['keywords']}")
+                            
+                            # 如果有需要更新的字段，保存回文件
+                            if need_update:
+                                try:
+                                    print(f"更新文件 {filename} 添加缺失字段")
+                                    with open(file_path, 'w', encoding='utf-8') as f_write:
+                                        json_str = json.dumps(memory, ensure_ascii=False)
+                                        f_write.write(json_str)
+                                except Exception as e:
+                                    print(f"更新文件时出错: {str(e)}")
+                            
+                            memories.append(memory)
+                    except Exception as e:
+                        print(f"读取或处理记忆文件出错: {file_path}, 错误: {str(e)}")
 
+            print(f"加载了 {len(memories)} 个记忆文件")
+            
             # 计算相似度并排序
             scored_memories = []
             for memory in memories:
@@ -182,11 +221,13 @@ class LearningMemoryService:
                                 intersection = query_words.intersection(memory_words)
                                 union = query_words.union(memory_words)
                                 similarity = len(intersection) / max(1, len(union))
+                                print(f"使用词汇重叠计算相似度: {similarity:.4f}")
                         else:
                             similarity = 0.0
                     else:
                         # 正常使用余弦相似度
                         similarity = self.cosine_similarity(query_vector, memory_vector)
+                        print(f"使用余弦相似度: {similarity:.4f}")
 
                     scored_memories.append((memory, similarity))
                 except Exception as e:
@@ -195,11 +236,16 @@ class LearningMemoryService:
 
             # 按相似度降序排序
             scored_memories.sort(key=lambda x: x[1], reverse=True)
+            print(f"排序后的记忆数量: {len(scored_memories)}")
 
             # 返回前limit个结果
-            return [memory for memory, _ in scored_memories[:limit]]
+            result = [memory for memory, similarity in scored_memories[:limit]]
+            print(f"返回 {len(result)} 个相似记忆")
+            return result
         except Exception as e:
             print(f"检索记忆时出错: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             return []
 
     def cosine_similarity(self, vec1, vec2) -> float:
