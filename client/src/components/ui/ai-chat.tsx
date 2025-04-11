@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
+import { setupViewportHeightListeners, scrollToBottom, isNearBottom } from "@/lib/viewportUtils";
 import { useLocation } from "wouter";
 import {
   Search,
@@ -718,13 +719,15 @@ export function AIChat({ userData }: AIChatProps) {
   };
 
   // 自动滚动到消息顶部或底部
+  // 使用优化后的滚动函数，包含智能判断是否需要滚动的逻辑
   const scrollTo = (position: 'top' | 'bottom') => {
     if (messagesContainerRef.current) {
       const container = messagesContainerRef.current;
       if (position === 'top') {
         container.scrollTop = 0;
       } else {
-        container.scrollTop = container.scrollHeight;
+        // 使用平滑滚动效果
+        scrollToBottom(container, true);
       }
     }
   };
@@ -740,6 +743,13 @@ export function AIChat({ userData }: AIChatProps) {
     }
   }, [messages]);
 
+  // 设置视口高度监听，确保移动设备上正确计算可视高度
+  useEffect(() => {
+    // 设置视口高度监听器，解决iOS/移动设备键盘弹出问题
+    const cleanup = setupViewportHeightListeners();
+    return cleanup;
+  }, []);
+  
   // 检查用户登录状态和初始化偏好设置
   useEffect(() => {
     // 1. 检查用户登录状态
@@ -842,7 +852,7 @@ export function AIChat({ userData }: AIChatProps) {
 
 
   return (
-    <div className="flex h-screen text-white relative">
+    <div className="flex vh-chat-container text-white relative">
       {/* 背景图片容器 */}
       {backgroundImage && (
         <div className="bg-container">
@@ -905,7 +915,7 @@ export function AIChat({ userData }: AIChatProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col vh-chat-container">
         {/* Header - 苹果风格磨砂透明 */}
         <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${theme === 'dark' ? 'frosted-glass-dark border-neutral-800' : 'frosted-glass border-neutral-200/20'}`}>
           <div className="flex items-center">
