@@ -2,7 +2,27 @@ import os
 import json
 import re
 from typing import List, Dict, Any, Optional
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    # 回退到纯Python实现
+    print("警告：无法导入numpy，将使用纯Python实现向量操作")
+    class NumpyFallback:
+        @staticmethod
+        def array(lst):
+            return lst
+            
+        @staticmethod
+        def dot(vec1, vec2):
+            # 手动计算点积
+            return sum(a*b for a, b in zip(vec1, vec2))
+            
+        @staticmethod
+        def linalg_norm(vec):
+            # 手动计算向量的L2范数
+            return (sum(x*x for x in vec)) ** 0.5
+            
+    np = NumpyFallback()
 from datetime import datetime
 from .embedding import EmbeddingService
 
@@ -55,11 +75,11 @@ class LearningMemoryService:
             embeddings = await self.embedding_service.get_embeddings([content])
             if not embeddings or not embeddings[0]:
                 print(f"无法为内容生成嵌入向量: {content[:50]}...")
-                # 使用一个随机小向量作为替代，这样不会全是0
+                # 使用3072维随机向量作为替代，保持与嵌入API相同的维度
                 import random
-                random_vec = [random.uniform(-0.1, 0.1) for _ in range(10)]
+                random_vec = [random.uniform(-0.01, 0.01) for _ in range(3072)]
                 embeddings = [random_vec]
-                print(f"生成随机替代向量: {random_vec[:5]}...")
+                print(f"生成3072维随机替代向量: {random_vec[:5]}...")
 
             # 生成内容摘要
             summary = self.generate_content_summary(content)
@@ -497,7 +517,7 @@ class LearningMemoryService:
             print(f"提取关键词时出错: {str(e)}")
             return ["学习主题"]  # 提供一个默认值而不是空列表
 
-    async def cluster_memories(self, memories: List[Dict[str, Any]], user_id: int = None) -> Dict[str, Dict[str, Any]]:
+    async def cluster_memories(self, memories: List[Dict[str, Any]], user_id: Optional[int] = None) -> Dict[str, Dict[str, Any]]:
         """使用语义相似性对记忆进行聚类，发现主题"""
         try:
             if not memories:
@@ -506,14 +526,31 @@ class LearningMemoryService:
             # 为所有记忆内容生成嵌入向量（如果尚未有嵌入或嵌入为零向量）
             memory_texts = [mem.get("content", "") for mem in memories]
 
-            # 检查哪些记忆需要重新生成嵌入（没有嵌入或嵌入是零向量）
+            # 检查哪些记忆需要重新生成嵌入（没有嵌入、嵌入是零向量或维度不正确）
             memories_need_embedding = []
+            
+            # 检查是否有任何记忆有正确的向量以确定预期维度
+            expected_dim = 3072  # Gemini嵌入模型的默认维度
+            for memory in memories:
+                embedding = memory.get("embedding", [])
+                # 找到第一个非零嵌入并记录其维度
+                if embedding and not all(v == 0 for v in embedding[:10]):
+                    expected_dim = len(embedding)
+                    print(f"找到正常嵌入向量，维度为 {expected_dim}")
+                    break
+            
             for i, memory in enumerate(memories):
                 embedding = memory.get("embedding", [])
-                # 检查向量是否为空或全是零
-                if not embedding or (isinstance(embedding, list) and len(embedding) > 10 and all(v == 0 for v in embedding[:10])):
+                # 检查向量是否为以下情况之一:
+                # 1. 空向量
+                # 2. 维度不匹配
+                # 3. 全是零或前10个元素是零
+                if (not embedding) or (len(embedding) != expected_dim) or (all(v == 0 for v in embedding[:10])):
                     memories_need_embedding.append(i)
-                    print(f"记忆 {memory.get('id', i)} 需要生成嵌入向量")
+                    print(f"记忆 {memory.get('id', i)} 需要生成嵌入向量，原因：" + 
+                          ("空向量" if not embedding else 
+                           f"维度不匹配 (当前:{len(embedding)}, 预期:{expected_dim})" if len(embedding) != expected_dim else 
+                           "全零向量"))
 
             # 如果有记忆需要重新生成嵌入
             if memories_need_embedding:

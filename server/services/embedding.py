@@ -73,22 +73,24 @@ class EmbeddingService:
 
                     except Exception as e:
                         print(f"处理文本时出错: {str(e)}")
-                        # 创建一个简单的替代向量，使用正确的维度3072而不是768
-                        print("生成替代嵌入向量...")
-                        embeddings.append([0.0] * 3072)
+                        # 创建一个随机替代向量，使用正确的维度3072而不是768
+                        print("生成随机替代嵌入向量...")
+                        import random
+                        # 使用小的随机值而不是全0向量，提高区分度
+                        random_vector = [random.uniform(-0.01, 0.01) for _ in range(3072)]
+                        embeddings.append(random_vector)
 
             return embeddings
         except Exception as e:
             print(f"嵌入生成错误: {str(e)}")
-            # 出错时返回空向量
-            # 出错时返回10维的小随机向量而不是空向量
+            # 出错时返回正确维度的随机向量而不是简短替代向量
             import random
             fallback_vectors = []
             for _ in texts:
-                # 创建一个小的随机向量，这样即使API失败，也能有基本的分析功能
-                fallback_vector = [random.uniform(-0.1, 0.1) for _ in range(10)]
+                # 创建一个3072维度的随机向量，确保维度和真实嵌入一致
+                fallback_vector = [random.uniform(-0.01, 0.01) for _ in range(3072)]
                 fallback_vectors.append(fallback_vector)
-            print(f"使用随机向量替代，数量: {len(fallback_vectors)}")
+            print(f"使用3072维随机向量替代，数量: {len(fallback_vectors)}")
             return fallback_vectors
 
     async def similarity(self, text1: str, text2: str) -> float:
