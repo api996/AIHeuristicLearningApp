@@ -299,23 +299,60 @@ class LearningMemoryService:
             学习轨迹分析结果 - 动态生成的知识记忆空间
         """
         try:
+            print(f"开始分析用户 {user_id} 的学习轨迹...")
             user_dir = os.path.join(self.memory_dir, str(user_id))
             if not os.path.exists(user_dir):
+                print(f"用户目录不存在: {user_dir}")
                 return self.default_analysis()
 
             # 收集所有记忆
             memories = []
             memory_files = sorted(os.listdir(user_dir))  # 按文件名排序（通常包含时间戳）
+            print(f"找到 {len(memory_files)} 个记忆文件")
+            
+            file_load_errors = 0
             for filename in memory_files:
                 if filename.endswith('.json'):
                     file_path = os.path.join(user_dir, filename)
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        memory = json.load(f)
-                        # 添加文件名作为ID，方便后续引用
-                        memory["id"] = filename.replace(".json", "")
-                        memories.append(memory)
+                    try:
+                        # 使用带异常处理的方式读取文件
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            file_content = f.read()
+                            # 检查文件内容是否为空
+                            if not file_content.strip():
+                                print(f"文件为空: {filename}")
+                                continue
+                                
+                            try:
+                                memory = json.loads(file_content)
+                                # 添加文件名作为ID，方便后续引用
+                                memory["id"] = filename.replace(".json", "")
+                                # 检查嵌入向量情况
+                                if "embedding" in memory:
+                                    embedding = memory["embedding"]
+                                    if embedding:
+                                        if len(embedding) < 5:
+                                            print(f"警告：文件 {filename} 的向量过短: {len(embedding)}")
+                                        elif all(v == 0 for v in embedding[:5]):
+                                            print(f"警告：文件 {filename} 的向量为零向量")
+                                        else:
+                                            print(f"文件 {filename} 的向量正常，维度: {len(embedding)}")
+                                    else:
+                                        print(f"警告：文件 {filename} 的向量为空")
+                                else:
+                                    print(f"警告：文件 {filename} 缺少embedding字段")
+                                
+                                memories.append(memory)
+                            except json.JSONDecodeError as e:
+                                print(f"JSON解析错误(文件 {filename}): {str(e)}")
+                                file_load_errors += 1
+                    except Exception as e:
+                        print(f"读取文件 {filename} 时出错: {str(e)}")
+                        file_load_errors += 1
 
+            print(f"成功加载了 {len(memories)} 个记忆，{file_load_errors} 个文件加载失败")
             if not memories:
+                print("没有有效的记忆数据，返回默认分析结果")
                 return self.default_analysis()
 
             # 知识图谱构建 - 记忆节点和语义关联
@@ -616,10 +653,22 @@ class LearningMemoryService:
 
             # 收集所有可能的主题词
             all_keywords = set()
-            for memory in memories:
-                content = memory.get("content", "").lower()
-                keywords = self.extract_keywords_from_text(content)
-                all_keywords.update(keywords)
+            print(f"开始提取关键词，共有 {len(memories)} 个记忆")
+            for i, memory in enumerate(memories):
+                try:
+                    content = memory.get("content", "").lower()
+                    if not content:
+                        print(f"记忆 {i} 没有内容字段或内容为空")
+                        continue
+                        
+                    print(f"提取记忆 {i} 的关键词，内容: {content[:30]}...")
+                    keywords = self.extract_keywords_from_text(content)
+                    print(f"记忆 {i} 的关键词: {keywords}")
+                    all_keywords.update(keywords)
+                except Exception as e:
+                    print(f"处理记忆 {i} 的关键词时出错: {str(e)}")
+                    
+            print(f"共提取出 {len(all_keywords)} 个不同的关键词: {list(all_keywords)[:20]}")
 
             # 尝试将每个高频词作为一个潜在主题
             for keyword in list(all_keywords)[:20]:  # 限制主题数量
