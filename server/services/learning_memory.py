@@ -296,7 +296,13 @@ class LearningMemoryService:
                 knowledge_nodes.append(node)
             
             # STEP 2: 对记忆节点进行聚类，发现主题群组
-            topic_clusters = await self.cluster_memories(memories)
+            print(f"开始对 {len(memories)} 个记忆节点进行聚类分析...")
+            topic_clusters = await self.cluster_memories(memories, user_id)
+            print(f"聚类完成，发现 {len(topic_clusters)} 个主题群组")
+            
+            if not topic_clusters:
+                print("警告：未能找到任何主题群组，将返回默认分析结果")
+                return self.default_analysis()
             
             # STEP 3: 为每个主题群组创建主题节点
             for topic_name, topic_data in topic_clusters.items():
@@ -489,25 +495,57 @@ class LearningMemoryService:
             print(f"提取关键词时出错: {str(e)}")
             return ["学习主题"]  # 提供一个默认值而不是空列表
     
-    async def cluster_memories(self, memories: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    async def cluster_memories(self, memories: List[Dict[str, Any]], user_id: int = None) -> Dict[str, Dict[str, Any]]:
         """使用语义相似性对记忆进行聚类，发现主题"""
         try:
             if not memories:
                 return {}
                 
-            # 为所有记忆内容生成嵌入向量（如果尚未有嵌入）
+            # 为所有记忆内容生成嵌入向量（如果尚未有嵌入或嵌入为零向量）
             memory_texts = [mem.get("content", "") for mem in memories]
-            embedding_present = all("embedding" in mem and mem["embedding"] for mem in memories)
             
-            if not embedding_present:
+            # 检查哪些记忆需要重新生成嵌入（没有嵌入或嵌入是零向量）
+            memories_need_embedding = []
+            for i, memory in enumerate(memories):
+                embedding = memory.get("embedding", [])
+                # 检查向量是否为空或全是零
+                if not embedding or (isinstance(embedding, list) and len(embedding) > 10 and all(v == 0 for v in embedding[:10])):
+                    memories_need_embedding.append(i)
+                    print(f"记忆 {memory.get('id', i)} 需要生成嵌入向量")
+            
+            # 如果有记忆需要重新生成嵌入
+            if memories_need_embedding:
                 try:
-                    # 获取新的嵌入向量
-                    embeddings = await self.embedding_service.get_embeddings(memory_texts)
-                    for i, embedding in enumerate(embeddings):
-                        if i < len(memories):
-                            memories[i]["embedding"] = embedding
+                    # 只为需要嵌入的记忆获取新向量
+                    texts_to_embed = [memory_texts[i] for i in memories_need_embedding]
+                    print(f"正在为 {len(texts_to_embed)} 个记忆生成嵌入向量...")
+                    embeddings = await self.embedding_service.get_embeddings(texts_to_embed)
+                    
+                    # 更新记忆对象的嵌入
+                    for idx, embedding in zip(memories_need_embedding, embeddings):
+                        memories[idx]["embedding"] = embedding
+                        # 记录嵌入维度以便调试
+                        print(f"生成嵌入向量成功，维度: {len(embedding)}" + 
+                              (", 前5个值: " + str(embedding[:5]) if embedding else ", 嵌入为空"))
+                        
+                        # 如果记忆有id，同时更新文件
+                        if "id" in memories[idx]:
+                            memory_id = memories[idx]["id"]
+                            user_dir = os.path.join(self.memory_dir, str(user_id))
+                            file_path = os.path.join(user_dir, f"{memory_id}.json")
+                            if os.path.exists(file_path):
+                                print(f"更新文件 {file_path} 的嵌入向量")
+                                try:
+                                    with open(file_path, 'w', encoding='utf-8') as f:
+                                        json_str = json.dumps(memories[idx], ensure_ascii=False)
+                                        f.write(json_str)
+                                except Exception as e:
+                                    print(f"更新记忆文件 {file_path} 时出错: {str(e)}")
+                                
                 except Exception as e:
                     print(f"获取嵌入向量时出错: {str(e)}")
+                    import traceback
+                    print(traceback.format_exc())
                     # 继续执行，使用基于关键词的聚类
             
             # 方法一：基于语义相似性的聚类（如果有嵌入向量）
