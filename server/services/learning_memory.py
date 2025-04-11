@@ -733,20 +733,50 @@ class LearningMemoryService:
             # 收集所有可能的主题词
             all_keywords = set()
             print(f"开始提取关键词，共有 {len(memories)} 个记忆")
+            
+            # 预设一些通用关键词分类，确保即使提取不到足够关键词也能生成主题
+            default_categories = {
+                "英语学习": ["english", "learn", "language", "study"],
+                "计算机编程": ["programming", "code", "python", "javascript"],
+                "数学知识": ["math", "mathematics", "calculation"],
+                "人工智能": ["ai", "artificial intelligence", "machine learning", "深度学习", "机器学习"],
+                "学习方法": ["learning", "method", "strategy", "study"],
+                "记忆技巧": ["memory", "memorize", "remember", "recall"]
+            }
+            
+            # 添加这些默认分类的关键词到全局关键词集
+            for category, keywords in default_categories.items():
+                all_keywords.update(keywords)
+            
             for i, memory in enumerate(memories):
                 try:
                     content = memory.get("content", "").lower()
                     if not content:
                         print(f"记忆 {i} 没有内容字段或内容为空")
                         continue
-                        
-                    print(f"提取记忆 {i} 的关键词，内容: {content[:30]}...")
-                    keywords = self.extract_keywords_from_text(content)
+                    
+                    # 使用现有关键词或生成新的
+                    if "keywords" in memory and memory["keywords"]:
+                        keywords = memory["keywords"]
+                    else:
+                        print(f"提取记忆 {i} 的关键词，内容: {content[:30]}...")
+                        keywords = self.extract_keywords_from_text(content)
+                        # 如果关键词为空，尝试从内容中提取常见词
+                        if not keywords:
+                            words = content.split()
+                            keywords = [w for w in words if len(w) > 3][:5]  # 简单取长度大于3的前5个词
+                    
+                    memory["keywords"] = keywords  # 更新记忆对象的关键词
                     print(f"记忆 {i} 的关键词: {keywords}")
                     all_keywords.update(keywords)
                 except Exception as e:
                     print(f"处理记忆 {i} 的关键词时出错: {str(e)}")
-                    
+            
+            # 如果没有提取到足够的关键词，添加一些一般性的主题
+            if len(all_keywords) < 5:
+                print("关键词太少，添加一些通用主题")
+                all_keywords.update(["学习主题", "英语学习", "知识探索", "人工智能", "学习方法"])
+                
             print(f"共提取出 {len(all_keywords)} 个不同的关键词: {list(all_keywords)[:20]}")
 
             # 尝试将每个高频词作为一个潜在主题
