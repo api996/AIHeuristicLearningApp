@@ -989,9 +989,11 @@ export function AIChat({ userData }: AIChatProps) {
             // 有消息时显示滚动区域 - 优化滚动体验与空间
             <div 
               ref={messagesContainerRef}
-              className="w-full flex flex-col gap-4 py-1 items-stretch"
+              className="w-full flex-1 flex flex-col gap-4 py-1 overflow-y-auto"
               style={{ 
-                minHeight: '100%'
+                scrollBehavior: 'smooth',
+                WebkitOverflowScrolling: 'touch',
+                overscrollBehavior: 'contain'
               }}
             >
               {messages.map((msg, i) => (
@@ -1146,8 +1148,8 @@ export function AIChat({ userData }: AIChatProps) {
             </div>
           </div>
         </div>
-        {/* 添加底部空间，避免内容被固定位置的输入框覆盖 */}
-        <div className="h-72"></div>
+        {/* 减少底部空间，避免大片黑暗区域 */}
+        <div className="h-12"></div>
       </div>
 
       {/* Password Change Dialog */}
