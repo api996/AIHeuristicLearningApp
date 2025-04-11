@@ -59,14 +59,23 @@ class EmbeddingService:
                         
                         # 解析嵌入结果
                         # 新API返回的是字典结构，嵌入向量在"embedding"键下
+                        if not isinstance(result, dict) or "embedding" not in result:
+                            print(f"错误：嵌入结果格式不正确: {result}")
+                            raise ValueError(f"嵌入结果未返回预期格式: {result}")
+                            
                         vector = result["embedding"]
-                        print(f"嵌入向量生成成功，维度: {len(vector)}")
+                        if not vector or all(v == 0 for v in vector[:10]):
+                            print(f"警告：生成的嵌入向量似乎都是0或为空")
+                            raise ValueError("生成的嵌入向量无效")
+                            
+                        print(f"嵌入向量生成成功，维度: {len(vector)}, 前5个值: {vector[:5]}")
                         embeddings.append(vector)
 
                     except Exception as e:
                         print(f"处理文本时出错: {str(e)}")
-                        # 创建一个简单的替代向量
-                        embeddings.append([0.0] * 768)
+                        # 创建一个简单的替代向量，使用正确的维度3072而不是768
+                        print("生成替代嵌入向量...")
+                        embeddings.append([0.0] * 3072)
 
             return embeddings
         except Exception as e:
