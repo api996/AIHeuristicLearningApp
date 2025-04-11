@@ -169,6 +169,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 import asyncio
 import json
 import sys
+import os
+# 切换到项目根目录，确保正确的路径
+os.chdir('/home/runner/workspace')
 sys.path.append('server')
 import logging
 # 重定向所有print输出到stderr，保留stdout只用于JSON输出
