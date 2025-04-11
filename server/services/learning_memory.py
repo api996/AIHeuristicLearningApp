@@ -327,20 +327,53 @@ class LearningMemoryService:
                                 memory = json.loads(file_content)
                                 # 添加文件名作为ID，方便后续引用
                                 memory["id"] = filename.replace(".json", "")
+                                content = memory.get("content", "")
+                                
+                                # 检查并处理缺失字段
+                                need_update = False
+                                
                                 # 检查嵌入向量情况
                                 if "embedding" in memory:
                                     embedding = memory["embedding"]
                                     if embedding:
                                         if len(embedding) < 5:
                                             print(f"警告：文件 {filename} 的向量过短: {len(embedding)}")
+                                            need_update = True
                                         elif all(v == 0 for v in embedding[:5]):
                                             print(f"警告：文件 {filename} 的向量为零向量")
+                                            need_update = True
                                         else:
                                             print(f"文件 {filename} 的向量正常，维度: {len(embedding)}")
                                     else:
                                         print(f"警告：文件 {filename} 的向量为空")
+                                        need_update = True
                                 else:
                                     print(f"警告：文件 {filename} 缺少embedding字段")
+                                    need_update = True
+                                    
+                                # 检查summary字段
+                                if "summary" not in memory and content:
+                                    print(f"文件 {filename} 缺少summary字段，自动生成")
+                                    memory["summary"] = self.generate_content_summary(content)
+                                    need_update = True
+                                    
+                                # 检查keywords字段
+                                if "keywords" not in memory and content:
+                                    print(f"文件 {filename} 缺少keywords字段，自动生成")
+                                    memory["keywords"] = self.extract_keywords_from_text(content)
+                                    need_update = True
+                                
+                                # 如果有缺失字段，更新文件
+                                if need_update and user_id is not None:
+                                    try:
+                                        user_dir = os.path.join(self.memory_dir, str(user_id))
+                                        file_path = os.path.join(user_dir, filename)
+                                        print(f"更新文件 {filename} 添加缺失字段")
+                                        with open(file_path, 'w', encoding='utf-8') as f:
+                                            json_str = json.dumps(memory, ensure_ascii=False)
+                                            f.write(json_str)
+                                    except Exception as e:
+                                        print(f"更新文件时出错: {str(e)}")
                                 
                                 memories.append(memory)
                             except json.JSONDecodeError as e:
