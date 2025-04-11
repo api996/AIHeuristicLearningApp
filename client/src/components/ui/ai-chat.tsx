@@ -1244,12 +1244,31 @@ export function AIChat({ userData }: AIChatProps) {
           {(() => {
             // 定义API返回的数据类型
             interface LearningPathData {
-              topics: string[];
+              topics: Array<{
+                topic: string;
+                id: string;
+                count: number;
+                percentage: number;
+              }>;
               progress: Array<{
                 topic: string;
                 percentage: number;
               }>;
               suggestions: string[];
+              knowledge_graph?: {
+                nodes: Array<{
+                  id: string;
+                  name: string;
+                  type: string;
+                  size: number;
+                }>;
+                links: Array<{
+                  source: string;
+                  target: string;
+                  type: string;
+                  strength: number;
+                }>;
+              }
             }
 
             // 使用React Query获取学习轨迹数据
@@ -1333,8 +1352,8 @@ export function AIChat({ userData }: AIChatProps) {
                   <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
                     根据您的对话内容，以下是您感兴趣的主要学习主题：
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {data.topics.map((topic: string, index: number) => {
-                        const color = getTopicColor(topic);
+                      {data.topics.map((topicItem, index: number) => {
+                        const color = getTopicColor(topicItem.topic);
                         // 使用条件类名而不是模板字符串，确保Tailwind正确识别
                         const tagClass = (() => {
                           switch(color) {
@@ -1350,10 +1369,10 @@ export function AIChat({ userData }: AIChatProps) {
 
                         return (
                           <div 
-                            key={index}
+                            key={topicItem.id || index}
                             className={`px-2.5 py-1 ${tagClass} border rounded-full text-xs`}
                           >
-                            {topic}
+                            {topicItem.topic}
                           </div>
                         );
                       })}
