@@ -16,6 +16,18 @@ export function updateViewportHeight(): void {
   // Use visualViewport API when available, otherwise fallback to innerHeight
   const vh = (window.visualViewport?.height || window.innerHeight) * 0.01;
   document.documentElement.style.setProperty('--vh', `${vh}px`);
+  
+  // 在键盘弹出时保持内容可见
+  const isKeyboardVisible = window.visualViewport && 
+    window.innerHeight > 0 && 
+    window.visualViewport.height < window.innerHeight * 0.85;
+    
+  // 标记键盘状态，以便CSS可以相应调整
+  if (isKeyboardVisible) {
+    document.documentElement.classList.add('keyboard-open');
+  } else {
+    document.documentElement.classList.remove('keyboard-open');
+  }
 }
 
 /**
