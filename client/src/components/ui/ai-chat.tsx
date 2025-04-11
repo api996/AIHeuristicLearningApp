@@ -801,6 +801,11 @@ export function AIChat({ userData }: AIChatProps) {
     localStorage.removeItem("user");
     setLocation("/login");
   };
+  
+  // 跳转到学习轨迹页面
+  const navigateToLearningPath = () => {
+    setLocation("/learning-path");
+  };
 
   // 获取聊天记录
   const { data: apiChats, isLoading: apiChatsLoading } = useQuery({
@@ -886,7 +891,7 @@ export function AIChat({ userData }: AIChatProps) {
           onNewChat={handleNewChat}
           onChangePassword={() => setShowPasswordDialog(true)}
           onShowProfile={() => setShowProfileDialog(true)}
-          onShowLearningPath={() => setShowLearningPathDialog(true)}
+          onShowLearningPath={() => navigateToLearningPath()}
           onShowPreferences={() => setShowPreferencesDialog(true)}
           onDeleteChat={(id) => {
             if (id === currentChatId) {

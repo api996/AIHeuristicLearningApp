@@ -4,43 +4,44 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRight, BookOpen, Brain, BarChart3, Network } from "lucide-react";
+import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 
 export default function LearningPath() {
-  const [userId, setUserId] = useState<number | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [, setLocation] = useLocation();
+  const [user, setUser] = useState<{userId: number; role: string; username?: string} | null>(null);
 
   // 从localStorage获取用户信息
   useEffect(() => {
     try {
-      const storedUserId = localStorage.getItem("userId");
-      const storedUserRole = localStorage.getItem("userRole");
-      if (storedUserId) {
-        setUserId(parseInt(storedUserId));
-      }
-      if (storedUserRole) {
-        setUserRole(storedUserRole);
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      } else {
+        // 如果用户未登录，重定向到登录页面
+        setLocation("/login");
       }
     } catch (error) {
       console.error("获取用户信息失败:", error);
     }
-  }, []);
+  }, [setLocation]);
 
   // 获取学习轨迹数据
   const { data: learningPath, isLoading, error } = useQuery({
-    queryKey: ["/api/learning-path", userId],
+    queryKey: ["/api/learning-path", user?.userId, user?.role],
     queryFn: async () => {
-      const response = await fetch(`/api/learning-path/${userId}`);
+      const response = await fetch(`/api/learning-path/${user?.userId}?role=${user?.role}`);
       if (!response.ok) {
         throw new Error("获取学习轨迹失败");
       }
       return response.json();
     },
-    enabled: !!userId,
+    enabled: !!user?.userId,
   });
 
   // 如果用户未登录，显示提示信息
-  if (!userId) {
+  if (!user?.userId) {
     return (
       <div className="flex items-center justify-center h-[80vh]">
         <Card className="w-[400px]">
@@ -86,11 +87,26 @@ export default function LearningPath() {
     );
   }
 
+  // 返回聊天页面
+  const navigateBack = () => {
+    setLocation("/");
+  };
+
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-8 flex items-center">
-        <Brain className="mr-2" /> 我的学习轨迹
-      </h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold flex items-center">
+          <Brain className="mr-2" /> 我的学习轨迹
+        </h1>
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2"
+          onClick={navigateBack}
+        >
+          <ArrowLeftCircle size={18} />
+          <span>返回聊天</span>
+        </Button>
+      </div>
 
       <Tabs defaultValue="overview">
         <TabsList className="mb-6">
