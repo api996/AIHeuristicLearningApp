@@ -473,20 +473,47 @@
   padding-bottom: 0 !important; /* 移除底部额外空间 */
 }
 
-/* 键盘打开时固定距离输入框的底部间距 */
-.keyboard-open .chat-message-container,
-.keyboard-focused .chat-message-container {
-  padding-bottom: 80px !important;
-  margin-bottom: 0 !important;
+/* iOS键盘处理 - 消除黑色空隙 */
+@supports (-webkit-touch-callout: none) {
+  /* iOS特有样式 */
+  .keyboard-open .chat-message-container,
+  .keyboard-focused .chat-message-container {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  
+  /* 让输入框直接紧贴键盘顶部 */
+  .keyboard-open .chat-input-area,
+  .keyboard-focused .chat-input-area {
+    position: fixed !important;
+    bottom: 0 !important; /* 直接紧贴键盘 */
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 50 !important;
+    /* 移除额外空间，让系统键盘直接连接 */
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    transform: translateY(-250px) !important; /* iOS键盘移动补偿 */
+  }
 }
 
-/* 确保输入区域始终定位在底部 */
-.keyboard-open .chat-input-area,
-.keyboard-focused .chat-input-area {
-  position: fixed !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-  z-index: 50 !important;
+/* Android键盘处理 */
+@supports not (-webkit-touch-callout: none) {
+  /* Android特有样式 */
+  .keyboard-open .chat-message-container,
+  .keyboard-focused .chat-message-container {
+    padding-bottom: 80px !important;
+    margin-bottom: 0 !important;
+  }
+  
+  /* 确保输入区域始终定位在底部 */
+  .keyboard-open .chat-input-area,
+  .keyboard-focused .chat-input-area {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    z-index: 50 !important;
+  }
 }
