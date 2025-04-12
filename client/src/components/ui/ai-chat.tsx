@@ -465,18 +465,40 @@ export function AIChat({ userData }: AIChatProps) {
     }
   };
   
-  // 新增：处理输入框获得焦点时的滚动行为
+  // 完全重写：处理输入框获得焦点时的滚动行为
   const handleInputFocus = () => {
-    // 当输入框获得焦点时，如果有键盘弹出，确保消息容器滚动到底部
-    // 避免中间出现黑色空白区域
+    // 找到最后一条消息并将其滚动到可见区域
     if (messagesContainerRef.current && messages.length > 0) {
-      setTimeout(() => {
-        // 立即滚动到底部，确保消息可见
-        scrollToBottom(messagesContainerRef.current, false);
-        
-        // 添加类以标记键盘状态
-        document.documentElement.classList.add('keyboard-focused');
-      }, 50);
+      // 首先立即滚动到底部，确保最新消息可见
+      scrollToBottom(messagesContainerRef.current, false);
+      
+      // 添加键盘焦点状态类
+      document.documentElement.classList.add('keyboard-focused');
+      
+      // 如果是移动设备，延迟200ms后再次确保滚动到合适位置
+      // 这是因为键盘弹出会改变视口高度，需要在这之后再次调整
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        setTimeout(() => {
+          // 计算键盘弹出后的可视区域，并确保最后几条消息在视野内
+          if (messagesContainerRef.current) {
+            const lastMessage = messagesContainerRef.current.lastElementChild;
+            if (lastMessage) {
+              // 使用scrollIntoView确保元素在视野内
+              lastMessage.scrollIntoView({
+                block: 'center', // 尝试将元素放在视图的中间
+                inline: 'nearest',
+                behavior: 'auto' // 立即滚动而不是平滑滚动
+              });
+              
+              // 确保没有黑色空白区域的额外调整
+              // 在iOS上，视口会动态调整，所以我们需要上下调整以找到理想位置
+              setTimeout(() => {
+                scrollToBottom(messagesContainerRef.current, false);
+              }, 100);
+            }
+          }
+        }, 200);
+      }
     }
   };
   
@@ -1013,8 +1035,8 @@ export function AIChat({ userData }: AIChatProps) {
           </div>
         </header>
 
-        {/* 聊天消息容器 - 使用特定的类名便于CSS选择器定位 */}
-        <div className={"flex-1 flex flex-col p-4 sm:p-6 md:p-8 pb-52 overflow-y-auto chat-message-container " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
+        {/* 聊天消息容器 - 使用特定的类名便于CSS选择器定位 - 减小底部padding */}
+        <div className={"flex-1 flex flex-col p-4 sm:p-6 md:p-8 pb-20 overflow-y-auto chat-message-container " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
           {messages.length === 0 ? (
             // 欢迎页面 - 垂直居中不需要滚动，完全隐藏滚动条
             <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
@@ -1063,7 +1085,7 @@ export function AIChat({ userData }: AIChatProps) {
         </div>
 
         {/* Input Area - 添加chat-input-container类便于CSS处理键盘状态 */}
-        <div className={"chat-input-area chat-input-container absolute bottom-0 left-0 right-0 pb-4 pt-2 px-2 z-20 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
+        <div className={"chat-input-area chat-input-container fixed bottom-0 left-0 right-0 pb-4 pt-2 px-2 z-20 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
           <div className="max-w-3xl mx-auto px-2 sm:px-4">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
