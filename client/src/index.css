@@ -480,22 +480,25 @@
   .keyboard-focused .chat-message-container {
     padding-bottom: 120px !important; /* 留出足够的底部空间 */
     margin-bottom: 0 !important;
+    /* 添加平滑过渡效果 */
+    transition: padding-bottom 0.3s ease;
   }
   
   /* 让输入框在键盘上方正确位置 - 直接填充黑色空白区域 */
   .keyboard-open .chat-input-area,
   .keyboard-focused .chat-input-area {
     position: fixed !important;
-    bottom: auto !important; 
+    bottom: 0 !important; 
     left: 0 !important;
     right: 0 !important;
     z-index: 50 !important;
     /* 移除额外空间，确保良好显示 */
     padding-bottom: 0 !important;
     margin-bottom: 0 !important;
-    /* 精确设置输入框位置，填充黑色空白区域 */
-    transform: translateY(0) !important; /* 取消垂直移动 */
-    bottom: 270px !important; /* 距离底部的固定距离 */
+    /* 使用动态变量确保输入框始终在键盘上方 */
+    transform: translateY(calc(-1 * var(--keyboard-height, 270px))) !important; /* 使用动态计算的键盘高度 */
+    /* 添加平滑过渡效果 */
+    transition: transform 0.25s ease-out !important;
   }
   
   /* 确保输入框背景与内容完全显示 */

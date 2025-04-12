@@ -42,6 +42,15 @@ export function updateViewportHeight(): void {
   const hasTopOffset = window.visualViewport.offsetTop > 0;
   
   const isKeyboardVisible = significantHeightChange || (isIOS && hasTopOffset);
+  
+  // 动态计算键盘高度以供CSS使用
+  // 这可以让输入框保持在键盘上方的固定位置，填充黑色区域
+  if (isKeyboardVisible && heightDifference > 0) {
+    // 计算理想的输入框位置，加上一些补偿值以确保键盘完全隐藏
+    // iOS 15+ 移动Safari通常键盘高度在270-340px之间，但会根据设备而变化
+    const keyboardEstimatedHeight = Math.max(270, heightDifference + 20);
+    document.documentElement.style.setProperty('--keyboard-height', `${keyboardEstimatedHeight}px`);
+  }
     
   // 将键盘状态信息添加到文档类中，以便CSS可以相应调整
   if (isKeyboardVisible) {
