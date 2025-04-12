@@ -595,38 +595,68 @@ export function AIChat({ userData }: AIChatProps) {
     startEditMessage(messageId, content);
   };
 
-  // 处理消息重新生成
+  // 重写：处理消息重新生成功能
   const handleRegenerateMessage = async (messageId: number | undefined) => {
     try {
       // 开始加载状态，可以添加视觉反馈
       setIsLoading(true);
 
-      // 添加一个占位思考消息
+      // 明确检查消息ID是否存在
+      if (!messageId) {
+        throw new Error("消息ID不存在");
+      }
+
+      // 检查当前聊天ID是否存在
+      if (!currentChatId) {
+        throw new Error("当前聊天会话不存在");
+      }
+
+      // 找到最后一条消息，确保UI状态正确
       if (messages.length > 0) {
         const lastMessage = messages[messages.length - 1];
-        // 如果最后一条不是AI消息，可能需要添加一个占位消息
+        // 如果最后一条不是AI消息，添加一个占位消息以显示思考状态
         if (lastMessage.role !== "assistant") {
           setMessages([...messages, { role: "assistant" as const, content: "" }]);
+        } else {
+          // 如果最后一条是AI消息，更新其内容为空以显示思考状态
+          const updatedMessages = [...messages];
+          updatedMessages[updatedMessages.length - 1] = {
+            ...updatedMessages[updatedMessages.length - 1],
+            content: "",
+          };
+          setMessages(updatedMessages);
         }
       }
 
       // 调用重新生成API
-      await regenerateMessageMutation.mutateAsync(messageId);
+      const response = await regenerateMessageMutation.mutateAsync(messageId);
+      
+      // 查询最新消息以确保显示正确
+      queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
 
       toast({
-        title: "重新生成中",
-        description: "AI正在重新生成回答",
+        title: "重新生成成功",
+        description: "AI已完成回答重新生成",
+        className: "frosted-toast", // 使用磨砂玻璃效果
       });
+      
     } catch (error) {
       console.error("重新生成消息失败:", error);
+      
+      // 美化错误提示，使用磨砂玻璃效果
       toast({
         title: "重新生成失败",
-        description: "无法重新生成回答，请稍后再试",
+        description: error instanceof Error 
+          ? `错误: ${error.message}` 
+          : "无法重新生成回答，请稍后再试",
         variant: "destructive",
+        className: "frosted-toast-error", // 使用磨砂玻璃效果的错误提示
       });
     } finally {
-      // 结束加载状态
-      setIsLoading(false);
+      // 延迟结束加载状态，确保新消息已加载
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
     }
   };
 

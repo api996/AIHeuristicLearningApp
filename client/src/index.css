@@ -478,31 +478,33 @@
   /* iOS特有样式 */
   .keyboard-open .chat-message-container,
   .keyboard-focused .chat-message-container {
-    padding-bottom: 60px !important; /* 给输入框留出足够空间 */
+    padding-bottom: 120px !important; /* 留出足够的底部空间 */
     margin-bottom: 0 !important;
   }
   
-  /* 让输入框完整显示在屏幕上 */
+  /* 让输入框在键盘上方正确位置 */
   .keyboard-open .chat-input-area,
   .keyboard-focused .chat-input-area {
     position: fixed !important;
-    bottom: auto !important; /* 不固定在底部，使用transform定位 */
-    top: auto !important;
+    bottom: 0 !important; /* 固定在视口底部 */
     left: 0 !important;
     right: 0 !important;
     z-index: 50 !important;
     /* 移除额外空间，确保良好显示 */
-    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    padding-bottom: 0 !important;
     margin-bottom: 0 !important;
-    transform: translateY(-120px) !important; /* 减小位移距离，确保输入框可见 */
+    /* 使用视口相对位置，确保在键盘上方 */
+    bottom: 295px !important; /* 直接固定在键盘上方 */
   }
   
-  /* 确保输入框背景完全显示 */
+  /* 确保输入框背景与内容完全显示 */
   .keyboard-open .chat-input-container > div,
   .keyboard-focused .chat-input-container > div {
-    background-color: rgba(0, 0, 0, 0.8) !important; /* 添加背景确保可见 */
+    backdrop-filter: blur(10px) !important;
+    background-color: rgba(20, 20, 20, 0.85) !important; /* 半透明磨砂玻璃效果 */
     padding: 8px !important;
     border-radius: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
   }
 }
 
@@ -525,4 +527,24 @@
     padding-bottom: env(safe-area-inset-bottom, 0px) !important;
     z-index: 50 !important;
   }
+}
+
+/* 磨砂玻璃风格的Toast通知 */
+.frosted-toast {
+  backdrop-filter: blur(8px) !important;
+  background-color: rgba(20, 20, 20, 0.75) !important; 
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  color: white !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 错误toast的特殊样式 */
+.frosted-toast-error {
+  backdrop-filter: blur(8px) !important;
+  background-color: rgba(220, 38, 38, 0.3) !important; 
+  border: 1px solid rgba(220, 38, 38, 0.3) !important;
+  border-radius: 12px !important;
+  color: white !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
 }
