@@ -482,19 +482,20 @@
     margin-bottom: 0 !important;
   }
   
-  /* 让输入框在键盘上方正确位置 */
+  /* 让输入框在键盘上方正确位置 - 直接填充黑色空白区域 */
   .keyboard-open .chat-input-area,
   .keyboard-focused .chat-input-area {
     position: fixed !important;
-    bottom: 0 !important; /* 固定在视口底部 */
+    bottom: auto !important; 
     left: 0 !important;
     right: 0 !important;
     z-index: 50 !important;
     /* 移除额外空间，确保良好显示 */
     padding-bottom: 0 !important;
     margin-bottom: 0 !important;
-    /* 使用视口相对位置，确保在键盘上方 */
-    bottom: 295px !important; /* 直接固定在键盘上方 */
+    /* 精确设置输入框位置，填充黑色空白区域 */
+    transform: translateY(0) !important; /* 取消垂直移动 */
+    bottom: 270px !important; /* 距离底部的固定距离 */
   }
   
   /* 确保输入框背景与内容完全显示 */
