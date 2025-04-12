@@ -498,11 +498,13 @@ export function AIChat({ userData }: AIChatProps) {
               // iOS上还需要二次调整以解决键盘动画完成后的位置问题
               setTimeout(() => {
                 // 在键盘完全弹出后再次调整
-                const viewportHeight = window.visualViewport?.height || window.innerHeight;
-                // 移除模型选择区域的高度，专注于消息区域
-                const targetPosition = messagesContainerRef.current.scrollHeight - viewportHeight + 150;
-                if (targetPosition > 0) {
-                  messagesContainerRef.current.scrollTop = targetPosition;
+                if (messagesContainerRef.current) {
+                  const viewportHeight = window.visualViewport?.height || window.innerHeight;
+                  // 移除模型选择区域的高度，专注于消息区域
+                  const targetPosition = messagesContainerRef.current.scrollHeight - viewportHeight + 150;
+                  if (targetPosition > 0) {
+                    messagesContainerRef.current.scrollTop = targetPosition;
+                  }
                 }
               }, 300);
             }
@@ -857,7 +859,9 @@ export function AIChat({ userData }: AIChatProps) {
         // 当键盘打开时，立即滚动到最新消息，避免黑色区域
         setTimeout(() => {
           // 使用立即滚动(false)而非平滑滚动
-          scrollToBottom(messagesContainerRef.current, false);
+          if (messagesContainerRef.current) {
+            scrollToBottom(messagesContainerRef.current, false);
+          }
         }, 50); // 短暂延迟确保DOM已更新
       }
     };
