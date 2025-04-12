@@ -464,9 +464,15 @@
 }
 
 /* 确保滚动区域正确扩展 */
-.keyboard-open .vh-chat-messages {
+.keyboard-open .vh-chat-messages,
+.keyboard-focused .vh-chat-messages {
   flex: 1 1 auto !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
-  scroll-behavior: smooth !important;
+  scroll-behavior: auto !important; /* 使用即时滚动而非平滑滚动 */
+}
+
+/* 添加键盘焦点时的特殊处理 */
+.keyboard-focused .chat-message-container {
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)) !important;
 }
