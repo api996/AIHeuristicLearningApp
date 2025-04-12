@@ -478,22 +478,31 @@
   /* iOS特有样式 */
   .keyboard-open .chat-message-container,
   .keyboard-focused .chat-message-container {
-    padding-bottom: 0 !important;
+    padding-bottom: 60px !important; /* 给输入框留出足够空间 */
     margin-bottom: 0 !important;
   }
   
-  /* 让输入框直接紧贴键盘顶部 */
+  /* 让输入框完整显示在屏幕上 */
   .keyboard-open .chat-input-area,
   .keyboard-focused .chat-input-area {
     position: fixed !important;
-    bottom: 0 !important; /* 直接紧贴键盘 */
+    bottom: auto !important; /* 不固定在底部，使用transform定位 */
+    top: auto !important;
     left: 0 !important;
     right: 0 !important;
     z-index: 50 !important;
-    /* 移除额外空间，让系统键盘直接连接 */
-    padding-bottom: 0 !important;
+    /* 移除额外空间，确保良好显示 */
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
     margin-bottom: 0 !important;
-    transform: translateY(-250px) !important; /* iOS键盘移动补偿 */
+    transform: translateY(-120px) !important; /* 减小位移距离，确保输入框可见 */
+  }
+  
+  /* 确保输入框背景完全显示 */
+  .keyboard-open .chat-input-container > div,
+  .keyboard-focused .chat-input-container > div {
+    background-color: rgba(0, 0, 0, 0.8) !important; /* 添加背景确保可见 */
+    padding: 8px !important;
+    border-radius: 12px !important;
   }
 }
 
