@@ -389,18 +389,20 @@ export function ChatMessage({
         return;
       }
       
-      // 获取消息元素位置
+      // 获取消息元素位置 - 使用更可靠的方法
       const rect = messageRef.current.getBoundingClientRect();
       const screenWidth = window.innerWidth;
       
-      // 计算菜单位置 - 确保在屏幕内显示
-      const rightOffset = screenWidth - rect.right;
-      const menuY = rect.bottom + 10;
+      // 计算菜单位置 - 固定显示在消息下方居中位置
+      // 确保菜单始终在消息下方，不会超出屏幕
+      const messageMiddle = rect.left + (rect.width / 2);
+      const menuWidth = 280; // 菜单宽度
+      const menuLeft = Math.max(20, Math.min(screenWidth - menuWidth - 20, messageMiddle - (menuWidth / 2)));
       
-      // 更新菜单位置状态
+      // 始终显示在消息正下方固定位置
       setMenuPosition({
-        right: Math.max(10, rightOffset),
-        y: menuY
+        right: screenWidth - menuLeft - menuWidth,
+        y: rect.bottom + 10
       });
       
       // 提供触觉反馈（如果可用）
@@ -578,23 +580,21 @@ export function ChatMessage({
 
   return (
     <>
-      {/* iOS风格上下文菜单 */}
+      {/* iOS风格上下文菜单 - 完全居中 */}
       {showContextMenu && (
         <div 
-          className="fixed z-50 animate-fade-in pointer-events-auto"
+          className="fixed z-50 animate-fade-in pointer-events-auto left-1/2 -translate-x-1/2 w-[280px]"
           style={{ 
-            top: `${menuPosition.y}px`, 
-            right: `${menuPosition.right}px`, 
-            transform: 'translate(0, 0)',
+            top: `${menuPosition.y}px`,
             filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))'
           }}
           ref={menuRef}
         >
-          {/* 向上的箭头指示，调整大小和定位，放在右侧 */}
-          <div className="w-5 h-5 bg-neutral-900/90 rotate-45 ml-auto mr-8 mt-[-10px] rounded-sm border-t border-l border-neutral-700/60 shadow-lg"></div>
+          {/* 向上的箭头指示，调整大小和定位，居中对齐 */}
+          <div className="w-5 h-5 bg-neutral-900/90 rotate-45 mx-auto mt-[-10px] rounded-sm border-t border-l border-neutral-700/60 shadow-lg"></div>
           
-          {/* 菜单内容 - 现代iOS风格菜单，使用半透明玻璃拟态效果 */}
-          <div className="bg-neutral-900/90 backdrop-blur-xl text-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in-menu border border-neutral-700/30 w-64 sm:w-[280px] mt-[-10px]">
+          {/* 菜单内容 - 现代iOS风格菜单，使用半透明玻璃拟态效果，居中对齐 */}
+          <div className="bg-neutral-900/90 backdrop-blur-xl text-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in-menu border border-neutral-700/30 w-full mt-[-10px]">
             <div className="flex flex-col divide-y divide-neutral-700/30">
               <button
                 onClick={handleCopyMessage}
