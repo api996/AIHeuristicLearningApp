@@ -465,8 +465,12 @@ export function AIChat({ userData }: AIChatProps) {
     }
   };
   
-  // 完全重写：处理输入框获得焦点时的滚动行为
+  // 完全重写：处理输入框获得焦点时的滚动行为 - 针对iOS增强处理
   const handleInputFocus = () => {
+    // 判断设备类型
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    
     // 找到最后一条消息并将其滚动到可见区域
     if (messagesContainerRef.current && messages.length > 0) {
       // 首先立即滚动到底部，确保最新消息可见
@@ -475,26 +479,49 @@ export function AIChat({ userData }: AIChatProps) {
       // 添加键盘焦点状态类
       document.documentElement.classList.add('keyboard-focused');
       
-      // 如果是移动设备，延迟200ms后再次确保滚动到合适位置
-      // 这是因为键盘弹出会改变视口高度，需要在这之后再次调整
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      // 特殊处理iOS设备
+      if (isIOS) {
+        // iOS键盘弹出时的特殊处理
+        setTimeout(() => {
+          // 为iOS特别优化 - 连续调整滚动位置确保消息可见
+          if (messagesContainerRef.current) {
+            // iOS上需要更多的时间来调整视口
+            const lastMessage = messagesContainerRef.current.lastElementChild;
+            if (lastMessage) {
+              // 滚动到最后一条消息中心位置
+              lastMessage.scrollIntoView({
+                block: 'center',
+                inline: 'nearest',
+                behavior: 'auto'
+              });
+              
+              // iOS上还需要二次调整以解决键盘动画完成后的位置问题
+              setTimeout(() => {
+                // 在键盘完全弹出后再次调整
+                const viewportHeight = window.visualViewport?.height || window.innerHeight;
+                // 移除模型选择区域的高度，专注于消息区域
+                const targetPosition = messagesContainerRef.current.scrollHeight - viewportHeight + 150;
+                if (targetPosition > 0) {
+                  messagesContainerRef.current.scrollTop = targetPosition;
+                }
+              }, 300);
+            }
+          }
+        }, 100);
+      } 
+      // Android设备的处理 
+      else if (isAndroid) {
         setTimeout(() => {
           // 计算键盘弹出后的可视区域，并确保最后几条消息在视野内
           if (messagesContainerRef.current) {
             const lastMessage = messagesContainerRef.current.lastElementChild;
             if (lastMessage) {
-              // 使用scrollIntoView确保元素在视野内
+              // 使用scrollIntoView确保元素在视野内 - Android上效果较好
               lastMessage.scrollIntoView({
-                block: 'center', // 尝试将元素放在视图的中间
+                block: 'center',
                 inline: 'nearest',
-                behavior: 'auto' // 立即滚动而不是平滑滚动
+                behavior: 'auto'
               });
-              
-              // 确保没有黑色空白区域的额外调整
-              // 在iOS上，视口会动态调整，所以我们需要上下调整以找到理想位置
-              setTimeout(() => {
-                scrollToBottom(messagesContainerRef.current, false);
-              }, 100);
             }
           }
         }, 200);
