@@ -464,6 +464,27 @@ export function AIChat({ userData }: AIChatProps) {
       cancelEditMessage();
     }
   };
+  
+  // 新增：处理输入框获得焦点时的滚动行为
+  const handleInputFocus = () => {
+    // 当输入框获得焦点时，如果有键盘弹出，确保消息容器滚动到底部
+    // 避免中间出现黑色空白区域
+    if (messagesContainerRef.current && messages.length > 0) {
+      setTimeout(() => {
+        // 立即滚动到底部，确保消息可见
+        scrollToBottom(messagesContainerRef.current, false);
+        
+        // 添加类以标记键盘状态
+        document.documentElement.classList.add('keyboard-focused');
+      }, 50);
+    }
+  };
+  
+  // 新增：处理输入框失去焦点时的清理工作
+  const handleInputBlur = () => {
+    // 移除键盘焦点状态标记
+    document.documentElement.classList.remove('keyboard-focused');
+  };
 
   const toggleSidebar = () => {
     setShowSidebar(!showSidebar);
@@ -747,7 +768,31 @@ export function AIChat({ userData }: AIChatProps) {
   useEffect(() => {
     // 设置视口高度监听器，解决iOS/移动设备键盘弹出问题
     const cleanup = setupViewportHeightListeners();
-    return cleanup;
+    
+    // 专门处理键盘弹出状态下的滚动行为
+    const handleKeyboardVisibility = () => {
+      // 检测键盘是否可见（通过文档根元素的类名）
+      const isKeyboardVisible = document.documentElement.classList.contains('keyboard-open');
+      
+      if (isKeyboardVisible && messagesContainerRef.current) {
+        // 当键盘打开时，立即滚动到最新消息，避免黑色区域
+        setTimeout(() => {
+          // 使用立即滚动(false)而非平滑滚动
+          scrollToBottom(messagesContainerRef.current, false);
+        }, 50); // 短暂延迟确保DOM已更新
+      }
+    };
+    
+    // 监听可能导致键盘状态变化的事件
+    window.visualViewport?.addEventListener('resize', handleKeyboardVisibility);
+    window.visualViewport?.addEventListener('scroll', handleKeyboardVisibility);
+    
+    return () => {
+      // 清理所有事件监听器
+      window.visualViewport?.removeEventListener('resize', handleKeyboardVisibility);
+      window.visualViewport?.removeEventListener('scroll', handleKeyboardVisibility);
+      cleanup();
+    };
   }, []);
   
   // 检查用户登录状态和初始化偏好设置

@@ -406,9 +406,11 @@
 /* 当键盘打开时，调整聊天区域的高度 */
 .keyboard-open .chat-message-container {
   /* 动态调整聊天区域的高度为可视区域高度减去输入区域高度 */
-  max-height: calc(var(--viewport-height) - 72px) !important;
-  height: calc(var(--viewport-height) - 72px) !important;
-  padding-bottom: 16px !important;
+  max-height: calc(var(--viewport-height) - 160px) !important; /* 增大减去的数值，避免黑色空白区域 */
+  height: calc(var(--viewport-height) - 160px) !important;
+  margin-bottom: 140px !important; /* 确保内容不被输入框遮挡 */
+  padding-bottom: 8px !important;
+  overflow-y: auto !important;
 }
 
 /* 键盘打开时，输入区域固定在可见区域底部 */
@@ -429,15 +431,19 @@
   /* 固定输入区域，防止iOS中输入区被弹起的键盘推至不可见区域 */
   .keyboard-open .chat-input-container {
     position: fixed !important;
-    /* 使用可视区域高度剩余部分的固定位置 */
-    transform: translateY(calc(var(--viewport-offset) * -1)) !important;
+    /* 使用可视区域高度剩余部分的固定位置 - 自动适应键盘高度 */
     bottom: 0 !important;
+    backdrop-filter: blur(10px) !important; /* 确保背景模糊效果 */
+    background-color: rgba(15, 15, 15, 0.75) !important; /* 半透明深色背景 */
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
     padding-bottom: env(safe-area-inset-bottom, 8px) !important; /* 支持安全区域 */
   }
   
-  /* 键盘打开时，确保消息区域留有足够空间 */
+  /* 键盘打开时，确保消息区域留有足够空间且内容可见 */
   .keyboard-open .chat-message-container {
-    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px)) !important;
+    position: relative !important;
+    top: 0 !important;
   }
   
   /* 防止iOS中可输入元素缩放 */
