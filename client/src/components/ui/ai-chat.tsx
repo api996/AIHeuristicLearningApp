@@ -188,45 +188,108 @@ export function AIChat({ userData }: AIChatProps) {
     },
   });
 
-  // 处理消息重新生成的变异函数
+  // 处理消息重新生成的变异函数 - 完全重写以解决消息ID问题
   const regenerateMessageMutation = useMutation({
     mutationFn: async (messageId: number | undefined) => {
+      // 强化日志记录，帮助调试
+      console.log("重新生成消息开始 - 传入ID:", messageId);
+      
+      // 声明变量用于存储最终使用的ID
+      let finalMessageId = messageId;
+      
       // 如果没有消息ID，尝试获取当前聊天中的最后一条AI消息
-      if (!messageId) {
-        console.log("尝试通过上下文定位最后一条AI消息");
+      if (!finalMessageId) {
+        console.log("无ID传入 - 尝试查找当前会话最后一条AI消息");
+        
         if (!currentChatId) {
+          console.error("当前对话ID缺失，无法继续");
           throw new Error("无法识别当前对话");
         }
 
-        // 获取当前对话的所有消息
-        const messagesResponse = await apiRequest("GET", `/api/chats/${currentChatId}/messages`);
-        const messages = await messagesResponse.json();
+        try {
+          // 使用直接fetch而非API请求工具，确保最大兼容性
+          const url = `/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
+          console.log("API请求URL:", url);
+          
+          const messagesResponse = await fetch(url);
+          if (!messagesResponse.ok) {
+            console.error("获取消息列表失败:", messagesResponse.status, messagesResponse.statusText);
+            throw new Error("无法获取对话消息");
+          }
+          
+          const messagesData = await messagesResponse.json();
+          console.log(`获取到 ${messagesData.length} 条消息`);
+          
+          // 确保消息数组有效
+          if (!Array.isArray(messagesData) || messagesData.length === 0) {
+            console.error("没有有效的消息数据");
+            throw new Error("对话中没有任何消息");
+          }
 
-        // 查找最后一条AI消息
-        const lastAIMessage = [...messages].reverse().find(msg => msg.role === "assistant");
+          // 查找最后一条AI消息
+          const assistantMessages = messagesData.filter(msg => msg.role === "assistant");
+          console.log(`找到 ${assistantMessages.length} 条AI消息`);
+          
+          if (assistantMessages.length === 0) {
+            console.error("未找到任何AI消息");
+            throw new Error("找不到可重新生成的AI消息");
+          }
 
-        if (!lastAIMessage) {
-          throw new Error("找不到可重新生成的AI消息");
+          // 使用最后一条AI消息的ID
+          const lastAIMessage = assistantMessages[assistantMessages.length - 1];
+          finalMessageId = lastAIMessage.id;
+          
+          if (!finalMessageId) {
+            console.error("找到的AI消息没有有效ID");
+            throw new Error("AI消息ID不存在");
+          }
+          
+          console.log("成功找到最后一条AI消息ID:", finalMessageId);
+        } catch (error) {
+          console.error("在查找AI消息ID时出错:", error);
+          throw error; // 向上传播错误
         }
-
-        messageId = lastAIMessage.id;
-        console.log("已找到最后一条AI消息ID:", messageId);
       }
 
+      // 再次确认ID是否存在
+      if (!finalMessageId) {
+        console.error("即使经过查找，仍然无法确定消息ID");
+        throw new Error("无法确定要重新生成的消息");
+      }
+      
       // 发送重新生成请求
       try {
-        const response = await apiRequest("POST", `/api/messages/${messageId}/regenerate`, {
-          userId: userData.userId,
-          userRole: userData.role,
-          chatId: currentChatId
+        console.log("准备发送重新生成请求，使用ID:", finalMessageId);
+        
+        // 使用直接fetch确保一致性
+        const response = await fetch(`/api/messages/${finalMessageId}/regenerate`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            userId: userData.userId,
+            userRole: userData.role,
+            chatId: currentChatId
+          })
         });
-        return response.json();
+        
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => "无法读取错误详情");
+          console.error(`重生成请求失败: ${response.status} ${response.statusText}`, errorText);
+          throw new Error(`服务器错误 (${response.status}): ${errorText || "请稍后再试"}`);
+        }
+        
+        const result = await response.json();
+        console.log("重新生成请求成功，结果:", result);
+        return result;
       } catch (error) {
-        console.error("重新生成请求失败:", error);
-        throw new Error("无法重新生成回答，请稍后再试");
+        console.error("重新生成请求执行失败:", error);
+        throw error; // 向上传播错误
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("重新生成成功:", data);
       // 成功重新生成消息后刷新当前对话消息列表
       if (currentChatId) {
         queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });

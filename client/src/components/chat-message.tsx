@@ -367,153 +367,179 @@ export function ChatMessage({
   const [isLongPressing, setIsLongPressing] = useState(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null); // 使用ref追踪定时器
   
-  // 完全重写触摸处理逻辑，使其更加稳定
+  // 完全重构长按和菜单展示逻辑 - 彻底解决触摸事件问题
   useEffect(() => {
-    // 定义一个状态标志，表示是否正在处理长按
-    let isLongPressInProgress = false;
+    // 防止重复触发的标记
+    let longPressTriggered = false;
     
-    // 显示消息菜单的函数
-    const showMenu = (clientX: number, clientY: number) => {
-      if (!messageRef.current) return;
+    // 显示消息菜单的函数 - 提取为共享函数以确保一致行为
+    const showMenu = () => {
+      console.log("触发长按菜单", message.role, message.content.substring(0, 20));
+      
+      // 防止重复触发
+      if (longPressTriggered) return;
+      longPressTriggered = true;
       
       // 先设置高亮状态
       setIsLongPressing(true);
       
-      // 获取消息元素的位置信息
+      // 如果不是用户消息则退出
+      if (!messageRef.current || message.role !== 'user') {
+        longPressTriggered = false;
+        return;
+      }
+      
+      // 获取消息元素位置
       const rect = messageRef.current.getBoundingClientRect();
       const screenWidth = window.innerWidth;
       
-      // 计算菜单位置 - 显示在消息正下方靠右
-      const rightOffset = screenWidth - (rect.right + 10);
+      // 计算菜单位置 - 确保在屏幕内显示
+      const rightOffset = screenWidth - rect.right;
+      const menuY = rect.bottom + 10;
+      
+      // 更新菜单位置状态
       setMenuPosition({
         right: Math.max(10, rightOffset),
-        y: rect.bottom + 8
+        y: menuY
       });
       
-      // 确保消息在视图中央
-      if (messageRef.current) {
-        messageRef.current.scrollIntoView({
-          block: 'center',
-          behavior: 'smooth'
-        });
-      }
-      
-      // 提供触觉反馈
-      if (navigator.vibrate) {
-        try {
-          navigator.vibrate(5);
-        } catch (e) {
-          console.log('触觉反馈不可用');
+      // 提供触觉反馈（如果可用）
+      try {
+        if (navigator.vibrate) {
+          navigator.vibrate([10]);
         }
+      } catch (e) {
+        console.log('触觉反馈不可用');
       }
       
-      // 延迟显示菜单，确保高亮动画先执行
+      // 显示菜单 - 添加延迟以确保位置计算后再显示
       setTimeout(() => {
         setShowContextMenu(true);
-      }, 50);
+        // 重置触发标记，但延迟一点以防止快速重复触发
+        setTimeout(() => {
+          longPressTriggered = false;
+        }, 500);
+      }, 10);
     };
     
-    // 点击事件监听器
-    const handleClick = (event: MouseEvent) => {
-      // 仅处理用户消息的右键点击
-      if (message.role !== 'user' || !messageRef.current) return;
-      if (event.button === 2) {
-        event.preventDefault();
-        event.stopPropagation();
-        showMenu(event.clientX, event.clientY);
-      }
-    };
-    
-    // =============== 触摸事件处理 ===============
-    // 长按开始
-    const handleTouchStart = (event: TouchEvent) => {
-      // 仅处理用户消息的长按
-      if (message.role !== 'user' || !messageRef.current) return;
-      
-      // 标记长按开始
-      isLongPressInProgress = true;
-      
-      // 不要阻止默认事件，以保持滚动功能正常
-      // 清除之前的定时器（如果有）
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-      }
-      
-      // 设置新的长按定时器
-      longPressTimerRef.current = setTimeout(() => {
-        if (!isLongPressInProgress) return;
+    // 直接在元素上处理点击事件 - 桌面端使用
+    const handleClicks = () => {
+      if (message.role === 'user' && messageRef.current) {
+        // 显式添加点击处理 - 这对移动设备非常重要
+        messageRef.current.onclick = (e) => {
+          // 仅处理双击事件
+          if (e.detail === 2) {
+            e.preventDefault();
+            showMenu();
+          }
+        };
         
-        // 长按时间已到，可以触发菜单
-        event.preventDefault();
-        const touch = event.touches[0];
-        showMenu(touch.clientX, touch.clientY);
-      }, 500); // 使用稍长的时间以避免误触
-    };
-    
-    // 触摸移动时
-    const handleTouchMove = (event: TouchEvent) => {
-      // 如果手指移动，很可能是想滚动而非长按
-      // 只需取消长按状态而不阻止默认滚动
-      isLongPressInProgress = false;
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
+        // 右键点击处理
+        messageRef.current.oncontextmenu = (e) => {
+          if (message.role === 'user') {
+            e.preventDefault();
+            showMenu();
+          }
+        };
       }
     };
     
-    // 触摸结束
-    const handleTouchEnd = (event: TouchEvent) => {
-      // 重置长按状态
-      isLongPressInProgress = false;
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-      }
+    // 长按触发逻辑 - 使用直接事件处理而不是addEventListener
+    const setupLongPress = () => {
+      if (!messageRef.current || message.role !== 'user') return;
+      
+      // 缓存开始位置用于检测移动
+      let startX = 0;
+      let startY = 0;
+      
+      // 超级简化的长按实现
+      messageRef.current.ontouchstart = (e) => {
+        // 阻止默认行为，避免弹出系统菜单
+        // e.preventDefault();
+        
+        // 记录起始位置
+        if (e.touches && e.touches[0]) {
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
+        }
+        
+        // 清除之前的计时器
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+        }
+        
+        // 设置新的长按计时器
+        longPressTimerRef.current = setTimeout(() => {
+          // 触发长按操作
+          showMenu();
+        }, 600); // 稍长的时间，确保是真实的长按
+      };
+      
+      // 处理移动
+      messageRef.current.ontouchmove = (e) => {
+        if (!e.touches || !e.touches[0]) return;
+        
+        // 计算移动距离
+        const diffX = Math.abs(e.touches[0].clientX - startX);
+        const diffY = Math.abs(e.touches[0].clientY - startY);
+        
+        // 如果移动超过阈值，取消长按
+        if (diffX > 5 || diffY > 5) {
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+          }
+        }
+      };
+      
+      // 处理触摸结束
+      messageRef.current.ontouchend = () => {
+        // 清除长按计时器
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+        }
+      };
     };
     
-    // 处理点击外部关闭菜单
-    const handleOutsideClick = (event: MouseEvent) => {
+    // 处理点击文档其他位置关闭菜单
+    const handleDocumentClick = (e: MouseEvent) => {
       if (
         showContextMenu && 
         menuRef.current && 
-        !menuRef.current.contains(event.target as Node)
+        !menuRef.current.contains(e.target as Node)
       ) {
         setShowContextMenu(false);
         setTimeout(() => {
           setIsLongPressing(false);
+          longPressTriggered = false;
         }, 100);
       }
     };
     
-    // 添加事件监听器
-    const messageElement = messageRef.current;
-    if (messageElement && message.role === 'user') {
-      // 触摸事件（移动设备）
-      messageElement.addEventListener('touchstart', handleTouchStart, { passive: true });
-      messageElement.addEventListener('touchmove', handleTouchMove, { passive: true });
-      messageElement.addEventListener('touchend', handleTouchEnd, { passive: true });
-      
-      // 鼠标事件（桌面设备）
-      messageElement.addEventListener('contextmenu', handleClick);
-    }
-    
-    // 全局点击事件用于关闭菜单
-    document.addEventListener('click', handleOutsideClick);
+    // 安装所有事件处理器
+    handleClicks();
+    setupLongPress();
+    document.addEventListener('click', handleDocumentClick);
     
     // 清理函数
     return () => {
-      if (messageElement) {
-        messageElement.removeEventListener('touchstart', handleTouchStart);
-        messageElement.removeEventListener('touchmove', handleTouchMove);
-        messageElement.removeEventListener('touchend', handleTouchEnd);
-        messageElement.removeEventListener('contextmenu', handleClick);
+      if (messageRef.current) {
+        // 移除直接附加的处理器
+        messageRef.current.onclick = null;
+        messageRef.current.oncontextmenu = null;
+        messageRef.current.ontouchstart = null;
+        messageRef.current.ontouchmove = null;
+        messageRef.current.ontouchend = null;
       }
-      document.removeEventListener('click', handleOutsideClick);
       
-      // 清除任何未完成的定时器
+      // 移除文档级处理器
+      document.removeEventListener('click', handleDocumentClick);
+      
+      // 清除定时器
       if (longPressTimerRef.current) {
         clearTimeout(longPressTimerRef.current);
       }
     };
-  }, [message.role, showContextMenu]);
+  }, [message.role, message.content, showContextMenu]);
   
   // 处理菜单项点击
   const handleCopyMessage = () => {
