@@ -968,8 +968,8 @@ export function AIChat({ userData }: AIChatProps) {
           </div>
         </header>
 
-        {/* Messages - 使用绝对定位, 避免滚动问题 */}
-        <div className={"flex-1 flex flex-col p-4 sm:p-6 md:p-8 pb-52 overflow-y-auto " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
+        {/* 聊天消息容器 - 使用特定的类名便于CSS选择器定位 */}
+        <div className={"flex-1 flex flex-col p-4 sm:p-6 md:p-8 pb-52 overflow-y-auto chat-message-container " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
           {messages.length === 0 ? (
             // 欢迎页面 - 垂直居中不需要滚动，完全隐藏滚动条
             <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
@@ -989,7 +989,7 @@ export function AIChat({ userData }: AIChatProps) {
             // 有消息时显示滚动区域 - 优化滚动体验与空间
             <div 
               ref={messagesContainerRef}
-              className="w-full flex-1 flex flex-col gap-4 py-1 overflow-y-auto"
+              className="w-full flex-1 flex flex-col gap-4 py-1 overflow-y-auto vh-chat-messages"
               style={{ 
                 scrollBehavior: 'smooth',
                 WebkitOverflowScrolling: 'touch',
@@ -1017,8 +1017,8 @@ export function AIChat({ userData }: AIChatProps) {
           )}
         </div>
 
-        {/* Input Area - 使用更灵活的定位方式 */}
-        <div className={"chat-input-area absolute bottom-0 left-0 right-0 pb-4 pt-2 px-2 z-20 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
+        {/* Input Area - 添加chat-input-container类便于CSS处理键盘状态 */}
+        <div className={"chat-input-area chat-input-container absolute bottom-0 left-0 right-0 pb-4 pt-2 px-2 z-20 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
           <div className="max-w-3xl mx-auto px-2 sm:px-4">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
