@@ -597,18 +597,59 @@ export function AIChat({ userData }: AIChatProps) {
     startEditMessage(messageId, content);
   };
 
-  // 重写：处理消息重新生成功能
+  // 重写：处理消息重新生成功能 - 增强错误处理和ID查找逻辑
   const handleRegenerateMessage = async (messageId: number | undefined) => {
     try {
       // 开始加载状态，可以添加视觉反馈
       setIsLoading(true);
 
-      // 明确检查消息ID是否存在
-      if (!messageId) {
-        throw new Error("消息ID不存在");
+      // 改进：如果没有接收到messageId，尝试查找最后一条AI消息
+      let targetMessageId = messageId;
+      
+      if (!targetMessageId) {
+        console.log("尝试查找当前会话的最后一条AI消息...");
+        
+        // 检查当前聊天ID是否存在
+        if (!currentChatId) {
+          throw new Error("当前聊天会话不存在");
+        }
+
+        // 从API获取当前对话的所有消息（确保有ID字段）
+        try {
+          const messagesResponse = await fetch(
+            `/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`
+          );
+          if (!messagesResponse.ok) {
+            throw new Error("无法获取消息列表");
+          }
+          
+          const messagesWithIds = await messagesResponse.json();
+          
+          // 查找最后一条AI消息
+          const allAIMessages = messagesWithIds.filter(
+            (msg: any) => msg.role === "assistant"
+          );
+          
+          if (allAIMessages.length > 0) {
+            // 使用最后一条AI消息的ID
+            const lastAIMessage = allAIMessages[allAIMessages.length - 1];
+            targetMessageId = lastAIMessage.id;
+            console.log("找到最后一条AI消息，ID:", targetMessageId);
+          } else {
+            throw new Error("找不到任何AI消息可以重新生成");
+          }
+        } catch (fetchError) {
+          console.error("获取消息列表失败:", fetchError);
+          throw new Error("无法加载聊天历史记录");
+        }
+      }
+      
+      // 再次确认ID是否存在
+      if (!targetMessageId) {
+        throw new Error("无法确定要重新生成的消息");
       }
 
-      // 检查当前聊天ID是否存在
+      // 检查当前聊天ID是否存在（冗余检查，以确保安全）
       if (!currentChatId) {
         throw new Error("当前聊天会话不存在");
       }
@@ -631,7 +672,8 @@ export function AIChat({ userData }: AIChatProps) {
       }
 
       // 调用重新生成API
-      const response = await regenerateMessageMutation.mutateAsync(messageId);
+      console.log("发送重新生成请求:", targetMessageId);
+      const response = await regenerateMessageMutation.mutateAsync(targetMessageId);
       
       // 查询最新消息以确保显示正确
       queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
