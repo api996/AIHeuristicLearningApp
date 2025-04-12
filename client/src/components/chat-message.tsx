@@ -372,7 +372,7 @@ export function ChatMessage({
     // 防止重复触发的标记
     let longPressTriggered = false;
     
-    // 显示消息菜单的函数 - 提取为共享函数以确保一致行为
+    // 显示消息菜单的函数 - 简化版本，由CSS控制居中对齐
     const showMenu = () => {
       console.log("触发长按菜单", message.role, message.content.substring(0, 20));
       
@@ -389,19 +389,12 @@ export function ChatMessage({
         return;
       }
       
-      // 获取消息元素位置 - 使用更可靠的方法
+      // 获取消息元素位置 - 只需要垂直位置
       const rect = messageRef.current.getBoundingClientRect();
-      const screenWidth = window.innerWidth;
       
-      // 计算菜单位置 - 固定显示在消息下方居中位置
-      // 确保菜单始终在消息下方，不会超出屏幕
-      const messageMiddle = rect.left + (rect.width / 2);
-      const menuWidth = 280; // 菜单宽度
-      const menuLeft = Math.max(20, Math.min(screenWidth - menuWidth - 20, messageMiddle - (menuWidth / 2)));
-      
-      // 始终显示在消息正下方固定位置
+      // 只设置Y轴坐标，X轴通过CSS居中控制
       setMenuPosition({
-        right: screenWidth - menuLeft - menuWidth,
+        right: 0, // 这个值不再使用
         y: rect.bottom + 10
       });
       
