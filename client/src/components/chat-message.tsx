@@ -259,25 +259,16 @@ export function ChatMessage({
       });
   };
   
-  // 重新生成回答 - 增强错误处理
+  // 重新生成回答 - 增强错误处理和可靠性
   const handleRegenerate = async () => {
     if (!onRegenerate || isThinking) return;
     
     try {
-      // 确保消息ID存在，并记录详细信息用于调试
-      console.log("重新生成请求 - 消息ID:", message.id);
-      if (!message.id) {
-        console.warn("无法重新生成: 消息没有有效ID");
-        toast({
-          title: "操作无法完成",
-          description: "此消息无法重新生成，请尝试发送新消息",
-          variant: "destructive",
-          className: "frosted-toast-error"
-        });
-        return;
-      }
+      // 无需检查消息ID是否存在，直接调用重新生成函数
+      // 父组件会处理ID不存在的情况，查找最后一条AI消息
+      console.log("重新生成请求 - 消息ID:", message.id || "未定义（将使用最后一条消息）");
       
-      // 调用父组件提供的重新生成函数
+      // 无论是否有ID都传递给父组件
       await onRegenerate(message.id);
     } catch (error) {
       // 更友好的错误处理
