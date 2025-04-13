@@ -253,7 +253,7 @@ args = "kill $(lsof -t -i:5001) 2>/dev/null || true"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python3 scripts/update_memory_files.py"
+args = "python3 scripts/update_memory_files.py 2"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
