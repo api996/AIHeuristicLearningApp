@@ -115,6 +115,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // 开发者模式登录请求 - 跳过人机验证
+  app.post("/api/developer-login", async (req, res) => {
+    try {
+      const { username, password, developerPassword } = req.body;
+      
+      // 验证开发者密码 - 使用简单但不太容易猜到的密码
+      // 注意：在实际环境中，应该使用环境变量或配置文件存储这个密码
+      const validDevPassword = "dev123456";
+      
+      if (developerPassword !== validDevPassword) {
+        return res.status(401).json({
+          success: false,
+          message: "开发者密码错误"
+        });
+      }
+      
+      // 获取用户信息
+      let user = await storage.getUserByUsername(username);
+
+      // 如果是首次设置管理员账户
+      if (username === "admin" && !user) {
+        // 创建管理员账户
+        const secureAdminPassword = password || "Admin@" + Math.floor(Math.random() * 10000);
+        user = await storage.createUser({ 
+          username, 
+          password: secureAdminPassword, 
+          role: "admin" 
+        });
+        
+        if (!password) {
+          // 记录生成的密码到日志（仅供首次设置使用）
+          console.log(`初始管理员密码已生成: ${secureAdminPassword}`);
+          
+          return res.status(401).json({
+            success: false,
+            message: "管理员账户已创建，请查看服务器日志获取初始密码"
+          });
+        }
+      }
+      
+      // 验证用户密码
+      if (user && user.password === password) {
+        log(`[开发者模式] 用户 ${username} 登录成功`);
+        res.json({ 
+          success: true, 
+          userId: user.id, 
+          role: user.role 
+        });
+      } else {
+        res.status(401).json({ 
+          success: false, 
+          message: "用户名或密码错误" 
+        });
+      }
+    } catch (error) {
+      log(`Developer login error: ${error}`);
+      res.status(500).json({ 
+        success: false, 
+        message: "登录失败，请稍后重试" 
+      });
+    }
+  });
 
   // Chat routes
   app.get("/api/chats", async (req, res) => {
