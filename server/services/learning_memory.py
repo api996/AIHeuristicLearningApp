@@ -244,6 +244,16 @@ class LearningMemoryService:
             # 返回前limit个结果
             result = [memory for memory, similarity in scored_memories[:limit]]
             print(f"返回 {len(result)} 个相似记忆")
+            # 确保结果可以正确序列化为JSON
+            try:
+                import json
+                json_result = json.dumps(result)
+                # 成功序列化后，打印一个明确的边界标记
+                print("JSON_RESULT_BEGIN")
+                print(json_result)
+                print("JSON_RESULT_END")
+            except Exception as json_err:
+                print(f"序列化结果为JSON时出错: {str(json_err)}")
             return result
         except Exception as e:
             print(f"检索记忆时出错: {str(e)}")
