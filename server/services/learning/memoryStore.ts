@@ -198,6 +198,9 @@ asyncio.run(retrieve_memories())
           resolve([]);
         } else {
           try {
+            // 记录完整输出以便调试
+            log(`[memoryStore] Python输出完整内容: ${output}`);
+            
             // 尝试从明确标记的JSON结果中提取
             const resultMatch = output.match(/JSON_RESULT_BEGIN\n(.*)\nJSON_RESULT_END/s);
             let memories = [];
@@ -211,19 +214,41 @@ asyncio.run(retrieve_memories())
               }
             } 
             
-            // 如果上面的方法失败或没有找到标记，尝试其他方法
+            // 如果上面的方法失败或没有找到标记，尝试直接解析整个输出
             if (!memories.length) {
-              // 回退到之前的方法，寻找最外层的JSON结构
-              const jsonMatch = output.match(/(\{.*\}|\[.*\])/s);
-              if (jsonMatch && jsonMatch[0]) {
-                try {
-                  memories = JSON.parse(jsonMatch[0]) || [];
-                  log(`[memoryStore] 从正则匹配提取JSON数据`);
-                } catch (e) {
-                  log(`[memoryStore] 从正则匹配解析JSON失败: ${e}`);
+              try {
+                // 首先尝试直接解析整个输出
+                memories = JSON.parse(output.trim()) || [];
+                log(`[memoryStore] 直接解析整个输出成功`);
+              } catch (e) {
+                log(`[memoryStore] 直接解析失败，尝试查找JSON对象或数组`);
+                
+                // 尝试找到输出中的JSON数组
+                const arrayMatch = output.match(/(\[.*\])/s);
+                if (arrayMatch && arrayMatch[0]) {
+                  try {
+                    memories = JSON.parse(arrayMatch[0]) || [];
+                    log(`[memoryStore] 从输出中提取JSON数组成功`);
+                  } catch (arrayError) {
+                    log(`[memoryStore] 从输出中提取JSON数组失败: ${arrayError}`);
+                  }
                 }
-              } else {
-                log(`[memoryStore] 无法识别JSON数据，输出: ${output.substring(0, 100)}...`);
+                
+                // 如果数组匹配失败，尝试提取所有JSON对象并组合成数组
+                if (!memories.length) {
+                  const objectMatches = [...output.matchAll(/(\{[^{}]*\})/g)];
+                  if (objectMatches.length > 0) {
+                    try {
+                      // 尝试解析每个匹配的对象
+                      memories = objectMatches.map(match => JSON.parse(match[0])).filter(Boolean);
+                      log(`[memoryStore] 从输出中提取多个JSON对象成功: ${memories.length}个`);
+                    } catch (objError) {
+                      log(`[memoryStore] 从输出中提取JSON对象失败: ${objError}`);
+                    }
+                  } else {
+                    log(`[memoryStore] 无法识别JSON数据，输出: ${output.substring(0, 200)}...`);
+                  }
+                }
               }
             }
 

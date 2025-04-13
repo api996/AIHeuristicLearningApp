@@ -1113,10 +1113,17 @@ sys.path.append('server')
 from services.learning_memory import learning_memory_service
 
 async def retrieve_memories():
-    # 检索相似记忆
-    memories = await learning_memory_service.retrieve_similar_memories(${userId}, """${query.replace(/"/g, '\\"')}""", ${limit})
-    # 转换为JSON输出
-    print(json.dumps(memories, ensure_ascii=False))
+    try:
+        # 检索相似记忆
+        memories = await learning_memory_service.retrieve_similar_memories(${userId}, """${query.replace(/"/g, '\\"')}""", ${limit})
+        # 转换为JSON输出
+        print("JSON_RESULT_BEGIN")
+        print(json.dumps(memories, ensure_ascii=False))
+        print("JSON_RESULT_END")
+    except Exception as e:
+        print(f"记忆检索错误: {str(e)}")
+        # 返回空数组而不是失败
+        print("[]")
 
 asyncio.run(retrieve_memories())
       `]);
@@ -1124,6 +1131,7 @@ asyncio.run(retrieve_memories())
       let output = '';
       pythonProcess.stdout.on('data', (data) => {
         output += data.toString();
+        log(`记忆检索输出: ${data.toString().trim()}`);
       });
       
       let errorOutput = '';
