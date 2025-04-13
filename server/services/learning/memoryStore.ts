@@ -210,17 +210,32 @@ asyncio.run(retrieve_memories())
                 log(`[memoryStore] JSON解析错误: ${parseError}`);
                 log(`[memoryStore] 尝试解析的原始输出: ${outputTrimmed.substring(0, 200)}...`);
 
-                // 尝试修复潜在的JSON格式问题
+                // 尝试修复各种潜在的JSON格式问题
                 try {
+                  let fixedJson = outputTrimmed;
+                  
                   // 检查是否缺少右括号
-                  if (!outputTrimmed.endsWith(']') && outputTrimmed.includes('[')) {
-                    const fixedJson = outputTrimmed + ']';
-                    memories = JSON.parse(fixedJson) || [];
-                    log(`[memoryStore] 修复后成功解析`);
+                  if (!fixedJson.endsWith(']') && fixedJson.includes('[')) {
+                    fixedJson = fixedJson + ']';
                   }
+                  
+                  // 检查是否有多余字符
+                  if (fixedJson.includes(']') && fixedJson.length > fixedJson.lastIndexOf(']') + 1) {
+                    fixedJson = fixedJson.substring(0, fixedJson.lastIndexOf(']') + 1);
+                  }
+                  
+                  // 检查是否有Python打印输出混合在JSON中
+                  if (fixedJson.includes(']\n')) {
+                    fixedJson = fixedJson.substring(0, fixedJson.indexOf(']\n') + 1);
+                  }
+                  
+                  // 尝试解析修复后的JSON
+                  memories = JSON.parse(fixedJson) || [];
+                  log(`[memoryStore] 修复后成功解析，找到${memories.length}条记忆`);
                 } catch (e) {
-                  // 放弃修复尝试
-                  log(`[memoryStore] 尝试修复JSON失败`);
+                  // 放弃修复尝试，返回空数组
+                  log(`[memoryStore] 尝试修复JSON失败: ${e}`);
+                  memories = [];
                 }
               }
             }
