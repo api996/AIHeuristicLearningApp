@@ -203,14 +203,25 @@ asyncio.run(retrieve_memories())
             let memories = [];
 
             if (resultMatch && resultMatch[1]) {
-              memories = JSON.parse(resultMatch[1]) || [];
-              log(`[memoryStore] 从标记的JSON区域成功提取数据`);
-            } else {
-              // 回退到之前的方法
+              try {
+                memories = JSON.parse(resultMatch[1]) || [];
+                log(`[memoryStore] 从标记的JSON区域成功提取数据`);
+              } catch (e) {
+                log(`[memoryStore] 从标记区域解析JSON失败: ${e}, 尝试其他方法`);
+              }
+            } 
+            
+            // 如果上面的方法失败或没有找到标记，尝试其他方法
+            if (!memories.length) {
+              // 回退到之前的方法，寻找最外层的JSON结构
               const jsonMatch = output.match(/(\{.*\}|\[.*\])/s);
               if (jsonMatch && jsonMatch[0]) {
-                memories = JSON.parse(jsonMatch[0]) || [];
-                log(`[memoryStore] 从正则匹配提取JSON数据`);
+                try {
+                  memories = JSON.parse(jsonMatch[0]) || [];
+                  log(`[memoryStore] 从正则匹配提取JSON数据`);
+                } catch (e) {
+                  log(`[memoryStore] 从正则匹配解析JSON失败: ${e}`);
+                }
               } else {
                 log(`[memoryStore] 无法识别JSON数据，输出: ${output.substring(0, 100)}...`);
               }
@@ -231,6 +242,8 @@ asyncio.run(retrieve_memories())
             resolve(formattedMemories);
           } catch (error) {
             log(`[memoryStore] 解析相似记忆结果失败: ${error}`);
+            log(`[memoryStore] 原始输出: ${output}`);
+            // 在错误情况下返回空数组而不是抛出异常
             resolve([]);
           }
         }
