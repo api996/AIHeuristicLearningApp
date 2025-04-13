@@ -1171,7 +1171,7 @@ export function AIChat({ userData }: AIChatProps) {
 
 
   return (
-    <div className="flex h-screen text-white relative" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
+    <div className={`flex h-screen text-white relative ${showSidebar ? 'sidebar-open' : ''}`} style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
       {/* 背景图片容器 */}
       {backgroundImage && (
         <div className="bg-container">
@@ -1233,8 +1233,8 @@ export function AIChat({ userData }: AIChatProps) {
         />
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col relative">
+      {/* Main Content - 添加chat-content-area类名以便CSS定位 */}
+      <div className="flex-1 flex flex-col relative chat-content-area">
         {/* Header - 苹果风格磨砂透明 */}
         <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${theme === 'dark' ? 'frosted-glass-dark border-neutral-800' : 'frosted-glass border-neutral-200/20'}`}>
           <div className="flex items-center">
