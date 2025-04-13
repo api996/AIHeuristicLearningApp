@@ -188,13 +188,36 @@ export function AIChat({ userData }: AIChatProps) {
     },
   });
 
-  // 处理消息重新生成的变异函数 - 完全重写以解决消息ID问题
-  const regenerateMessageMutation = useMutation({
-    mutationFn: async (messageId: number | undefined) => {
-      // 强化日志记录，帮助调试
-      console.log("重新生成消息开始 - 传入ID:", messageId);
-      
-      // 声明变量用于存储最终使用的ID
+  // 直接定义regenerateMessage函数，不使用useMutation
+  const regenerateMessage = async (messageId: number | undefined) => {
+    await handleRegenerateMessage(messageId);
+  };
+  
+  // 处理重新生成响应的函数
+  const handleRegenerateResponse = (data: any) => {
+    if (!data) return;
+    
+    // 更新对话中的消息
+    setMessages(prev => {
+      // 找到要更新的消息索引
+      const index = prev.findIndex(msg => msg.id === data.id);
+      if (index !== -1) {
+        // 创建更新后的消息数组
+        const newMessages = [...prev];
+        newMessages[index] = {
+          ...data,
+          isRegenerating: false
+        };
+        return newMessages;
+      }
+      return prev;
+    });
+    
+    // 如果需要，也可以刷新整个消息列表
+    if (currentChatId) {
+      queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
+    }
+  };终使用的ID
       let finalMessageId = messageId;
       
       // 如果没有消息ID，尝试获取当前聊天中的最后一条AI消息
@@ -231,37 +254,26 @@ export function AIChat({ userData }: AIChatProps) {
           console.log(`找到 ${assistantMessages.length} 条AI消息`);
           
           if (assistantMessages.length === 0) {
-            console.error("未找到任何AI消息");
-            throw new Error("找不到可重新生成的AI消息");
-          }
-
-          // 使用最后一条AI消息的ID
-          const lastAIMessage = assistantMessages[assistantMessages.length - 1];
-          finalMessageId = lastAIMessage.id;
-          
-          if (!finalMessageId) {
-            console.error("找到的AI消息没有有效ID");
-            throw new Error("AI消息ID不存在");
-          }
-          
-          console.log("成功找到最后一条AI消息ID:", finalMessageId);
-        } catch (error) {
-          console.error("在查找AI消息ID时出错:", error);
-          throw error; // 向上传播错误
-        }
-      }
-
-      // 再次确认ID是否存在
-      if (!finalMessageId) {
-        console.error("即使经过查找，仍然无法确定消息ID");
-        throw new Error("无法确定要重新生成的消息");
-      }
-      
-      // 发送重新生成请求
+            // 发送重新生成请求
       try {
-        console.log("准备发送重新生成请求，使用ID:", finalMessageId);
-        
-        // 使用直接fetch确保一致性
+        // 添加临时状态表示AI正在思考
+        setMessages(prev => {
+          // 找到要重新生成的消息的索引
+          const index = prev.findIndex(msg => msg.id === finalMessageId);
+          if (index !== -1) {
+            // 创建新的消息数组，带有"正在重新生成..."标记
+            const newMessages = [...prev];
+            newMessages[index] = {
+              ...newMessages[index],
+              content: "正在重新生成回答...",
+              isRegenerating: true
+            };
+            return newMessages;
+          }
+          return prev;
+        });
+
+        // 使用直接fetch发送请求
         const response = await fetch(`/api/messages/${finalMessageId}/regenerate`, {
           method: "POST",
           headers: {
@@ -665,9 +677,60 @@ export function AIChat({ userData }: AIChatProps) {
     try {
       // 开始加载状态，可以添加视觉反馈
       setIsLoading(true);
-
-      // 改进：如果没有接收到messageId，尝试查找最后一条AI消息
-      let targetMessageId = messageId;
+      console.log("开始重新生成回答，传入ID:", messageId);
+      
+      let finalMessageId = messageId;
+      
+      // 如果没有传入有效的messageId，则查找当前对话的最后一条AI消息
+      if (!finalMessageId && currentChatId) {
+        console.log("没有传入有效ID，尝试查找最后一条AI消息");
+        
+        try {
+          // 直接使用messages状态中的数据
+          if (messages.length > 0) {
+            // 反向遍历查找最后一条AI消息
+            for (let i = messages.length - 1; i >= 0; i--) {
+              if (messages[i].role === "assistant" && messages[i].id) {
+                finalMessageId = messages[i].id;
+                console.log("从当前对话状态找到AI消息ID:", finalMessageId);
+                break;
+              }
+            }
+          }
+          
+          // 如果在当前状态中找不到，尝试从API重新获取
+          if (!finalMessageId && currentChatId) {
+            const response = await fetch(`/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`);
+            if (!response.ok) {
+              throw new Error(`获取消息失败: ${response.status}`);
+            }
+            
+            const messagesData = await response.json();
+            console.log(`从API获取到 ${messagesData.length} 条消息`);
+            
+            if (Array.isArray(messagesData) && messagesData.length > 0) {
+              // 查找最后一条AI消息
+              for (let i = messagesData.length - 1; i >= 0; i--) {
+                if (messagesData[i].role === "assistant" && messagesData[i].id) {
+                  finalMessageId = messagesData[i].id;
+                  console.log("从API响应找到AI消息ID:", finalMessageId);
+                  break;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error("查找AI消息ID出错:", error);
+          throw new Error("无法找到AI消息");
+        }
+      }
+      
+      // 确认是否找到了有效的ID
+      if (!finalMessageId) {
+        throw new Error("找不到可重新生成的AI消息");
+      }
+      
+      console.log("准备发送重新生成请求，使用ID:", finalMessageId);Id = messageId;
       
       if (!targetMessageId) {
         console.log("尝试查找当前会话的最后一条AI消息...");
