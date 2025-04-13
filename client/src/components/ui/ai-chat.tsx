@@ -1110,9 +1110,10 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* Sidebar - 使用磨砂玻璃效果 */}
       <div
-        className={`fixed lg:static lg:flex w-64 h-full transform transition-transform duration-200 ease-in-out z-30 ${
+        className={`fixed lg:relative lg:flex w-64 h-full transform transition-transform duration-200 ease-in-out z-30 ${
           showSidebar ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}`}
+        style={{flex: "0 0 auto"}} /* 确保侧边栏不会收缩 */
       >
         <ChatHistory
           currentChatId={currentChatId}
@@ -1135,7 +1136,7 @@ export function AIChat({ userData }: AIChatProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative chat-content-area">
+      <div className="flex-1 flex flex-col relative chat-content-area w-full">
         {/* Header - 苹果风格磨砂透明 */}
         <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${theme === 'dark' ? 'frosted-glass-dark border-neutral-800' : 'frosted-glass border-neutral-200/20'}`}>
           <div className="flex items-center">
