@@ -62,7 +62,7 @@ export default function Login() {
         console.log('[Login] Turnstile验证成功');
         // 只有在验证成功后才设置令牌
         setTurnstileToken(token);
-        setError(null); // 清除可能存在的错误
+        setError(""); // 清除可能存在的错误
         return true;
       } else {
         console.error('[Login] Turnstile验证失败:', data.message);
@@ -243,12 +243,44 @@ export default function Login() {
             </div>
           )}
 
-          <div className="space-y-2 mt-4">
-            <TurnstileWidget 
-              onVerify={verifyTurnstileToken}
-              onError={() => setError("人机验证加载失败，请刷新页面重试")}
+          {/* 开发者模式切换 */}
+          <div className="flex items-center justify-end space-x-2 my-4">
+            <Label htmlFor="developer-mode" className="text-white cursor-pointer">
+              开发者模式
+            </Label>
+            <Switch
+              id="developer-mode"
+              checked={isDeveloperMode}
+              onCheckedChange={setIsDeveloperMode}
             />
           </div>
+
+          {/* 开发者密码输入框 */}
+          {isDeveloperMode && (
+            <div className="input-box relative w-full my-[30px] border-b-2 border-white">
+              <i className="fas fa-code icon absolute right-2 text-white text-lg top-1/2 -translate-y-1/2"></i>
+              <input
+                type="password"
+                value={developerPassword}
+                onChange={(e) => setDeveloperPassword(e.target.value)}
+                className="w-full h-[50px] bg-transparent outline-none border-none text-base text-white px-[5px] pr-[40px]"
+                required={isDeveloperMode}
+              />
+              <label className="absolute top-1/2 left-[5px] -translate-y-1/2 text-base text-white pointer-events-none transition-all duration-500 peer-focus:-top-[5px] peer-valid:-top-[5px]">
+                开发者密码
+              </label>
+            </div>
+          )}
+
+          {/* 在非开发者模式下显示人机验证 */}
+          {!isDeveloperMode && (
+            <div className="space-y-2 mt-4">
+              <TurnstileWidget 
+                onVerify={verifyTurnstileToken}
+                onError={() => setError("人机验证加载失败，请刷新页面重试")}
+              />
+            </div>
+          )}
 
           {error && (
             <div className="text-red-500 text-sm text-center mt-2">{error}</div>
@@ -257,7 +289,7 @@ export default function Login() {
           <button 
             type="submit" 
             className="btn w-full h-[40px] bg-white outline-none border-none rounded-[40px] cursor-pointer text-base font-medium text-black mt-[20px] hover:bg-[#ffffea]"
-            disabled={isVerifying || !turnstileToken}
+            disabled={isVerifying || (!isDeveloperMode && !turnstileToken)}
           >
             {isVerifying ? "验证中..." : (isRegistering ? "注册" : "登录")}
           </button>
