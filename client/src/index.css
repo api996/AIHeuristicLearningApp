@@ -533,8 +533,9 @@
   }
 }
 
-/* iPad专用样式修复 - 完全重写逻辑 */
-@media (min-width: 768px) and (max-width: 1366px) and (-webkit-min-device-pixel-ratio: 2) {
+/* iPad布局特殊修复 - 专用于解决键盘导致的UI问题 */
+@media (min-width: 768px) and (max-width: 1366px) and (-webkit-min-device-pixel-ratio: 2), 
+       only screen and (min-device-width: 768px) and (max-device-width: 1366px) and (-webkit-min-device-pixel-ratio: 2) {
   /* iPad布局基础修复 */
   body, html {
     position: fixed !important;
@@ -640,19 +641,75 @@
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
   }
   
-  /* iPad特有标记时应用更特殊的规则 */
+  /* iPad特有标记时应用更特殊的规则 - 针对键盘弹出状态的输入框定位 */
   .ipad-device.keyboard-open .chat-input-area,
   .ipad-device.keyboard-focused .chat-input-area {
-    position: absolute !important;
-    bottom: var(--ipad-keyboard-offset, 0) !important;
-    transform: translateY(calc(-1 * var(--keyboard-height, 0px))) !important;
+    position: fixed !important; /* 使用fixed代替absolute */
+    bottom: 0 !important; /* 固定在底部 */
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important; /* 取消变形 */
+    margin-bottom: 0 !important;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 10px) !important;
+    background-color: rgba(0, 0, 0, 0.9) !important; /* 更深的背景色 */
+    border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+    z-index: 9999 !important; /* 最高层级 */
+    height: auto !important; /* 自适应高度 */
+    min-height: 60px !important; /* 最小高度 */
+    display: flex !important; 
+    align-items: center !important;
+    justify-content: center !important;
   }
   
-  /* 键盘弹出时的消息容器调整 */
+  /* 输入框聚焦时特殊样式 - 确保输入框始终在视野内 */
+  .ipad-device.keyboard-open .chat-input-area textarea:focus,
+  .ipad-device.keyboard-focused .chat-input-area textarea:focus {
+    border-color: rgba(59, 130, 246, 0.5) !important; /* 高亮边框 */
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+    background-color: rgba(40, 40, 40, 0.95) !important;
+  }
+  
+  /* 输入框本身的样式增强 */
+  .ipad-device.keyboard-open .chat-input-container,
+  .ipad-device.keyboard-focused .chat-input-container {
+    padding: 12px !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(15px) !important;
+    background-color: rgba(30, 30, 30, 0.8) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  }
+  
+  /* 键盘弹出时的消息容器调整 - 固定布局而非弹性布局 */
   .ipad-device.keyboard-open .flex-1.overflow-y-auto,
   .ipad-device.keyboard-focused .flex-1.overflow-y-auto {
-    bottom: var(--keyboard-height, 0) !important;
-    padding-bottom: calc(var(--keyboard-height, 0px) + 100px) !important;
+    position: absolute !important;
+    top: 64px !important; /* 头部高度 */
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 80px !important; /* 输入框高度 - 固定值 */
+    max-height: calc(100% - 144px) !important; /* 100% - 头部 - 输入框 */
+    overflow-y: scroll !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 100px !important; /* 增加底部填充 */
+  }
+  
+  /* 针对iPad键盘特殊处理，确保滚动区域不被键盘遮挡 */
+  @supports (-webkit-touch-callout: none) {
+    /* iOS特有修复 */
+    .ipad-device.keyboard-open,
+    .ipad-device.keyboard-focused {
+      /* 阻止iOS页面弹跳 */
+      height: 100% !important;
+      position: fixed !important;
+      overflow: hidden !important;
+    }
+    
+    /* 使用视口高度动态调整 */
+    .ipad-device.keyboard-open .flex-1.overflow-y-auto,
+    .ipad-device.keyboard-focused .flex-1.overflow-y-auto {
+      height: var(--viewport-height, 100vh) !important;
+      max-height: calc(var(--viewport-height, 100vh) - 144px) !important;
+    }
   }
   
   /* 消息样式修正 */
