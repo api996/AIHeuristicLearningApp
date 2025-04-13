@@ -53,7 +53,9 @@ export const insertMessageSchema = createInsertSchema(messages);
 
 export type User = typeof users.$inferSelect;
 export type Chat = typeof chats.$inferSelect;
-export type Message = typeof messages.$inferSelect;
+export type Message = typeof messages.$inferSelect & {
+  isRegenerating?: boolean; // 用于UI中显示消息重新生成状态
+};
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertChat = z.infer<typeof insertChatSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;

@@ -267,8 +267,15 @@ export default function Login() {
                 required={isDeveloperMode}
               />
               <label className="absolute top-1/2 left-[5px] -translate-y-1/2 text-base text-white pointer-events-none transition-all duration-500 peer-focus:-top-[5px] peer-valid:-top-[5px]">
-                开发者密码
+                管理员密码
               </label>
+            </div>
+          )}
+          
+          {/* 开发者模式说明 */}
+          {isDeveloperMode && (
+            <div className="text-xs text-blue-300 mt-1 italic">
+              使用管理员密码验证后，将在此会话中跳过后续的人机验证
             </div>
           )}
 
