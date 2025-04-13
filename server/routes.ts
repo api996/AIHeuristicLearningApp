@@ -1139,42 +1139,13 @@ asyncio.run(retrieve_memories())
         }
         
         try {
-          // 增强型JSON解析处理
-          let memories = [];
-          const outputTrimmed = output.trim();
-          
-          if (outputTrimmed) {
-            try {
-              memories = JSON.parse(outputTrimmed);
-              log(`成功检索到 ${memories.length} 条相似记忆`);
-            } catch (parseError) {
-              log(`JSON解析错误: ${parseError}`);
-              log(`尝试解析的原始输出: ${outputTrimmed.substring(0, 200)}...`);
-              
-              // 处理常见的JSON格式问题
-              if (outputTrimmed.includes("Traceback") || outputTrimmed.includes("Error")) {
-                log(`Python脚本执行出错，包含错误信息`);
-                return res.status(500).json({ error: "记忆检索程序出错", details: outputTrimmed });
-              }
-              
-              // 尝试修复可能的格式问题
-              try {
-                if (!outputTrimmed.endsWith(']') && outputTrimmed.includes('[')) {
-                  const fixedJson = outputTrimmed + ']';
-                  memories = JSON.parse(fixedJson);
-                  log(`修复JSON格式后成功解析`);
-                }
-              } catch (e) {
-                log(`尝试修复JSON失败，返回空结果`);
-                return res.json({ success: true, memories: [], error: "解析记忆结果失败" });
-              }
-            }
-          }
-          
-          return res.json({ success: true, memories: Array.isArray(memories) ? memories : [] });
+          // 解析输出为JSON
+          const memories = output.trim() ? JSON.parse(output) : [];
+          log(`成功检索到 ${memories.length} 条相似记忆`);
+          return res.json({ success: true, memories });
         } catch (parseError) {
           log(`解析记忆结果错误: ${parseError}, 原始输出: ${output}`);
-          return res.json({ success: true, memories: [], error: "解析记忆结果失败" });
+          return res.status(500).json({ error: "解析记忆结果失败" });
         }
       });
     } catch (error) {

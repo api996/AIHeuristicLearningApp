@@ -352,12 +352,7 @@ export class DatabaseStorage implements IStorage {
   
   async regenerateMessage(messageId: number): Promise<Message> {
     try {
-      if (!messageId || isNaN(messageId)) {
-        log(`Invalid message ID for regeneration: ${messageId}`);
-        throw new Error("Invalid message ID");
-      }
-      
-      // 获取原始消息以验证它是AI消息
+      // 获取需要重新生成的消息
       const [message] = await db.select()
         .from(messages)
         .where(eq(messages.id, messageId));
@@ -367,18 +362,14 @@ export class DatabaseStorage implements IStorage {
       }
       
       if (message.role !== "assistant") {
-        throw new Error("Only assistant messages can be regenerated");
+        throw new Error("Only AI messages can be regenerated");
       }
       
-      // 标记消息为已编辑状态，以便前端可以显示
-      await db.update(messages)
-        .set({ isEdited: true })
-        .where(eq(messages.id, messageId));
-      
-      log(`Message ${messageId} marked for regeneration`);
+      // 这里只是返回现有消息
+      // 实际重新生成在路由层处理，而非存储层
       return message;
     } catch (error) {
-      log(`Error marking message for regeneration: ${error}`);
+      log(`Error preparing message regeneration: ${error}`);
       throw error;
     }
   }

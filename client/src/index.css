@@ -437,20 +437,13 @@
     background-color: rgba(15, 15, 15, 0.75) !important; /* 半透明深色背景 */
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
     padding-bottom: env(safe-area-inset-bottom, 8px) !important; /* 支持安全区域 */
-    /* 添加变换原点，确保变换效果从底部开始 */
-    transform-origin: bottom !important;
-    will-change: transform !important; /* 优化性能 */
   }
   
   /* 键盘打开时，确保消息区域留有足够空间且内容可见 */
   .keyboard-open .chat-message-container {
-    padding-bottom: calc(var(--keyboard-height, 0px) - 50px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px)) !important;
     position: relative !important;
     top: 0 !important;
-    /* 确保内容区在键盘弹出时仍然可滚动 */
-    max-height: calc(var(--viewport-height) - 100px) !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
   }
   
   /* 防止iOS中可输入元素缩放 */
@@ -458,15 +451,6 @@
   .keyboard-open input[type="text"],
   .keyboard-open input[type="search"] {
     font-size: 16px !important; /* 防止iOS自动缩放 */
-    /* 确保软键盘不会导致输入框被遮挡 */
-    transform: translateZ(0) !important; /* 促进GPU渲染 */
-  }
-  
-  /* 确保聊天区域能够滚动到底部 */
-  .keyboard-open .vh-chat-messages {
-    -webkit-overflow-scrolling: touch !important;
-    overflow-y: auto !important;
-    padding-bottom: calc(var(--keyboard-height, 0px) - 50px) !important;
   }
 }
 
@@ -494,10 +478,10 @@
   /* iOS特有样式 */
   .keyboard-open .chat-message-container,
   .keyboard-focused .chat-message-container {
-    padding-bottom: calc(60px + var(--content-adjust, 0px)) !important; /* 动态调整底部空间 */
+    padding-bottom: 120px !important; /* 留出足够的底部空间 */
     margin-bottom: 0 !important;
     /* 添加平滑过渡效果 */
-    transition: padding-bottom 0.2s ease-out;
+    transition: padding-bottom 0.3s ease;
   }
   
   /* 让输入框在键盘上方正确位置 - 直接填充黑色空白区域 */
@@ -511,12 +495,10 @@
     /* 移除额外空间，确保良好显示 */
     padding-bottom: 0 !important;
     margin-bottom: 0 !important;
-    /* 使用精确计算的键盘高度变量 */
-    transform: translateY(calc(-1 * var(--keyboard-height, 0px))) !important;
-    /* 平滑但快速的过渡，避免延迟感 */
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    /* 确保不会被截断 */
-    max-height: 50vh !important;
+    /* 使用动态变量确保输入框始终在键盘上方 */
+    transform: translateY(calc(-1 * var(--keyboard-height, 270px))) !important; /* 使用动态计算的键盘高度 */
+    /* 添加平滑过渡效果 */
+    transition: transform 0.25s ease-out !important;
   }
   
   /* 确保输入框背景与内容完全显示 */
@@ -527,24 +509,6 @@
     padding: 8px !important;
     border-radius: 12px !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    /* 确保输入框容器有足够的高度 */
-    min-height: 60px !important;
-  }
-  
-  /* 确保输入区域不被截断 */
-  .keyboard-open textarea,
-  .keyboard-focused textarea {
-    max-height: 35vh !important; /* 限制文本区域最大高度 */
-    padding-bottom: 8px !important; /* 增加底部间距 */
-  }
-  
-  /* 防止iOS弹性滚动影响布局 */
-  .keyboard-open {
-    overflow: hidden !important;
-    position: fixed !important;
-    width: 100% !important;
-    height: 100% !important;
-    max-height: var(--viewport-height) !important;
   }
 }
 
