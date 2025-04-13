@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { TurnstileWidget } from "@/components/ui/turnstile";
 import { apiRequest } from "@/lib/queryClient";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -13,6 +15,8 @@ export default function Login() {
   const [error, setError] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string | undefined>(undefined);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isDeveloperMode, setIsDeveloperMode] = useState(false);
+  const [developerPassword, setDeveloperPassword] = useState("");
 
   // 检查是否已登录
   useEffect(() => {
@@ -58,7 +62,7 @@ export default function Login() {
         console.log('[Login] Turnstile验证成功');
         // 只有在验证成功后才设置令牌
         setTurnstileToken(token);
-        setError(null); // 清除可能存在的错误
+        setError(""); // 清除可能存在的错误
         return true;
       } else {
         console.error('[Login] Turnstile验证失败:', data.message);
@@ -86,6 +90,57 @@ export default function Login() {
       return;
     }
 
+    // 开发者模式特殊处理
+    if (isDeveloperMode) {
+      if (!developerPassword) {
+        setError("请输入开发者密码");
+        return;
+      }
+
+      setIsVerifying(true);
+      
+      try {
+        console.log('[Login] Starting developer authentication process');
+        const response = await fetch('/api/developer-login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            username, 
+            password, 
+            developerPassword 
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          const userData = {
+            userId: data.userId,
+            role: data.role,
+            username: username
+          };
+          localStorage.setItem("user", JSON.stringify(userData));
+          
+          if (data.role === 'admin') {
+            setLocation("/admin");
+          } else {
+            setLocation("/");
+          }
+        } else {
+          setError(data.message || "开发者验证失败");
+        }
+      } catch (err) {
+        console.error('[Login] Developer authentication error:', err);
+        setError("服务器错误，请稍后重试");
+      } finally {
+        setIsVerifying(false);
+      }
+      return;
+    }
+
+    // 正常模式需要人机验证
     if (!turnstileToken) {
       setError("请完成人机验证");
       return;
@@ -188,12 +243,51 @@ export default function Login() {
             </div>
           )}
 
-          <div className="space-y-2 mt-4">
-            <TurnstileWidget 
-              onVerify={verifyTurnstileToken}
-              onError={() => setError("人机验证加载失败，请刷新页面重试")}
+          {/* 开发者模式切换 */}
+          <div className="flex items-center justify-end space-x-2 my-4">
+            <Label htmlFor="developer-mode" className="text-white cursor-pointer">
+              开发者模式
+            </Label>
+            <Switch
+              id="developer-mode"
+              checked={isDeveloperMode}
+              onCheckedChange={setIsDeveloperMode}
             />
           </div>
+
+          {/* 开发者密码输入框 */}
+          {isDeveloperMode && (
+            <div className="input-box relative w-full my-[30px] border-b-2 border-white">
+              <i className="fas fa-code icon absolute right-2 text-white text-lg top-1/2 -translate-y-1/2"></i>
+              <input
+                type="password"
+                value={developerPassword}
+                onChange={(e) => setDeveloperPassword(e.target.value)}
+                className="w-full h-[50px] bg-transparent outline-none border-none text-base text-white px-[5px] pr-[40px]"
+                required={isDeveloperMode}
+              />
+              <label className="absolute top-1/2 left-[5px] -translate-y-1/2 text-base text-white pointer-events-none transition-all duration-500 peer-focus:-top-[5px] peer-valid:-top-[5px]">
+                管理员密码
+              </label>
+            </div>
+          )}
+          
+          {/* 开发者模式说明 */}
+          {isDeveloperMode && (
+            <div className="text-xs text-blue-300 mt-1 italic">
+              使用管理员密码验证后，将在此会话中跳过后续的人机验证
+            </div>
+          )}
+
+          {/* 在非开发者模式下显示人机验证 */}
+          {!isDeveloperMode && (
+            <div className="space-y-2 mt-4">
+              <TurnstileWidget 
+                onVerify={verifyTurnstileToken}
+                onError={() => setError("人机验证加载失败，请刷新页面重试")}
+              />
+            </div>
+          )}
 
           {error && (
             <div className="text-red-500 text-sm text-center mt-2">{error}</div>
@@ -202,7 +296,7 @@ export default function Login() {
           <button 
             type="submit" 
             className="btn w-full h-[40px] bg-white outline-none border-none rounded-[40px] cursor-pointer text-base font-medium text-black mt-[20px] hover:bg-[#ffffea]"
-            disabled={isVerifying || !turnstileToken}
+            disabled={isVerifying || (!isDeveloperMode && !turnstileToken)}
           >
             {isVerifying ? "验证中..." : (isRegistering ? "注册" : "登录")}
           </button>

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
+import { setupViewportHeightListeners, scrollToBottom, isNearBottom } from "@/lib/viewportUtils";
 import { useLocation } from "wouter";
 import {
   Search,
@@ -187,58 +188,232 @@ export function AIChat({ userData }: AIChatProps) {
     },
   });
 
-  // 处理消息重新生成的变异函数
-  const regenerateMessageMutation = useMutation({
-    mutationFn: async (messageId: number | undefined) => {
+  // 直接定义regenerateMessage函数，不使用useMutation
+  const regenerateMessage = async (messageId: number | undefined) => {
+    await handleRegenerateMessage(messageId);
+  };
+  
+  // 处理重新生成响应的函数
+  const handleRegenerateResponse = (data: any) => {
+    if (!data) return;
+    
+    // 更新对话中的消息
+    setMessages(prev => {
+      // 找到要更新的消息索引
+      const index = prev.findIndex(msg => msg.id === data.id);
+      if (index !== -1) {
+        // 创建更新后的消息数组
+        const newMessages = [...prev];
+        newMessages[index] = {
+          ...data,
+          isRegenerating: false
+        };
+        return newMessages;
+      }
+      return prev;
+    });
+    
+    // 如果需要，也可以刷新整个消息列表
+    if (currentChatId) {
+      queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
+    }
+  };
+
+  // 重写：处理消息重新生成功能 - 增强错误处理和ID查找逻辑
+  const handleRegenerateMessage = async (messageId: number | undefined) => {
+    try {
+      // 开始加载状态，可以添加视觉反馈
+      setIsLoading(true);
+      console.log("开始重新生成回答，传入ID:", messageId);
+      
+      let finalMessageId = messageId;
+      
       // 如果没有消息ID，尝试获取当前聊天中的最后一条AI消息
-      if (!messageId) {
-        console.log("尝试通过上下文定位最后一条AI消息");
+      if (!finalMessageId) {
+        console.log("无ID传入 - 尝试查找当前会话最后一条AI消息");
+        
         if (!currentChatId) {
+          console.error("当前对话ID缺失，无法继续");
           throw new Error("无法识别当前对话");
         }
 
-        // 获取当前对话的所有消息
-        const messagesResponse = await apiRequest("GET", `/api/chats/${currentChatId}/messages`);
-        const messages = await messagesResponse.json();
+        try {
+          // 使用直接fetch而非API请求工具，确保最大兼容性
+          const url = `/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
+          console.log("API请求URL:", url);
+          
+          const messagesResponse = await fetch(url);
+          if (!messagesResponse.ok) {
+            console.error("获取消息列表失败:", messagesResponse.status, messagesResponse.statusText);
+            throw new Error("无法获取对话消息");
+          }
+          
+          const messagesData = await messagesResponse.json();
+          console.log(`获取到 ${messagesData.length} 条消息`);
+          
+          // 确保消息数组有效
+          if (!Array.isArray(messagesData) || messagesData.length === 0) {
+            console.error("没有有效的消息数据");
+            throw new Error("对话中没有任何消息");
+          }
 
-        // 查找最后一条AI消息
-        const lastAIMessage = [...messages].reverse().find(msg => msg.role === "assistant");
-
-        if (!lastAIMessage) {
-          throw new Error("找不到可重新生成的AI消息");
+          // 查找最后一条AI消息
+          const assistantMessages = messagesData.filter(msg => msg.role === "assistant");
+          console.log(`找到 ${assistantMessages.length} 条AI消息`);
+          
+          if (assistantMessages.length === 0) {
+            throw new Error("没有找到任何AI消息可以重新生成");
+          }
+          
+          // 使用最后一条AI消息
+          finalMessageId = assistantMessages[assistantMessages.length - 1].id;
+          console.log("将使用最后一条AI消息ID:", finalMessageId);
+        } catch (error) {
+          console.error("查找AI消息ID失败:", error);
+          throw new Error("无法找到可重新生成的消息");
         }
-
-        messageId = lastAIMessage.id;
-        console.log("已找到最后一条AI消息ID:", messageId);
       }
+      
+      // 添加临时状态表示AI正在思考
+      setMessages(prev => {
+        // 找到要重新生成的消息的索引
+        const index = prev.findIndex(msg => msg.id === finalMessageId);
+        if (index !== -1) {
+          // 创建新的消息数组，带有"正在重新生成..."标记
+          const newMessages = [...prev];
+          newMessages[index] = {
+            ...newMessages[index],
+            content: "正在重新生成回答...",
+            isRegenerating: true
+          };
+          console.log("已更新消息状态为重新生成中:", newMessages[index]);
+          return newMessages;
+        }
+        return prev;
+      });
 
-      // 发送重新生成请求
-      try {
-        const response = await apiRequest("POST", `/api/messages/${messageId}/regenerate`, {
+      // 使用直接fetch发送请求
+      const response = await fetch(`/api/messages/${finalMessageId}/regenerate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
           userId: userData.userId,
           userRole: userData.role,
           chatId: currentChatId
-        });
-        return response.json();
-      } catch (error) {
-        console.error("重新生成请求失败:", error);
-        throw new Error("无法重新生成回答，请稍后再试");
-      }
-    },
-    onSuccess: () => {
-      // 成功重新生成消息后刷新当前对话消息列表
-      if (currentChatId) {
-        queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
-      }
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "重新生成消息失败",
-        description: error.message,
-        variant: "destructive",
+        })
       });
-    },
-  });
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "无法读取错误详情");
+        console.error(`重生成请求失败: ${response.status} ${response.statusText}`, errorText);
+        
+        // 恢复消息原始内容（取消正在重新生成状态）
+        setMessages(prev => {
+          const index = prev.findIndex(msg => msg.id === finalMessageId && msg.isRegenerating);
+          if (index !== -1) {
+            const newMessages = [...prev];
+            // 移除重新生成标记
+            const { isRegenerating, ...restMessage } = newMessages[index];
+            newMessages[index] = restMessage;
+            return newMessages;
+          }
+          return prev;
+        });
+        
+        throw new Error(`服务器错误 (${response.status}): ${errorText || "请稍后再试"}`);
+      }
+      
+      const result = await response.json();
+      console.log("重新生成请求成功，结果:", result);
+      
+      // 立即更新本地消息状态，确保界面立即刷新
+      setMessages(prev => {
+        const index = prev.findIndex(msg => msg.id === finalMessageId);
+        if (index !== -1) {
+          const newMessages = [...prev];
+          // 提取新内容，优先使用结果中的content字段
+          const newContent = result.content || 
+                            (result.text ? result.text : 
+                            (result.message ? result.message : newMessages[index].content));
+          
+          console.log("更新消息内容:", newContent.substring(0, 50) + "...");
+          
+          // 创建新消息对象，保留原有属性并更新内容
+          newMessages[index] = {
+            ...newMessages[index],
+            content: newContent,
+            isRegenerating: false
+          };
+          
+          return newMessages;
+        }
+        return prev;
+      });
+      
+      // 强制刷新获取最新数据
+      try {
+        if (currentChatId) {
+          console.log("强制刷新消息列表");
+          
+          // 取消所有进行中的查询
+          queryClient.cancelQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
+          
+          // 使用直接fetch获取最新数据
+          const refreshResponse = await fetch(`/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`);
+          if (refreshResponse.ok) {
+            const latestMessages = await refreshResponse.json();
+            if (Array.isArray(latestMessages) && latestMessages.length > 0) {
+              // 直接设置最新消息，而不是依赖缓存
+              setMessages(latestMessages);
+              console.log("已刷新最新消息数据");
+            }
+          }
+          
+          // 刷新查询缓存
+          queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
+        }
+      } catch (refreshError) {
+        console.error("刷新消息失败:", refreshError);
+      }
+      
+      toast({
+        title: "重新生成成功",
+        description: "AI已完成回答重新生成",
+        className: "frosted-toast",
+      });
+      
+    } catch (error) {
+      console.error("重新生成消息失败:", error);
+      
+      toast({
+        title: "重新生成失败",
+        description: error instanceof Error 
+          ? `错误: ${error.message}` 
+          : "无法重新生成回答，请稍后再试",
+        variant: "destructive",
+        className: "frosted-toast-error",
+      });
+    } finally {
+      // 延迟结束加载状态，确保新消息已加载
+      setTimeout(() => {
+        setIsLoading(false);
+        
+        // 再次检查并清除任何卡在"重新生成中"状态的消息
+        setMessages(prev => {
+          const updatedMessages = prev.map(msg => {
+            if (msg.isRegenerating) {
+              const { isRegenerating, ...rest } = msg;
+              return rest;
+            }
+            return msg;
+          });
+          return updatedMessages;
+        });
+      }, 1500); // 增加延迟，确保有足够的时间处理响应
+    }
+  };
 
   // 处理消息反馈的变异函数
   const feedbackMessageMutation = useMutation({
@@ -463,6 +638,61 @@ export function AIChat({ userData }: AIChatProps) {
       cancelEditMessage();
     }
   };
+  
+  // 完全简化：处理输入框获得焦点时的滚动行为 - 针对iOS/iPad直接使用CSS实现
+  const handleInputFocus = () => {
+    // 判断设备类型 - 特别识别iPad
+    const isIOS = /iPhone|iPod/i.test(navigator.userAgent);
+    const isIPad = /iPad/i.test(navigator.userAgent) || 
+                   (/Macintosh/i.test(navigator.userAgent) && 'ontouchend' in document);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    
+    // 标记设备类型，让CSS处理定位
+    if (isIPad) {
+      document.documentElement.classList.add('ipad-device');
+    }
+    
+    // 标记键盘状态
+    document.documentElement.classList.add('keyboard-open');
+    
+    // 强制重置页面滚动位置
+    window.scrollTo(0, 0);
+    
+    // 找到最后一条消息并将其滚动到可见区域
+    if (messagesContainerRef.current && messages.length > 0) {
+      // 立即滚动到底部，确保最新消息可见
+      setTimeout(() => {
+        scrollToBottom(messagesContainerRef.current, false);
+      }, 100);
+    }
+  };
+  
+  // 简化：处理输入框失去焦点时的清理工作
+  const handleInputBlur = () => {
+    // 延迟执行，确保点击其他UI元素时不会立即失去状态
+    setTimeout(() => {
+      // 检查是否真的失去了焦点（不是点击了页面其他输入元素）
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement && 
+                          (activeElement.tagName === 'INPUT' || 
+                           activeElement.tagName === 'TEXTAREA');
+                           
+      if (!isInputFocused) {
+        // 移除键盘焦点状态标记
+        document.documentElement.classList.remove('keyboard-open');
+        
+        // 重置页面滚动
+        window.scrollTo(0, 0);
+        
+        // 滚动到最新消息
+        setTimeout(() => {
+          if (messagesContainerRef.current) {
+            scrollToBottom(messagesContainerRef.current, true);
+          }
+        }, 100);
+      }
+    }, 100);
+  };
 
   const toggleSidebar = () => {
     setShowSidebar(!showSidebar);
@@ -522,41 +752,6 @@ export function AIChat({ userData }: AIChatProps) {
   // 处理消息编辑 (用于传递给ChatMessage组件)
   const handleEditMessage = async (messageId: number | undefined, content: string) => {
     startEditMessage(messageId, content);
-  };
-
-  // 处理消息重新生成
-  const handleRegenerateMessage = async (messageId: number | undefined) => {
-    try {
-      // 开始加载状态，可以添加视觉反馈
-      setIsLoading(true);
-
-      // 添加一个占位思考消息
-      if (messages.length > 0) {
-        const lastMessage = messages[messages.length - 1];
-        // 如果最后一条不是AI消息，可能需要添加一个占位消息
-        if (lastMessage.role !== "assistant") {
-          setMessages([...messages, { role: "assistant" as const, content: "" }]);
-        }
-      }
-
-      // 调用重新生成API
-      await regenerateMessageMutation.mutateAsync(messageId);
-
-      toast({
-        title: "重新生成中",
-        description: "AI正在重新生成回答",
-      });
-    } catch (error) {
-      console.error("重新生成消息失败:", error);
-      toast({
-        title: "重新生成失败",
-        description: "无法重新生成回答，请稍后再试",
-        variant: "destructive",
-      });
-    } finally {
-      // 结束加载状态
-      setIsLoading(false);
-    }
   };
 
   // 处理消息反馈
@@ -718,13 +913,15 @@ export function AIChat({ userData }: AIChatProps) {
   };
 
   // 自动滚动到消息顶部或底部
+  // 使用优化后的滚动函数，包含智能判断是否需要滚动的逻辑
   const scrollTo = (position: 'top' | 'bottom') => {
     if (messagesContainerRef.current) {
       const container = messagesContainerRef.current;
       if (position === 'top') {
         container.scrollTop = 0;
       } else {
-        container.scrollTop = container.scrollHeight;
+        // 使用平滑滚动效果
+        scrollToBottom(container, true);
       }
     }
   };
@@ -740,6 +937,39 @@ export function AIChat({ userData }: AIChatProps) {
     }
   }, [messages]);
 
+  // 设置视口高度监听，确保移动设备上正确计算可视高度
+  useEffect(() => {
+    // 设置视口高度监听器，解决iOS/移动设备键盘弹出问题
+    const cleanup = setupViewportHeightListeners();
+    
+    // 专门处理键盘弹出状态下的滚动行为
+    const handleKeyboardVisibility = () => {
+      // 检测键盘是否可见（通过文档根元素的类名）
+      const isKeyboardVisible = document.documentElement.classList.contains('keyboard-open');
+      
+      if (isKeyboardVisible && messagesContainerRef.current) {
+        // 当键盘打开时，立即滚动到最新消息，避免黑色区域
+        setTimeout(() => {
+          // 使用立即滚动(false)而非平滑滚动
+          if (messagesContainerRef.current) {
+            scrollToBottom(messagesContainerRef.current, false);
+          }
+        }, 50); // 短暂延迟确保DOM已更新
+      }
+    };
+    
+    // 监听可能导致键盘状态变化的事件
+    window.visualViewport?.addEventListener('resize', handleKeyboardVisibility);
+    window.visualViewport?.addEventListener('scroll', handleKeyboardVisibility);
+    
+    return () => {
+      // 清理所有事件监听器
+      window.visualViewport?.removeEventListener('resize', handleKeyboardVisibility);
+      window.visualViewport?.removeEventListener('scroll', handleKeyboardVisibility);
+      cleanup();
+    };
+  }, []);
+  
   // 检查用户登录状态和初始化偏好设置
   useEffect(() => {
     // 1. 检查用户登录状态
@@ -801,6 +1031,11 @@ export function AIChat({ userData }: AIChatProps) {
     localStorage.removeItem("user");
     setLocation("/login");
   };
+  
+  // 跳转到学习轨迹页面
+  const navigateToLearningPath = () => {
+    setLocation("/learning-path");
+  };
 
   // 获取聊天记录
   const { data: apiChats, isLoading: apiChatsLoading } = useQuery({
@@ -837,7 +1072,7 @@ export function AIChat({ userData }: AIChatProps) {
 
 
   return (
-    <div className="flex h-screen text-white relative">
+    <div className="flex h-screen text-white relative" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
       {/* 背景图片容器 */}
       {backgroundImage && (
         <div className="bg-container">
@@ -875,9 +1110,10 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* Sidebar - 使用磨砂玻璃效果 */}
       <div
-        className={`fixed lg:static lg:flex w-64 h-full transform transition-transform duration-200 ease-in-out z-30 ${
+        className={`fixed lg:relative lg:flex w-64 h-full transform transition-transform duration-200 ease-in-out z-30 sidebar-container ${
           showSidebar ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}`}
+        style={{flex: "0 0 auto", width: "256px"}} /* 确保侧边栏不会收缩且宽度固定 */
       >
         <ChatHistory
           currentChatId={currentChatId}
@@ -886,7 +1122,7 @@ export function AIChat({ userData }: AIChatProps) {
           onNewChat={handleNewChat}
           onChangePassword={() => setShowPasswordDialog(true)}
           onShowProfile={() => setShowProfileDialog(true)}
-          onShowLearningPath={() => setShowLearningPathDialog(true)}
+          onShowLearningPath={() => navigateToLearningPath()}
           onShowPreferences={() => setShowPreferencesDialog(true)}
           onDeleteChat={(id) => {
             if (id === currentChatId) {
@@ -900,7 +1136,7 @@ export function AIChat({ userData }: AIChatProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative chat-content-area w-full">
         {/* Header - 苹果风格磨砂透明 */}
         <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${theme === 'dark' ? 'frosted-glass-dark border-neutral-800' : 'frosted-glass border-neutral-200/20'}`}>
           <div className="flex items-center">
@@ -953,8 +1189,8 @@ export function AIChat({ userData }: AIChatProps) {
           </div>
         </header>
 
-        {/* Messages */}
-        <div className={"flex-1 flex flex-col p-6 md:p-8 pb-48 " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
+        {/* 聊天消息容器 - 使用特定的类名便于CSS选择器定位 - 减小底部padding */}
+        <div className={"flex-1 flex flex-col p-4 sm:p-6 md:p-8 pb-20 overflow-y-auto chat-message-container " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
           {messages.length === 0 ? (
             // 欢迎页面 - 垂直居中不需要滚动，完全隐藏滚动条
             <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
@@ -971,11 +1207,15 @@ export function AIChat({ userData }: AIChatProps) {
               </div>
             </div>
           ) : (
-            // 有消息时显示滚动区域 - 将内容固定在顶部并去除滚动条
+            // 有消息时显示滚动区域 - 优化滚动体验与空间
             <div 
               ref={messagesContainerRef}
-              className="flex-1 flex flex-col gap-4 py-1 hide-empty-scrollbar content-start justify-start items-stretch"
-              style={{ overflowY: messages.length > 4 ? 'auto' : 'visible' }}
+              className="w-full flex-1 flex flex-col gap-4 py-1 overflow-y-auto vh-chat-messages"
+              style={{ 
+                scrollBehavior: 'smooth',
+                WebkitOverflowScrolling: 'touch',
+                overscrollBehavior: 'contain'
+              }}
             >
               {messages.map((msg, i) => (
                 <ChatMessage 
@@ -998,9 +1238,9 @@ export function AIChat({ userData }: AIChatProps) {
           )}
         </div>
 
-        {/* Input Area - 苹果风格磨砂透明 */}
-        <div className={"fixed bottom-0 left-0 right-0 pb-6 pt-2 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
-          <div className="max-w-3xl mx-auto px-4">
+        {/* Input Area - 添加chat-input-container类便于CSS处理键盘状态 */}
+        <div className={"chat-input-area chat-input-container fixed bottom-0 left-0 right-0 pb-4 pt-2 px-2 z-20 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
+          <div className="max-w-3xl mx-auto px-2 sm:px-4">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
               <Button
@@ -1087,14 +1327,18 @@ export function AIChat({ userData }: AIChatProps) {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
                     placeholder="输入消息..."
                     disabled={isLoading}
-                    className="w-full h-[50px] min-h-[50px] max-h-[200px] py-3 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 select-text"
+                    className="w-full h-[50px] min-h-[50px] max-h-[150px] py-3 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-[16px]"
                     style={{
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'none',
+                      appearance: 'none',
                       WebkitUserSelect: 'text',
-                      MozUserSelect: 'text',
-                      msUserSelect: 'text',
-                      userSelect: 'text'
+                      userSelect: 'text',
+                      caretColor: 'white'
                     }}
                   />
                   <input
@@ -1127,8 +1371,8 @@ export function AIChat({ userData }: AIChatProps) {
             </div>
           </div>
         </div>
-        {/* 添加底部空间，避免内容被固定位置的输入框覆盖 */}
-        <div className="h-48"></div>
+        {/* 减少底部空间，避免大片黑暗区域 */}
+        <div className="h-12"></div>
       </div>
 
       {/* Password Change Dialog */}
@@ -1244,12 +1488,31 @@ export function AIChat({ userData }: AIChatProps) {
           {(() => {
             // 定义API返回的数据类型
             interface LearningPathData {
-              topics: string[];
+              topics: Array<{
+                topic: string;
+                id: string;
+                count: number;
+                percentage: number;
+              }>;
               progress: Array<{
                 topic: string;
                 percentage: number;
               }>;
               suggestions: string[];
+              knowledge_graph?: {
+                nodes: Array<{
+                  id: string;
+                  name: string;
+                  type: string;
+                  size: number;
+                }>;
+                links: Array<{
+                  source: string;
+                  target: string;
+                  type: string;
+                  strength: number;
+                }>;
+              }
             }
 
             // 使用React Query获取学习轨迹数据
@@ -1333,8 +1596,8 @@ export function AIChat({ userData }: AIChatProps) {
                   <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
                     根据您的对话内容，以下是您感兴趣的主要学习主题：
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {data.topics.map((topic: string, index: number) => {
-                        const color = getTopicColor(topic);
+                      {data.topics.map((topicItem, index: number) => {
+                        const color = getTopicColor(topicItem.topic);
                         // 使用条件类名而不是模板字符串，确保Tailwind正确识别
                         const tagClass = (() => {
                           switch(color) {
@@ -1350,10 +1613,10 @@ export function AIChat({ userData }: AIChatProps) {
 
                         return (
                           <div 
-                            key={index}
+                            key={topicItem.id || index}
                             className={`px-2.5 py-1 ${tagClass} border rounded-full text-xs`}
                           >
-                            {topic}
+                            {topicItem.topic}
                           </div>
                         );
                       })}

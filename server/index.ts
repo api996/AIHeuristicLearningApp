@@ -1,10 +1,57 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { spawn } from "child_process";
+import path from "path";
+import fs from "fs";
+
+// 自动修复记忆文件
+const runMemoryCleanup = () => {
+  try {
+    const scriptPath = path.join(process.cwd(), "scripts", "memory_cleanup.py");
+    
+    // 检查脚本是否存在
+    if (fs.existsSync(scriptPath)) {
+      log("正在执行记忆文件修复脚本...");
+      
+      const cleanupProcess = spawn("python", [scriptPath], {
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      
+      cleanupProcess.stdout.on("data", (data) => {
+        log(`[记忆修复] ${data.toString().trim()}`);
+      });
+      
+      cleanupProcess.stderr.on("data", (data) => {
+        log(`[记忆修复错误] ${data.toString().trim()}`);
+      });
+      
+      cleanupProcess.on("close", (code) => {
+        log(`记忆文件修复脚本执行完成，退出码: ${code}`);
+      });
+    } else {
+      log("未找到记忆文件修复脚本，跳过修复步骤");
+    }
+  } catch (error) {
+    log(`执行记忆文件修复脚本时出错: ${error}`);
+  }
+};
 
 const app = express();
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+
+// 添加会话支持
+app.use(session({
+  secret: 'ai-learning-companion-secret',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24小时
+  }
+}));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -40,6 +87,9 @@ app.use((req, res, next) => {
   log("Starting server...");
 
   try {
+    // 先运行记忆文件修复
+    runMemoryCleanup();
+    
     const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

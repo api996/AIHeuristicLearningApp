@@ -22,7 +22,7 @@ localPort = 5003
 externalPort = 3001
 
 [workflows]
-runButton = "重启Gemini服务"
+runButton = "重启服务"
 
 [[workflows.workflow]]
 name = "Project"
@@ -229,3 +229,112 @@ args = "kill $(lsof -t -i:5001) 2>/dev/null || true"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "NODE_ENV=development npm run dev"
+
+[[workflows.workflow]]
+name = "重启服务加载marked库"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"tsx server/index.ts\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5001) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=development npm run dev"
+
+[[workflows.workflow]]
+name = "完全清理并重新启动"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"tsx server/index.ts\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "rm -rf node_modules/.cache"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm cache clean --force"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm install"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=development npm run dev"
+
+[[workflows.workflow]]
+name = "修复记忆系统并重启"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"tsx server/index.ts\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python scripts/fix_memory_files.py"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=development npm run dev"
+
+[[workflows.workflow]]
+name = "修复记忆文件"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"tsx server/index.ts\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python scripts/fix_memory_files.py"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=development npm run dev"
+
+[[workflows.workflow]]
+name = "重启服务"
+author = 40327554
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"tsx server/index.ts\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"

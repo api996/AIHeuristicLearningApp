@@ -17,6 +17,7 @@ interface ChatMessageProps {
     id?: number;
     role: "user" | "assistant";
     content: string;
+    isRegenerating?: boolean; // 添加是否正在重新生成的状态
   };
   isThinking?: boolean; // 用于表示AI是否正在思考
   onEdit?: (id: number | undefined, newContent: string) => Promise<void>; // 编辑消息
@@ -259,19 +260,52 @@ export function ChatMessage({
       });
   };
   
-  // 重新生成回答
+  // 重新生成回答 - 增强错误处理、视觉反馈和可靠性
   const handleRegenerate = async () => {
     if (!onRegenerate || isThinking) return;
     
     try {
+      // 先显示开始状态的提示，提高用户体验
+      console.log("重新生成请求开始 - 消息ID:", message.id || "未定义（将使用最后一条消息）");
+      
+      // 显示视觉提示
+      toast({
+        title: "开始重新生成回答",
+        description: "正在处理您的请求...",
+        duration: 3000,
+        className: "frosted-toast-info"
+      });
+      
+      // 修改本地状态表明正在重新生成
+      setIsLongPressing(true);
+      
+      // 无论是否有ID都传递给父组件
       await onRegenerate(message.id);
+      
+      // 重新生成完成后显示提示
+      toast({
+        title: "重新生成成功",
+        description: "AI已更新回答内容",
+        className: "frosted-toast-success",
+        duration: 3000
+      });
     } catch (error) {
+      // 更友好的错误处理
+      console.error("重新生成回答失败:", error);
+      
       toast({
         title: "重新生成失败",
-        description: "无法重新生成回答，请稍后再试",
-        variant: "destructive"
+        description: error instanceof Error 
+          ? `错误: ${error.message}` 
+          : "无法重新生成回答，请稍后再试",
+        variant: "destructive",
+        className: "frosted-toast-error" // 使用磨砂玻璃效果样式
       });
-      console.error("重新生成回答失败:", error);
+    } finally {
+      // 无论成功失败，最后都需要重置状态
+      setTimeout(() => {
+        setIsLongPressing(false);
+      }, 500);
     }
   };
   
@@ -340,197 +374,182 @@ export function ChatMessage({
     return <div dangerouslySetInnerHTML={{ __html: formattedContent }} />;
   };
 
-  // 长按手势和弹出菜单功能
+  // 长按手势和弹出菜单功能 - 重写以提高稳定性
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ right: 16, y: 0 });
   const messageRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [isLongPressing, setIsLongPressing] = useState(false);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null); // 使用ref追踪定时器
   
+  // 完全重构长按和菜单展示逻辑 - 彻底解决触摸事件问题
   useEffect(() => {
-    let pressTimer: ReturnType<typeof setTimeout>;
-    let startX = 0;
-    let startY = 0;
+    // 防止重复触发的标记
+    let longPressTriggered = false;
     
-    // 用于标记长按是否被取消
-    let longPressActive = false;
-    
-    const handleTouchStart = (e: TouchEvent) => {
-      if (message.role !== "user" || !messageRef.current) return;
+    // 显示消息菜单的函数 - 简化版本，由CSS控制居中对齐
+    const showMenu = () => {
+      console.log("触发长按菜单", message.role, message.content.substring(0, 20));
       
-      // 标记长按开始激活
-      longPressActive = true;
+      // 防止重复触发
+      if (longPressTriggered) return;
+      longPressTriggered = true;
       
-      // 阻止默认行为，包括系统复制菜单
-      e.preventDefault();
+      // 先设置高亮状态
+      setIsLongPressing(true);
       
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
+      // 如果不是用户消息则退出
+      if (!messageRef.current || message.role !== 'user') {
+        longPressTriggered = false;
+        return;
+      }
       
-      pressTimer = setTimeout(() => {
-        // 如果长按已被取消，不执行后续操作
-        if (!longPressActive) return;
-        
-        setIsLongPressing(true);
-        
-        // 计算菜单位置 - 现在改为显示在消息正下方，右对齐
-        const rect = messageRef.current?.getBoundingClientRect();
-        if (rect) {
-          // 消息宽度和位置
-          const messageWidth = rect.width;
-          
-          // 将菜单显示在消息正下方，右对齐
-          const screenWidth = window.innerWidth;
-          const rightOffset = screenWidth - rect.right;
-          setMenuPosition({
-            right: rightOffset + 16, // 添加一点右侧偏移量
-            y: rect.bottom + 10 // 菜单显示在消息正下方
-          });
-          
-          // 确保消息在屏幕中央可见
-          window.scrollTo({
-            top: Math.max(0, rect.top - 100),
-            behavior: 'smooth'
-          });
+      // 获取消息元素位置 - 只需要垂直位置
+      const rect = messageRef.current.getBoundingClientRect();
+      
+      // 只设置Y轴坐标，X轴通过CSS居中控制
+      setMenuPosition({
+        right: 0, // 这个值不再使用
+        y: rect.bottom + 10
+      });
+      
+      // 提供触觉反馈（如果可用）
+      try {
+        if (navigator.vibrate) {
+          navigator.vibrate([10]);
         }
-        
-        // 添加音效反馈 (iOS风格)
-        try {
-          // 创建一个非常短暂的振动
-          if (navigator.vibrate) {
-            navigator.vibrate(10);
-          }
-        } catch (e) {
-          // 可能在某些设备上不支持
-          console.log("振动反馈不可用");
-        }
-        
-        // 先标记高亮状态，再显示菜单，确保渲染顺序正确
+      } catch (e) {
+        console.log('触觉反馈不可用');
+      }
+      
+      // 显示菜单 - 添加延迟以确保位置计算后再显示
+      setTimeout(() => {
+        setShowContextMenu(true);
+        // 重置触发标记，但延迟一点以防止快速重复触发
         setTimeout(() => {
-          if (longPressActive) {
-            setShowContextMenu(true);
+          longPressTriggered = false;
+        }, 500);
+      }, 10);
+    };
+    
+    // 直接在元素上处理点击事件 - 桌面端使用
+    const handleClicks = () => {
+      if (message.role === 'user' && messageRef.current) {
+        // 显式添加点击处理 - 这对移动设备非常重要
+        messageRef.current.onclick = (e) => {
+          // 仅处理双击事件
+          if (e.detail === 2) {
+            e.preventDefault();
+            showMenu();
           }
-        }, 10);
-      }, 380); // 触发时间为380ms，使响应更快
-    };
-    
-    const handleTouchMove = (e: TouchEvent) => {
-      // 阻止默认行为
-      e.preventDefault();
-      
-      // 如果移动超过一定距离，取消长按
-      const moveX = Math.abs(e.touches[0].clientX - startX);
-      const moveY = Math.abs(e.touches[0].clientY - startY);
-      
-      if (moveX > 10 || moveY > 10) {
-        // 取消长按激活标记
-        longPressActive = false;
-        clearTimeout(pressTimer);
+        };
         
-        if (!showContextMenu) {
-          // 只有在菜单未显示时才取消高亮
-          setIsLongPressing(false);
+        // 右键点击处理
+        messageRef.current.oncontextmenu = (e) => {
+          if (message.role === 'user') {
+            e.preventDefault();
+            showMenu();
+          }
+        };
+      }
+    };
+    
+    // 长按触发逻辑 - 使用直接事件处理而不是addEventListener
+    const setupLongPress = () => {
+      if (!messageRef.current || message.role !== 'user') return;
+      
+      // 缓存开始位置用于检测移动
+      let startX = 0;
+      let startY = 0;
+      
+      // 超级简化的长按实现
+      messageRef.current.ontouchstart = (e) => {
+        // 阻止默认行为，避免弹出系统菜单
+        // e.preventDefault();
+        
+        // 记录起始位置
+        if (e.touches && e.touches[0]) {
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
         }
-      }
+        
+        // 清除之前的计时器
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+        }
+        
+        // 设置新的长按计时器
+        longPressTimerRef.current = setTimeout(() => {
+          // 触发长按操作
+          showMenu();
+        }, 600); // 稍长的时间，确保是真实的长按
+      };
+      
+      // 处理移动
+      messageRef.current.ontouchmove = (e) => {
+        if (!e.touches || !e.touches[0]) return;
+        
+        // 计算移动距离
+        const diffX = Math.abs(e.touches[0].clientX - startX);
+        const diffY = Math.abs(e.touches[0].clientY - startY);
+        
+        // 如果移动超过阈值，取消长按
+        if (diffX > 5 || diffY > 5) {
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+          }
+        }
+      };
+      
+      // 处理触摸结束
+      messageRef.current.ontouchend = () => {
+        // 清除长按计时器
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+        }
+      };
     };
     
-    const handleTouchEnd = (e: TouchEvent) => {
-      // 阻止默认行为
-      e.preventDefault();
-      
-      // 取消长按激活标记
-      longPressActive = false;
-      clearTimeout(pressTimer);
-      
-      // 如果菜单已经显示，则保持高亮效果，否则取消高亮
-      if (!showContextMenu) {
-        setIsLongPressing(false);
-      }
-    };
-    
-    // 点击页面其他地方关闭菜单
-    const handleClickOutside = (e: MouseEvent) => {
+    // 处理点击文档其他位置关闭菜单
+    const handleDocumentClick = (e: MouseEvent) => {
       if (
+        showContextMenu && 
         menuRef.current && 
-        !menuRef.current.contains(e.target as Node) && 
-        showContextMenu
+        !menuRef.current.contains(e.target as Node)
       ) {
-        // 关闭菜单同时取消高亮，保持和其他关闭逻辑一致
         setShowContextMenu(false);
         setTimeout(() => {
           setIsLongPressing(false);
-        }, 50); 
+          longPressTriggered = false;
+        }, 100);
       }
     };
     
-    // 鼠标右键功能
-    const handleContextMenu = (e: MouseEvent) => {
-      if (message.role !== "user" || !messageRef.current) return;
-      
-      e.preventDefault();
-      
-      // 计算菜单位置 - 现在改为显示在消息正下方，中心对齐
-      const rect = messageRef.current?.getBoundingClientRect();
-      if (rect) {
-        // 消息宽度和位置
-        const messageWidth = rect.width;
-        const messageCenterX = rect.left + (messageWidth / 2);
-        
-        // 根据屏幕宽度做调整
-        const screenWidth = window.innerWidth;
-        console.log('菜单定位计算:', {
-          messageCenterX,
-          screenWidth, 
-          messageBottom: rect.bottom,
-          messageWidth
-        });
-        
-        // 将菜单显示在消息正下方，右对齐
-        const rightOffset = screenWidth - (rect.left + rect.width);
-        setMenuPosition({
-          right: rightOffset,
-          y: rect.bottom + 10 // 菜单显示在消息正下方，距离适中
-        });
-        
-        // 确保消息在屏幕中央可见
-        messageRef.current.scrollIntoView({
-          block: 'center',
-          behavior: 'smooth'
-        });
-      } else {
-        // 如果无法获取消息元素位置，则使用鼠标位置但仍然右对齐
-        const rightOffset = window.innerWidth - e.clientX;
-        setMenuPosition({
-          right: rightOffset,
-          y: e.clientY + 20
-        });
-      }
-      
-      // 显示上下文菜单
-      setShowContextMenu(true);
-      setIsLongPressing(true);
-    };
+    // 安装所有事件处理器
+    handleClicks();
+    setupLongPress();
+    document.addEventListener('click', handleDocumentClick);
     
-    const elementRef = messageRef.current;
-    if (elementRef && message.role === "user") {
-      elementRef.addEventListener('touchstart', handleTouchStart);
-      elementRef.addEventListener('touchmove', handleTouchMove);
-      elementRef.addEventListener('touchend', handleTouchEnd);
-      elementRef.addEventListener('contextmenu', handleContextMenu);
-      document.addEventListener('click', handleClickOutside);
-    }
-    
+    // 清理函数
     return () => {
-      if (elementRef && message.role === "user") {
-        elementRef.removeEventListener('touchstart', handleTouchStart);
-        elementRef.removeEventListener('touchmove', handleTouchMove);
-        elementRef.removeEventListener('touchend', handleTouchEnd);
-        elementRef.removeEventListener('contextmenu', handleContextMenu);
-        document.removeEventListener('click', handleClickOutside);
+      if (messageRef.current) {
+        // 移除直接附加的处理器
+        messageRef.current.onclick = null;
+        messageRef.current.oncontextmenu = null;
+        messageRef.current.ontouchstart = null;
+        messageRef.current.ontouchmove = null;
+        messageRef.current.ontouchend = null;
       }
-      clearTimeout(pressTimer);
+      
+      // 移除文档级处理器
+      document.removeEventListener('click', handleDocumentClick);
+      
+      // 清除定时器
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
     };
-  }, [message.role, showContextMenu]);
+  }, [message.role, message.content, showContextMenu]);
   
   // 处理菜单项点击
   const handleCopyMessage = () => {
@@ -569,23 +588,21 @@ export function ChatMessage({
 
   return (
     <>
-      {/* iOS风格上下文菜单 */}
+      {/* iOS风格上下文菜单 - 完全居中 */}
       {showContextMenu && (
         <div 
-          className="fixed z-50 animate-fade-in pointer-events-auto"
+          className="fixed z-50 animate-fade-in pointer-events-auto left-1/2 -translate-x-1/2 w-[280px]"
           style={{ 
-            top: `${menuPosition.y}px`, 
-            right: `${menuPosition.right}px`, 
-            transform: 'translate(0, 0)',
+            top: `${menuPosition.y}px`,
             filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))'
           }}
           ref={menuRef}
         >
-          {/* 向上的箭头指示，调整大小和定位，放在右侧 */}
-          <div className="w-5 h-5 bg-neutral-900/90 rotate-45 ml-auto mr-8 mt-[-10px] rounded-sm border-t border-l border-neutral-700/60 shadow-lg"></div>
+          {/* 向上的箭头指示，调整大小和定位，居中对齐 */}
+          <div className="w-5 h-5 bg-neutral-900/90 rotate-45 mx-auto mt-[-10px] rounded-sm border-t border-l border-neutral-700/60 shadow-lg"></div>
           
-          {/* 菜单内容 - 现代iOS风格菜单，使用半透明玻璃拟态效果 */}
-          <div className="bg-neutral-900/90 backdrop-blur-xl text-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in-menu border border-neutral-700/30 w-64 sm:w-[280px] mt-[-10px]">
+          {/* 菜单内容 - 现代iOS风格菜单，使用半透明玻璃拟态效果，居中对齐 */}
+          <div className="bg-neutral-900/90 backdrop-blur-xl text-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in-menu border border-neutral-700/30 w-full mt-[-10px]">
             <div className="flex flex-col divide-y divide-neutral-700/30">
               <button
                 onClick={handleCopyMessage}
@@ -701,6 +718,25 @@ export function ChatMessage({
                       }
                       {/* 如果正在思考中，显示思考动画 */}
                       {isThinking && <ThinkingAnimation />}
+                      
+                      {/* 如果正在重新生成中，显示加载动画 */}
+                      {message.isRegenerating && (
+                        <div className="mt-2 space-y-2">
+                          <div className="flex items-center space-x-2 animate-pulse">
+                            <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                            <div className="text-green-400 text-sm">正在重新生成回答...</div>
+                          </div>
+                          <div className="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-blue-500 via-green-500 to-blue-500 rounded-full animate-shimmer"
+                              style={{ 
+                                width: '60%',
+                                backgroundSize: '200% 100%'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </>
                   ) : (
                     // 对用户消息直接显示
@@ -727,16 +763,25 @@ export function ChatMessage({
                 <Copy className="h-3.5 w-3.5" />
               </Button>
               
-              {/* 重新生成按钮 */}
+              {/* 重新生成按钮 - 在重新生成过程中禁用 */}
               {onRegenerate && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 rounded-full hover:bg-neutral-800 text-neutral-400"
+                  className={cn(
+                    "h-7 w-7 rounded-full text-neutral-400",
+                    message.isRegenerating 
+                      ? "opacity-50 cursor-not-allowed" 
+                      : "hover:bg-neutral-800 hover:text-blue-400"
+                  )}
                   onClick={handleRegenerate}
-                  title="重新生成"
+                  title={message.isRegenerating ? "正在重新生成..." : "重新生成"}
+                  disabled={message.isRegenerating}
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
+                  <RotateCcw className={cn(
+                    "h-3.5 w-3.5",
+                    message.isRegenerating && "animate-spin"
+                  )} />
                 </Button>
               )}
               
