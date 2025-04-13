@@ -718,6 +718,25 @@ export function ChatMessage({
                       }
                       {/* 如果正在思考中，显示思考动画 */}
                       {isThinking && <ThinkingAnimation />}
+                      
+                      {/* 如果正在重新生成中，显示加载动画 */}
+                      {message.isRegenerating && (
+                        <div className="mt-2 space-y-2">
+                          <div className="flex items-center space-x-2 animate-pulse">
+                            <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                            <div className="text-green-400 text-sm">正在重新生成回答...</div>
+                          </div>
+                          <div className="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-blue-500 via-green-500 to-blue-500 rounded-full animate-shimmer"
+                              style={{ 
+                                width: '60%',
+                                backgroundSize: '200% 100%'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </>
                   ) : (
                     // 对用户消息直接显示
@@ -744,16 +763,25 @@ export function ChatMessage({
                 <Copy className="h-3.5 w-3.5" />
               </Button>
               
-              {/* 重新生成按钮 */}
+              {/* 重新生成按钮 - 在重新生成过程中禁用 */}
               {onRegenerate && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 rounded-full hover:bg-neutral-800 text-neutral-400"
+                  className={cn(
+                    "h-7 w-7 rounded-full text-neutral-400",
+                    message.isRegenerating 
+                      ? "opacity-50 cursor-not-allowed" 
+                      : "hover:bg-neutral-800 hover:text-blue-400"
+                  )}
                   onClick={handleRegenerate}
-                  title="重新生成"
+                  title={message.isRegenerating ? "正在重新生成..." : "重新生成"}
+                  disabled={message.isRegenerating}
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
+                  <RotateCcw className={cn(
+                    "h-3.5 w-3.5",
+                    message.isRegenerating && "animate-spin"
+                  )} />
                 </Button>
               )}
               

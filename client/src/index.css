@@ -533,11 +533,83 @@
   }
 }
 
+/* iPad专用样式修复 */
+@media (min-width: 768px) and (max-width: 1024px) and (-webkit-min-device-pixel-ratio: 2) {
+  /* iPad布局修复 */
+  .flex.h-screen {
+    height: 100% !important;
+    min-height: 100vh !important;
+    max-height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* 消除iPad上的黑色空白区域 */
+  .bg-container {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: -1 !important;
+  }
+  
+  /* 确保消息容器填充可用空间 */
+  .flex-1.flex.flex-col.relative {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 0 !important; /* 关键修复：允许容器缩小 */
+  }
+  
+  /* 确保根元素填充整个视口 */
+  html, body {
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important; /* 防止页面滚动 */
+  }
+  
+  /* 固定高度修复，确保底部输入区域不会漂浮 */
+  .vh-chat-input {
+    position: relative !important; /* iPad上使用相对定位 */
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    margin-top: auto !important; /* 自动推到底部 */
+  }
+  
+  /* 特殊处理iPad Pro */
+  @media (min-width: 1024px) and (max-height: 1366px) {
+    .flex.h-screen {
+      height: 100vh !important;
+    }
+  }
+}
+
 /* 磨砂玻璃风格的Toast通知 */
 .frosted-toast {
   backdrop-filter: blur(8px) !important;
   background-color: rgba(20, 20, 20, 0.75) !important; 
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  color: white !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 成功toast样式 */
+.frosted-toast-success {
+  backdrop-filter: blur(8px) !important;
+  background-color: rgba(22, 101, 52, 0.75) !important; 
+  border: 1px solid rgba(74, 222, 128, 0.3) !important;
+  border-radius: 12px !important;
+  color: white !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 信息toast样式 */
+.frosted-toast-info {
+  backdrop-filter: blur(8px) !important;
+  background-color: rgba(30, 64, 175, 0.75) !important; 
+  border: 1px solid rgba(96, 165, 250, 0.3) !important;
   border-radius: 12px !important;
   color: white !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
