@@ -197,10 +197,6 @@ export function AIChat({ userData }: AIChatProps) {
       // 声明变量用于存储最终使用的消息ID
       let finalMessageId = messageId;
       
-      // 如果没有提供ID，尝试找到最后一条AI消息
-      if (!finalMessageId && currentChatId) {终使用的ID
-      let finalMessageId = messageId;
-      
       // 如果没有消息ID，尝试获取当前聊天中的最后一条AI消息
       if (!finalMessageId) {
         console.log("无ID传入 - 尝试查找当前会话最后一条AI消息");
@@ -212,7 +208,7 @@ export function AIChat({ userData }: AIChatProps) {
 
         try {
           // 使用直接fetch而非API请求工具，确保最大兼容性
-          const url = `/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
+          const url = `/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`;
           console.log("API请求URL:", url);
           
           const messagesResponse = await fetch(url);
@@ -272,19 +268,14 @@ export function AIChat({ userData }: AIChatProps) {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            userId: userData.userId,
-            userRole: userData.role,
+            userId: user.userId,
+            userRole: user.role,
             chatId: currentChatId
           })
         });
         
         if (!response.ok) {
-          const errorData = await response.text();
-          console.error("重新生成请求失败:", response.status, errorData);
-          throw new Error(`重新生成失败: ${response.status} ${errorData}`);
-        }
-        
-        return await response.json();Text = await response.text().catch(() => "无法读取错误详情");
+          const errorText = await response.text().catch(() => "无法读取错误详情");
           console.error(`重生成请求失败: ${response.status} ${response.statusText}`, errorText);
           throw new Error(`服务器错误 (${response.status}): ${errorText || "请稍后再试"}`);
         }

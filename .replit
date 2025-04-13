@@ -22,7 +22,7 @@ localPort = 5003
 externalPort = 3001
 
 [workflows]
-runButton = "重启服务器"
+runButton = "更新记忆系统"
 
 [[workflows.workflow]]
 name = "Project"
