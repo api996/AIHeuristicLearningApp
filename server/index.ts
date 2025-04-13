@@ -75,6 +75,9 @@ app.use((req, res, next) => {
   log("Starting server...");
 
   try {
+    // 先运行记忆文件修复
+    runMemoryCleanup();
+    
     const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
