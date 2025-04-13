@@ -22,7 +22,7 @@ localPort = 5003
 externalPort = 3001
 
 [workflows]
-runButton = "重启Gemini服务"
+runButton = "重启服务器"
 
 [[workflows.workflow]]
 name = "Project"

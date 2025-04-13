@@ -380,27 +380,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       log(`Error marking message for regeneration: ${error}`);
       throw error;
-    }age> {
-    try {
-      // 获取需要重新生成的消息
-      const [message] = await db.select()
-        .from(messages)
-        .where(eq(messages.id, messageId));
-        
-      if (!message) {
-        throw new Error("Message not found");
-      }
-      
-      if (message.role !== "assistant") {
-        throw new Error("Only AI messages can be regenerated");
-      }
-      
-      // 这里只是返回现有消息
-      // 实际重新生成在路由层处理，而非存储层
-      return message;
-    } catch (error) {
-      log(`Error preparing message regeneration: ${error}`);
-      throw error;
     }
   }
 
