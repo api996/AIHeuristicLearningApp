@@ -328,26 +328,54 @@ export function AIChat({ userData }: AIChatProps) {
       const result = await response.json();
       console.log("重新生成请求成功，结果:", result);
       
-      // 立即更新本地消息状态，不要依赖查询刷新
+      // 立即更新本地消息状态，确保界面立即刷新
       setMessages(prev => {
         const index = prev.findIndex(msg => msg.id === finalMessageId);
         if (index !== -1) {
           const newMessages = [...prev];
+          // 提取新内容，优先使用结果中的content字段
+          const newContent = result.content || 
+                            (result.text ? result.text : 
+                            (result.message ? result.message : newMessages[index].content));
+          
+          console.log("更新消息内容:", newContent.substring(0, 50) + "...");
+          
+          // 创建新消息对象，保留原有属性并更新内容
           newMessages[index] = {
             ...newMessages[index],
-            content: result.content || newMessages[index].content,
+            content: newContent,
             isRegenerating: false
           };
-          console.log("已更新消息内容为新生成的回答");
+          
           return newMessages;
         }
         return prev;
       });
       
-      // 额外刷新UI以确保数据一致性
-      if (currentChatId) {
-        console.log("刷新消息列表查询");
-        queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
+      // 强制刷新获取最新数据
+      try {
+        if (currentChatId) {
+          console.log("强制刷新消息列表");
+          
+          // 取消所有进行中的查询
+          queryClient.cancelQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
+          
+          // 使用直接fetch获取最新数据
+          const refreshResponse = await fetch(`/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`);
+          if (refreshResponse.ok) {
+            const latestMessages = await refreshResponse.json();
+            if (Array.isArray(latestMessages) && latestMessages.length > 0) {
+              // 直接设置最新消息，而不是依赖缓存
+              setMessages(latestMessages);
+              console.log("已刷新最新消息数据");
+            }
+          }
+          
+          // 刷新查询缓存
+          queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
+        }
+      } catch (refreshError) {
+        console.error("刷新消息失败:", refreshError);
       }
       
       toast({
