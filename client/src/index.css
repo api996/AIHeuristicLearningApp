@@ -598,9 +598,9 @@
     transform: translateX(-100%) !important;
   }
   
-  /* 确保聊天内容区域正确定位，避免被侧边栏覆盖 */
+  /* 确保聊天内容区域正确定位，避免被侧边栏覆盖 - 使用绝对定位强制右对齐 */
   .chat-content-area {
-    position: relative !important;
+    position: absolute !important;
     width: 100% !important; 
     max-width: 100% !important;
     display: flex !important;
@@ -608,6 +608,16 @@
     flex: 1 !important;
     overflow: hidden !important;
     z-index: 30 !important;
+    right: 0 !important; /* 强制右对齐 */
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important; /* 清除左侧偏移 */
+  }
+  
+  /* 聊天界面与侧边栏配合时的样式 */
+  .sidebar-open .chat-content-area {
+    left: 270px !important; /* 当侧边栏打开时，为内容区域腾出空间 */
+    width: calc(100% - 270px) !important;
   }
   
   /* 背景容器固定 */
@@ -677,32 +687,56 @@
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
   }
   
-  /* iPad特有标记时应用更特殊的规则 - 针对键盘弹出状态的输入框定位 */
-  .ipad-device.keyboard-open .chat-input-area,
-  .ipad-device.keyboard-focused .chat-input-area {
-    position: fixed !important; /* 使用fixed代替absolute */
-    bottom: 0 !important; /* 固定在底部 */
+  /* 完全重写iPad键盘处理逻辑，彻底解决反向行为 */
+  .chat-input-area {
+    transform: translateY(0) !important; /* 默认状态下不要有任何变换 */
+    transition: none !important; /* 禁用所有过渡效果 */
+  }
+  
+  /* 聊天输入框基础样式 - 所有设备通用 */
+  .ipad-device .chat-input-area {
+    position: fixed !important; 
+    bottom: 0 !important; 
     left: 0 !important;
     right: 0 !important;
-    /* 取消所有变形，避免反向行为 */
-    transform: none !important;
-    transition: none !important;
-    margin-bottom: 0 !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 10px 16px !important;
+    z-index: 9999 !important; 
+  }
+  
+  /* iPad上键盘关闭状态 - 输入区域正常位置 */
+  .ipad-device:not(.keyboard-open):not(.keyboard-focused) .chat-input-area {
+    transform: translateY(0) !important;
+    position: fixed !important;
+    bottom: 0 !important;
+  }
+  
+  /* iPad上键盘打开状态 - 专门针对键盘打开状态 */
+  html.ipad-device.keyboard-open .chat-input-area,
+  html.ipad-device.keyboard-focused .chat-input-area {
+    position: fixed !important; 
+    bottom: 0 !important; 
+    left: 0 !important;
+    right: 0 !important;
+    transform: translateY(0) !important; /* 保持在原位置 */
+    margin: 0 !important;
+    padding: 10px 16px !important;
     padding-bottom: calc(env(safe-area-inset-bottom) + 10px) !important;
-    background-color: rgba(0, 0, 0, 0.9) !important; /* 更深的背景色 */
+    background-color: rgba(0, 0, 0, 0.9) !important; 
     border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
-    z-index: 9999 !important; /* 最高层级 */
-    height: auto !important; /* 自适应高度 */
-    min-height: 60px !important; /* 最小高度 */
+    z-index: 9999 !important;
+    height: auto !important;
+    min-height: 60px !important;
     display: flex !important; 
     align-items: center !important;
     justify-content: center !important;
-    
-    /* 强制重置任何可能导致下移的属性 */
-    top: auto !important;
+    /* 以下是防止iOS自动调整的关键属性 */
+    top: auto !important; /* 不使用top定位 */
     -webkit-transform: none !important;
     -moz-transform: none !important;
-    -ms-transform: none !important;
+    transition: none !important;
+    animation: none !important;
   }
   
   /* 输入框聚焦时特殊样式 - 确保输入框始终在视野内 */
