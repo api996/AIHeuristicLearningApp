@@ -188,13 +188,17 @@ export function AIChat({ userData }: AIChatProps) {
     },
   });
 
-  // 处理消息重新生成的变异函数 - 完全重写以解决消息ID问题
+  // 处理消息重新生成的变异函数 - 修复以正确处理消息ID
   const regenerateMessageMutation = useMutation({
     mutationFn: async (messageId: number | undefined) => {
       // 强化日志记录，帮助调试
       console.log("重新生成消息开始 - 传入ID:", messageId);
       
-      // 声明变量用于存储最终使用的ID
+      // 声明变量用于存储最终使用的消息ID
+      let finalMessageId = messageId;
+      
+      // 如果没有提供ID，尝试找到最后一条AI消息
+      if (!finalMessageId && currentChatId) {终使用的ID
       let finalMessageId = messageId;
       
       // 如果没有消息ID，尝试获取当前聊天中的最后一条AI消息
@@ -275,7 +279,12 @@ export function AIChat({ userData }: AIChatProps) {
         });
         
         if (!response.ok) {
-          const errorText = await response.text().catch(() => "无法读取错误详情");
+          const errorData = await response.text();
+          console.error("重新生成请求失败:", response.status, errorData);
+          throw new Error(`重新生成失败: ${response.status} ${errorData}`);
+        }
+        
+        return await response.json();Text = await response.text().catch(() => "无法读取错误详情");
           console.error(`重生成请求失败: ${response.status} ${response.statusText}`, errorText);
           throw new Error(`服务器错误 (${response.status}): ${errorText || "请稍后再试"}`);
         }
