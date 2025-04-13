@@ -286,6 +286,7 @@ export function AIChat({ userData }: AIChatProps) {
             content: "正在重新生成回答...",
             isRegenerating: true
           };
+          console.log("已更新消息状态为重新生成中:", newMessages[index]);
           return newMessages;
         }
         return prev;
@@ -307,14 +308,45 @@ export function AIChat({ userData }: AIChatProps) {
       if (!response.ok) {
         const errorText = await response.text().catch(() => "无法读取错误详情");
         console.error(`重生成请求失败: ${response.status} ${response.statusText}`, errorText);
+        
+        // 恢复消息原始内容（取消正在重新生成状态）
+        setMessages(prev => {
+          const index = prev.findIndex(msg => msg.id === finalMessageId && msg.isRegenerating);
+          if (index !== -1) {
+            const newMessages = [...prev];
+            // 移除重新生成标记
+            const { isRegenerating, ...restMessage } = newMessages[index];
+            newMessages[index] = restMessage;
+            return newMessages;
+          }
+          return prev;
+        });
+        
         throw new Error(`服务器错误 (${response.status}): ${errorText || "请稍后再试"}`);
       }
       
       const result = await response.json();
       console.log("重新生成请求成功，结果:", result);
       
-      // 更新UI
+      // 立即更新本地消息状态，不要依赖查询刷新
+      setMessages(prev => {
+        const index = prev.findIndex(msg => msg.id === finalMessageId);
+        if (index !== -1) {
+          const newMessages = [...prev];
+          newMessages[index] = {
+            ...newMessages[index],
+            content: result.content || newMessages[index].content,
+            isRegenerating: false
+          };
+          console.log("已更新消息内容为新生成的回答");
+          return newMessages;
+        }
+        return prev;
+      });
+      
+      // 额外刷新UI以确保数据一致性
       if (currentChatId) {
+        console.log("刷新消息列表查询");
         queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
       }
       
@@ -339,7 +371,19 @@ export function AIChat({ userData }: AIChatProps) {
       // 延迟结束加载状态，确保新消息已加载
       setTimeout(() => {
         setIsLoading(false);
-      }, 500);
+        
+        // 再次检查并清除任何卡在"重新生成中"状态的消息
+        setMessages(prev => {
+          const updatedMessages = prev.map(msg => {
+            if (msg.isRegenerating) {
+              const { isRegenerating, ...rest } = msg;
+              return rest;
+            }
+            return msg;
+          });
+          return updatedMessages;
+        });
+      }, 1500); // 增加延迟，确保有足够的时间处理响应
     }
   };
 
