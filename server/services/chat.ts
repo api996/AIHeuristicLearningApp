@@ -163,6 +163,7 @@ ${contextMemories}
       if (!response.ok) {
         const errorText = await response.text();
         log(`Error retrieving memories: ${response.status} - ${errorText}`);
+        // 失败时返回空而不是抛出异常，防止整个请求失败
         return undefined;
       }
       

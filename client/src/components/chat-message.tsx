@@ -17,6 +17,7 @@ interface ChatMessageProps {
     id?: number;
     role: "user" | "assistant";
     content: string;
+    isRegenerating?: boolean; // 添加是否正在重新生成的状态
   };
   isThinking?: boolean; // 用于表示AI是否正在思考
   onEdit?: (id: number | undefined, newContent: string) => Promise<void>; // 编辑消息

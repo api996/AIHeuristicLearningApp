@@ -127,3 +127,125 @@ if __name__ == "__main__":
     
     print(f"记忆目录设置为: {memory_dir}")
     scan_and_fix_memory_files(memory_dir)
+#!/usr/bin/env python3
+"""
+记忆文件修复脚本
+用于检查和修复记忆空间中的JSON文件
+"""
+
+import os
+import json
+import re
+import sys
+
+def fix_memory_files(memory_dir='memory_space'):
+    """
+    检查和修复记忆空间中的JSON文件
+    
+    Args:
+        memory_dir: 记忆空间目录
+    """
+    print(f"开始检查记忆文件，目录: {memory_dir}")
+    
+    # 检查记忆目录是否存在
+    if not os.path.exists(memory_dir):
+        print(f"错误: 记忆目录不存在: {memory_dir}")
+        return
+    
+    # 统计信息
+    stats = {
+        'total_files': 0,
+        'error_files': 0,
+        'fixed_files': 0,
+        'skipped_files': 0,
+    }
+    
+    # 遍历用户目录
+    for user_dir in os.listdir(memory_dir):
+        user_path = os.path.join(memory_dir, user_dir)
+        
+        # 跳过非目录文件
+        if not os.path.isdir(user_path):
+            continue
+            
+        print(f"检查用户 {user_dir} 的记忆文件")
+        
+        # 遍历记忆文件
+        for filename in os.listdir(user_path):
+            if not filename.endswith('.json'):
+                continue
+                
+            file_path = os.path.join(user_path, filename)
+            stats['total_files'] += 1
+            
+            try:
+                # 读取文件内容
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # 尝试解析JSON
+                try:
+                    memory_data = json.loads(content)
+                    # 检查必要字段
+                    required_fields = ['content', 'type', 'embedding']
+                    missing_fields = [field for field in required_fields if field not in memory_data]
+                    
+                    if missing_fields:
+                        print(f"文件 {file_path} 缺少必要字段: {missing_fields}")
+                        stats['error_files'] += 1
+                        # 如果只缺少embedding字段，添加空向量
+                        if missing_fields == ['embedding']:
+                            memory_data['embedding'] = [0.0] * 10  # 添加小的占位向量
+                            with open(file_path, 'w', encoding='utf-8') as f:
+                                json.dump(memory_data, f, ensure_ascii=False)
+                            print(f"已修复文件 {file_path}")
+                            stats['fixed_files'] += 1
+                    else:
+                        # 检查embedding字段是否为空或损坏
+                        embedding = memory_data.get('embedding', [])
+                        if not embedding or (isinstance(embedding, list) and len(embedding) < 10):
+                            print(f"文件 {file_path} 的embedding字段异常")
+                            stats['error_files'] += 1
+                            # 添加默认向量
+                            memory_data['embedding'] = [0.0] * 10
+                            with open(file_path, 'w', encoding='utf-8') as f:
+                                json.dump(memory_data, f, ensure_ascii=False)
+                            print(f"已修复文件 {file_path} 的embedding字段")
+                            stats['fixed_files'] += 1
+                            
+                except json.JSONDecodeError as e:
+                    print(f"文件 {file_path} 不是有效的JSON: {str(e)}")
+                    stats['error_files'] += 1
+                    
+                    # 尝试修复JSON格式
+                    if len(content) > 0:
+                        # 简单尝试：找到最后一个完整的JSON对象
+                        match = re.search(r'(\{[^{]*\})', content)
+                        if match:
+                            fixed_json = match.group(1)
+                            try:
+                                # 验证修复后的JSON是否有效
+                                test_data = json.loads(fixed_json)
+                                # 写回文件
+                                with open(file_path, 'w', encoding='utf-8') as f:
+                                    f.write(fixed_json)
+                                print(f"已修复文件 {file_path} 的JSON格式")
+                                stats['fixed_files'] += 1
+                            except:
+                                print(f"无法修复文件 {file_path}")
+                    
+            except Exception as e:
+                print(f"处理文件 {file_path} 时发生错误: {str(e)}")
+                stats['error_files'] += 1
+    
+    # 打印统计信息
+    print("\n修复完成，统计信息:")
+    print(f"总文件数: {stats['total_files']}")
+    print(f"错误文件数: {stats['error_files']}")
+    print(f"修复文件数: {stats['fixed_files']}")
+    print(f"跳过文件数: {stats['skipped_files']}")
+
+if __name__ == "__main__":
+    # 可以指定记忆目录或使用默认值
+    memory_dir = sys.argv[1] if len(sys.argv) > 1 else 'memory_space'
+    fix_memory_files(memory_dir)

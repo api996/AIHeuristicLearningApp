@@ -678,87 +678,147 @@ asyncio.run(analyze())
       const messageId = parseInt(req.params.messageId, 10);
 
       if (isNaN(messageId) || !userId || !chatId) {
-        return res.status(400).json({ message: "Invalid request parameters" });
+        log(`重新生成消息参数无效: messageId=${messageId}, userId=${userId}, chatId=${chatId}`);
+        return res.status(400).json({ 
+          message: "Invalid request parameters",
+          details: { messageId, hasUserId: !!userId, hasChatId: !!chatId }
+        });
       }
+
+      // 记录关键信息，用于调试
+      log(`开始重新生成消息: messageId=${messageId}, userId=${userId}, chatId=${chatId}`);
 
       // 验证用户对此聊天的访问权限
       const isAdmin = userRole === "admin";
       const chat = await storage.getChatById(chatId, userId, isAdmin);
       if (!chat) {
+        log(`用户无权访问或聊天不存在: userId=${userId}, chatId=${chatId}, isAdmin=${isAdmin}`);
         return res.status(404).json({ message: "Chat not found or access denied" });
       }
 
+      // 初始化聊天服务使用对应模型
+      chatService.setModel(chat.model || "deep");
+      
       try {
-        // 获取需要重新生成的消息
-        const message = await storage.regenerateMessage(messageId);
-
-        // 初始化聊天服务使用对应模型
-        chatService.setModel(chat.model || "deep");
-
-        // 找到触发此AI回复的用户消息
-        const chatMessages = await storage.getChatMessages(chatId, userId, isAdmin);
-        const messageIndex = chatMessages.findIndex(m => m.id === messageId);
-
-        // 找到最近的用户消息作为提示
-        let promptMessage = "请重新回答";
-        for (let i = messageIndex - 1; i >= 0; i--) {
-          if (chatMessages[i].role === "user") {
-            promptMessage = chatMessages[i].content;
-            break;
+        // 尝试直接获取消息
+        log(`尝试直接通过ID获取消息: ${messageId}`);
+        const message = await storage.getMessageById(messageId);
+        
+        if (message) {
+          log(`找到消息(ID ${messageId}), 开始查找相关用户提问`);
+          // 获取触发此AI回复的用户消息
+          const chatMessages = await storage.getChatMessages(chatId, userId, isAdmin);
+          const messageIndex = chatMessages.findIndex(m => m.id === messageId);
+          
+          // 找到最近的用户消息作为提示
+          let promptMessage = "请重新回答之前的问题";
+          let foundUserMessage = false;
+          
+          if (messageIndex !== -1) {
+            for (let i = messageIndex - 1; i >= 0; i--) {
+              if (chatMessages[i].role === "user") {
+                promptMessage = chatMessages[i].content;
+                foundUserMessage = true;
+                log(`找到相关用户提问: "${promptMessage.substring(0, 50)}..."`);
+                break;
+              }
+            }
+          } else {
+            // 如果找不到消息索引，尝试从最新的开始寻找
+            for (let i = chatMessages.length - 1; i >= 0; i--) {
+              if (chatMessages[i].role === "user") {
+                promptMessage = chatMessages[i].content;
+                foundUserMessage = true;
+                log(`使用最新的用户提问: "${promptMessage.substring(0, 50)}..."`);
+                break;
+              }
+            }
           }
-        }
-
-        // 重新生成回复，传入userId用于记忆检索
-        const response = await chatService.sendMessage(promptMessage, userId);
-
-        // 更新数据库中的消息
-        const updatedMessage = await storage.updateMessage(messageId, response.text, false);
-
-        res.json({
-          ...updatedMessage,
-          model: response.model
-        });
-      } catch (error) {
-        // 如果找不到消息，尝试从聊天记录中直接获取
-        log(`Error with specific message ID, trying fallback approach: ${error}`);
-
-        // 获取所有消息并尝试找到最近的AI消息
-        const chatMessages = await storage.getChatMessages(chatId, userId, isAdmin);
-
-        // 确保有至少一条AI回复
-        const aiMessages = chatMessages.filter(m => m.role === "assistant");
-        if (aiMessages.length === 0) {
-          return res.status(404).json({ message: "No AI messages found to regenerate" });
-        }
-
-        // 使用最后一条AI消息
-        const lastAiMessage = aiMessages[aiMessages.length - 1];
-        const messageIndex = chatMessages.findIndex(m => m.id === lastAiMessage.id);
-
-        // 找到触发该AI回复的用户消息
-        let promptMessage = "请重新回答";
-        for (let i = messageIndex - 1; i >= 0; i--) {
-          if (chatMessages[i].role === "user") {
-            promptMessage = chatMessages[i].content;
-            break;
+          
+          if (!foundUserMessage) {
+            log(`未找到相关用户提问，使用默认提示`);
           }
+          
+          // 重新生成回复，传入userId用于记忆检索
+          log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."`);
+          const response = await chatService.sendMessage(promptMessage, userId);
+          
+          // 更新数据库中的消息
+          const updatedMessage = await storage.updateMessage(messageId, response.text, false);
+          
+          log(`回复重新生成成功，更新消息ID ${messageId}`);
+          return res.json({
+            ...updatedMessage,
+            model: response.model
+          });
+        } else {
+          log(`通过ID ${messageId} 未找到消息，尝试获取最后一条AI消息`);
         }
-
-        // 重新生成回复
-        chatService.setModel(chat.model || "deep");
-        const response = await chatService.sendMessage(promptMessage, userId);
-
-        // 更新数据库中的消息
-        const updatedMessage = await storage.updateMessage(lastAiMessage.id, response.text, false);
-
-        res.json({
-          ...updatedMessage,
-          model: response.model
-        });
+      } catch (messageError) {
+        log(`获取特定消息失败，尝试备选方法: ${messageError}`);
       }
+      
+      // 备选方法：找最后一条AI消息
+      log(`执行备选方法：获取最后一条AI消息`);
+      const chatMessages = await storage.getChatMessages(chatId, userId, isAdmin);
+      
+      // 确保有至少一条AI回复
+      const aiMessages = chatMessages.filter(m => m.role === "assistant");
+      if (aiMessages.length === 0) {
+        log(`没有找到任何AI消息可以重新生成`);
+        return res.status(404).json({ message: "No AI messages found to regenerate" });
+      }
+      
+      // 使用最后一条AI消息
+      const lastAiMessage = aiMessages[aiMessages.length - 1];
+      log(`找到最后一条AI消息，ID: ${lastAiMessage.id}`);
+      
+      const messageIndex = chatMessages.findIndex(m => m.id === lastAiMessage.id);
+      
+      // 找到触发该AI回复的用户消息
+      let promptMessage = "请重新回答";
+      let foundUserPrompt = false;
+      
+      if (messageIndex !== -1) {
+        for (let i = messageIndex - 1; i >= 0; i--) {
+          if (chatMessages[i].role === "user") {
+            promptMessage = chatMessages[i].content;
+            foundUserPrompt = true;
+            log(`找到用户提问: "${promptMessage.substring(0, 50)}..."`);
+            break;
+          }
+        }
+      }
+      
+      if (!foundUserPrompt) {
+        // 如果找不到具体的提问，使用最后一条用户消息
+        const userMessages = chatMessages.filter(m => m.role === "user");
+        if (userMessages.length > 0) {
+          promptMessage = userMessages[userMessages.length - 1].content;
+          log(`没有找到特定提问，使用最后一条用户消息: "${promptMessage.substring(0, 50)}..."`);
+        } else {
+          log(`没有找到任何用户消息，使用默认提示`);
+        }
+      }
+      
+      // 重新生成回复
+      log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."`);
+      const response = await chatService.sendMessage(promptMessage, userId);
+      
+      // 更新数据库中的消息
+      const updatedMessage = await storage.updateMessage(lastAiMessage.id, response.text, false);
+      
+      log(`回复重新生成成功，更新消息ID ${lastAiMessage.id}`);
+      res.json({
+        ...updatedMessage,
+        model: response.model
+      });
     } catch (error) {
-      log(`Error regenerating message: ${error}`);
-      res.status(500).json({ message: "Failed to regenerate message" });
+      log(`Error regenerating message: ${error instanceof Error ? error.message : String(error)}`);
+      res.status(500).json({ 
+        message: "Failed to regenerate message",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -1113,10 +1173,17 @@ sys.path.append('server')
 from services.learning_memory import learning_memory_service
 
 async def retrieve_memories():
-    # 检索相似记忆
-    memories = await learning_memory_service.retrieve_similar_memories(${userId}, """${query.replace(/"/g, '\\"')}""", ${limit})
-    # 转换为JSON输出
-    print(json.dumps(memories, ensure_ascii=False))
+    try:
+        # 检索相似记忆
+        memories = await learning_memory_service.retrieve_similar_memories(${userId}, """${query.replace(/"/g, '\\"')}""", ${limit})
+        # 转换为JSON输出
+        print("JSON_RESULT_BEGIN")
+        print(json.dumps(memories, ensure_ascii=False))
+        print("JSON_RESULT_END")
+    except Exception as e:
+        print(f"记忆检索错误: {str(e)}")
+        # 返回空数组而不是失败
+        print("[]")
 
 asyncio.run(retrieve_memories())
       `]);
@@ -1124,6 +1191,7 @@ asyncio.run(retrieve_memories())
       let output = '';
       pythonProcess.stdout.on('data', (data) => {
         output += data.toString();
+        log(`记忆检索输出: ${data.toString().trim()}`);
       });
       
       let errorOutput = '';
