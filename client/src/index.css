@@ -580,7 +580,7 @@
   /* 修复左侧栏溢出问题 - 解决遮挡内容的问题 */
   .sidebar-container {
     position: absolute !important;
-    width: 270px !important; /* 固定宽度，防止溢出 */
+    width: 256px !important; /* 精确固定宽度，与JSX中保持一致 */
     max-width: 80vw !important; /* 响应式最大宽度 */
     z-index: 40 !important;
     top: 0 !important;
@@ -590,6 +590,7 @@
     background-color: rgba(0, 0, 0, 0.8) !important;
     border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
     transition: transform 0.3s ease !important;
+    flex-shrink: 0 !important; /* 确保不会被挤压 */
   }
   
   /* 修复当侧边栏关闭时的问题 */
@@ -600,10 +601,10 @@
   /* 确保聊天内容区域正确定位，避免被侧边栏覆盖，解决右侧黑色空白问题 */
   .chat-content-area {
     position: absolute !important;
-    left: 270px !important; /* 侧边栏宽度 */
+    left: 256px !important; /* 侧边栏宽度，与前面定义保持一致 */
     right: 0 !important;
-    width: calc(100% - 270px) !important; 
-    max-width: calc(100% - 270px) !important;
+    width: calc(100% - 256px) !important; 
+    max-width: calc(100% - 256px) !important;
     top: 0 !important;
     bottom: 0 !important;
     display: flex !important;
@@ -611,10 +612,13 @@
     flex: 1 !important;
     overflow: hidden !important;
     z-index: 30 !important;
+    margin-left: 0 !important; /* 确保没有边距导致额外偏移 */
+    transform: none !important; /* 防止变换导致偏移 */
   }
   
   /* 当侧边栏隐藏时，聊天区域应占据全宽 */
-  .sidebar-container.hidden + .chat-content-area {
+  .sidebar-container.hidden + .chat-content-area,
+  .lg\\:hidden + .chat-content-area {
     left: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
