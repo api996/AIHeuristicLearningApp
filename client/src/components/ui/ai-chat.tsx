@@ -1171,7 +1171,7 @@ export function AIChat({ userData }: AIChatProps) {
 
 
   return (
-    <div className={`flex h-screen text-white relative ${showSidebar ? 'sidebar-open' : ''}`} style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
+    <div className="flex h-screen text-white relative" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
       {/* 背景图片容器 */}
       {backgroundImage && (
         <div className="bg-container">
@@ -1233,8 +1233,8 @@ export function AIChat({ userData }: AIChatProps) {
         />
       </div>
 
-      {/* Main Content - 添加chat-content-area类名以便CSS定位 */}
-      <div className="flex-1 flex flex-col relative chat-content-area">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col relative">
         {/* Header - 苹果风格磨砂透明 */}
         <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${theme === 'dark' ? 'frosted-glass-dark border-neutral-800' : 'frosted-glass border-neutral-200/20'}`}>
           <div className="flex items-center">
@@ -1336,8 +1336,8 @@ export function AIChat({ userData }: AIChatProps) {
           )}
         </div>
 
-        {/* Input Area - 简化类名和定位方式 */}
-        <div className={"chat-input-area " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
+        {/* Input Area - 添加chat-input-container类便于CSS处理键盘状态 */}
+        <div className={"chat-input-area chat-input-container fixed bottom-0 left-0 right-0 pb-4 pt-2 px-2 z-20 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
           <div className="max-w-3xl mx-auto px-2 sm:px-4">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
