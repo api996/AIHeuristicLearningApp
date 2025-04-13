@@ -38,7 +38,8 @@ export function updateViewportHeight(): void {
   // 1. 视窗高度明显小于窗口高度（键盘占用了空间）
   // 2. 视窗相对于顶部有偏移（在iOS上，键盘弹出时视窗会上移）
   const heightDifference = windowHeight - viewportHeight;
-  const significantHeightChange = heightDifference > 150; // 键盘通常至少150px高
+  // 不同设备的键盘高度不同，降低阈值以确保更准确地检测
+  const significantHeightChange = heightDifference > 100; 
   const hasTopOffset = window.visualViewport.offsetTop > 0;
   
   const isKeyboardVisible = significantHeightChange || (isIOS && hasTopOffset);
@@ -46,10 +47,23 @@ export function updateViewportHeight(): void {
   // 动态计算键盘高度以供CSS使用
   // 这可以让输入框保持在键盘上方的固定位置，填充黑色区域
   if (isKeyboardVisible && heightDifference > 0) {
-    // 计算理想的输入框位置，加上一些补偿值以确保键盘完全隐藏
-    // iOS 15+ 移动Safari通常键盘高度在270-340px之间，但会根据设备而变化
-    const keyboardEstimatedHeight = Math.max(270, heightDifference + 20);
-    document.documentElement.style.setProperty('--keyboard-height', `${keyboardEstimatedHeight}px`);
+    // 对iOS设备特殊处理，使用实际测量的高度差值加上补偿值
+    if (isIOS) {
+      // 为iOS设备使用更精确的计算，避免黑色区域
+      const keyboardEstimatedHeight = heightDifference + (hasTopOffset ? 40 : 10);
+      document.documentElement.style.setProperty('--keyboard-height', `${keyboardEstimatedHeight}px`);
+      // 设置额外的高度变量用于调整内容区域
+      document.documentElement.style.setProperty('--content-adjust', `${Math.min(80, heightDifference/2)}px`);
+    } else {
+      // 非iOS设备使用标准计算
+      const keyboardEstimatedHeight = heightDifference + 20;
+      document.documentElement.style.setProperty('--keyboard-height', `${keyboardEstimatedHeight}px`);
+      document.documentElement.style.setProperty('--content-adjust', '0px');
+    }
+  } else {
+    // 键盘关闭时重置变量
+    document.documentElement.style.setProperty('--keyboard-height', '0px');
+    document.documentElement.style.setProperty('--content-adjust', '0px');
   }
     
   // 将键盘状态信息添加到文档类中，以便CSS可以相应调整
@@ -92,10 +106,28 @@ export function setupViewportHeightListeners(): () => void {
 export function scrollToBottom(element: HTMLElement | null, smooth = true): void {
   if (!element) return;
   
-  element.scrollTo({
-    top: element.scrollHeight,
-    behavior: smooth ? 'smooth' : 'auto'
-  });
+  // 检测是否为iOS设备，iOS的键盘状态下使用不同的滚动策略
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  const isKeyboardOpen = document.documentElement.classList.contains('keyboard-open');
+  
+  // 如果是iOS设备并且键盘已打开，使用定时器确保在布局更新后滚动
+  if (isIOS && isKeyboardOpen) {
+    // 立即滚动一次，然后在短暂延迟后再次滚动以确保内容完全显示
+    element.scrollTop = element.scrollHeight;
+    
+    // 使用RAF和setTimeout组合来确保在DOM完全更新后滚动
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        element.scrollTop = element.scrollHeight;
+      }, 50);
+    });
+  } else {
+    // 普通设备使用标准滚动
+    element.scrollTo({
+      top: element.scrollHeight,
+      behavior: smooth && !isKeyboardOpen ? 'smooth' : 'auto'
+    });
+  }
 }
 
 /**
