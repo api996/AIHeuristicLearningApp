@@ -287,6 +287,14 @@ export function AIChat({ userData }: AIChatProps) {
         console.error("重新生成请求执行失败:", error);
         throw error; // 向上传播错误
       }
+        
+        const result = await response.json();
+        console.log("重新生成请求成功，结果:", result);
+        return result;
+      } catch (error) {
+        console.error("重新生成请求执行失败:", error);
+        throw error; // 向上传播错误
+      }
     },
     onSuccess: (data) => {
       console.log("重新生成成功:", data);
