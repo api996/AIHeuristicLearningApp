@@ -1110,10 +1110,10 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* Sidebar - 使用磨砂玻璃效果 */}
       <div
-        className={`fixed lg:relative lg:flex w-64 h-full transform transition-transform duration-200 ease-in-out z-30 ${
+        className={`fixed lg:relative lg:flex w-64 h-full transform transition-transform duration-200 ease-in-out z-30 sidebar-container ${
           showSidebar ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}`}
-        style={{flex: "0 0 auto"}} /* 确保侧边栏不会收缩 */
+        style={{flex: "0 0 auto", width: "256px"}} /* 确保侧边栏不会收缩且宽度固定 */
       >
         <ChatHistory
           currentChatId={currentChatId}
