@@ -370,33 +370,6 @@ export function AIChat({ userData }: AIChatProps) {
     },
   });
 
-  // 处理消息反馈的变异函数
-  const feedbackMessageMutation = useMutation({
-    mutationFn: async ({ messageId, feedback }: { messageId: number | undefined; feedback: "like" | "dislike" }) => {
-      if (!messageId) throw new Error("消息ID不存在");
-      const response = await apiRequest("PATCH", `/api/messages/${messageId}/feedback`, { 
-        feedback,
-        userId: userData.userId,
-        userRole: userData.role,
-        chatId: currentChatId
-      });
-      return response.json();
-    },
-    onSuccess: () => {
-      // 成功提交反馈后刷新当前对话消息列表
-      if (currentChatId) {
-        queryClient.invalidateQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
-      }
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "提交反馈失败",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError("");
