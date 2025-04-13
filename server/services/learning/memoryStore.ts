@@ -23,9 +23,9 @@ export async function saveMemory(memory: Omit<Memory, 'id'>): Promise<Memory> {
     if (!memory.userId || !memory.content) {
       throw new Error('记忆必须包含用户ID和内容');
     }
-    
+
     log(`[memoryStore] 尝试保存记忆: 用户=${memory.userId}, 内容长度=${memory.content.length}, 类型=${memory.type || 'chat'}`);
-    
+
     // 确保记忆对象有必要的字段
     const memoryToSave = {
       content: memory.content,
@@ -37,7 +37,7 @@ export async function saveMemory(memory: Omit<Memory, 'id'>): Promise<Memory> {
       keywords: memory.keywords,
       embedding: memory.embedding
     };
-    
+
     // 调用Python服务保存记忆
     const pythonProcess = spawn('python3', ['-c', `
 import asyncio
@@ -58,12 +58,12 @@ async def save_memory():
 
 asyncio.run(save_memory())
     `]);
-    
+
     let output = '';
     pythonProcess.stdout.on('data', (data) => {
       output += data.toString();
     });
-    
+
     return new Promise((resolve, reject) => {
       pythonProcess.on('close', (code) => {
         if (code !== 0 || !output.includes('MEMORY_SAVED_SUCCESSFULLY')) {
@@ -73,7 +73,7 @@ asyncio.run(save_memory())
           // 生成ID（通常文件名会作为ID）
           const id = `memory_${Date.now()}`;
           log(`[memoryStore] 记忆保存成功，ID: ${id}`);
-          
+
           // 返回完整的记忆对象，包括生成的ID
           resolve({
             ...memoryToSave,
@@ -81,11 +81,11 @@ asyncio.run(save_memory())
           } as Memory);
         }
       });
-      
+
       pythonProcess.stderr.on('data', (data) => {
         log(`[memoryStore] Python错误: ${data}`);
       });
-      
+
       pythonProcess.on('error', (error) => {
         log(`[memoryStore] 启动Python进程失败: ${error}`);
         reject(error);
@@ -110,26 +110,26 @@ export async function getMemoryById(id: string, userId?: number): Promise<Memory
     if (!userId) {
       throw new Error('必须提供用户ID');
     }
-    
+
     const userDir = path.join(MEMORY_DIR, userId.toString());
     if (!fs.existsSync(userDir)) {
       return null;
     }
-    
+
     // 查找匹配ID的文件（ID可能是文件名的一部分）
     const files = fs.readdirSync(userDir).filter(file => 
       file.endsWith('.json') && (file === `${id}.json` || file.includes(id))
     );
-    
+
     if (files.length === 0) {
       return null;
     }
-    
+
     // 读取文件内容
     const filePath = path.join(userDir, files[0]);
     const content = fs.readFileSync(filePath, 'utf8');
     const memoryData = JSON.parse(content);
-    
+
     // 确保数据格式正确
     return {
       id: files[0].replace('.json', ''),
@@ -162,9 +162,9 @@ export async function findSimilarMemories(
 ): Promise<Memory[]> {
   try {
     const limit = options.limit || 5;
-    
+
     log(`[memoryStore] 尝试查找相似记忆: 用户=${userId}, 查询=${text.substring(0, 50)}...`);
-    
+
     // 调用Python服务检索相似记忆
     const pythonProcess = spawn('python3', ['-c', `
 import asyncio
@@ -185,12 +185,12 @@ async def retrieve_memories():
 
 asyncio.run(retrieve_memories())
     `]);
-    
+
     let output = '';
     pythonProcess.stdout.on('data', (data) => {
       output += data.toString();
     });
-    
+
     return new Promise((resolve, reject) => {
       pythonProcess.on('close', (code) => {
         if (code !== 0) {
@@ -198,21 +198,60 @@ asyncio.run(retrieve_memories())
           resolve([]);
         } else {
           try {
-            const memories = JSON.parse(output.trim()) || [];
-            log(`[memoryStore] 成功检索到 ${memories.length} 个相似记忆`);
-            
+            // 增强型解析处理
+            let memories = [];
+            const outputTrimmed = output.trim();
+            if (outputTrimmed) {
+              try {
+                memories = JSON.parse(outputTrimmed) || [];
+                log(`[memoryStore] 成功检索到 ${memories.length} 个相似记忆`);
+              } catch (parseError) {
+                // 使用更详细的日志记录解析问题
+                log(`[memoryStore] JSON解析错误: ${parseError}`);
+                log(`[memoryStore] 尝试解析的原始输出: ${outputTrimmed.substring(0, 200)}...`);
+
+                // 尝试修复各种潜在的JSON格式问题
+                try {
+                  let fixedJson = outputTrimmed;
+                  
+                  // 检查是否缺少右括号
+                  if (!fixedJson.endsWith(']') && fixedJson.includes('[')) {
+                    fixedJson = fixedJson + ']';
+                  }
+                  
+                  // 检查是否有多余字符
+                  if (fixedJson.includes(']') && fixedJson.length > fixedJson.lastIndexOf(']') + 1) {
+                    fixedJson = fixedJson.substring(0, fixedJson.lastIndexOf(']') + 1);
+                  }
+                  
+                  // 检查是否有Python打印输出混合在JSON中
+                  if (fixedJson.includes(']\n')) {
+                    fixedJson = fixedJson.substring(0, fixedJson.indexOf(']\n') + 1);
+                  }
+                  
+                  // 尝试解析修复后的JSON
+                  memories = JSON.parse(fixedJson) || [];
+                  log(`[memoryStore] 修复后成功解析，找到${memories.length}条记忆`);
+                } catch (e) {
+                  // 放弃修复尝试，返回空数组
+                  log(`[memoryStore] 尝试修复JSON失败: ${e}`);
+                  memories = [];
+                }
+              }
+            }
+
             // 确保每个记忆对象都有正确的字段
-            const formattedMemories = memories.map((memory: any) => ({
+            const formattedMemories = Array.isArray(memories) ? memories.map((memory: any) => ({
               id: memory.id || `memory_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-              content: memory.content,
+              content: memory.content || "",
               type: memory.type || 'chat',
               timestamp: memory.timestamp || new Date().toISOString(),
               userId,
-              summary: memory.summary,
-              keywords: memory.keywords,
-              embedding: memory.embedding
-            }));
-            
+              summary: memory.summary || "",
+              keywords: memory.keywords || [],
+              embedding: memory.embedding || []
+            })) : [];
+
             resolve(formattedMemories);
           } catch (error) {
             log(`[memoryStore] 解析相似记忆结果失败: ${error}`);
@@ -220,11 +259,11 @@ asyncio.run(retrieve_memories())
           }
         }
       });
-      
+
       pythonProcess.stderr.on('data', (data) => {
         log(`[memoryStore] Python错误: ${data}`);
       });
-      
+
       pythonProcess.on('error', (error) => {
         log(`[memoryStore] 启动Python进程失败: ${error}`);
         resolve([]);
@@ -245,26 +284,26 @@ asyncio.run(retrieve_memories())
 export async function getMemoriesByFilter(filter: MemoryFilter): Promise<Memory[]> {
   try {
     const { userId, types, startDate, endDate, keywords } = filter;
-    
+
     if (!userId) {
       throw new Error('必须提供用户ID');
     }
-    
+
     const userDir = path.join(MEMORY_DIR, userId.toString());
     if (!fs.existsSync(userDir)) {
       return [];
     }
-    
+
     // 读取用户目录下所有记忆文件
     const files = fs.readdirSync(userDir).filter(file => file.endsWith('.json'));
     const memories: Memory[] = [];
-    
+
     for (const file of files) {
       try {
         const filePath = path.join(userDir, file);
         const content = fs.readFileSync(filePath, 'utf8');
         const memoryData = JSON.parse(content);
-        
+
         // 应用过滤条件
         if (
           (!types || types.includes(memoryData.type)) &&
@@ -291,7 +330,7 @@ export async function getMemoriesByFilter(filter: MemoryFilter): Promise<Memory[
         log(`[memoryStore] 读取记忆文件失败: ${file}, 错误: ${error}`);
       }
     }
-    
+
     return memories;
   } catch (error) {
     log(`[memoryStore] 筛选记忆时遇到错误: ${error}`);
@@ -320,34 +359,34 @@ export async function updateMemorySummary(
     if (!memory) {
       return false;
     }
-    
+
     // 更新字段
     memory.summary = summary;
     if (keywords) {
       memory.keywords = keywords;
     }
-    
+
     // 获取文件路径
     const userDir = path.join(MEMORY_DIR, userId.toString());
     const filePath = path.join(userDir, `${memoryId}.json`);
-    
+
     // 如果文件不存在，尝试查找匹配的文件
     if (!fs.existsSync(filePath)) {
       const files = fs.readdirSync(userDir).filter(file => 
         file.endsWith('.json') && (file === `${memoryId}.json` || file.includes(memoryId))
       );
-      
+
       if (files.length === 0) {
         return false;
       }
-      
+
       const actualFilePath = path.join(userDir, files[0]);
       fs.writeFileSync(actualFilePath, JSON.stringify(memory, null, 2), 'utf8');
     } else {
       // 直接写入文件
       fs.writeFileSync(filePath, JSON.stringify(memory, null, 2), 'utf8');
     }
-    
+
     return true;
   } catch (error) {
     log(`[memoryStore] 更新记忆摘要时遇到错误: ${error}`);
