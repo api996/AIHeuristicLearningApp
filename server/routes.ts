@@ -135,7 +135,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // 设置开发者模式已通过的标记到会话
-      req.session.developerModeVerified = true;
+      if (req.session) {
+        req.session.developerModeVerified = true;
+      }
       
       // 获取用户信息
       let user = await storage.getUserByUsername(username);
@@ -1139,7 +1141,7 @@ asyncio.run(save_memory())
   app.post("/api/verify-turnstile", async (req, res) => {
     try {
       // 检查是否之前已通过开发者模式验证
-      if (req.session.developerModeVerified) {
+      if (req.session && req.session.developerModeVerified === true) {
         log('[Turnstile] 开发者模式已验证，跳过Turnstile验证');
         return res.json({ success: true });
       }
