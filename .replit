@@ -22,7 +22,7 @@ localPort = 5003
 externalPort = 3001
 
 [workflows]
-runButton = "启动修复后的应用"
+runButton = "重启Gemini服务"
 
 [[workflows.workflow]]
 name = "Project"
@@ -124,10 +124,6 @@ args = "kill $(lsof -t -i:3000) 2>/dev/null || true"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx update-browserslist-db@latest"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
@@ -233,103 +229,3 @@ args = "kill $(lsof -t -i:5001) 2>/dev/null || true"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "NODE_ENV=development npm run dev"
-
-[[workflows.workflow]]
-name = "更新记忆系统"
-author = 40327554
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 -m pip install --upgrade google-generativeai numpy"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pkill -f \"tsx server/index.ts\" || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "kill $(lsof -t -i:5001) 2>/dev/null || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 scripts/update_memory_files.py 2"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "NODE_ENV=development npm run dev"
-
-[[workflows.workflow]]
-name = "启动修复后的应用"
-author = 40327554
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pkill -f \"tsx server/index.ts\" || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "kill $(lsof -t -i:3000) 2>/dev/null || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx update-browserslist-db@latest"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "NODE_ENV=development npm run dev"
-
-[[workflows.workflow]]
-name = "自动确认并重启"
-author = 40327554
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pkill -f \"tsx server/index.ts\" || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "kill $(lsof -t -i:3000) 2>/dev/null || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "yes | npm run dev"
-
-[[workflows.workflow]]
-name = "重启服务器(自动确认)"
-author = 40327554
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pkill -f \"tsx server/index.ts\" || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "kill $(lsof -t -i:3000) 2>/dev/null || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "yes | npx update-browserslist-db@latest"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "yes | npm run dev"

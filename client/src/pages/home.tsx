@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import AIChat from "@/components/ui/ai-chat";
+import { AIChat } from "@/components/ui/ai-chat";
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const [userId, setUserId] = useState<number | null>(null);
-  const [userRole, setUserRole] = useState<string>("user");
+  const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
     const user = localStorage.getItem("user");
@@ -31,8 +30,7 @@ export default function Home() {
         return;
       }
 
-      setUserId(parsedUser.userId);
-      setUserRole(parsedUser.role || "user");
+      setUserData(parsedUser);
     } catch (e) {
       console.error('[Home] Error parsing user data:', e);
       localStorage.removeItem("user");
@@ -41,13 +39,13 @@ export default function Home() {
   }, [setLocation]);
 
   // 只有在有有效用户数据时才渲染内容
-  if (!userId) {
+  if (!userData) {
     return null;
   }
 
   return (
     <div className="min-h-screen bg-black">
-      <AIChat userId={userId} userRole={userRole} />
+      <AIChat userData={userData} />
     </div>
   );
 }

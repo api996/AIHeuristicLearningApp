@@ -243,39 +243,6 @@ class LearningMemoryService:
 
             # 返回前limit个结果
             result = [memory for memory, similarity in scored_memories[:limit]]
-            
-            # 验证结果的完整性，确保每个记忆都有必要的字段
-            for i, mem in enumerate(result):
-                # 确保基本字段存在
-                if "content" not in mem or not mem["content"]:
-                    mem["content"] = "记忆内容缺失"
-                
-                if "type" not in mem:
-                    mem["type"] = "chat"
-                    
-                if "timestamp" not in mem:
-                    from datetime import datetime
-                    mem["timestamp"] = datetime.now().isoformat()
-                
-                # 尝试验证JSON序列化是否正常
-                try:
-                    import json
-                    json.dumps(mem)
-                except Exception as e:
-                    print(f"第{i}个记忆无法序列化为JSON: {str(e)}")
-                    # 移除可能导致JSON序列化失败的字段
-                    problematic_keys = []
-                    for key, value in mem.items():
-                        try:
-                            json.dumps({key: value})
-                        except:
-                            problematic_keys.append(key)
-                    
-                    # 删除有问题的字段
-                    for key in problematic_keys:
-                        print(f"删除有问题的字段: {key}")
-                        del mem[key]
-            
             print(f"返回 {len(result)} 个相似记忆")
             return result
         except Exception as e:

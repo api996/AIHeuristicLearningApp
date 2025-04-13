@@ -380,7 +380,7 @@ export function ChatMessage({
         return;
       }
       
-      // 获取消息元素位置 - 使用固定居中显示
+      // 获取消息元素位置 - 只需要垂直位置
       const rect = messageRef.current.getBoundingClientRect();
       
       // 只设置Y轴坐标，X轴通过CSS居中控制
