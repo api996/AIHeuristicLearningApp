@@ -639,7 +639,7 @@ export function AIChat({ userData }: AIChatProps) {
     }
   };
   
-  // 完全重写：处理输入框获得焦点时的滚动行为 - 针对iOS/iPad增强处理
+  // 完全简化：处理输入框获得焦点时的滚动行为 - 针对iOS/iPad直接使用CSS实现
   const handleInputFocus = () => {
     // 判断设备类型 - 特别识别iPad
     const isIOS = /iPhone|iPod/i.test(navigator.userAgent);
@@ -647,115 +647,28 @@ export function AIChat({ userData }: AIChatProps) {
                    (/Macintosh/i.test(navigator.userAgent) && 'ontouchend' in document);
     const isAndroid = /Android/i.test(navigator.userAgent);
     
-    // 先标记键盘状态，以便CSS规则能立即生效
-    document.documentElement.classList.add('keyboard-open');
-    document.documentElement.classList.add('keyboard-focused');
-    
-    // 添加设备标记
+    // 标记设备类型，让CSS处理定位
     if (isIPad) {
       document.documentElement.classList.add('ipad-device');
-      document.body.classList.add('ipad-body');
-      
-      // 防止页面在iPad上滚动
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      document.body.style.height = '100%';
-      document.body.style.overflow = 'hidden';
-      
-      // 直接禁用可能导致问题的转换 
-      if (document.querySelector('.chat-input-area')) {
-        const inputArea = document.querySelector('.chat-input-area') as HTMLElement;
-        if (inputArea) {
-          inputArea.style.transform = 'none';
-          inputArea.style.transition = 'none';
-          inputArea.style.bottom = '0';
-          inputArea.style.position = 'fixed';
-        }
-      }
-      
-      // 禁止iPad上的全局滚动
-      document.addEventListener('scroll', (e) => {
-        if (document.documentElement.classList.contains('keyboard-open')) {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        }
-      }, { passive: false });
     }
+    
+    // 标记键盘状态
+    document.documentElement.classList.add('keyboard-open');
+    
+    // 强制重置页面滚动位置
+    window.scrollTo(0, 0);
     
     // 找到最后一条消息并将其滚动到可见区域
     if (messagesContainerRef.current && messages.length > 0) {
-      // 首先立即滚动到底部，确保最新消息可见
-      scrollToBottom(messagesContainerRef.current, false);
-      
-      // iPad专用处理
-      if (isIPad) {
-        // 在iPad上使用更简化的滚动策略
-        setTimeout(() => {
-          if (messagesContainerRef.current) {
-            try {
-              // 直接设置确定的高度，避免视口计算可能导致的问题
-              messagesContainerRef.current.style.maxHeight = 'calc(100vh - 150px)';
-              messagesContainerRef.current.style.height = 'calc(100vh - 150px)';
-                
-              // 延迟执行滚动
-              setTimeout(() => {
-                // 确保页面不会全局滚动
-                window.scrollTo(0, 0);
-                document.body.scrollTop = 0;
-                document.documentElement.scrollTop = 0;
-                
-                // 滚动消息容器到底部
-                if (messagesContainerRef.current) {
-                  messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-                }
-              }, 200);
-            } catch (err) {
-              console.error("iPad滚动调整失败:", err);
-            }
-          }
-        }, 50);
-      }
-      // iPhone设备处理
-      else if (isIOS) {
-        // iOS键盘弹出时的特殊处理
-        setTimeout(() => {
-          if (messagesContainerRef.current) {
-            const lastMessage = messagesContainerRef.current.lastElementChild;
-            if (lastMessage) {
-              lastMessage.scrollIntoView({
-                block: 'center',
-                inline: 'nearest',
-                behavior: 'auto'
-              });
-            }
-          }
-        }, 100);
-      } 
-      // Android设备的处理 
-      else if (isAndroid) {
-        setTimeout(() => {
-          if (messagesContainerRef.current) {
-            const lastMessage = messagesContainerRef.current.lastElementChild;
-            if (lastMessage) {
-              lastMessage.scrollIntoView({
-                block: 'center',
-                inline: 'nearest',
-                behavior: 'auto'
-              });
-            }
-          }
-        }, 200);
-      }
+      // 立即滚动到底部，确保最新消息可见
+      setTimeout(() => {
+        scrollToBottom(messagesContainerRef.current, false);
+      }, 100);
     }
   };
   
-  // 增强：处理输入框失去焦点时的清理工作
+  // 简化：处理输入框失去焦点时的清理工作
   const handleInputBlur = () => {
-    // 首先检查是否是iPad设备
-    const isIPad = /iPad/i.test(navigator.userAgent) || 
-                   (/Macintosh/i.test(navigator.userAgent) && 'ontouchend' in document);
-    
     // 延迟执行，确保点击其他UI元素时不会立即失去状态
     setTimeout(() => {
       // 检查是否真的失去了焦点（不是点击了页面其他输入元素）
@@ -766,23 +679,11 @@ export function AIChat({ userData }: AIChatProps) {
                            
       if (!isInputFocused) {
         // 移除键盘焦点状态标记
-        document.documentElement.classList.remove('keyboard-focused');
         document.documentElement.classList.remove('keyboard-open');
         
-        // 移除浏览器滚动阻止
-        if (isIPad) {
-          document.body.style.position = '';
-          document.body.style.width = '';
-          document.body.style.height = '';
-          document.body.style.overflow = '';
-          
-          // 恢复正常滚动容器
-          if (messagesContainerRef.current) {
-            messagesContainerRef.current.style.maxHeight = '';
-            messagesContainerRef.current.style.height = '';
-          }
-        }
-
+        // 重置页面滚动
+        window.scrollTo(0, 0);
+        
         // 滚动到最新消息
         setTimeout(() => {
           if (messagesContainerRef.current) {
@@ -790,7 +691,7 @@ export function AIChat({ userData }: AIChatProps) {
           }
         }, 100);
       }
-    }, 150);
+    }, 100);
   };
 
   const toggleSidebar = () => {
@@ -1234,7 +1135,7 @@ export function AIChat({ userData }: AIChatProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative">
+      <div className="flex-1 flex flex-col relative chat-content-area">
         {/* Header - 苹果风格磨砂透明 */}
         <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${theme === 'dark' ? 'frosted-glass-dark border-neutral-800' : 'frosted-glass border-neutral-200/20'}`}>
           <div className="flex items-center">
