@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { TurnstileWidget } from "@/components/ui/turnstile";
 import { apiRequest } from "@/lib/queryClient";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -13,6 +15,8 @@ export default function Login() {
   const [error, setError] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string | undefined>(undefined);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isDeveloperMode, setIsDeveloperMode] = useState(false);
+  const [developerPassword, setDeveloperPassword] = useState("");
 
   // 检查是否已登录
   useEffect(() => {
@@ -86,6 +90,57 @@ export default function Login() {
       return;
     }
 
+    // 开发者模式特殊处理
+    if (isDeveloperMode) {
+      if (!developerPassword) {
+        setError("请输入开发者密码");
+        return;
+      }
+
+      setIsVerifying(true);
+      
+      try {
+        console.log('[Login] Starting developer authentication process');
+        const response = await fetch('/api/developer-login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            username, 
+            password, 
+            developerPassword 
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          const userData = {
+            userId: data.userId,
+            role: data.role,
+            username: username
+          };
+          localStorage.setItem("user", JSON.stringify(userData));
+          
+          if (data.role === 'admin') {
+            setLocation("/admin");
+          } else {
+            setLocation("/");
+          }
+        } else {
+          setError(data.message || "开发者验证失败");
+        }
+      } catch (err) {
+        console.error('[Login] Developer authentication error:', err);
+        setError("服务器错误，请稍后重试");
+      } finally {
+        setIsVerifying(false);
+      }
+      return;
+    }
+
+    // 正常模式需要人机验证
     if (!turnstileToken) {
       setError("请完成人机验证");
       return;
