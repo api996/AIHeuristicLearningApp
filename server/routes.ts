@@ -121,9 +121,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password, developerPassword } = req.body;
       
-      // 验证开发者密码 - 使用简单但不太容易猜到的密码
-      // 注意：在实际环境中，应该使用环境变量或配置文件存储这个密码
-      const validDevPassword = "dev123456";
+      // 获取管理员账户
+      const adminUser = await storage.getUserByUsername("admin");
+      
+      // 如果没有管理员账户，设置默认开发者密码
+      const validDevPassword = adminUser ? adminUser.password : "dev123456";
       
       if (developerPassword !== validDevPassword) {
         return res.status(401).json({
@@ -131,6 +133,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "开发者密码错误"
         });
       }
+      
+      // 设置开发者模式已通过的标记到会话
+      req.session.developerModeVerified = true;
       
       // 获取用户信息
       let user = await storage.getUserByUsername(username);
@@ -1133,6 +1138,12 @@ asyncio.run(save_memory())
   // Add this route handler inside the registerRoutes function
   app.post("/api/verify-turnstile", async (req, res) => {
     try {
+      // 检查是否之前已通过开发者模式验证
+      if (req.session.developerModeVerified) {
+        log('[Turnstile] 开发者模式已验证，跳过Turnstile验证');
+        return res.json({ success: true });
+      }
+      
       const { token } = req.body;
 
       if (!token) {

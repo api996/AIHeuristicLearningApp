@@ -571,10 +571,12 @@
     width: 100% !important;
     max-width: 100vw !important; /* 防止溢出视口宽度 */
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important; /* 使用行布局确保左右并排 */
     overflow: hidden !important;
-    margin: 0 auto !important; /* 水平居中 */
+    margin: 0 !important; /* 移除所有外边距 */
     padding: 0 !important; /* 清除可能的内边距 */
+    justify-content: flex-start !important; /* 从左到右布局 */
+    align-items: stretch !important; /* 子元素拉伸填满高度 */
   }
   
   /* 修复左侧栏溢出问题 - 解决遮挡内容的问题 */
