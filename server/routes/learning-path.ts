@@ -113,8 +113,18 @@ router.post('/:userId/similar-memories', async (req, res) => {
     
     log(`[API] 查找用户 ${userId} 相似记忆: ${query.substring(0, 50)}...`);
     
-    const memories = await findSimilarMemories(query, userId, { limit });
-    res.json({ memories });
+    try {
+      const memories = await findSimilarMemories(query, userId, { limit });
+      res.json({ memories });
+    } catch (innerError) {
+      log(`[API] 解析记忆结果失败: ${innerError}`);
+      // 提供更详细的错误信息，方便前端处理
+      res.status(500).json({ 
+        error: "解析记忆结果失败", 
+        details: utils.sanitizeErrorMessage(innerError),
+        message: "记忆文件处理过程中出现错误，请稍后再试"
+      });
+    }
   } catch (error) {
     log(`[API] 查找相似记忆出错: ${error}`);
     res.status(500).json({ error: utils.sanitizeErrorMessage(error) });

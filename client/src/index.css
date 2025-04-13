@@ -534,54 +534,111 @@
 }
 
 /* iPad专用样式修复 */
-@media (min-width: 768px) and (max-width: 1024px) and (-webkit-min-device-pixel-ratio: 2) {
-  /* iPad布局修复 */
-  .flex.h-screen {
+@media (min-width: 768px) and (max-width: 1366px) and (-webkit-min-device-pixel-ratio: 2) {
+  /* iPad布局修复 - 完全重写核心布局逻辑 */
+  body {
+    position: fixed !important; /* 防止整体页面滚动 */
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
     height: 100% !important;
-    min-height: 100vh !important;
-    max-height: 100vh !important;
-    display: flex !important;
-    flex-direction: column !important;
+    overflow: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
   }
   
-  /* 消除iPad上的黑色空白区域 */
+  /* 重写主容器布局 */
+  .flex.h-screen {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 100% !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+  
+  /* 消除背景溢出问题 */
   .bg-container {
     position: fixed !important;
-    inset: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
     z-index: -1 !important;
   }
   
-  /* 确保消息容器填充可用空间 */
-  .flex-1.flex.flex-col.relative {
-    flex: 1 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    height: auto !important;
-    min-height: 0 !important; /* 关键修复：允许容器缩小 */
-  }
-  
-  /* 确保根元素填充整个视口 */
-  html, body {
+  .bg-image {
+    object-fit: cover !important;
+    width: 100% !important;
     height: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important; /* 防止页面滚动 */
   }
   
-  /* 固定高度修复，确保底部输入区域不会漂浮 */
-  .vh-chat-input {
-    position: relative !important; /* iPad上使用相对定位 */
-    bottom: 0 !important;
+  /* 消息列表区域 - 使用绝对布局防止滚动问题 */
+  .flex-1.overflow-y-auto {
+    position: absolute !important;
+    top: 64px !important; /* 头部高度 */
     left: 0 !important;
     right: 0 !important;
-    margin-top: auto !important; /* 自动推到底部 */
+    bottom: 80px !important; /* 输入框高度 */
+    overflow-y: scroll !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 20px !important;
   }
   
-  /* 特殊处理iPad Pro */
-  @media (min-width: 1024px) and (max-height: 1366px) {
-    .flex.h-screen {
-      height: 100vh !important;
-    }
+  /* 修复聊天区域的滚动问题，使用绝对定位而不是flex布局 */
+  .flex-1.flex.flex-col.relative {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    overflow: hidden !important;
+  }
+  
+  /* 输入框固定在底部，不受键盘影响 */
+  .vh-chat-input,
+  .chat-input-area,
+  [class*="chat-input"] {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: auto !important;
+    z-index: 1000 !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
+    backdrop-filter: blur(10px) !important;
+    padding: 10px 16px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  /* 键盘弹出时的特殊处理 */
+  .keyboard-open .flex-1.overflow-y-auto,
+  .keyboard-focused .flex-1.overflow-y-auto {
+    bottom: 80px !important; /* 保持固定高度 */
+    padding-bottom: 40px !important; /* 增加底部空间 */
+  }
+  
+  /* 确保内容区域在键盘弹出后仍然可见 */
+  .keyboard-open .chat-message-container,
+  .keyboard-focused .chat-message-container {
+    margin-bottom: 0 !important;
+    padding-bottom: 80px !important;
+  }
+  
+  /* 覆盖iOS系统键盘行为 */
+  input, textarea {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
   }
 }
 
