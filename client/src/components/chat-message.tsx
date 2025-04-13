@@ -260,17 +260,35 @@ export function ChatMessage({
       });
   };
   
-  // 重新生成回答 - 增强错误处理和可靠性
+  // 重新生成回答 - 增强错误处理、视觉反馈和可靠性
   const handleRegenerate = async () => {
     if (!onRegenerate || isThinking) return;
     
     try {
-      // 无需检查消息ID是否存在，直接调用重新生成函数
-      // 父组件会处理ID不存在的情况，查找最后一条AI消息
-      console.log("重新生成请求 - 消息ID:", message.id || "未定义（将使用最后一条消息）");
+      // 先显示开始状态的提示，提高用户体验
+      console.log("重新生成请求开始 - 消息ID:", message.id || "未定义（将使用最后一条消息）");
+      
+      // 显示视觉提示
+      toast({
+        title: "开始重新生成回答",
+        description: "正在处理您的请求...",
+        duration: 3000,
+        className: "frosted-toast-info"
+      });
+      
+      // 修改本地状态表明正在重新生成
+      setIsLongPressing(true);
       
       // 无论是否有ID都传递给父组件
       await onRegenerate(message.id);
+      
+      // 重新生成完成后显示提示
+      toast({
+        title: "重新生成成功",
+        description: "AI已更新回答内容",
+        className: "frosted-toast-success",
+        duration: 3000
+      });
     } catch (error) {
       // 更友好的错误处理
       console.error("重新生成回答失败:", error);
@@ -283,6 +301,11 @@ export function ChatMessage({
         variant: "destructive",
         className: "frosted-toast-error" // 使用磨砂玻璃效果样式
       });
+    } finally {
+      // 无论成功失败，最后都需要重置状态
+      setTimeout(() => {
+        setIsLongPressing(false);
+      }, 500);
     }
   };
   
