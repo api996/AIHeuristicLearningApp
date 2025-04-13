@@ -162,7 +162,14 @@ class LearningMemoryService:
                     file_path = os.path.join(user_dir, filename)
                     try:
                         with open(file_path, 'r', encoding='utf-8') as f:
-                            memory = json.load(f)
+                            file_content = f.read().strip()
+                            if not file_content:
+                                print(f"文件为空: {filename}")
+                                continue
+                            
+                            # 正确引用外部作用域中的json模块
+                            import json as json_module  # 使用不同名称避免命名冲突
+                            memory = json_module.loads(file_content)
                             
                             # 添加文件名作为ID
                             if "id" not in memory:
@@ -189,7 +196,7 @@ class LearningMemoryService:
                                 try:
                                     print(f"更新文件 {filename} 添加缺失字段")
                                     with open(file_path, 'w', encoding='utf-8') as f_write:
-                                        json_str = json.dumps(memory, ensure_ascii=False)
+                                        json_str = json_module.dumps(memory, ensure_ascii=False)
                                         f_write.write(json_str)
                                 except Exception as e:
                                     print(f"更新文件时出错: {str(e)}")
