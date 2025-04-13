@@ -22,7 +22,7 @@ localPort = 5003
 externalPort = 3001
 
 [workflows]
-runButton = "更新记忆系统"
+runButton = "重启服务器"
 
 [[workflows.workflow]]
 name = "Project"
@@ -124,6 +124,10 @@ args = "kill $(lsof -t -i:3000) 2>/dev/null || true"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "kill $(lsof -t -i:5000) 2>/dev/null || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx update-browserslist-db@latest"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
