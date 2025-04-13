@@ -311,7 +311,8 @@ const AIChat: React.FC<AIChatProps> = ({
         toast({
           title: "重新生成失败",
           description: error instanceof Error ? error.message : "无法找到要重新生成的消息",
-          variant: "destructive"
+          variant: "destructive",
+          className: "frosted-toast-error" // 使用磨砂玻璃效果样式
         });
         return;
       }
@@ -352,7 +353,8 @@ const AIChat: React.FC<AIChatProps> = ({
       toast({
         title: "重新生成失败",
         description: error instanceof Error ? error.message : "无法重新生成回复",
-        variant: "destructive"
+        variant: "destructive",
+        className: "frosted-toast-error" // 使用磨砂玻璃效果样式
       });
     } finally {
       setIsLoading(false);
