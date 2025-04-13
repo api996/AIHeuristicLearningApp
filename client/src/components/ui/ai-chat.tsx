@@ -639,10 +639,12 @@ export function AIChat({ userData }: AIChatProps) {
     }
   };
   
-  // 完全重写：处理输入框获得焦点时的滚动行为 - 针对iOS增强处理
+  // 完全重写：处理输入框获得焦点时的滚动行为 - 针对iOS/iPad增强处理
   const handleInputFocus = () => {
-    // 判断设备类型
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // 判断设备类型 - 特别识别iPad
+    const isIOS = /iPhone|iPod/i.test(navigator.userAgent);
+    const isIPad = /iPad/i.test(navigator.userAgent) || 
+                   (/Macintosh/i.test(navigator.userAgent) && 'ontouchend' in document);
     const isAndroid = /Android/i.test(navigator.userAgent);
     
     // 找到最后一条消息并将其滚动到可见区域
@@ -653,8 +655,51 @@ export function AIChat({ userData }: AIChatProps) {
       // 添加键盘焦点状态类
       document.documentElement.classList.add('keyboard-focused');
       
-      // 特殊处理iOS设备
-      if (isIOS) {
+      // iPad专用处理
+      if (isIPad) {
+        // 立即应用iPad专用类
+        document.documentElement.classList.add('ipad-device');
+        
+        // 在iPad上使用不同的滚动策略
+        setTimeout(() => {
+          if (messagesContainerRef.current) {
+            // 使用更可靠的滚动方法
+            const lastMessage = messagesContainerRef.current.lastElementChild;
+            if (lastMessage) {
+              try {
+                // 先滚动到最底部
+                messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+                
+                // 设置聊天容器的高度为当前视口高度减去固定高度
+                const keyboardHeight = 300; // iPad键盘大约高度
+                const viewportHeight = window.visualViewport?.height || window.innerHeight;
+                const chatHeight = viewportHeight - 150; // 减去头部和底部
+                
+                // 设置容器最大高度为可用高度
+                messagesContainerRef.current.style.maxHeight = `${chatHeight}px`;
+                messagesContainerRef.current.style.height = `${chatHeight}px`;
+                
+                // 延迟执行第二次滚动，确保键盘完全显示
+                setTimeout(() => {
+                  // 重新滚动到底部
+                  messagesContainerRef.current?.scrollTo({
+                    top: messagesContainerRef.current.scrollHeight,
+                    behavior: 'auto'
+                  });
+                  
+                  // 消除可能的黑色空间
+                  document.body.scrollTop = 0;
+                  document.documentElement.scrollTop = 0;
+                }, 300);
+              } catch (err) {
+                console.error("iPad滚动调整失败:", err);
+              }
+            }
+          }
+        }, 100);
+      }
+      // iPhone设备处理
+      else if (isIOS) {
         // iOS键盘弹出时的特殊处理
         setTimeout(() => {
           // 为iOS特别优化 - 连续调整滚动位置确保消息可见
@@ -705,10 +750,36 @@ export function AIChat({ userData }: AIChatProps) {
     }
   };
   
-  // 新增：处理输入框失去焦点时的清理工作
+  // 增强：处理输入框失去焦点时的清理工作
   const handleInputBlur = () => {
     // 移除键盘焦点状态标记
     document.documentElement.classList.remove('keyboard-focused');
+    
+    // 延迟执行，确保点击其他UI元素时不会立即失去状态
+    setTimeout(() => {
+      // 检查是否真的失去了焦点（不是点击了页面其他输入元素）
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement && 
+                          (activeElement.tagName === 'INPUT' || 
+                           activeElement.tagName === 'TEXTAREA');
+                           
+      if (!isInputFocused) {
+        // 重置iPad设备标记
+        // 但保留其他设置，避免界面跳跃
+        // document.documentElement.classList.remove('ipad-device');
+        
+        // 恢复消息容器的正常滚动行为
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.style.maxHeight = '';
+          messagesContainerRef.current.style.height = '';
+          
+          // 滚动到最新消息
+          setTimeout(() => {
+            scrollToBottom(messagesContainerRef.current, true);
+          }, 100);
+        }
+      }
+    }, 100);
   };
 
   const toggleSidebar = () => {
