@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
@@ -404,7 +403,7 @@ div[role="dialog"] {
     opacity: 0;
     transition: all 0.3s;
   }
-  
+
   .auto-hide-scrollbar:hover::-webkit-scrollbar {
     width: 6px;
     opacity: 1;
@@ -567,14 +566,14 @@ div[role="dialog"] {
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
     padding-bottom: env(safe-area-inset-bottom, 8px) !important; /* 支持安全区域 */
   }
-  
+
   /* 键盘打开时，确保消息区域留有足够空间且内容可见 */
   .keyboard-open .chat-message-container {
     padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px)) !important;
     position: relative !important;
     top: 0 !important;
   }
-  
+
   /* 防止iOS中可输入元素缩放 */
   .keyboard-open textarea,
   .keyboard-open input[type="text"],
@@ -612,7 +611,7 @@ div[role="dialog"] {
     /* 添加平滑过渡效果 */
     transition: padding-bottom 0.3s ease;
   }
-  
+
   /* 让输入框在键盘上方正确位置 - 直接填充黑色空白区域 */
   .keyboard-open .chat-input-area,
   .keyboard-focused .chat-input-area {
@@ -629,7 +628,7 @@ div[role="dialog"] {
     /* 添加平滑过渡效果 */
     transition: transform 0.25s ease-out !important;
   }
-  
+
   /* 确保输入框背景与内容完全显示 */
   .keyboard-open .chat-input-container > div,
   .keyboard-focused .chat-input-container > div {
@@ -649,7 +648,7 @@ div[role="dialog"] {
     padding-bottom: 80px !important;
     margin-bottom: 0 !important;
   }
-  
+
   /* 确保输入区域始终定位在底部 */
   .keyboard-open .chat-input-area,
   .keyboard-focused .chat-input-area {
@@ -677,7 +676,7 @@ div[role="dialog"] {
     -webkit-overflow-scrolling: touch !important;
     -webkit-tap-highlight-color: transparent !important;
   }
-  
+
   /* 主容器重置 */
   #root {
     position: fixed !important;
@@ -688,7 +687,7 @@ div[role="dialog"] {
     height: 100% !important;
     overflow: hidden !important;
   }
-  
+
   /* 处理主容器布局 - 修复横向对齐问题 */
   .flex.h-screen {
     position: fixed !important; /* fixed替代absolute确保全屏铺满 */
@@ -707,7 +706,7 @@ div[role="dialog"] {
     justify-content: flex-start !important; /* 从左到右布局 */
     align-items: stretch !important; /* 子元素拉伸填满高度 */
   }
-  
+
   /* 修复左侧栏溢出问题 - 解决遮挡内容的问题 */
   .sidebar-container {
     position: absolute !important;
@@ -723,12 +722,12 @@ div[role="dialog"] {
     transition: transform 0.3s ease !important;
     flex-shrink: 0 !important; /* 确保不会被挤压 */
   }
-  
+
   /* 修复当侧边栏关闭时的问题 */
   .sidebar-container.hidden {
     transform: translateX(-100%) !important;
   }
-  
+
   /* 确保聊天内容区域正确定位，避免被侧边栏覆盖，解决右侧黑色空白问题 */
   .chat-content-area {
     position: absolute !important;
@@ -746,7 +745,7 @@ div[role="dialog"] {
     margin-left: 0 !important; /* 确保没有边距导致额外偏移 */
     transform: none !important; /* 防止变换导致偏移 */
   }
-  
+
   /* 当侧边栏隐藏时，聊天区域应占据全宽 */
   .sidebar-container.hidden + .chat-content-area,
   .lg\\:hidden + .chat-content-area {
@@ -754,7 +753,7 @@ div[role="dialog"] {
     width: 100% !important;
     max-width: 100% !important;
   }
-  
+
   /* 背景容器固定 */
   .bg-container {
     position: fixed !important;
@@ -766,18 +765,18 @@ div[role="dialog"] {
     height: 100% !important;
     z-index: -1 !important;
   }
-  
+
   .bg-image {
     object-fit: cover !important;
     width: 100% !important;
     height: 100% !important;
   }
-  
+
   /* 重置所有可能的滚动区域 */
   .overflow-auto, .overflow-y-auto, .overflow-scroll, .overflow-y-scroll {
     -webkit-overflow-scrolling: touch !important;
   }
-  
+
   /* 消息列表容器 - 使用绝对布局取代flex布局 */
   .flex-1.overflow-y-auto {
     position: absolute !important;
@@ -790,7 +789,7 @@ div[role="dialog"] {
     -webkit-overflow-scrolling: touch !important;
     padding-bottom: 20px !important;
   }
-  
+
   /* 聊天组件核心区域 */
   .flex-1.flex.flex-col.relative {
     position: absolute !important;
@@ -801,12 +800,12 @@ div[role="dialog"] {
     overflow: hidden !important;
     height: 100% !important;
   }
-  
+
   /* 聊天消息容器特殊处理 */
   .chat-message-container {
     padding-bottom: var(--content-bottom-padding, 80px) !important;
   }
-  
+
   /* 输入区域固定处理 */
   .vh-chat-input,
   .chat-input-area,
@@ -821,7 +820,7 @@ div[role="dialog"] {
     padding: 10px 16px !important;
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
   }
-  
+
   /* iPad特有标记时应用更特殊的规则 - 彻底简化iPad键盘处理 */
   .ipad-device.keyboard-open .chat-input-area {
     position: fixed !important;
@@ -838,7 +837,7 @@ div[role="dialog"] {
     animation: none !important;
     padding-bottom: env(safe-area-inset-bottom, 10px) !important;
   }
-  
+
   /* 输入框聚焦时特殊样式 - 确保输入框始终在视野内 */
   .ipad-device.keyboard-open .chat-input-area textarea:focus,
   .ipad-device.keyboard-focused .chat-input-area textarea:focus {
@@ -846,7 +845,7 @@ div[role="dialog"] {
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
     background-color: rgba(40, 40, 40, 0.95) !important;
   }
-  
+
   /* 输入框本身的样式增强 */
   .ipad-device.keyboard-open .chat-input-container,
   .ipad-device.keyboard-focused .chat-input-container {
@@ -856,7 +855,7 @@ div[role="dialog"] {
     background-color: rgba(30, 30, 30, 0.8) !important;
     border: 1px solid rgba(255, 255, 255, 0.15) !important;
   }
-  
+
   /* 键盘弹出时的消息容器调整 - 固定布局而非弹性布局 */
   .ipad-device.keyboard-open .flex-1.overflow-y-auto,
   .ipad-device.keyboard-focused .flex-1.overflow-y-auto {
@@ -870,7 +869,7 @@ div[role="dialog"] {
     -webkit-overflow-scrolling: touch !important;
     padding-bottom: 100px !important; /* 增加底部填充 */
   }
-  
+
   /* 针对iPad键盘特殊处理，确保滚动区域不被键盘遮挡 */
   @supports (-webkit-touch-callout: none) {
     /* iOS特有修复 */
@@ -881,7 +880,7 @@ div[role="dialog"] {
       position: fixed !important;
       overflow: hidden !important;
     }
-    
+
     /* 使用视口高度动态调整 */
     .ipad-device.keyboard-open .flex-1.overflow-y-auto,
     .ipad-device.keyboard-focused .flex-1.overflow-y-auto {
@@ -889,12 +888,12 @@ div[role="dialog"] {
       max-height: calc(var(--viewport-height, 100vh) - 144px) !important;
     }
   }
-  
+
   /* 消息样式修正 */
   .chat-message-item {
     max-width: 90% !important; /* iPad上略微减小最大宽度 */
   }
-  
+
   /* 覆盖iOS系统键盘行为 */
   input, textarea {
     -webkit-user-select: text !important;
@@ -943,4 +942,18 @@ div[role="dialog"] {
   border-radius: 12px !important;
   color: white !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 彻底移除消息阴影效果 - 优化性能关键 */
+div[class*="message-bubble"],
+div[class*="message-content"],
+div[class*="py-3 px-4 rounded-2xl"],
+.message-appear,
+.ai-message,
+.user-message {
+  box-shadow: none !important; /* 彻底移除所有消息相关元素的阴影 */
+  filter: none !important; /* 完全移除所有过滤器效果 */
+  text-shadow: none !important; /* 移除文本阴影 */
+  -webkit-box-shadow: none !important;
+  -moz-box-shadow: none !important;
 }

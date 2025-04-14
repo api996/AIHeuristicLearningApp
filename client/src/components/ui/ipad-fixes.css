@@ -63,6 +63,8 @@
     overflow: hidden !important;
     margin: 0 !important;
     padding: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
   }
   
   /* ===== 聊天消息容器样式 ===== */
@@ -76,15 +78,13 @@
     display: flex !important;
     flex-direction: column !important;
     padding-bottom: 120px !important; /* 为底部输入框留出空间 */
-    
-    /* 处理与侧边栏的关系 */
-    padding-left: 256px !important; /* 为侧边栏预留空间 */
+    padding-left: 0 !important; /* 移除左侧内边距 */
     box-sizing: border-box !important;
   }
 
-  /* 当侧边栏隐藏时重置内边距 */
-  .ipad-device .sidebar-container.hidden ~ .chat-content-area .chat-message-container,
-  .tablet-device .sidebar-container.hidden ~ .chat-content-area .chat-message-container {
+  /* 当侧边栏显示时设置正确的内容区域 */
+  .ipad-device .sidebar-container:not(.hidden) ~ .chat-content-area .chat-message-container,
+  .tablet-device .sidebar-container:not(.hidden) ~ .chat-content-area .chat-message-container {
     padding-left: 0 !important;
   }
   
@@ -133,17 +133,18 @@
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
     transition: all 0.3s ease !important;
     
-    /* 重要：添加内部内容容器左移以适应侧边栏 */
+    /* 居中布局 */
     display: flex !important;
     justify-content: center !important;
-    padding-left: 256px !important; /* 侧边栏宽度 */
+    padding-left: 0 !important; /* 移除左侧内边距 */
     box-sizing: border-box !important;
   }
   
-  /* 当侧边栏隐藏时，取消向左的偏移 */
-  .ipad-device .sidebar-container.hidden ~ .chat-content-area .chat-input-area,
-  .tablet-device .sidebar-container.hidden ~ .chat-content-area .chat-input-area {
-    padding-left: 0 !important;
+  /* 当侧边栏显示时正确调整输入区域 */
+  .ipad-device .sidebar-container:not(.hidden) ~ .chat-content-area .chat-input-area,
+  .tablet-device .sidebar-container:not(.hidden) ~ .chat-content-area .chat-input-area {
+    left: 256px !important; /* 侧边栏宽度 */
+    width: calc(100% - 256px) !important; /* 减去侧边栏宽度 */
   }
   
   /* 输入区域居中内容容器 - 与消息容器宽度一致 */
