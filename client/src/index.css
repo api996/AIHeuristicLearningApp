@@ -1048,7 +1048,6 @@ div[role="dialog"] {
     animation: none !important;
     padding-bottom: env(safe-area-inset-bottom, 10px) !important;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15) !important;
-  }
 
 /* 解决浅色模式下底部固定元素仍显示白色的问题 */
 :root.light .fixed.bottom-0,
@@ -1077,6 +1076,8 @@ html.light .chat-input-area,
   -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
   border-top: 1px solid rgba(190, 215, 250, 0.5) !important;
 }
+
+  }
 
   /* iPad浅色模式样式 */
   :root.light .ipad-device.keyboard-open .chat-input-area {
