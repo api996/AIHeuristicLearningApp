@@ -989,3 +989,30 @@ div[class*="py-3 px-4 rounded-2xl"],
 .message-content pre {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important; /* 保留代码块内部阴影 */
 }
+
+/* iPad和平板设备消息区统一右对齐 */
+.ipad-device .chat-message-container > div > div,
+.tablet-device .chat-message-container > div > div {
+  margin: 0 0 0.75rem auto !important; /* 统一对齐方式：顶底左右，从右开始 */
+  width: auto !important; /* 宽度自适应内容 */
+  max-width: 85% !important; /* 最大宽度限制 */
+}
+
+/* iPad设备用户和AI消息的特定样式 */
+.ipad-device .flex.flex-col,
+.tablet-device .flex.flex-col {
+  width: auto !important;
+  max-width: 100% !important;
+}
+
+/* 确保导航栏和头部容器在iPad上正确对齐 */
+.ipad-device header,
+.tablet-device header {
+  justify-content: flex-end !important; /* 从右开始对齐 */
+  padding-right: 16px !important; /* 保持与消息容器相同的右侧边距 */
+}
+
+.ipad-device header > div,
+.tablet-device header > div {
+  margin-right: 0 !important; /* 移除右侧自动外边距 */
+}

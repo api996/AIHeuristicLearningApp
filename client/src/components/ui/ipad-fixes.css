@@ -146,7 +146,7 @@
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
-  
+
   /* 保留气泡本身的磨砂效果 */
   .ipad-device .py-3.px-4.rounded-2xl,
   .tablet-device .py-3.px-4.rounded-2xl {
@@ -260,3 +260,25 @@
     padding: 0 24px !important;
   }
 }
+
+/* ===== 头部调整 - 改为右对齐 ===== */
+  .ipad-device header,
+  .tablet-device header,
+  .ipad-device header.h-16,
+  .tablet-device header.h-16 {
+    height: 56px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: flex-end !important; /* 从右侧开始对齐 */
+  }
+
+  /* 头部内容容器右对齐 */
+  .ipad-device header > div,
+  .tablet-device header > div {
+    width: 100% !important;
+    max-width: 700px !important;
+    margin-left: auto !important; /* 左侧自动，实现右对齐 */
+    margin-right: 0 !important; /* 右侧不留间距 */
+  }
