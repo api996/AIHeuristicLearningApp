@@ -944,16 +944,33 @@ div[role="dialog"] {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* 彻底移除消息阴影效果 - 优化性能关键 */
+/* 彻底移除消息外部阴影效果 - 优化性能关键 */
 div[class*="message-bubble"],
 div[class*="message-content"],
 div[class*="py-3 px-4 rounded-2xl"],
 .message-appear,
 .ai-message,
-.user-message {
+.user-message,
+.message-shadow,
+.chat-message-container > div > div,
+.chat-message-item,
+.chat-message,
+div[class*="chat-message-"],
+div[class*="message-wrapper"],
+div[class*="flex flex-col"] > div,
+div[class*="w-full mx-auto"],
+div[class*="flex items-start"] {
   box-shadow: none !important; /* 彻底移除所有消息相关元素的阴影 */
   filter: none !important; /* 完全移除所有过滤器效果 */
   text-shadow: none !important; /* 移除文本阴影 */
   -webkit-box-shadow: none !important;
   -moz-box-shadow: none !important;
+  background-clip: padding-box !important; /* 防止背景溢出到边框外 */
+}
+
+/* 保留消息气泡内部的适当阴影 */
+.message-content .prose pre,
+.message-content code,
+.message-content pre {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important; /* 保留代码块内部阴影 */
 }

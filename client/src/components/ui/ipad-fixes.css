@@ -22,7 +22,7 @@
     right: 0 !important;
     bottom: 0 !important;
   }
-  
+
   /* 主容器布局结构 - 使用二栏布局grid */
   .ipad-device .flex.h-screen,
   .tablet-device .flex.h-screen {
@@ -36,7 +36,7 @@
     padding: 0 !important;
     overflow: hidden !important;
   }
-  
+
   /* ===== 侧边栏样式 ===== */
   /* 侧边栏容器 - 完全流体布局 */
   .ipad-device .sidebar-container,
@@ -50,7 +50,7 @@
     max-width: 256px !important;
     z-index: 40 !important;
   }
-  
+
   /* ===== 主内容区域样式 ===== */
   /* 主内容容器 - 完全流体布局 */
   .ipad-device .chat-content-area,
@@ -66,7 +66,7 @@
     left: 0 !important;
     right: 0 !important;
   }
-  
+
   /* ===== 聊天消息容器样式 ===== */
   /* 聊天消息外层容器 - 流体布局 - 完全改进版 */
   .ipad-device .chat-message-container,
@@ -87,7 +87,7 @@
   .tablet-device .sidebar-container:not(.hidden) ~ .chat-content-area .chat-message-container {
     padding-left: 0 !important;
   }
-  
+
   /* 内容真正居中的容器 - 改进版 */
   .ipad-device .chat-message-container > div,
   .tablet-device .chat-message-container > div {
@@ -97,7 +97,7 @@
     margin-right: auto !important;
     padding: 0 !important; /* 移除内边距，由子元素控制 */
   }
-  
+
   /* 消息区域滚动容器 */
   .ipad-device .vh-chat-messages,
   .tablet-device .vh-chat-messages {
@@ -106,16 +106,35 @@
     flex-direction: column !important;
     align-items: center !important;
   }
-  
+
   /* 每条消息容器 - 设置合理的最大宽度 */
   .ipad-device .message-appear,
-  .tablet-device .message-appear {
+  .tablet-device .message-appear,
+  .ipad-device .chat-message-item,
+  .tablet-device .chat-message-item,
+  .ipad-device .chat-message-container > div > div,
+  .tablet-device .chat-message-container > div > div {
     width: 100% !important;
     max-width: 85% !important; /* 限制宽度使消息更集中 */
     margin-left: auto !important;
     margin-right: auto !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    filter: none !important;
+    background-image: none !important; /* 防止背景图像造成阴影效果 */
   }
-  
+
+  /* 消息外层容器阴影清除 - 修复外部方形阴影问题 */
+  .ipad-device [class*="flex items-start"],
+  .tablet-device [class*="flex items-start"],
+  .ipad-device [class*="chat-message-wrapper"],
+  .tablet-device [class*="chat-message-wrapper"] {
+    box-shadow: none !important;
+    background-image: none !important;
+    filter: none !important;
+  }
+
+
   /* ===== 改进聊天输入区样式 ===== */
   /* 输入区域容器 - 核心修复：完全重写，不再使用固定偏移 */
   .ipad-device .chat-input-area,
@@ -132,21 +151,21 @@
     -webkit-backdrop-filter: blur(15px) !important;
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
     transition: all 0.3s ease !important;
-    
+
     /* 居中布局 */
     display: flex !important;
     justify-content: center !important;
     padding-left: 0 !important; /* 移除左侧内边距 */
     box-sizing: border-box !important;
   }
-  
+
   /* 当侧边栏显示时正确调整输入区域 */
   .ipad-device .sidebar-container:not(.hidden) ~ .chat-content-area .chat-input-area,
   .tablet-device .sidebar-container:not(.hidden) ~ .chat-content-area .chat-input-area {
     left: 256px !important; /* 侧边栏宽度 */
     width: calc(100% - 256px) !important; /* 减去侧边栏宽度 */
   }
-  
+
   /* 输入区域居中内容容器 - 与消息容器宽度一致 */
   .ipad-device .chat-input-area > div,
   .tablet-device .chat-input-area > div {
@@ -154,7 +173,7 @@
     width: 100% !important;
     padding: 0 !important;
   }
-  
+
   /* 键盘打开时的特殊处理 - 非常重要！ */
   .ipad-device.keyboard-open .chat-input-area,
   .tablet-device.keyboard-open .chat-input-area {
@@ -168,7 +187,7 @@
     left: 0 !important;
     right: 0 !important;
   }
-  
+
   /* 美化输入框外观 */
   .ipad-device .chat-input-area .relative.rounded-xl,
   .tablet-device .chat-input-area .relative.rounded-xl {
@@ -177,7 +196,7 @@
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     overflow: hidden !important;
   }
-  
+
   /* 发送按钮美化 */
   .ipad-device .chat-input-area button[class*="rounded-full"],
   .tablet-device .chat-input-area button[class*="rounded-full"] {
@@ -196,7 +215,7 @@
   .tablet-device .chat-input-area > div {
     max-width: 800px !important; /* 更大屏幕允许更宽的内容 */
   }
-  
+
   .ipad-device .message-appear,
   .tablet-device .message-appear {
     max-width: 80% !important; /* 在大屏上可以稍微窄一点 */
