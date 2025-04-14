@@ -16,6 +16,20 @@
     align-items: center !important; /* 内容水平居中 */
   }
   
+  /* 确保iPad上的内容居中并向右偏移 */
+  .ipad-device .flex.h-screen,
+  .tablet-device .flex.h-screen {
+    justify-content: flex-start !important; /* 确保左右对齐正确 */
+  }
+  
+  /* iPad上的聊天内容容器特别处理 */
+  .ipad-device .chat-content-area,
+  .tablet-device .chat-content-area {
+    left: 270px !important; /* 比侧边栏宽度多一些，向右推移 */
+    width: calc(100% - 270px) !important; /* 相应调整宽度 */
+    max-width: calc(100% - 270px) !important;
+  }
+  
   /* 改进布局：使内容更加居中 - 仅限iPad和平板设备 */
   .ipad-device .chat-message-container,
   .tablet-device .chat-message-container {
@@ -48,9 +62,9 @@
   /* 优化聊天输入框位置 - 仅限iPad和平板设备 */
   .ipad-device .chat-input-area,
   .tablet-device .chat-input-area {
-    width: calc(100% - 256px) !important; /* 减去侧边栏宽度 */
+    width: calc(100% - 270px) !important; /* 减去侧边栏宽度 */
     right: 0 !important;
-    left: 256px !important; /* 与侧边栏宽度相等 */
+    left: 270px !important; /* 与侧边栏宽度相等，保持跟内容区域左侧对齐 */
   }
   
   /* 当键盘打开时调整 - 仅限iPad和平板设备 */
@@ -68,9 +82,12 @@
   .ipad-device .ipad-chat-content,
   .tablet-device .ipad-chat-content {
     position: absolute !important;
-    left: 256px !important; /* 与侧边栏宽度相等 */
+    left: 270px !important; /* 保持与普通iPad一致，向右偏移 */
     right: 0 !important;
-    width: calc(100% - 256px) !important;
+    width: calc(100% - 270px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important; /* 内容居中 */
   }
   
   /* iPad Pro消息区域调整 */
@@ -86,9 +103,9 @@
   /* iPad Pro输入区域调整 */
   .ipad-device .chat-input-area,
   .tablet-device .chat-input-area {
-    width: calc(100% - 256px) !important;
+    width: calc(100% - 270px) !important;
     right: 0 !important;
-    left: 256px !important;
+    left: 270px !important;
   }
 }
 
