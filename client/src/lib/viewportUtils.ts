@@ -74,10 +74,10 @@ export function updateViewportHeight(): void {
   const heightDifference = windowHeight - viewportHeight;
   
   // 获取更精确的焦点状态
-  const isInputFocused = document.activeElement && 
+  const isInputFocused = Boolean(document.activeElement && 
                         (document.activeElement.tagName === 'INPUT' || 
                          document.activeElement.tagName === 'TEXTAREA' ||
-                         (document.activeElement as HTMLElement).getAttribute('contenteditable') === 'true');
+                         (document.activeElement as HTMLElement).getAttribute('contenteditable') === 'true'));
   
   // 计算相对原始窗口高度的百分比变化
   // 这对于判断键盘状态非常有效
@@ -93,8 +93,14 @@ export function updateViewportHeight(): void {
     const isPadPortrait = window.matchMedia("(orientation: portrait)").matches;
     const padThreshold = isPadPortrait ? 15 : 10; // 竖屏和横屏阈值不同
     
+    if (isInputFocused) {
+      console.log("键盘打开，应用特殊布局");
+    } else {
+      console.log("键盘关闭，恢复正常布局");
+    }
+    
     // 结合多个信号提高检测准确性
-    isKeyboardVisible = isInputFocused && (
+    isKeyboardVisible = Boolean(isInputFocused && (
       // 1. 检测明显的高度变化
       heightChangePercent > padThreshold ||
       // 2. 检测视口偏移 - iPad特有
@@ -102,16 +108,16 @@ export function updateViewportHeight(): void {
       // 3. 结合设备方向的额外判断
       (isPadPortrait && heightDifference > 200) || 
       (!isPadPortrait && heightDifference > 100)
-    );
+    ));
   } else if (isIOS) {
     // iPhone检测逻辑
-    isKeyboardVisible = isInputFocused && (
+    isKeyboardVisible = Boolean(isInputFocused && (
       heightChangePercent > 20 || // iPhone高度变化通常更大
       window.visualViewport.offsetTop > 10  // iPhone视窗通常会明显上移
-    );
+    ));
   } else {
     // Android等其他设备
-    isKeyboardVisible = isInputFocused && heightChangePercent > 20;
+    isKeyboardVisible = Boolean(isInputFocused && heightChangePercent > 20);
   }
   
   // 动态计算键盘高度以供CSS使用

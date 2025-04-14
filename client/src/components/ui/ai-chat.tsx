@@ -1323,8 +1323,8 @@ export function AIChat({ userData }: AIChatProps) {
                   overscrollBehavior: 'contain'
                 }}
               >
-                {/* 消息列表 - 使用flex布局实现自适应居中 */}
-                <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 flex flex-col gap-4 items-center pb-24">
+                {/* 消息列表 - 使用flex布局实现自适应居中 - 减小宽度更集中 */}
+                <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8 flex flex-col gap-4 items-center pb-24">
                   {messages.map((msg, i) => (
                     <ChatMessage 
                       key={i} 
@@ -1353,7 +1353,7 @@ export function AIChat({ userData }: AIChatProps) {
           chat-input-area chat-input-container fixed bottom-0 left-0 right-0 pb-4 pt-2 z-20 
           ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}
         `}>
-          <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8">
+          <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
               <Button
