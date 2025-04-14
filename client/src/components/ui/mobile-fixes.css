@@ -93,12 +93,30 @@
     margin-bottom: 0 !important;
   }
   
-  /* 手机设备键盘打开时固定输入框位置 */
+  /* 手机设备键盘打开时固定输入框位置 - 统一样式 */
   .mobile-device.keyboard-open .chat-input-area {
     position: fixed !important;
     bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
     transform: none !important;
     z-index: 100 !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 8px 10px !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.2s ease-out !important;
+  }
+  
+  /* 浅色模式下键盘弹出时的输入区域样式 */
+  :root.light .mobile-device.keyboard-open .chat-input-area {
+    background-color: rgba(230, 242, 255, 0.85) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
+    border-top: 1px solid rgba(190, 215, 250, 0.5) !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05) !important;
   }
   
   /* 防止iOS中的视觉异常 */
@@ -106,6 +124,21 @@
   .mobile-device.keyboard-open html {
     height: 100% !important;
     overflow: hidden !important;
+  }
+  
+  /* 美化输入框容器 - 统一键盘打开和关闭时的样式 */
+  .mobile-device.keyboard-open .chat-input-container {
+    padding: 8px 10px !important;
+    border-radius: 12px !important;
+    background: rgba(30, 30, 35, 0.5) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    margin: 0 !important;
+  }
+  
+  /* 浅色模式下的输入框容器样式 */
+  :root.light .mobile-device.keyboard-open .chat-input-container {
+    background: rgba(240, 248, 255, 0.7) !important;
+    border: 1px solid rgba(200, 225, 255, 0.4) !important;
   }
 }
 
