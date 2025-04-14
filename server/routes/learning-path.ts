@@ -9,7 +9,7 @@ import {
   generateSuggestions,
   clusterMemories
 } from '../services/learning';
-import { memoryService, StorageMode } from '../services/learning/memory_service';
+import { memoryService, StorageMode, MemoryItem } from '../services/learning/memory_service';
 import { log } from '../vite';
 import { utils } from '../utils';
 
@@ -190,8 +190,18 @@ router.get('/:userId/clusters', async (req, res) => {
     
     log(`[API] 获取用户 ${userId} 的记忆聚类`);
     
-    // 执行聚类
-    const clusters = await clusterMemories(memories, {
+    // 执行聚类 - 转换为符合Memory接口的对象
+    const memoryObjects = memories.map(memory => ({
+      id: memory.id || '',
+      content: memory.content,
+      type: memory.type,
+      timestamp: memory.timestamp,  // 保持字符串格式
+      summary: memory.summary,
+      keywords: memory.keywords || [],
+      userId: memory.userId || userId, // 确保有userId
+    }));
+    
+    const clusters = await clusterMemories(memoryObjects, {
       maxClusters,
       minSimilarity,
       algorithm

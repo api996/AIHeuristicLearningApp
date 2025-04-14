@@ -5,7 +5,19 @@
 
 import { spawn } from 'child_process';
 import { log } from '../../vite';
-import { dbMemoryAdapter, MemoryItem } from './db_memory_adapter_fixed';
+import { dbMemoryAdapter } from './db_memory_adapter';
+
+// 定义MemoryItem接口
+export interface MemoryItem {
+  id?: string;
+  content: string;
+  type: string;
+  timestamp: string;
+  embedding?: number[];
+  summary?: string;
+  keywords?: string[];
+  userId?: number; // 添加userId字段以兼容clusterMemories的需求
+}
 
 // 存储模式枚举
 export enum StorageMode {
