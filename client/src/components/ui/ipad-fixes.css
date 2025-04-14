@@ -30,16 +30,18 @@
     max-width: calc(100% - 270px) !important;
   }
   
-  /* 改进布局：使内容更加居中 - 仅限iPad和平板设备 */
+  /* 改进布局：使内容更加居中和右侧偏移 - 仅限iPad和平板设备 */
   .ipad-device .chat-message-container,
   .tablet-device .chat-message-container {
-    padding-left: 40px !important; /* 大幅增加左侧填充 */
-    padding-right: 40px !important; /* 保持两侧对称 */
+    padding-left: 80px !important; /* 大幅增加左侧填充来推动内容向右 */
+    padding-right: 40px !important; /* 保持右侧空间 */
     width: 92% !important; /* 稍微缩小宽度 */
     max-width: 800px !important; /* 设置最大宽度避免在大屏幕上过宽 */
     margin-left: auto !important;
     margin-right: auto !important;
-    /* 添加调试边框
+    position: relative !important; 
+    left: 30px !important; /* 向右整体偏移 */
+    /* 添加调试边框 
     border: 1px solid rgba(255, 0, 0, 0.1) !important; */
   }
   
@@ -93,11 +95,13 @@
   /* iPad Pro消息区域调整 */
   .ipad-device .chat-message-container,
   .tablet-device .chat-message-container {
-    padding-left: 40px !important; /* 更大的左侧填充，解决靠左问题 */
-    padding-right: 48px !important; /* 提供更多右侧空间 */
+    padding-left: 100px !important; /* 大幅增加左侧填充，解决靠左问题 */
+    padding-right: 60px !important; /* 提供更多右侧空间 */
     max-width: 1000px !important;
     margin-left: auto !important;
     margin-right: auto !important;
+    position: relative !important;
+    left: 50px !important; /* 向右整体偏移更多 */
   }
   
   /* iPad Pro输入区域调整 */
