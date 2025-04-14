@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
 import { setupViewportHeightListeners, scrollToBottom, isNearBottom } from "@/lib/viewportUtils";
+import "./ipad-fixes.css"; // 导入iPad专用修复样式
+import "./mobile-fixes.css"; // 导入手机设备专用修复样式
 import { useLocation } from "wouter";
 import {
   Search,
@@ -40,8 +42,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 type Message = {
-  role: "user" | "assistant";
-  content: string;
+  id?: number;                    // 消息ID，用于操作特定消息
+  role: "user" | "assistant";     // 消息角色
+  content: string;                // 消息内容
+  isRegenerating?: boolean;       // 标记消息是否正在重新生成
+  feedback?: "like" | "dislike";  // 消息反馈
+  created_at?: string;            // 创建时间
+  is_edited?: boolean;            // 是否已编辑
+  chat_id?: number;               // 所属对话ID
 };
 
 type Model = "search" | "deep" | "gemini" | "deepseek" | "grok";
@@ -641,19 +649,13 @@ export function AIChat({ userData }: AIChatProps) {
   
   // 完全简化：处理输入框获得焦点时的滚动行为 - 针对iOS/iPad直接使用CSS实现
   const handleInputFocus = () => {
-    // 判断设备类型 - 特别识别iPad
-    const isIOS = /iPhone|iPod/i.test(navigator.userAgent);
-    const isIPad = /iPad/i.test(navigator.userAgent) || 
-                   (/Macintosh/i.test(navigator.userAgent) && 'ontouchend' in document);
-    const isAndroid = /Android/i.test(navigator.userAgent);
+    // 使用新的设备检测函数，获取多种设备类型
+    const deviceTypes = detectDeviceType();
     
-    // 标记设备类型，让CSS处理定位
-    if (isIPad) {
-      document.documentElement.classList.add('ipad-device');
-    }
-    
-    // 标记键盘状态
+    // 标记键盘状态 - 所有设备通用
     document.documentElement.classList.add('keyboard-open');
+    document.body.classList.add('keyboard-open');
+    console.log("键盘打开，应用特殊布局");
     
     // 强制重置页面滚动位置
     window.scrollTo(0, 0);
@@ -680,6 +682,8 @@ export function AIChat({ userData }: AIChatProps) {
       if (!isInputFocused) {
         // 移除键盘焦点状态标记
         document.documentElement.classList.remove('keyboard-open');
+        document.body.classList.remove('keyboard-open');
+        console.log("键盘关闭，恢复正常布局");
         
         // 重置页面滚动
         window.scrollTo(0, 0);
@@ -885,6 +889,38 @@ export function AIChat({ userData }: AIChatProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 文件类型验证
+    const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!validImageTypes.includes(file.type)) {
+      toast({
+        title: "文件类型错误",
+        description: "请上传有效的图片文件（JPEG, PNG, GIF, WEBP, SVG）",
+        variant: "destructive",
+        className: "frosted-toast-error",
+      });
+      
+      if (backgroundInputRef.current) {
+        backgroundInputRef.current.value = '';
+      }
+      return;
+    }
+
+    // 文件大小验证（限制为15MB）
+    const maxSize = 15 * 1024 * 1024; // 15MB
+    if (file.size > maxSize) {
+      toast({
+        title: "文件过大",
+        description: "图片大小不能超过15MB",
+        variant: "destructive",
+        className: "frosted-toast-error",
+      });
+      
+      if (backgroundInputRef.current) {
+        backgroundInputRef.current.value = '';
+      }
+      return;
+    }
+
     try {
       const base64Image = await readFileAsBase64(file);
 
@@ -897,7 +933,11 @@ export function AIChat({ userData }: AIChatProps) {
       toast({
         title: "背景已更新",
         description: "您的自定义背景已成功设置",
+        className: "frosted-toast-success",
       });
+      
+      // 关闭偏好设置对话框
+      setShowPreferencesDialog(false);
     } catch (error) {
       console.error("背景图片上传失败:", error);
       toast({
@@ -1071,6 +1111,103 @@ export function AIChat({ userData }: AIChatProps) {
   };
 
 
+  // 改进的设备检测函数 - 检测多种设备类型
+  const detectDeviceType = () => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    
+    // 创建更完整的设备检测逻辑
+    const deviceTypes = {
+      // iPad 检测 - iPad + 平板标准检测规则 + MacOS触屏设备（新iPad Pro）
+      isIPad: /ipad/.test(userAgent) || 
+              ((/tablet|ipad|playbook|silk|android(?!.*mobile)/i.test(userAgent)) ||
+              (/macintosh/.test(userAgent) && 'ontouchend' in document)),
+      
+      // iPhone和iPod检测
+      isIPhone: /iphone|ipod/i.test(userAgent),
+      
+      // 安卓手机检测
+      isAndroidPhone: /android.*mobile/i.test(userAgent),
+      
+      // 安卓平板检测
+      isAndroidTablet: /android/i.test(userAgent) && !/mobile/i.test(userAgent),
+      
+      // 通用手机检测（包括所有手机设备）
+      isMobile: /iphone|ipod|android.*mobile|windows.*phone|blackberry/i.test(userAgent),
+      
+      // 通用平板检测（所有平板设备）
+      isTablet: /ipad|android(?!.*mobile)|tablet|playbook|silk/i.test(userAgent) || 
+                (/macintosh/.test(userAgent) && 'ontouchend' in document)
+    };
+    
+    return deviceTypes;
+  };
+
+  // 判断当前屏幕方向
+  const getOrientation = () => {
+    return window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+  };
+
+  // 在组件挂载时添加设备类型标识
+  useEffect(() => {
+    const deviceTypes = detectDeviceType();
+    const orientation = getOrientation();
+    const root = document.documentElement;
+    const body = document.body;
+    
+    // 移除所有可能的设备类型标记，避免冲突
+    root.classList.remove('ipad-device', 'iphone-device', 'android-device', 'mobile-device', 'tablet-device');
+    body.classList.remove('ipad-device', 'iphone-device', 'android-device', 'mobile-device', 'tablet-device');
+    
+    // 标记当前设备类型
+    if (deviceTypes.isIPad) {
+      root.classList.add('ipad-device', 'tablet-device');
+      body.classList.add('ipad-device', 'tablet-device');
+      console.log("检测到iPad设备，应用iPad布局优化");
+    } else if (deviceTypes.isIPhone) {
+      root.classList.add('iphone-device', 'mobile-device');
+      body.classList.add('iphone-device', 'mobile-device');
+      console.log("检测到iPhone设备，应用移动布局优化");
+    } else if (deviceTypes.isAndroidPhone) {
+      root.classList.add('android-device', 'mobile-device');
+      body.classList.add('android-device', 'mobile-device');
+      console.log("检测到Android手机，应用移动布局优化");
+    } else if (deviceTypes.isAndroidTablet) {
+      root.classList.add('android-tablet', 'tablet-device');
+      body.classList.add('android-tablet', 'tablet-device');
+      console.log("检测到Android平板，应用平板布局优化");
+    }
+    
+    // 标记屏幕方向
+    if (orientation === 'landscape') {
+      root.classList.add('landscape');
+      root.classList.remove('portrait');
+    } else {
+      root.classList.add('portrait');
+      root.classList.remove('landscape');
+    }
+    
+    // 添加屏幕方向变化监听
+    const handleOrientationChange = () => {
+      const newOrientation = getOrientation();
+      if (newOrientation === 'landscape') {
+        root.classList.add('landscape');
+        root.classList.remove('portrait');
+      } else {
+        root.classList.add('portrait');
+        root.classList.remove('landscape');
+      }
+    };
+    
+    window.addEventListener('resize', handleOrientationChange);
+    
+    return () => {
+      // 清理所有类名和事件监听
+      root.classList.remove('ipad-device', 'iphone-device', 'android-device', 'mobile-device', 'tablet-device', 'landscape', 'portrait');
+      body.classList.remove('ipad-device', 'iphone-device', 'android-device', 'mobile-device', 'tablet-device');
+      window.removeEventListener('resize', handleOrientationChange);
+    };
+  }, []);
+  
   return (
     <div className="flex h-screen text-white relative" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
       {/* 背景图片容器 */}
@@ -1080,7 +1217,7 @@ export function AIChat({ userData }: AIChatProps) {
         </div>
       )}
 
-      {/* 背景图片上传按钮 */}
+      {/* 背景图片上传输入框（隐藏，通过偏好设置触发） */}
       <input
         type="file"
         ref={backgroundInputRef}
@@ -1089,13 +1226,6 @@ export function AIChat({ userData }: AIChatProps) {
         className="hidden"
         id="background-upload"
       />
-      <label 
-        htmlFor="background-upload" 
-        className="bg-upload-btn"
-        title="上传背景图片"
-      >
-        <ImageIcon className="h-5 w-5 text-white opacity-70" />
-      </label>
 
       {/* 轻微的全局透明效果，不使用磨砂玻璃效果在背景图片上 */}
       <div className="absolute inset-0 z-0 bg-black bg-opacity-20"></div>
@@ -1135,8 +1265,8 @@ export function AIChat({ userData }: AIChatProps) {
         />
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col relative chat-content-area w-full">
+      {/* Main Content - 添加iPad优化类 */}
+      <div className="flex-1 flex flex-col relative chat-content-area w-full ipad-chat-content">
         {/* Header - 苹果风格磨砂透明 */}
         <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${theme === 'dark' ? 'frosted-glass-dark border-neutral-800' : 'frosted-glass border-neutral-200/20'}`}>
           <div className="flex items-center">
@@ -1189,58 +1319,70 @@ export function AIChat({ userData }: AIChatProps) {
           </div>
         </header>
 
-        {/* 聊天消息容器 - 使用特定的类名便于CSS选择器定位 - 减小底部padding */}
-        <div className={"flex-1 flex flex-col p-4 sm:p-6 md:p-8 pb-20 overflow-y-auto chat-message-container " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
-          {messages.length === 0 ? (
-            // 欢迎页面 - 垂直居中不需要滚动，完全隐藏滚动条
-            <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
-              <div className="space-y-3">
-                <div className="flex justify-center">
-                  <div className="p-4 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-600/20">
-                    <Brain size={28} className="text-blue-400" />
+        {/* 聊天消息容器 - 优化的响应式居中布局 */}
+        <div className={`
+          flex-1 w-full overflow-y-auto chat-message-container 
+          ${messages.length === 0 ? 'hide-empty-scrollbar' : ''}
+        `}>
+          {/* 创建一个真正居中的内容容器 */}
+          <div className="w-full mx-auto flex-1 flex flex-col">
+            {messages.length === 0 ? (
+              // 欢迎页面 - 垂直居中不需要滚动
+              <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
+                <div className="space-y-4">
+                  <div className="flex justify-center">
+                    <div className="p-5 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-600/20">
+                      <Brain size={32} className="text-blue-400" />
+                    </div>
                   </div>
+                  <h3 className="text-xl font-semibold text-white">{greetingMessage}</h3>
+                  <p className="max-w-md text-sm text-neutral-400">
+                    与AI开始交谈，探索不同学习模型
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold text-white">{greetingMessage}</h3>
-                <p className="max-w-md text-sm text-neutral-400">
-                  与AI开始交谈，探索不同学习模型
-                </p>
               </div>
-            </div>
-          ) : (
-            // 有消息时显示滚动区域 - 优化滚动体验与空间
-            <div 
-              ref={messagesContainerRef}
-              className="w-full flex-1 flex flex-col gap-4 py-1 overflow-y-auto vh-chat-messages"
-              style={{ 
-                scrollBehavior: 'smooth',
-                WebkitOverflowScrolling: 'touch',
-                overscrollBehavior: 'contain'
-              }}
-            >
-              {messages.map((msg, i) => (
-                <ChatMessage 
-                  key={i} 
-                  message={msg} 
-                  isThinking={isLoading && i === messages.length - 1 && msg.role === "assistant"}
-                  onEdit={handleEditMessage}
-                  onRegenerate={handleRegenerateMessage}
-                  onFeedback={handleMessageFeedback}
-                />
-              ))}
-              {/* 如果正在等待AI响应，且最后一条是用户消息，显示思考中的占位消息 */}
-              {isLoading && messages[messages.length - 1]?.role === "user" && (
-                <ChatMessage 
-                  message={{ role: "assistant", content: "" }} 
-                  isThinking={true} 
-                />
-              )}
-            </div>
-          )}
+            ) : (
+              // 有消息时显示滚动区域 - 优化滚动体验与空间
+              <div 
+                ref={messagesContainerRef}
+                className="w-full flex-1 flex flex-col gap-4 py-4 overflow-y-auto vh-chat-messages"
+                style={{ 
+                  scrollBehavior: 'smooth',
+                  WebkitOverflowScrolling: 'touch',
+                  overscrollBehavior: 'contain'
+                }}
+              >
+                {/* 消息列表 - 使用flex布局实现自适应居中 - 减小宽度更集中 */}
+                <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8 flex flex-col gap-4 items-center pb-24">
+                  {messages.map((msg, i) => (
+                    <ChatMessage 
+                      key={i} 
+                      message={msg} 
+                      isThinking={isLoading && i === messages.length - 1 && msg.role === "assistant"}
+                      onEdit={handleEditMessage}
+                      onRegenerate={handleRegenerateMessage}
+                      onFeedback={handleMessageFeedback}
+                    />
+                  ))}
+                  {/* 如果正在等待AI响应，且最后一条是用户消息，显示思考中的占位消息 */}
+                  {isLoading && messages[messages.length - 1]?.role === "user" && (
+                    <ChatMessage 
+                      message={{ role: "assistant", content: "" }} 
+                      isThinking={true} 
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Input Area - 添加chat-input-container类便于CSS处理键盘状态 */}
-        <div className={"chat-input-area chat-input-container fixed bottom-0 left-0 right-0 pb-4 pt-2 px-2 z-20 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
-          <div className="max-w-3xl mx-auto px-2 sm:px-4">
+        {/* 输入区域 - 采用响应式居中布局 */}
+        <div className={`
+          chat-input-area chat-input-container fixed bottom-0 left-0 right-0 pb-4 pt-2 z-20 
+          ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}
+        `}>
+          <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
               <Button
@@ -1320,7 +1462,12 @@ export function AIChat({ userData }: AIChatProps) {
             )}
 
             {/* 输入框区域 - 苹果风格磨砂玻璃效果 */}
-            <div className={"relative rounded-xl border shadow-lg " + (theme === 'dark' ? 'border-neutral-700/50 bg-neutral-800/30 backdrop-blur-md' : 'border-neutral-300/20 bg-white/30 backdrop-blur-md')}>
+            <div className={`
+              relative rounded-xl border shadow-lg overflow-hidden
+              ${theme === 'dark' 
+                ? 'border-blue-700/20 bg-neutral-900/70 backdrop-blur-lg' 
+                : 'border-blue-300/20 bg-white/70 backdrop-blur-lg'}
+            `}>
               <div className="flex items-end">
                 <div className="flex-1 relative">
                   <textarea
@@ -1331,14 +1478,14 @@ export function AIChat({ userData }: AIChatProps) {
                     onBlur={handleInputBlur}
                     placeholder="输入消息..."
                     disabled={isLoading}
-                    className="w-full h-[50px] min-h-[50px] max-h-[150px] py-3 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-[16px]"
+                    className="w-full h-[54px] min-h-[54px] max-h-[150px] py-4 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-[16px]"
                     style={{
                       WebkitAppearance: 'none',
                       MozAppearance: 'none',
                       appearance: 'none',
                       WebkitUserSelect: 'text',
                       userSelect: 'text',
-                      caretColor: 'white'
+                      caretColor: theme === 'dark' ? 'white' : '#1c1e24'
                     }}
                   />
                   <input
@@ -1351,16 +1498,29 @@ export function AIChat({ userData }: AIChatProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute bottom-1.5 left-2 h-8 w-8 rounded-full hover:bg-neutral-700"
+                    className={`
+                      absolute bottom-[13px] left-2 h-8 w-8 rounded-full 
+                      ${theme === 'dark' 
+                        ? 'hover:bg-neutral-700/70 text-neutral-400' 
+                        : 'hover:bg-neutral-200/60 text-neutral-600'}
+                    `}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <ImageIcon className="h-5 w-5 text-neutral-400" />
+                    <ImageIcon className="h-5 w-5" />
                   </Button>
                 </div>
                 <Button
                   onClick={handleSend}
                   disabled={isLoading}
-                  className="h-10 w-10 mr-2 mb-1.5 rounded-full"
+                  className={`
+                    h-10 w-10 mr-3 mb-2 rounded-full shadow-lg
+                    ${isLoading 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600'}
+                  `}
+                  style={{
+                    boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
+                  }}
                 >
                   <Send className="h-5 w-5" />
                 </Button>
@@ -1377,7 +1537,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* Password Change Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent>
+        <DialogContent className="frosted-dialog">
           <DialogHeader>
             <DialogTitle>修改密码</DialogTitle>
           </DialogHeader>
@@ -1412,7 +1572,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* 修改标题对话框 */}
       <Dialog open={showTitleDialog} onOpenChange={setShowTitleDialog}>
-        <DialogContent>
+        <DialogContent className="frosted-dialog">
           <DialogHeader>
             <DialogTitle>修改对话标题</DialogTitle>
           </DialogHeader>
@@ -1443,7 +1603,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* 用户资料对话框 */}
       <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md frosted-dialog">
           <DialogHeader>
             <DialogTitle>个人资料</DialogTitle>
           </DialogHeader>
@@ -1480,7 +1640,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* 学习轨迹对话框 */}
       <Dialog open={showLearningPathDialog} onOpenChange={setShowLearningPathDialog}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] frosted-dialog">
           <DialogHeader>
             <DialogTitle>学习轨迹分析</DialogTitle>
           </DialogHeader>
@@ -1689,7 +1849,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* 偏好设置对话框 */}
       <Dialog open={showPreferencesDialog} onOpenChange={setShowPreferencesDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md frosted-dialog">
           <DialogHeader>
             <DialogTitle>偏好设置</DialogTitle>
           </DialogHeader>
@@ -1773,7 +1933,59 @@ export function AIChat({ userData }: AIChatProps) {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">自定义功能 <span className="text-xs text-neutral-500">(即将推出)</span></h3>
+              <h3 className="text-sm font-medium text-neutral-300">背景设置</h3>
+              <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-between items-center">
+                    <span>自定义背景图片</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('background-upload')?.click()}
+                      className="h-8 px-3 bg-neutral-700 hover:bg-neutral-600 border-neutral-600"
+                    >
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      上传图片
+                    </Button>
+                  </div>
+                  
+                  {backgroundImage && (
+                    <div className="mt-2">
+                      <div className="relative overflow-hidden rounded-md h-20 bg-neutral-900">
+                        <img src={backgroundImage} alt="当前背景" className="w-full h-full object-cover" />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            localStorage.removeItem('background-image');
+                            setBackgroundImage(null);
+                            toast({
+                              title: "背景已移除",
+                              description: "已恢复默认背景设置",
+                            });
+                          }}
+                          className="absolute top-1 right-1 h-7 w-7 p-0 bg-black/50 hover:bg-black/70 border-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-neutral-500 mt-1">
+                        提示：上传图片后会立即应用为背景
+                      </p>
+                    </div>
+                  )}
+                  
+                  {!backgroundImage && (
+                    <p className="text-xs text-neutral-500">
+                      上传图片作为聊天背景，支持JPG、PNG、GIF等常见图片格式，大小不超过5MB
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-neutral-300">其他功能 <span className="text-xs text-neutral-500">(即将推出)</span></h3>
               <div className="p-3 bg-neutral-800 rounded-md text-neutral-400 text-sm">
                 更多自定义功能将在后续版本推出，敬请期待！
               </div>

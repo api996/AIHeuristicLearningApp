@@ -7,11 +7,9 @@ import { Router } from 'express';
 import { 
   analyzeLearningPath,
   generateSuggestions,
-  saveMemory,
-  findSimilarMemories,
-  getMemoriesByFilter,
   clusterMemories
 } from '../services/learning';
+import { memoryService, StorageMode, MemoryItem } from '../services/learning/memory_service';
 import { log } from '../vite';
 import { utils } from '../utils';
 
@@ -76,16 +74,16 @@ router.get('/:userId/memories', async (req, res) => {
     }
     
     // 解析过滤参数
-    const types = req.query.types ? (req.query.types as string).split(',') : undefined;
-    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
-    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+    const type = req.query.type as string;
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
     const keywords = req.query.keywords ? (req.query.keywords as string).split(',') : undefined;
     
     log(`[API] 获取用户 ${userId} 的记忆列表`);
     
-    const memories = await getMemoriesByFilter({
-      userId,
-      types,
+    // 使用新的记忆服务
+    const memories = await memoryService.getMemoriesByFilter(userId, {
+      type,
       startDate,
       endDate,
       keywords
@@ -114,7 +112,8 @@ router.post('/:userId/similar-memories', async (req, res) => {
     log(`[API] 查找用户 ${userId} 相似记忆: ${query.substring(0, 50)}...`);
     
     try {
-      const memories = await findSimilarMemories(query, userId, { limit });
+      // 使用新的记忆服务
+      const memories = await memoryService.findSimilarMemories(query, userId, { limit });
       res.json({ memories });
     } catch (innerError) {
       log(`[API] 解析记忆结果失败: ${innerError}`);
@@ -146,14 +145,18 @@ router.post('/:userId/memory', async (req, res) => {
     
     log(`[API] 保存用户 ${userId} 的记忆: ${content.substring(0, 50)}...`);
     
-    const memory = await saveMemory({
-      content,
-      type: type || 'chat',
-      timestamp: new Date().toISOString(),
-      userId
-    });
+    // 使用新的记忆服务
+    const memoryId = await memoryService.saveMemory(userId, content, type || 'chat');
     
-    res.json({ memory });
+    res.json({ 
+      memory: {
+        id: memoryId,
+        content,
+        type: type || 'chat',
+        timestamp: new Date().toISOString(),
+        userId
+      } 
+    });
   } catch (error) {
     log(`[API] 保存记忆出错: ${error}`);
     res.status(500).json({ error: utils.sanitizeErrorMessage(error) });
@@ -173,7 +176,7 @@ router.get('/:userId/clusters', async (req, res) => {
     }
     
     // 获取用户记忆
-    const memories = await getMemoriesByFilter({ userId });
+    const memories = await memoryService.getMemoriesByFilter(userId);
     
     // 如果没有记忆，返回空结果
     if (!memories || memories.length === 0) {
@@ -187,8 +190,18 @@ router.get('/:userId/clusters', async (req, res) => {
     
     log(`[API] 获取用户 ${userId} 的记忆聚类`);
     
-    // 执行聚类
-    const clusters = await clusterMemories(memories, {
+    // 执行聚类 - 转换为符合Memory接口的对象
+    const memoryObjects = memories.map(memory => ({
+      id: memory.id || '',
+      content: memory.content,
+      type: memory.type,
+      timestamp: memory.timestamp,  // 保持字符串格式
+      summary: memory.summary,
+      keywords: memory.keywords || [],
+      userId: memory.userId || userId, // 确保有userId
+    }));
+    
+    const clusters = await clusterMemories(memoryObjects, {
       maxClusters,
       minSimilarity,
       algorithm

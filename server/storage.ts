@@ -1,6 +1,12 @@
-import { users, type User, type InsertUser, chats, messages, type Chat, type Message } from "@shared/schema";
+import { 
+  users, type User, type InsertUser, 
+  chats, messages, type Chat, type Message,
+  memories, memoryKeywords, memoryEmbeddings,
+  type Memory, type MemoryKeyword, type MemoryEmbedding,
+  type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding
+} from "@shared/schema";
 import { db } from "./db";
-import { eq, ne, and, asc, desc } from "drizzle-orm";
+import { eq, ne, and, asc, desc, sql, inArray } from "drizzle-orm";
 import { log } from "./vite";
 
 export interface IStorage {
@@ -28,6 +34,23 @@ export interface IStorage {
   regenerateMessage(messageId: number): Promise<Message>;
   getMessageById(messageId: number): Promise<Message | undefined>; // Added method
 
+  // Memory methods
+  createMemory(userId: number, content: string, type?: string, summary?: string): Promise<Memory>;
+  getMemoriesByUserId(userId: number): Promise<Memory[]>;
+  getMemoryById(memoryId: number): Promise<Memory | undefined>;
+  updateMemory(memoryId: number, content?: string, summary?: string): Promise<Memory>;
+  deleteMemory(memoryId: number): Promise<void>;
+  
+  // Memory keywords methods
+  addKeywordToMemory(memoryId: number, keyword: string): Promise<MemoryKeyword>;
+  getKeywordsByMemoryId(memoryId: number): Promise<MemoryKeyword[]>;
+  deleteKeywordsByMemoryId(memoryId: number): Promise<void>;
+  
+  // Memory embeddings methods
+  saveMemoryEmbedding(memoryId: number, vectorData: number[]): Promise<MemoryEmbedding>;
+  getEmbeddingByMemoryId(memoryId: number): Promise<MemoryEmbedding | undefined>;
+  findSimilarMemories(userId: number, vectorData: number[], limit?: number): Promise<Memory[]>;
+  
   // Admin methods
   getAllUsers(): Promise<User[]>;
 }
@@ -300,7 +323,7 @@ export class DatabaseStorage implements IStorage {
       // 更新消息
       const results = await db
         .update(messages)
-        .set({ content, updatedAt: new Date() })
+        .set({ content, isEdited: true })
         .where(and(eq(messages.id, messageId), condition || undefined))
         .returning();
 
@@ -398,6 +421,309 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       log(`Error getting all users: ${error}`);
       throw error;
+    }
+  }
+
+  // Memory methods
+  async createMemory(userId: number, content: string, type: string = "chat", summary?: string): Promise<Memory> {
+    try {
+      if (!userId || isNaN(userId)) {
+        throw new Error("Invalid user ID");
+      }
+      
+      if (!content || typeof content !== 'string') {
+        throw new Error("Invalid memory content");
+      }
+      
+      // Insert memory record
+      const [memory] = await db.insert(memories)
+        .values({
+          userId,
+          content,
+          type,
+          summary,
+          timestamp: new Date()
+        })
+        .returning();
+      
+      log(`Memory created for user ${userId}, id: ${memory.id}`);
+      return memory;
+    } catch (error) {
+      log(`Error creating memory: ${error}`);
+      throw error;
+    }
+  }
+
+  async getMemoriesByUserId(userId: number): Promise<Memory[]> {
+    try {
+      if (!userId || isNaN(userId)) {
+        throw new Error("Invalid user ID");
+      }
+      
+      // Get all memories for the user
+      const userMemories = await db.select()
+        .from(memories)
+        .where(eq(memories.userId, userId))
+        .orderBy(desc(memories.timestamp));
+      
+      return userMemories;
+    } catch (error) {
+      log(`Error getting memories for user ${userId}: ${error}`);
+      throw error;
+    }
+  }
+
+  async getMemoryById(memoryId: number): Promise<Memory | undefined> {
+    try {
+      if (!memoryId || isNaN(memoryId)) {
+        throw new Error("Invalid memory ID");
+      }
+      
+      const [memory] = await db.select()
+        .from(memories)
+        .where(eq(memories.id, memoryId));
+      
+      return memory;
+    } catch (error) {
+      log(`Error getting memory by ID ${memoryId}: ${error}`);
+      throw error;
+    }
+  }
+
+  async updateMemory(memoryId: number, content?: string, summary?: string): Promise<Memory> {
+    try {
+      if (!memoryId || isNaN(memoryId)) {
+        throw new Error("Invalid memory ID");
+      }
+      
+      // Prepare update data
+      const updateData: Partial<InsertMemory> = {};
+      if (content !== undefined) updateData.content = content;
+      if (summary !== undefined) updateData.summary = summary;
+      
+      if (Object.keys(updateData).length === 0) {
+        throw new Error("No update data provided");
+      }
+      
+      // Update memory
+      const [updatedMemory] = await db.update(memories)
+        .set(updateData)
+        .where(eq(memories.id, memoryId))
+        .returning();
+      
+      if (!updatedMemory) {
+        throw new Error("Memory not found");
+      }
+      
+      return updatedMemory;
+    } catch (error) {
+      log(`Error updating memory ${memoryId}: ${error}`);
+      throw error;
+    }
+  }
+
+  async deleteMemory(memoryId: number): Promise<void> {
+    try {
+      if (!memoryId || isNaN(memoryId)) {
+        throw new Error("Invalid memory ID");
+      }
+      
+      // First delete related records in other tables
+      await db.delete(memoryKeywords).where(eq(memoryKeywords.memoryId, memoryId));
+      await db.delete(memoryEmbeddings).where(eq(memoryEmbeddings.memoryId, memoryId));
+      
+      // Then delete the memory itself
+      await db.delete(memories).where(eq(memories.id, memoryId));
+      
+      log(`Memory ${memoryId} deleted successfully`);
+    } catch (error) {
+      log(`Error deleting memory ${memoryId}: ${error}`);
+      throw error;
+    }
+  }
+  
+  // Memory keywords methods
+  async addKeywordToMemory(memoryId: number, keyword: string): Promise<MemoryKeyword> {
+    try {
+      if (!memoryId || isNaN(memoryId)) {
+        throw new Error("Invalid memory ID");
+      }
+      
+      if (!keyword || typeof keyword !== 'string') {
+        throw new Error("Invalid keyword");
+      }
+      
+      // Insert keyword record
+      const [memoryKeyword] = await db.insert(memoryKeywords)
+        .values({
+          memoryId,
+          keyword: keyword.trim().toLowerCase()
+        })
+        .returning();
+      
+      return memoryKeyword;
+    } catch (error) {
+      log(`Error adding keyword to memory ${memoryId}: ${error}`);
+      throw error;
+    }
+  }
+
+  async getKeywordsByMemoryId(memoryId: number): Promise<MemoryKeyword[]> {
+    try {
+      if (!memoryId || isNaN(memoryId)) {
+        throw new Error("Invalid memory ID");
+      }
+      
+      // Get all keywords for a memory
+      return await db.select()
+        .from(memoryKeywords)
+        .where(eq(memoryKeywords.memoryId, memoryId));
+    } catch (error) {
+      log(`Error getting keywords for memory ${memoryId}: ${error}`);
+      throw error;
+    }
+  }
+
+  async deleteKeywordsByMemoryId(memoryId: number): Promise<void> {
+    try {
+      if (!memoryId || isNaN(memoryId)) {
+        throw new Error("Invalid memory ID");
+      }
+      
+      // Delete all keywords for a memory
+      await db.delete(memoryKeywords)
+        .where(eq(memoryKeywords.memoryId, memoryId));
+      
+      log(`All keywords for memory ${memoryId} deleted`);
+    } catch (error) {
+      log(`Error deleting keywords for memory ${memoryId}: ${error}`);
+      throw error;
+    }
+  }
+  
+  // Memory embeddings methods
+  async saveMemoryEmbedding(memoryId: number, vectorData: number[]): Promise<MemoryEmbedding> {
+    try {
+      if (!memoryId || isNaN(memoryId)) {
+        throw new Error("Invalid memory ID");
+      }
+      
+      if (!Array.isArray(vectorData) || vectorData.length === 0) {
+        throw new Error("Invalid vector data");
+      }
+
+      // Check if embedding already exists
+      const existing = await this.getEmbeddingByMemoryId(memoryId);
+      
+      if (existing) {
+        // Update existing embedding
+        const [updatedEmbedding] = await db.update(memoryEmbeddings)
+          .set({ vectorData })
+          .where(eq(memoryEmbeddings.memoryId, memoryId))
+          .returning();
+        
+        return updatedEmbedding;
+      } else {
+        // Insert new embedding
+        const [embedding] = await db.insert(memoryEmbeddings)
+          .values({
+            memoryId,
+            vectorData
+          })
+          .returning();
+        
+        return embedding;
+      }
+    } catch (error) {
+      log(`Error saving embedding for memory ${memoryId}: ${error}`);
+      throw error;
+    }
+  }
+
+  async getEmbeddingByMemoryId(memoryId: number): Promise<MemoryEmbedding | undefined> {
+    try {
+      if (!memoryId || isNaN(memoryId)) {
+        throw new Error("Invalid memory ID");
+      }
+      
+      const [embedding] = await db.select()
+        .from(memoryEmbeddings)
+        .where(eq(memoryEmbeddings.memoryId, memoryId));
+      
+      return embedding;
+    } catch (error) {
+      log(`Error getting embedding for memory ${memoryId}: ${error}`);
+      throw error;
+    }
+  }
+
+  async findSimilarMemories(userId: number, vectorData: number[], limit: number = 5): Promise<Memory[]> {
+    try {
+      if (!userId || isNaN(userId)) {
+        throw new Error("Invalid user ID");
+      }
+      
+      if (!Array.isArray(vectorData) || vectorData.length === 0) {
+        throw new Error("Invalid vector data");
+      }
+      
+      // Get all memories with embeddings for the user
+      const userMemoriesWithEmbeddings = await db.select({
+        memory: memories,
+        embedding: memoryEmbeddings.vectorData
+      })
+      .from(memories)
+      .innerJoin(
+        memoryEmbeddings,
+        eq(memories.id, memoryEmbeddings.memoryId)
+      )
+      .where(eq(memories.userId, userId));
+      
+      // Calculate cosine similarity for each memory
+      const scoredMemories = userMemoriesWithEmbeddings.map(item => {
+        const similarity = this.cosineSimilarity(vectorData, item.embedding as number[]);
+        return {
+          memory: item.memory,
+          similarity
+        };
+      });
+      
+      // Sort by similarity (descending) and take top matches
+      scoredMemories.sort((a, b) => b.similarity - a.similarity);
+      
+      return scoredMemories.slice(0, limit).map(item => item.memory);
+    } catch (error) {
+      log(`Error finding similar memories for user ${userId}: ${error}`);
+      throw error;
+    }
+  }
+  
+  // Utility method to calculate cosine similarity
+  private cosineSimilarity(vec1: number[], vec2: number[]): number {
+    try {
+      if (vec1.length !== vec2.length) {
+        throw new Error(`Vector dimensions don't match: ${vec1.length} vs ${vec2.length}`);
+      }
+      
+      let dotProduct = 0;
+      let mag1 = 0;
+      let mag2 = 0;
+      
+      for (let i = 0; i < vec1.length; i++) {
+        dotProduct += vec1[i] * vec2[i];
+        mag1 += vec1[i] * vec1[i];
+        mag2 += vec2[i] * vec2[i];
+      }
+      
+      mag1 = Math.sqrt(mag1);
+      mag2 = Math.sqrt(mag2);
+      
+      const mag = mag1 * mag2;
+      
+      return mag === 0 ? 0 : dotProduct / mag;
+    } catch (error) {
+      log(`Error calculating cosine similarity: ${error}`);
+      return 0;
     }
   }
 }
