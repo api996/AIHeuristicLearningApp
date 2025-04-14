@@ -1290,20 +1290,20 @@ export function AIChat({ userData }: AIChatProps) {
           </div>
         </header>
 
-        {/* 聊天消息容器 - 使用响应式居中布局 */}
+        {/* 聊天消息容器 - 优化的响应式居中布局 */}
         <div className={`
-          flex-1 flex flex-col overflow-y-auto chat-message-container 
+          flex-1 w-full overflow-y-auto chat-message-container 
           ${messages.length === 0 ? 'hide-empty-scrollbar' : ''}
         `}>
-          {/* 创建一个居中的内容容器 */}
-          <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 pb-20 flex-1 flex flex-col">
+          {/* 创建一个真正居中的内容容器 */}
+          <div className="w-full mx-auto flex-1 flex flex-col">
             {messages.length === 0 ? (
               // 欢迎页面 - 垂直居中不需要滚动
               <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="flex justify-center">
-                    <div className="p-4 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-600/20">
-                      <Brain size={28} className="text-blue-400" />
+                    <div className="p-5 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-600/20">
+                      <Brain size={32} className="text-blue-400" />
                     </div>
                   </div>
                   <h3 className="text-xl font-semibold text-white">{greetingMessage}</h3>
@@ -1323,8 +1323,8 @@ export function AIChat({ userData }: AIChatProps) {
                   overscrollBehavior: 'contain'
                 }}
               >
-                {/* 消息列表 - 使用flex布局实现居中 */}
-                <div className="w-full flex flex-col gap-4 items-center">
+                {/* 消息列表 - 使用flex布局实现自适应居中 */}
+                <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 flex flex-col gap-4 items-center pb-24">
                   {messages.map((msg, i) => (
                     <ChatMessage 
                       key={i} 
@@ -1433,7 +1433,12 @@ export function AIChat({ userData }: AIChatProps) {
             )}
 
             {/* 输入框区域 - 苹果风格磨砂玻璃效果 */}
-            <div className={"relative rounded-xl border shadow-lg " + (theme === 'dark' ? 'border-neutral-700/50 bg-neutral-800/30 backdrop-blur-md' : 'border-neutral-300/20 bg-white/30 backdrop-blur-md')}>
+            <div className={`
+              relative rounded-xl border shadow-lg overflow-hidden
+              ${theme === 'dark' 
+                ? 'border-blue-700/20 bg-neutral-900/70 backdrop-blur-lg' 
+                : 'border-blue-300/20 bg-white/70 backdrop-blur-lg'}
+            `}>
               <div className="flex items-end">
                 <div className="flex-1 relative">
                   <textarea
@@ -1444,14 +1449,14 @@ export function AIChat({ userData }: AIChatProps) {
                     onBlur={handleInputBlur}
                     placeholder="输入消息..."
                     disabled={isLoading}
-                    className="w-full h-[50px] min-h-[50px] max-h-[150px] py-3 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-[16px]"
+                    className="w-full h-[54px] min-h-[54px] max-h-[150px] py-4 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-[16px]"
                     style={{
                       WebkitAppearance: 'none',
                       MozAppearance: 'none',
                       appearance: 'none',
                       WebkitUserSelect: 'text',
                       userSelect: 'text',
-                      caretColor: 'white'
+                      caretColor: theme === 'dark' ? 'white' : '#1c1e24'
                     }}
                   />
                   <input
@@ -1464,16 +1469,29 @@ export function AIChat({ userData }: AIChatProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute bottom-1.5 left-2 h-8 w-8 rounded-full hover:bg-neutral-700"
+                    className={`
+                      absolute bottom-[13px] left-2 h-8 w-8 rounded-full 
+                      ${theme === 'dark' 
+                        ? 'hover:bg-neutral-700/70 text-neutral-400' 
+                        : 'hover:bg-neutral-200/60 text-neutral-600'}
+                    `}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <ImageIcon className="h-5 w-5 text-neutral-400" />
+                    <ImageIcon className="h-5 w-5" />
                   </Button>
                 </div>
                 <Button
                   onClick={handleSend}
                   disabled={isLoading}
-                  className="h-10 w-10 mr-2 mb-1.5 rounded-full"
+                  className={`
+                    h-10 w-10 mr-3 mb-2 rounded-full shadow-lg
+                    ${isLoading 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600'}
+                  `}
+                  style={{
+                    boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
+                  }}
                 >
                   <Send className="h-5 w-5" />
                 </Button>
