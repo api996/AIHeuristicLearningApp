@@ -28,9 +28,9 @@ async function migrateMemoriesToDatabase() {
     log("开始迁移记忆数据到数据库...");
     
     // 检查是否已有数据库记录，避免重复迁移
-    const existingCount = await db.select({ count: db.fn.count() }).from(memories);
-    if (existingCount.length > 0 && existingCount[0].count > 0) {
-      log(`数据库中已有 ${existingCount[0].count} 条记忆记录，请确认是否继续迁移`);
+    const existingCount = await db.select().from(memories);
+    if (existingCount.length > 0) {
+      log(`数据库中已有 ${existingCount.length} 条记忆记录，请确认是否继续迁移`);
       // 可以添加交互确认逻辑
     }
     
