@@ -66,24 +66,53 @@ export function updateViewportHeight(): void {
     document.documentElement.classList.remove('portrait');
   }
   
-  // 键盘弹出的检测逻辑：
+  // 键盘弹出的检测逻辑 - 增强版：
   // 1. 视窗高度明显小于窗口高度（键盘占用了空间）
   // 2. 视窗相对于顶部有偏移（在iOS上，键盘弹出时视窗会上移）
-  // 3. iPad上特殊处理，因为iPad键盘行为与iPhone不同
+  // 3. iPad上特殊处理，因为iPad键盘行为与iPhone和Android不同
+  //    iPad特别考虑了软键盘的高度和系统的偏移量
   const heightDifference = windowHeight - viewportHeight;
-  const significantHeightChange = heightDifference > (isIPad ? 100 : 150); // iPad键盘可能较小
-  const hasTopOffset = window.visualViewport.offsetTop > 0;
+  
+  // 获取更精确的焦点状态
   const isInputFocused = document.activeElement && 
                         (document.activeElement.tagName === 'INPUT' || 
-                         document.activeElement.tagName === 'TEXTAREA');
+                         document.activeElement.tagName === 'TEXTAREA' ||
+                         (document.activeElement as HTMLElement).getAttribute('contenteditable') === 'true');
   
-  // 针对iPad的增强检测
-  const isPadKeyboardActive = isIPad && isInputFocused && 
-                             (heightDifference > 50 || hasTopOffset);
+  // 计算相对原始窗口高度的百分比变化
+  // 这对于判断键盘状态非常有效
+  const heightChangePercent = (heightDifference / windowHeight) * 100;
   
-  const isKeyboardVisible = significantHeightChange || 
-                           (isIOS && hasTopOffset) || 
-                           isPadKeyboardActive;
+  // 针对iPad和iPhone的专门优化
+  let isKeyboardVisible = false;
+  
+  if (isIPad) {
+    console.log("检测到iPad设备，应用iPad布局优化");
+    // iPad触发键盘检测的阈值更低，但需要确认有输入框焦点
+    // iPad mini/Air/Pro横屏和竖屏键盘高度差异很大
+    const isPadPortrait = window.matchMedia("(orientation: portrait)").matches;
+    const padThreshold = isPadPortrait ? 15 : 10; // 竖屏和横屏阈值不同
+    
+    // 结合多个信号提高检测准确性
+    isKeyboardVisible = isInputFocused && (
+      // 1. 检测明显的高度变化
+      heightChangePercent > padThreshold ||
+      // 2. 检测视口偏移 - iPad特有
+      window.visualViewport.offsetTop > 5 ||
+      // 3. 结合设备方向的额外判断
+      (isPadPortrait && heightDifference > 200) || 
+      (!isPadPortrait && heightDifference > 100)
+    );
+  } else if (isIOS) {
+    // iPhone检测逻辑
+    isKeyboardVisible = isInputFocused && (
+      heightChangePercent > 20 || // iPhone高度变化通常更大
+      window.visualViewport.offsetTop > 10  // iPhone视窗通常会明显上移
+    );
+  } else {
+    // Android等其他设备
+    isKeyboardVisible = isInputFocused && heightChangePercent > 20;
+  }
   
   // 动态计算键盘高度以供CSS使用
   // 这可以让输入框保持在键盘上方的固定位置，填充黑色区域

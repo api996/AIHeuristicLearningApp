@@ -1,76 +1,97 @@
-/* iPad和平板设备特定修复 - 采用现代响应式布局技术 */
+/* iPad和平板设备特定修复 - 全新响应式布局技术 */
 
 /**
- * 主布局策略:
- * 1. 使用CSS Grid和Flexbox替代绝对定位
- * 2. 采用margin: 0 auto自动居中
- * 3. 通过max-width限制内容宽度
- * 4. 均匀分配可用空间
+ * 新的主布局策略:
+ * 1. 使用CSS Grid和Flexbox实现真正的响应式布局
+ * 2. 固定底部输入框，默认贴底
+ * 3. 美化输入框样式，实现玻璃态效果
+ * 4. 完全避免任何绝对定位
  */
 
-/* ===== 基础平板/iPad布局(768px-1024px) ===== */
-@media screen and (min-width: 768px) and (max-width: 1024px) {
-  /* 主容器布局结构 - 使用Grid代替绝对定位 */
+/* ===== iPad/平板专用布局(768px-1366px) ===== */
+@media screen and (min-width: 768px) and (max-width: 1366px) {
+  /* ===== 基础容器结构 ===== */
+  .ipad-device #root,
+  .tablet-device #root {
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+  }
+  
+  /* 主容器布局结构 - 使用二栏布局grid */
   .ipad-device .flex.h-screen,
   .tablet-device .flex.h-screen {
     display: grid !important;
-    grid-template-columns: 256px 1fr !important; /* 固定侧边栏宽度，内容区域自适应 */
-    grid-template-areas: "sidebar content" !important;
+    grid-template-columns: 256px 1fr !important; /* 固定宽度侧边栏 + 自适应内容区 */
     height: 100vh !important;
-    width: 100% !important;
+    max-height: 100vh !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: hidden !important;
   }
   
-  /* 侧边栏定位 - 使用grid-area替代绝对定位 */
+  /* ===== 侧边栏样式 ===== */
+  /* 侧边栏容器 - 完全流体布局 */
   .ipad-device .sidebar-container,
   .tablet-device .sidebar-container {
-    grid-area: sidebar !important;
-    position: relative !important; /* 改为相对定位 */
-    width: 100% !important; /* 100%宽度填充grid cell */
+    position: relative !important; /* 使用相对定位 */
+    width: 100% !important;
     height: 100% !important;
-    z-index: 40 !important;
+    overflow-y: auto !important;
     background-color: rgba(0, 0, 0, 0.8) !important;
     border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+    max-width: 256px !important;
+    z-index: 40 !important;
   }
   
-  /* 内容区域定位 - 使用grid-area和flexbox替代绝对定位 */
+  /* ===== 主内容区域样式 ===== */
+  /* 主内容容器 - 完全流体布局 */
   .ipad-device .chat-content-area,
   .tablet-device .chat-content-area {
-    grid-area: content !important;
-    position: relative !important; /* 改为相对定位 */
-    width: 100% !important; /* 100%宽度填充grid cell */
-    height: 100% !important;
+    position: relative !important;
+    width: 100% !important;
+    height: 100vh !important;
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
   
-  /* 消息容器 - 采用响应式居中布局 */
+  /* ===== 聊天消息容器样式 ===== */
+  /* 聊天消息外层容器 - 流体布局 */
   .ipad-device .chat-message-container,
   .tablet-device .chat-message-container {
-    /* 核心自适应居中策略 */
-    max-width: 85% !important; /* 限制最大宽度 */
-    width: 100% !important; /* 填充可用空间 */
-    margin-left: auto !important; /* 自动左右居中 */
-    margin-right: auto !important;
-    
-    /* 平衡左右间距 */
-    padding-left: 30px !important;
-    padding-right: 30px !important;
-    
-    /* 容器本身采用flex布局 */
+    flex: 1 !important;
+    width: 100% !important;
+    position: relative !important;
+    overflow-y: auto !important;
     display: flex !important;
     flex-direction: column !important;
-    align-items: center !important;
+    padding-bottom: 120px !important; /* 为底部输入框留出空间 */
     
-    /* 避免使用position: relative + left/right */
-    position: static !important;
-    
-    /* 添加调试边框 - 需要时可取消注释
-    border: 1px solid rgba(0, 255, 0, 0.2) !important; */
+    /* 设置调试边框以检查布局
+    border: 1px solid rgba(255, 0, 0, 0.3) !important; */
   }
   
-  /* 消息显示区域 */
+  /* 内容真正居中的容器 */
+  .ipad-device .chat-message-container > div,
+  .tablet-device .chat-message-container > div {
+    width: 100% !important;
+    max-width: 700px !important; /* 限制最大宽度 */
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding: 0 20px !important;
+  }
+  
+  /* 消息区域滚动容器 */
   .ipad-device .vh-chat-messages,
   .tablet-device .vh-chat-messages {
     width: 100% !important;
@@ -79,7 +100,7 @@
     align-items: center !important;
   }
   
-  /* 每条消息的容器 - 确保居中 */
+  /* 每条消息容器 - 设置合理的最大宽度 */
   .ipad-device .message-appear,
   .tablet-device .message-appear {
     width: 100% !important;
@@ -88,107 +109,98 @@
     margin-right: auto !important;
   }
   
-  /* 聊天输入区域 - 自适应定位 */
+  /* ===== 改进聊天输入区样式 ===== */
+  /* 输入区域容器 - 固定在底部 */
   .ipad-device .chat-input-area,
   .tablet-device .chat-input-area {
-    width: 100% !important; /* 100%宽度 */
-    position: relative !important; /* 相对定位而非绝对定位 */
-    left: auto !important; /* 取消固定偏移 */
-    right: auto !important;
-    margin: 0 auto !important; /* 自动居中 */
-    max-width: 85% !important; /* 保持与消息容器一致的宽度 */
+    position: fixed !important;
     bottom: 0 !important;
+    left: 256px !important; /* 侧边栏宽度 */
+    right: 0 !important;
+    width: calc(100% - 256px) !important; /* 100%减去侧边栏宽度 */
+    z-index: 50 !important;
+    padding: 16px 24px !important;
+    background: rgba(30, 30, 30, 0.7) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    transition: all 0.3s ease !important;
   }
   
-  /* 键盘弹出时的输入区域调整 */
+  /* 当侧边栏隐藏时，让输入框宽度为全屏 */
+  .ipad-device .sidebar-container.hidden + .chat-content-area .chat-input-area,
+  .tablet-device .sidebar-container.hidden + .chat-content-area .chat-input-area {
+    left: 0 !important;
+    width: 100% !important;
+  }
+  
+  /* 输入区域居中内容容器 */
+  .ipad-device .chat-input-area > div,
+  .tablet-device .chat-input-area > div {
+    max-width: 700px !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+  }
+  
+  /* 美化输入框外观 */
+  .ipad-device .chat-input-area .relative.rounded-xl,
+  .tablet-device .chat-input-area .relative.rounded-xl {
+    border-radius: 24px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    overflow: hidden !important;
+  }
+  
+  /* 发送按钮美化 */
+  .ipad-device .chat-input-area button[class*="rounded-full"],
+  .tablet-device .chat-input-area button[class*="rounded-full"] {
+    background: linear-gradient(to right, #6366f1, #8b5cf6) !important;
+    border: none !important;
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.5) !important;
+    transform: scale(1.1) !important;
+  }
+  
+  /* ===== 键盘弹出状态处理 ===== */
+  /* 当键盘打开时，输入框应紧跟键盘 */
   .ipad-device.keyboard-open .chat-input-area,
   .tablet-device.keyboard-open .chat-input-area {
     position: fixed !important;
     bottom: 0 !important;
-    z-index: 1000 !important;
-    width: calc(100% - 256px) !important; /* 考虑侧边栏 */
-    left: 256px !important; /* 与侧边栏对齐 */
+    transform: translateY(0) !important;
+    z-index: 9999 !important;
   }
 }
 
-/* ===== iPad Pro和大尺寸平板布局(1024px-1366px) ===== */
+/* ===== 专门针对iPad Pro(12.9英寸)的优化 ===== */
 @media screen and (min-width: 1024px) and (max-width: 1366px) {
-  /* 应用同样的Grid布局策略 */
-  .ipad-device .flex.h-screen,
-  .tablet-device .flex.h-screen {
-    display: grid !important;
-    grid-template-columns: 256px 1fr !important;
-    grid-template-areas: "sidebar content" !important;
+  .ipad-device .chat-message-container > div,
+  .tablet-device .chat-message-container > div,
+  .ipad-device .chat-input-area > div,
+  .tablet-device .chat-input-area > div {
+    max-width: 800px !important; /* 更大屏幕允许更宽的内容 */
   }
   
-  /* 大屏幕平板消息容器 - 更宽但仍然居中 */
-  .ipad-device .chat-message-container,
-  .tablet-device .chat-message-container {
-    max-width: 90% !important; /* 略微加宽 */
-    width: 100% !important;
-    margin: 0 auto !important; /* 自动居中 */
-    padding-left: 20px !important; /* 简化内边距 */
-    padding-right: 20px !important;
-    position: static !important; /* 避免相对定位 */
-  }
-  
-  /* 聊天输入区域保持居中 */
-  .ipad-device .chat-input-area,
-  .tablet-device .chat-input-area {
-    width: 100% !important;
-    max-width: 90% !important; /* 与消息容器匹配 */
-    margin: 0 auto !important;
-    position: relative !important;
-    left: auto !important;
-    right: auto !important;
+  .ipad-device .message-appear,
+  .tablet-device .message-appear {
+    max-width: 80% !important; /* 在大屏上可以稍微窄一点 */
   }
 }
 
-/* ===== 横屏模式特殊调整 ===== */
+/* ===== 处理iPad横屏/竖屏特定情况 ===== */
+/* 横屏模式 - 布局更宽 */
 @media screen and (min-width: 768px) and (max-width: 1366px) and (orientation: landscape) {
-  .ipad-device.landscape .chat-message-container,
-  .tablet-device.landscape .chat-message-container {
-    max-width: 80% !important; /* 横屏时适当收窄 */
-    padding: 0 20px !important; /* 简化内边距 */
-  }
-  
-  /* 横屏模式下消息显示 */
-  .ipad-device.landscape .message-appear,
-  .tablet-device.landscape .message-appear {
-    max-width: 80% !important;
+  .ipad-device.landscape .chat-message-container > div,
+  .tablet-device.landscape .chat-message-container > div {
+    max-width: 800px !important;
+    padding: 0 30px !important;
   }
 }
 
-/* ===== 竖屏模式特殊调整 ===== */
+/* 竖屏模式 - 布局更窄 */
 @media screen and (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
-  .ipad-device.portrait .chat-message-container,
-  .tablet-device.portrait .chat-message-container {
-    max-width: 90% !important; /* 竖屏时略微加宽 */
-    padding: 0 20px !important;
+  .ipad-device.portrait .chat-message-container > div,
+  .tablet-device.portrait .chat-message-container > div {
+    max-width: 650px !important;
+    padding: 0 24px !important;
   }
-  
-  /* 竖屏模式下消息显示 */
-  .ipad-device.portrait .message-appear,
-  .tablet-device.portrait .message-appear {
-    max-width: 90% !important;
-  }
-}
-
-/* ===== 响应式工具类 ===== */
-/* 居中容器类 - 可应用于任何需要居中的容器 */
-.centered-container {
-  width: 100% !important;
-  max-width: 85% !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  position: static !important;
-}
-
-/* 均衡灵活容器 - 在空间有限时自动压缩 */
-.flex-centered-content {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  width: 100% !important;
 }
