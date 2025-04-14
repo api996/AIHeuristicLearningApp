@@ -104,75 +104,6 @@
   box-shadow: 0 8px 32px rgba(239, 68, 68, 0.1) !important;
 }
 
-/* 浅色模式下侧边栏样式修复 - 增强版 */
-:root.light .sidebar-container,
-html.light .sidebar-container,
-body.light .sidebar-container,
-.light .sidebar-container,
-.light [data-sidebar="sidebar"],
-:root.light [data-sidebar="sidebar"] {
-  background-color: rgba(230, 242, 255, 0.85) !important;
-  backdrop-filter: blur(12px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
-  border-right: 1px solid rgba(190, 215, 250, 0.5) !important;
-  color: #1c1e24 !important;
-  box-shadow: 0 0 20px rgba(0, 122, 255, 0.05) !important;
-}
-
-/* 浅色模式下侧边栏底部导航栏修复 - 彻底覆盖 */
-:root.light .sidebar-container nav,
-:root.light .sidebar-container [class*="flex-col justify-end"],
-:root.light .sidebar-container [class*="mt-auto"],
-html.light .sidebar-container nav,
-.light .sidebar-container nav,
-.light nav[data-sidebar],
-:root.light nav.flex,
-:root.light .flex.justify-end,
-:root.light .mt-auto,
-:root.light div.sticky,
-:root.light div.fixed,
-html.light div.fixed.bottom-0,
-.light div.fixed.bottom-0 {
-  background-color: rgba(230, 242, 255, 0.85) !important;
-  border-top: 1px solid rgba(190, 215, 250, 0.5) !important;
-  backdrop-filter: blur(12px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
-  box-shadow: 0 -2px 15px rgba(0, 122, 255, 0.05) !important;
-}
-
-/* 浅色模式下侧边栏按钮样式 */
-:root.light .sidebar-container button,
-:root.light .sidebar-container [class*="inline-flex"],
-:root.light .sidebar-container [role="button"] {
-  color: #1c1e24 !important;
-  background-color: transparent !important;
-  border: 1px solid rgba(190, 215, 250, 0.5) !important;
-}
-
-/* 浅色模式下侧边栏按钮悬停效果 */
-:root.light .sidebar-container button:hover,
-:root.light .sidebar-container [class*="inline-flex"]:hover,
-:root.light .sidebar-container [role="button"]:hover {
-  background-color: rgba(220, 235, 255, 0.7) !important;
-  color: #406080 !important;
-  border-color: rgba(0, 112, 245, 0.3) !important;
-}
-
-/* 浅色模式下侧边栏主按钮样式 */
-:root.light .sidebar-container [data-primary="true"],
-:root.light .sidebar-container [class*="bg-primary"] {
-  background-color: rgba(0, 112, 245, 0.9) !important;
-  color: white !important;
-  border: none !important;
-}
-
-/* 浅色模式下侧边栏主按钮悬停效果 */
-:root.light .sidebar-container [data-primary="true"]:hover,
-:root.light .sidebar-container [class*="bg-primary"]:hover {
-  background-color: rgba(0, 102, 235, 1) !important;
-  color: white !important;
-}
-
 /* 美化滚动条 */
 ::-webkit-scrollbar {
   width: 8px;
@@ -424,14 +355,6 @@ div[role="dialog"] {
   --hover-background: rgba(220, 235, 255, 0.7); /* 蓝色悬停背景 */
   --glass-effect: saturate(150%) blur(16px);
   --accent-blue: rgba(0, 122, 255, 1); /* iOS系统蓝色 */
-  --sidebar-background: rgba(230, 242, 255, 0.85); /* 侧边栏背景颜色 */
-  --sidebar-foreground: #1c1e24; /* 侧边栏文字颜色 */
-  --sidebar-primary: rgba(0, 112, 245, 0.9); /* 侧边栏主要颜色 */
-  --sidebar-primary-foreground: #ffffff; /* 侧边栏主要按钮文字颜色 */
-  --sidebar-accent: rgba(220, 235, 255, 0.7); /* 侧边栏强调颜色 */
-  --sidebar-accent-foreground: #406080; /* 侧边栏强调文字颜色 */
-  --sidebar-border: rgba(190, 215, 250, 0.5); /* 侧边栏边框颜色 */
-  --sidebar-ring: rgba(0, 112, 245, 0.3); /* 侧边栏聚焦环颜色 */
   color-scheme: light;
 }
 
@@ -731,7 +654,7 @@ div[role="dialog"] {
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
     padding-bottom: env(safe-area-inset-bottom, 8px) !important; /* 支持安全区域 */
   }
-
+  
   /* 浅色模式下的输入区域样式 */
   :root.light .keyboard-open .chat-input-container {
     background-color: rgba(230, 242, 255, 0.85) !important; /* 浅蓝色半透明背景 */
@@ -810,7 +733,7 @@ div[role="dialog"] {
     border-radius: 12px !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
   }
-
+  
   /* 确保输入框背景与内容完全显示 - 浅色模式 */
   :root.light .keyboard-open .chat-input-container > div,
   :root.light .keyboard-focused .chat-input-container > div {
@@ -908,7 +831,7 @@ div[role="dialog"] {
     flex-shrink: 0 !important; /* 确保不会被挤压 */
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15) !important;
   }
-
+  
   /* 浅色模式侧边栏样式 */
   :root.light .sidebar-container {
     background-color: rgba(250, 250, 255, 0.85) !important;
@@ -979,7 +902,6 @@ div[role="dialog"] {
     left: 0 !important;
     right: 0 !important;
     bottom: 80px !important; /* 输入框高度 */
-    max-height: calc(100% - 144px) !important; /* 100% - 头部 - 输入框 */
     overflow-y: scroll !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch !important;
@@ -1018,7 +940,7 @@ div[role="dialog"] {
     border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1) !important;
   }
-
+  
   /* 浅色模式输入区域样式 */
   :root.light .vh-chat-input,
   :root.light .chat-input-area,
@@ -1049,37 +971,7 @@ div[role="dialog"] {
     padding-bottom: env(safe-area-inset-bottom, 10px) !important;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15) !important;
   }
-
-/* 解决浅色模式下底部固定元素仍显示白色的问题 */
-:root.light .fixed.bottom-0,
-:root.light .sticky.bottom-0,
-html.light .fixed.bottom-0,
-.light .fixed.bottom-0,
-.light div[class*="fixed bottom"],
-.light div[class*="sticky bottom"],
-:root.light [class*="px-4 py-4 fixed"],
-:root.light [class*="sticky bottom-0"] {
-  background-color: rgba(230, 242, 255, 0.85) !important;
-  backdrop-filter: blur(15px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
-  border-top: 1px solid rgba(190, 215, 250, 0.5) !important;
-  box-shadow: 0 -3px 20px rgba(0, 122, 255, 0.05) !important;
-}
-
-/* 底部固定的输入框和导航组件 */
-:root.light .fixed.inset-x-0.bottom-0,
-:root.light .fixed.left-0.right-0.bottom-0,
-:root.light .chat-input-area,
-html.light .chat-input-area,
-.light .chat-input-area {
-  background-color: rgba(230, 242, 255, 0.85) !important;
-  backdrop-filter: blur(15px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
-  border-top: 1px solid rgba(190, 215, 250, 0.5) !important;
-}
-
-  }
-
+  
   /* iPad浅色模式样式 */
   :root.light .ipad-device.keyboard-open .chat-input-area {
     background-color: rgba(250, 250, 255, 0.9) !important;
@@ -1096,7 +988,7 @@ html.light .chat-input-area,
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
     background-color: rgba(40, 40, 40, 0.95) !important;
   }
-
+  
   /* 浅色模式下的输入框聚焦样式 */
   :root.light .ipad-device.keyboard-open .chat-input-area textarea:focus,
   :root.light .ipad-device.keyboard-focused .chat-input-area textarea:focus {
@@ -1116,7 +1008,7 @@ html.light .chat-input-area,
     border: 1px solid rgba(255, 255, 255, 0.15) !important;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
   }
-
+  
   /* 浅色模式输入框样式增强 */
   :root.light .ipad-device.keyboard-open .chat-input-container,
   :root.light .ipad-device.keyboard-focused .chat-input-container {
@@ -1174,197 +1066,6 @@ html.light .chat-input-area,
     -webkit-appearance: none !important;
     -moz-appearance: none !important;
     appearance: none !important;
-  }
-}
-
-/* 磨砂玻璃风格的Toast通知 */
-.frosted-toast {
-  backdrop-filter: blur(8px) !important;
-  background-color: rgba(20, 20, 20, 0.75) !important; 
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 12px !important;
-  color: white !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
-}
-
-/* 成功toast样式 */
-.frosted-toast-success {
-  backdrop-filter: blur(8px) !important;
-  background-color: rgba(22, 101, 52, 0.75) !important; 
-  border: 1px solid rgba(74, 222, 128, 0.3) !important;
-  border-radius: 12px !important;
-  color: white !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
-}
-
-/* 信息toast样式 */
-.frosted-toast-info {
-  backdrop-filter: blur(8px) !important;
-  background-color: rgba(30, 64, 175, 0.75) !important; 
-  border: 1px solid rgba(96, 165, 250, 0.3) !important;
-  border-radius: 12px !important;
-  color: white !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
-}
-
-/* 错误toast的特殊样式 */
-.frosted-toast-error {
-  backdrop-filter: blur(8px) !important;
-  background-color: rgba(220, 38, 38, 0.3) !important; 
-  border: 1px solid rgba(220, 38, 38, 0.3) !important;
-  border-radius: 12px !important;
-  color: white !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
-}
-
-/* 全局移除消息外部阴影效果和框架，对所有设备生效 */
-.message-appear,
-.w-full.max-w-3xl.mx-auto.px-4.py-2,
-div[class*="message-wrapper"],
-div[class*="flex flex-col"] > div,
-div[class*="w-full mx-auto"],
-div[class*="flex items-start"],
-div[class*="chat-message-wrapper"],
-.message-shadow,
-div[class*="chat-message-container"] > div,
-div[class*="message-appear"] > div {
-  box-shadow: none !important; /* 彻底移除所有消息相关元素的阴影 */
-  filter: none !important; /* 完全移除所有过滤器效果 */
-  text-shadow: none !important; /* 移除文本阴影 */
-  -webkit-box-shadow: none !important;
-  -moz-box-shadow: none !important;
-  background-clip: padding-box !important; /* 防止背景溢出到边框外 */
-  border: none !important; /* 移除所有边框 */
-  backdrop-filter: none !important; /* 移除外部框架的磨砂效果 */
-  -webkit-backdrop-filter: none !important;
-  background: transparent !important; /* 确保外部框架背景透明 */
-  background-color: transparent !important;
-}
-
-/* 保留消息气泡本身样式（所有设备通用） */
-div[class*="py-3 px-4 rounded-2xl"],
-.chat-message-item > div,
-.message-content,
-.user-message > div,
-.ai-message > div {
-  /* 保留气泡自身的样式属性 */
-  backdrop-filter: inherit !important;
-  -webkit-backdrop-filter: inherit !important;
-  background: inherit !important;
-  box-shadow: inherit !important;
-  border: inherit !important;
-}
-
-/* 保留消息气泡内部的适当阴影 */
-.message-content .prose pre,
-.message-content code,
-.message-content pre {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important; /* 保留代码块内部阴影 */
-}
-
-/* iPad和平板设备消息区统一对齐 - 保持消息右对齐 */
-.ipad-device .chat-message-container > div > div,
-.tablet-device .chat-message-container > div > div {
-  margin: 0 16px 0.75rem auto !important; /* 保持消息右对齐 */
-  width: auto !important; /* 宽度自适应内容 */
-  max-width: 85% !important; /* 最大宽度限制 */
-}
-
-/* iPad设备用户和AI消息的特定样式 - 保持消息右对齐 */
-.ipad-device .flex.flex-col,
-.tablet-device .flex.flex-col {
-  width: auto !important;
-  max-width: 100% !important;
-  margin-right: 16px !important; /* 添加右侧小边距 */
-}
-
-/* 确保所有消息气泡向右对齐 - 保持消息右对齐 */
-.ipad-device .message-appear,
-.tablet-device .message-appear,
-.ipad-device .chat-message-item,
-.tablet-device .chat-message-item {
-  margin-right: 16px !important; /* 统一右侧小边距 */
-  margin-left: auto !important; /* 左侧自动，使内容向右对齐 */
-}
-
-/* 明确设置用户消息向右对齐 */
-.ipad-device [class*="user-message"],
-.tablet-device [class*="user-message"],
-.ipad-device [class*="items-end"],
-.tablet-device [class*="items-end"] {
-  margin-left: auto !important;
-  margin-right: 16px !important;
-}
-
-/* 确保AI消息也向右对齐 */
-.ipad-device [class*="ai-message"],
-.tablet-device [class*="ai-message"],
-.ipad-device [class*="items-start"],
-.tablet-device [class*="items-start"] {
-  margin-left: auto !important;
-  margin-right: 16px !important;
-}
-
-/* 侧边栏历史记录项保持左对齐 */
-.ipad-device .sidebar-container .group,
-.tablet-device .sidebar-container .group,
-.ipad-device .sidebar-container .flex,
-.tablet-device .sidebar-container .flex,
-.ipad-device .sidebar-container button,
-.tablet-device .sidebar-container button {
-  justify-content: flex-start !important; /* 历史记录项左对齐 */
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  text-align: left !important;
-}
-
-/* 确保导航栏和头部容器在iPad上对齐到左侧边缘 */
-.ipad-device header,
-.tablet-device header {
-  justify-content: space-between !important; /* 两端对齐 */
-  padding-left: 0 !important; /* 移除左侧内边距，使其与侧边栏对齐 */
-  padding-right: 16px !important;
-}
-
-.ipad-device header > div,
-.tablet-device header > div {
-  margin-right: 16px !important; /* 添加统一的右侧小边距 */
-  margin-left: 0 !important; /* 移除左侧自动间距 */
-  padding-left: 16px !important; /* 添加与侧边栏内部相同的左侧内边距 */
-  display: flex !important;
-  justify-content: space-between !important; /* 两端对齐 */
-}
-/* 键盘打开时的消息容器调整 - 固定布局而非弹性布局 */
-  .ipad-device.keyboard-open .flex-1.overflow-y-auto,
-  .ipad-device.keyboard-focused .flex-1.overflow-y-auto {
-    position: absolute !important;
-    top: 64px !important; /* 头部高度 */
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 80px !important; /* 输入框高度 - 固定值 */
-    max-height: calc(100% - 144px) !important; /* 100% - 头部 - 输入框 */
-    overflow-y: scroll !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding-bottom: 100px !important; /* 增加底部填充 */
-  }
-
-  /* 统一键盘开启和关闭状态下的导航栏样式 */
-  .keyboard-open .chat-input-area,
-  .keyboard-focused .chat-input-area {
-    background: inherit !important; /* 继承父元素的背景 */
-    backdrop-filter: blur(15px) !important;
-    -webkit-backdrop-filter: blur(15px) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-  }
-
-  /* 浅色模式下统一样式 */
-  :root.light .keyboard-open .chat-input-area,
-  :root.light .keyboard-focused .chat-input-area {
-    background-color: rgba(230, 242, 255, 0.85) !important;
-    backdrop-filter: blur(15px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
-    border-top: 1px solid rgba(190, 215, 250, 0.5) !important;
-    box-shadow: 0 -4px 20px rgba(0, 122, 255, 0.05) !important;
   }
 }
 

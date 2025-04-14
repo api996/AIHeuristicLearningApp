@@ -199,7 +199,7 @@
     margin-right: 16px !important; /* 保持统一的右侧小边距 */
   }
 
-  /* 键盘打开时的特殊处理 - 非常重要！保持统一样式 */
+  /* 键盘打开时的特殊处理 - 非常重要！ */
   .ipad-device.keyboard-open .chat-input-area,
   .tablet-device.keyboard-open .chat-input-area {
     position: fixed !important;
@@ -211,22 +211,6 @@
     width: 100% !important;
     left: 0 !important;
     right: 0 !important;
-    backdrop-filter: blur(15px) !important;
-    -webkit-backdrop-filter: blur(15px) !important;
-    background-color: rgba(30, 30, 35, 0.75) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15) !important;
-    transition: all 0.3s ease !important;
-  }
-  
-  /* 浅色模式下iPad键盘打开状态的样式 */
-  :root.light .ipad-device.keyboard-open .chat-input-area,
-  :root.light .tablet-device.keyboard-open .chat-input-area {
-    background-color: rgba(230, 242, 255, 0.85) !important;
-    backdrop-filter: blur(15px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
-    border-top: 1px solid rgba(190, 215, 250, 0.5) !important;
-    box-shadow: 0 -4px 20px rgba(0, 122, 255, 0.05) !important;
   }
 
   /* 美化输入框外观 */
