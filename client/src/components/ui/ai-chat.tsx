@@ -896,6 +896,7 @@ export function AIChat({ userData }: AIChatProps) {
         title: "文件类型错误",
         description: "请上传有效的图片文件（JPEG, PNG, GIF, WEBP, SVG）",
         variant: "destructive",
+        className: "frosted-toast-error",
       });
       
       if (backgroundInputRef.current) {
@@ -911,6 +912,7 @@ export function AIChat({ userData }: AIChatProps) {
         title: "文件过大",
         description: "图片大小不能超过15MB",
         variant: "destructive",
+        className: "frosted-toast-error",
       });
       
       if (backgroundInputRef.current) {
@@ -931,6 +933,7 @@ export function AIChat({ userData }: AIChatProps) {
       toast({
         title: "背景已更新",
         description: "您的自定义背景已成功设置",
+        className: "frosted-toast-success",
       });
       
       // 关闭偏好设置对话框
