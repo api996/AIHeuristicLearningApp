@@ -3,7 +3,8 @@
 /* 解决聊天内容区域靠左问题 */
 @media screen and (min-width: 768px) and (max-width: 1024px) {
   /* 对于iPad和类似设备，完全重新调整聊天内容区布局 */
-  .ipad-chat-content {
+  .ipad-device .ipad-chat-content,
+  .tablet-device .ipad-chat-content {
     padding-left: 0 !important;
     margin-left: 256px !important; /* 与侧边栏宽度相等 */
     position: absolute !important;
@@ -12,9 +13,10 @@
     width: calc(100% - 256px) !important; /* 减去侧边栏宽度 */
   }
   
-  /* 改进布局：使内容更加靠右 */
-  .chat-message-container {
-    padding-left: 16px !important;
+  /* 改进布局：使内容更加靠右 - 仅限iPad和平板设备 */
+  .ipad-device .chat-message-container,
+  .tablet-device .chat-message-container {
+    padding-left: 24px !important; /* 增加左侧填充以修复过于靠左的问题 */
     padding-right: 32px !important; /* 增加右侧填充，使内容更加居中 */
     width: 100% !important;
     max-width: 900px !important; /* 设置最大宽度避免在大屏幕上过宽 */
@@ -22,29 +24,33 @@
     margin-right: auto !important;
   }
   
-  /* 优化消息显示 */
-  .vh-chat-messages {
+  /* 优化消息显示 - 仅限iPad和平板设备 */
+  .ipad-device .vh-chat-messages,
+  .tablet-device .vh-chat-messages {
     width: 100% !important;
-    padding-left: 16px !important;
+    padding-left: 24px !important; /* 增加左侧填充 */
     padding-right: 24px !important;
   }
   
-  /* 确保消息最大宽度适当 */
-  .message-appear {
+  /* 确保消息最大宽度适当 - 仅限iPad和平板设备 */
+  .ipad-device .message-appear,
+  .tablet-device .message-appear {
     max-width: 100% !important;
     margin-left: auto !important;
     margin-right: auto !important;
   }
   
-  /* 优化聊天输入框位置 */
-  .chat-input-area {
+  /* 优化聊天输入框位置 - 仅限iPad和平板设备 */
+  .ipad-device .chat-input-area,
+  .tablet-device .chat-input-area {
     width: calc(100% - 256px) !important; /* 减去侧边栏宽度 */
     right: 0 !important;
     left: 256px !important; /* 与侧边栏宽度相等 */
   }
   
-  /* 当键盘打开时调整 */
-  .ipad-device.keyboard-open .chat-input-area {
+  /* 当键盘打开时调整 - 仅限iPad和平板设备 */
+  .ipad-device.keyboard-open .chat-input-area,
+  .tablet-device.keyboard-open .chat-input-area {
     position: fixed !important;
     bottom: 0 !important;
     z-index: 1000 !important;
@@ -53,22 +59,28 @@
 
 /* 针对iPad Pro和其他大尺寸平板的特殊优化 */
 @media screen and (min-width: 1024px) and (max-width: 1366px) {
-  .ipad-chat-content {
+  /* iPad Pro专用布局调整 */
+  .ipad-device .ipad-chat-content,
+  .tablet-device .ipad-chat-content {
     position: absolute !important;
     left: 256px !important; /* 与侧边栏宽度相等 */
     right: 0 !important;
     width: calc(100% - 256px) !important;
   }
   
-  .chat-message-container {
-    padding-left: 32px !important;
-    padding-right: 48px !important; /* 提供更多右侧空间，解决靠左问题 */
+  /* iPad Pro消息区域调整 */
+  .ipad-device .chat-message-container,
+  .tablet-device .chat-message-container {
+    padding-left: 40px !important; /* 更大的左侧填充，解决靠左问题 */
+    padding-right: 48px !important; /* 提供更多右侧空间 */
     max-width: 1000px !important;
     margin-left: auto !important;
     margin-right: auto !important;
   }
   
-  .chat-input-area {
+  /* iPad Pro输入区域调整 */
+  .ipad-device .chat-input-area,
+  .tablet-device .chat-input-area {
     width: calc(100% - 256px) !important;
     right: 0 !important;
     left: 256px !important;
@@ -77,7 +89,8 @@
 
 /* 针对iPad处于横屏模式的特殊优化 */
 @media screen and (min-width: 1024px) and (max-width: 1366px) and (orientation: landscape) {
-  .chat-message-container {
+  .ipad-device.landscape .chat-message-container,
+  .tablet-device.landscape .chat-message-container {
     padding-left: 48px !important;
     padding-right: 64px !important; /* 横屏模式提供更多右侧空间 */
   }
@@ -85,15 +98,19 @@
 
 /* 针对iPad处于竖屏模式的特殊优化 */
 @media screen and (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
-  .chat-message-container {
-    padding-left: 24px !important;
+  .ipad-device.portrait .chat-message-container,
+  .tablet-device.portrait .chat-message-container {
+    padding-left: 32px !important; /* 增加左侧填充解决靠左问题 */
     padding-right: 32px !important;
   }
   
   /* 在竖屏模式下，让内容更靠中间，避免太靠左 */
-  .message-appear {
+  .ipad-device.portrait .message-appear,
+  .tablet-device.portrait .message-appear {
     max-width: 90% !important;
     margin-left: auto !important;
     margin-right: auto !important;
   }
 }
+
+/* 这里不需要任何代码，已经在上面的规则中包含了 */

@@ -2,36 +2,36 @@
 
 /* 基础手机样式 - 确保手机设备有正确的布局 */
 @media screen and (max-width: 767px) {
-  /* 手机上侧边栏应该完全隐藏 */
+  /* 手机上侧边栏应该完全隐藏在左侧，点击显示时才滑入 */
   .sidebar-container {
     position: fixed !important;
-    left: -100% !important;
+    left: -100% !important; /* 默认隐藏在左侧 */
     top: 0 !important;
     bottom: 0 !important;
-    width: 85% !important; /* 更合适的宽度 */
-    max-width: 320px !important;
+    width: 85% !important; /* 恰当的宽度 */
+    max-width: 300px !important;
     z-index: 1000 !important;
-    transition: transform 0.3s ease !important;
+    transition: transform 0.3s ease, left 0s !important; /* 平滑过渡 */
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.2) !important;
   }
   
-  /* 当侧边栏可见时 */
-  .sidebar-container.visible,
-  .sidebar-container.translate-x-0 {
-    transform: translateX(100%) !important;
-    left: 0 !important;
+  /* 侧边栏显示时 - 关键修复：使用transform而不改变left值 */
+  .mobile-device .sidebar-container.translate-x-0 {
+    transform: translateX(100%) !important; /* 向右移动自身100%宽度 */
+    /* 保持left: -100%不变，只用transform做动画 */
   }
   
-  /* 聊天内容区域应该占据全屏 */
-  .chat-content-area {
+  /* 手机设备聊天内容区域占据全屏 */
+  .mobile-device .chat-content-area {
     width: 100% !important;
     margin-left: 0 !important;
     left: 0 !important;
     right: 0 !important;
+    position: relative !important; /* 确保定位正确 */
   }
   
-  /* 输入区域应当贴合底部 */
-  .chat-input-area {
+  /* 手机设备输入区域固定在底部 */
+  .mobile-device .chat-input-area {
     position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
@@ -43,43 +43,43 @@
     backdrop-filter: blur(10px) !important;
   }
   
-  /* 消息容器改进，确保消息居中显示 */
-  .chat-message-container {
+  /* 手机设备消息容器，合理的内边距 */
+  .mobile-device .chat-message-container {
     padding-left: 12px !important;
     padding-right: 12px !important;
     width: 100% !important;
     max-width: 100% !important;
   }
   
-  /* 减少消息边距，适应小屏幕 */
-  .message-appear {
-    max-width: 92% !important;
-    margin: 8px auto !important;
+  /* 手机设备消息气泡，适当宽度 */
+  .mobile-device .message-appear {
+    max-width: 90% !important;
+    margin: 8px 0 !important; /* 用户消息靠右，AI消息靠左 */
   }
   
-  /* 确保头部不会太大 */
-  header.h-16 {
+  /* 手机设备头部调整 */
+  .mobile-device header.h-16 {
     height: 56px !important;
-    padding-left: 16px !important;
-    padding-right: 16px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
   }
   
-  /* 调整输入区域的内边距 */
-  .chat-input-container {
-    padding: 8px 12px !important;
+  /* 手机设备聊天输入容器调整 */
+  .mobile-device .chat-input-container {
+    padding: 8px 10px !important;
   }
 }
 
 /* 针对键盘激活状态的特殊处理 - 手机设备 */
 @media screen and (max-width: 767px) {
-  /* 当键盘打开时 */
-  .keyboard-open .chat-message-container {
-    padding-bottom: 60px !important;
+  /* 手机设备键盘打开时的消息容器 */
+  .mobile-device.keyboard-open .chat-message-container {
+    padding-bottom: 70px !important;
     margin-bottom: 0 !important;
   }
   
-  /* 键盘打开时固定输入框位置 */
-  .keyboard-open .chat-input-area {
+  /* 手机设备键盘打开时固定输入框位置 */
+  .mobile-device.keyboard-open .chat-input-area {
     position: fixed !important;
     bottom: 0 !important;
     transform: none !important;
@@ -87,8 +87,8 @@
   }
   
   /* 防止iOS中的视觉异常 */
-  .keyboard-open body,
-  .keyboard-open html {
+  .mobile-device.keyboard-open body,
+  .mobile-device.keyboard-open html {
     height: 100% !important;
     overflow: hidden !important;
   }
@@ -97,22 +97,22 @@
 /* iOS特有修复 */
 @supports (-webkit-touch-callout: none) {
   @media screen and (max-width: 767px) {
-    /* 确保iOS键盘弹出时不会产生空白区域 */
-    .keyboard-open .chat-input-area {
+    /* iPhone设备键盘弹出时防止空白区域 */
+    .iphone-device.keyboard-open .chat-input-area {
       position: fixed !important;
       bottom: 0 !important;
       padding-bottom: env(safe-area-inset-bottom, 0) !important;
     }
     
-    /* iOS设备上的表单控件最小字体大小为16px，防止缩放 */
-    input, 
-    textarea {
+    /* iPhone设备表单控件最小字体大小为16px */
+    .iphone-device input, 
+    .iphone-device textarea {
       font-size: 16px !important;
     }
     
-    /* 确保消息列表有足够的底部空间 */
-    .keyboard-open .chat-message-container {
-      padding-bottom: 100px !important;
+    /* iPhone设备键盘打开时消息列表底部空间 */
+    .iphone-device.keyboard-open .chat-message-container {
+      padding-bottom: 90px !important;
     }
   }
 }
@@ -120,15 +120,15 @@
 /* 安卓特有修复 */
 @supports not (-webkit-touch-callout: none) {
   @media screen and (max-width: 767px) {
-    /* 安卓设备特殊处理 */
-    .keyboard-open .chat-input-area {
+    /* 安卓手机设备键盘处理 */
+    .android-device.keyboard-open .chat-input-area {
       position: fixed !important;
       bottom: 0 !important;
     }
     
-    /* 安卓键盘弹出时的内容调整 */
-    .keyboard-open .chat-message-container {
-      padding-bottom: 80px !important;
+    /* 安卓手机键盘弹出时的内容调整 */
+    .android-device.keyboard-open .chat-message-container {
+      padding-bottom: 70px !important;
     }
   }
 }
