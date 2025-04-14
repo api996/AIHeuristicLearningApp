@@ -15,10 +15,13 @@
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.2) !important;
   }
   
-  /* 侧边栏可见时 - 增加右移量，避免太靠左 */
+  /* 侧边栏可见时 - 完全重置侧边栏定位，避免被遮挡 */
   .sidebar-container.translate-x-0 {
-    transform: translateX(100%) !important; /* 向右移动自身100%宽度 */
-    left: -85% !important; /* 调整起始位置，让显示出来的部分不会太靠左 */
+    transform: translateX(0) !important; /* 不再使用transform平移 */
+    left: 0 !important; /* 直接从左侧开始显示 */
+    width: 90% !important; /* 稍微增加宽度以确保内容完全可见 */
+    max-width: 300px !important;
+    z-index: 9999 !important; /* 绝对最高层级，确保在所有元素之上 */
   }
   
   /* 聊天内容区域 */
