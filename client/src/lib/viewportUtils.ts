@@ -35,8 +35,36 @@ export function updateViewportHeight(): void {
   const isIOS = /iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
   const isIPad = /iPad/.test(navigator.userAgent) || 
                  (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
+  const isTablet = isIPad || (window.innerWidth >= 768 && window.innerWidth <= 1366 && 'ontouchend' in document);
   const windowHeight = window.innerHeight;
   const viewportHeight = window.visualViewport.height;
+  
+  // 始终为设备添加对应的类，无论键盘是否弹出
+  if (isIPad) {
+    document.documentElement.classList.add('ipad-device');
+    console.log("检测到iPad设备，应用iPad专用布局优化");
+  } else if (isTablet) {
+    document.documentElement.classList.add('tablet-device');
+    console.log("检测到平板设备，应用平板专用布局优化");
+  } else if (isIOS) {
+    document.documentElement.classList.add('iphone-device');
+    console.log("检测到iPhone设备，应用移动布局优化");
+  } else if ('ontouchend' in document) {
+    document.documentElement.classList.add('mobile-device');
+    console.log("检测到移动设备，应用移动布局优化");
+  } else {
+    document.documentElement.classList.add('desktop-device');
+    console.log("检测到桌面设备，应用桌面布局优化");
+  }
+  
+  // 横竖屏状态检测
+  if (window.matchMedia("(orientation: portrait)").matches) {
+    document.documentElement.classList.add('portrait');
+    document.documentElement.classList.remove('landscape');
+  } else {
+    document.documentElement.classList.add('landscape');
+    document.documentElement.classList.remove('portrait');
+  }
   
   // 键盘弹出的检测逻辑：
   // 1. 视窗高度明显小于窗口高度（键盘占用了空间）
@@ -69,7 +97,6 @@ export function updateViewportHeight(): void {
       
       // 设置iPad专用的额外CSS变量
       document.documentElement.style.setProperty('--ipad-keyboard-offset', `${window.visualViewport.offsetTop}px`);
-      document.documentElement.classList.add('ipad-device');
     } else if (isIOS) {
       // iPhone等iOS设备的计算
       keyboardEstimatedHeight = Math.max(270, heightDifference + 20);
@@ -84,9 +111,6 @@ export function updateViewportHeight(): void {
     // 设置额外的辅助变量
     document.documentElement.style.setProperty('--content-bottom-padding', 
       isIPad ? `${keyboardEstimatedHeight + 16}px` : '80px');
-  } else {
-    // 键盘收起状态，重置iPad特殊状态
-    document.documentElement.classList.remove('ipad-device');
   }
     
   // 将键盘状态信息添加到文档类中，以便CSS可以相应调整
