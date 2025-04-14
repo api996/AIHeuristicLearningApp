@@ -993,7 +993,7 @@ div[class*="py-3 px-4 rounded-2xl"],
 /* iPad和平板设备消息区统一右对齐 */
 .ipad-device .chat-message-container > div > div,
 .tablet-device .chat-message-container > div > div {
-  margin: 0 0 0.75rem auto !important; /* 统一对齐方式：顶底左右，从右开始 */
+  margin: 0 16px 0.75rem auto !important; /* 统一对齐方式：顶右底左，添加右侧小边距 */
   width: auto !important; /* 宽度自适应内容 */
   max-width: 85% !important; /* 最大宽度限制 */
 }
@@ -1003,6 +1003,34 @@ div[class*="py-3 px-4 rounded-2xl"],
 .tablet-device .flex.flex-col {
   width: auto !important;
   max-width: 100% !important;
+  margin-right: 16px !important; /* 添加右侧小边距 */
+}
+
+/* 确保所有消息气泡向右对齐 */
+.ipad-device .message-appear,
+.tablet-device .message-appear,
+.ipad-device .chat-message-item,
+.tablet-device .chat-message-item {
+  margin-right: 16px !important; /* 统一右侧小边距 */
+  margin-left: auto !important; /* 左侧自动，使内容向右对齐 */
+}
+
+/* 明确设置用户消息向右对齐 */
+.ipad-device [class*="user-message"],
+.tablet-device [class*="user-message"],
+.ipad-device [class*="items-end"],
+.tablet-device [class*="items-end"] {
+  margin-left: auto !important;
+  margin-right: 16px !important;
+}
+
+/* 确保AI消息也向右对齐 */
+.ipad-device [class*="ai-message"],
+.tablet-device [class*="ai-message"],
+.ipad-device [class*="items-start"],
+.tablet-device [class*="items-start"] {
+  margin-left: auto !important;
+  margin-right: 16px !important;
 }
 
 /* 确保导航栏和头部容器在iPad上正确对齐 */
@@ -1014,5 +1042,7 @@ div[class*="py-3 px-4 rounded-2xl"],
 
 .ipad-device header > div,
 .tablet-device header > div {
-  margin-right: 0 !important; /* 移除右侧自动外边距 */
+  margin-right: 16px !important; /* 添加统一的右侧小边距 */
+  display: flex !important;
+  justify-content: flex-end !important;
 }
