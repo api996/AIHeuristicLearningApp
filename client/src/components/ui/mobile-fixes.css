@@ -93,12 +93,20 @@
     margin-bottom: 0 !important;
   }
   
-  /* 手机设备键盘打开时固定输入框位置 */
+  /* 手机设备键盘打开时固定输入框位置 - 保持与非键盘状态一致 */
   .mobile-device.keyboard-open .chat-input-area {
     position: fixed !important;
     bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
     transform: none !important;
     z-index: 100 !important;
+    background-color: inherit !important; /* 继承正常状态的背景色 */
+    backdrop-filter: blur(10px) !important; /* 保持磨砂玻璃效果 */
+    -webkit-backdrop-filter: blur(10px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important; /* 保持边框样式 */
+    padding: 8px !important; /* 保持内边距一致 */
   }
   
   /* 防止iOS中的视觉异常 */
@@ -112,11 +120,28 @@
 /* iOS特有修复 */
 @supports (-webkit-touch-callout: none) {
   @media screen and (max-width: 767px) {
-    /* iPhone设备键盘弹出时防止空白区域 */
+    /* iPhone设备键盘弹出时防止空白区域 - 保持与非键盘状态视觉一致 */
     .iphone-device.keyboard-open .chat-input-area {
       position: fixed !important;
       bottom: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: 100% !important;
       padding-bottom: env(safe-area-inset-bottom, 0) !important;
+      background-color: inherit !important; /* 继承父元素背景色 */
+      backdrop-filter: blur(15px) !important; /* 增强磨砂玻璃效果 */
+      -webkit-backdrop-filter: blur(15px) !important;
+      z-index: 100 !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.1) !important; /* 保持一致的边框 */
+    }
+    
+    /* iPhone设备浅色模式下键盘打开时的样式 - 确保视觉一致性 */
+    :root.light .iphone-device.keyboard-open .chat-input-area {
+      background-color: rgba(230, 242, 255, 0.85) !important; /* 浅蓝色半透明背景 */
+      border-top: 1px solid rgba(190, 215, 250, 0.5) !important; /* 浅蓝色边框 */
+      box-shadow: 0 -5px 15px rgba(0, 122, 255, 0.05) !important; /* 蓝色阴影 */
+      backdrop-filter: blur(15px) saturate(150%) !important; /* 浅色模式下的磨砂效果 */
+      -webkit-backdrop-filter: blur(15px) saturate(150%) !important;
     }
     
     /* iPhone设备表单控件最小字体大小为16px */
@@ -135,10 +160,26 @@
 /* 安卓特有修复 */
 @supports not (-webkit-touch-callout: none) {
   @media screen and (max-width: 767px) {
-    /* 安卓手机设备键盘处理 */
+    /* 安卓手机设备键盘处理 - 保持与非键盘状态一致 */
     .android-device.keyboard-open .chat-input-area {
       position: fixed !important;
       bottom: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: 100% !important;
+      background-color: inherit !important; /* 继承正常状态背景色 */
+      backdrop-filter: blur(15px) !important; /* 保持磨砂玻璃效果 */
+      -webkit-backdrop-filter: blur(15px) !important;
+      z-index: 100 !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.1) !important; /* 保持边框一致 */
+      padding: 8px !important; /* 保持内边距一致 */
+    }
+    
+    /* 安卓设备浅色模式下的键盘处理 */
+    :root.light .android-device.keyboard-open .chat-input-area {
+      background-color: rgba(230, 242, 255, 0.85) !important; /* 浅蓝色半透明背景 */
+      border-top: 1px solid rgba(190, 215, 250, 0.5) !important; /* 浅蓝色边框 */
+      box-shadow: 0 -5px 15px rgba(0, 122, 255, 0.05) !important; /* 蓝色阴影 */
     }
     
     /* 安卓手机键盘弹出时的内容调整 */
