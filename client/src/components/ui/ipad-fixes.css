@@ -11,17 +11,22 @@
     left: 0 !important;
     right: 0 !important;
     width: calc(100% - 256px) !important; /* 减去侧边栏宽度 */
+    display: flex !important; /* 使用flex布局使内容居中 */
+    flex-direction: column !important;
+    align-items: center !important; /* 内容水平居中 */
   }
   
-  /* 改进布局：使内容更加靠右 - 仅限iPad和平板设备 */
+  /* 改进布局：使内容更加居中 - 仅限iPad和平板设备 */
   .ipad-device .chat-message-container,
   .tablet-device .chat-message-container {
-    padding-left: 24px !important; /* 增加左侧填充以修复过于靠左的问题 */
-    padding-right: 32px !important; /* 增加右侧填充，使内容更加居中 */
-    width: 100% !important;
-    max-width: 900px !important; /* 设置最大宽度避免在大屏幕上过宽 */
+    padding-left: 40px !important; /* 大幅增加左侧填充 */
+    padding-right: 40px !important; /* 保持两侧对称 */
+    width: 92% !important; /* 稍微缩小宽度 */
+    max-width: 800px !important; /* 设置最大宽度避免在大屏幕上过宽 */
     margin-left: auto !important;
     margin-right: auto !important;
+    /* 添加调试边框
+    border: 1px solid rgba(255, 0, 0, 0.1) !important; */
   }
   
   /* 优化消息显示 - 仅限iPad和平板设备 */

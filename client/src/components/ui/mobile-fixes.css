@@ -1,8 +1,8 @@
 /* 针对手机设备的特定修复 */
 
-/* 基础手机样式 - 确保手机设备有正确的布局 */
+/* 基础手机样式 - 恢复原始手机布局逻辑 */
 @media screen and (max-width: 767px) {
-  /* 手机上侧边栏应该完全隐藏在左侧，点击显示时才滑入 */
+  /* 基础侧边栏样式 */
   .sidebar-container {
     position: fixed !important;
     left: -100% !important; /* 默认隐藏在左侧 */
@@ -11,18 +11,18 @@
     width: 85% !important; /* 恰当的宽度 */
     max-width: 300px !important;
     z-index: 1000 !important;
-    transition: transform 0.3s ease, left 0s !important; /* 平滑过渡 */
+    transition: transform 0.3s ease !important; /* 平滑过渡 */
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.2) !important;
   }
   
-  /* 侧边栏显示时 - 关键修复：使用transform而不改变left值 */
-  .mobile-device .sidebar-container.translate-x-0 {
+  /* 侧边栏可见时 - 增加右移量，避免太靠左 */
+  .sidebar-container.translate-x-0 {
     transform: translateX(100%) !important; /* 向右移动自身100%宽度 */
-    /* 保持left: -100%不变，只用transform做动画 */
+    left: -85% !important; /* 调整起始位置，让显示出来的部分不会太靠左 */
   }
   
-  /* 手机设备聊天内容区域占据全屏 */
-  .mobile-device .chat-content-area {
+  /* 聊天内容区域 */
+  .chat-content-area {
     width: 100% !important;
     margin-left: 0 !important;
     left: 0 !important;
@@ -30,8 +30,8 @@
     position: relative !important; /* 确保定位正确 */
   }
   
-  /* 手机设备输入区域固定在底部 */
-  .mobile-device .chat-input-area {
+  /* 输入区域 */
+  .chat-input-area {
     position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
@@ -43,29 +43,29 @@
     backdrop-filter: blur(10px) !important;
   }
   
-  /* 手机设备消息容器，合理的内边距 */
-  .mobile-device .chat-message-container {
+  /* 消息容器 */
+  .chat-message-container {
     padding-left: 12px !important;
     padding-right: 12px !important;
     width: 100% !important;
     max-width: 100% !important;
   }
   
-  /* 手机设备消息气泡，适当宽度 */
-  .mobile-device .message-appear {
+  /* 消息气泡 */
+  .message-appear {
     max-width: 90% !important;
     margin: 8px 0 !important; /* 用户消息靠右，AI消息靠左 */
   }
   
-  /* 手机设备头部调整 */
-  .mobile-device header.h-16 {
+  /* 头部调整 */
+  header.h-16 {
     height: 56px !important;
     padding-left: 12px !important;
     padding-right: 12px !important;
   }
   
-  /* 手机设备聊天输入容器调整 */
-  .mobile-device .chat-input-container {
+  /* 聊天输入容器调整 */
+  .chat-input-container {
     padding: 8px 10px !important;
   }
 }
