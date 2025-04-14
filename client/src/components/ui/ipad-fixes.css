@@ -1,0 +1,52 @@
+/* iPad和平板设备特定修复 */
+
+/* 解决聊天内容区域靠左问题 */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+  /* 对于iPad和类似设备，增加内容区域的右侧填充，使内容居中 */
+  .chat-content-area {
+    padding-left: 0 !important; /* 去除左侧填充 */
+    margin-left: auto !important; /* 使用自动边距推动内容向右 */
+    margin-right: auto !important;
+    max-width: calc(100% - 256px) !important; /* 减去侧边栏宽度 */
+    width: calc(100% - 256px) !important; /* 减去侧边栏宽度 */
+  }
+  
+  /* 调整消息容器布局 */
+  .vh-chat-messages {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  
+  /* 确保消息最大宽度适当 */
+  .message-appear {
+    max-width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  
+  /* 优化聊天输入框位置 */
+  .chat-input-area {
+    max-width: calc(100% - 256px) !important; /* 减去侧边栏宽度 */
+    width: calc(100% - 256px) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    left: auto !important; 
+    right: 0 !important;
+  }
+}
+
+/* 针对iPad处于横屏模式的特殊优化 */
+@media screen and (min-width: 1024px) and (max-width: 1366px) and (orientation: landscape) {
+  .chat-content-area {
+    padding-left: 32px !important;
+    padding-right: 32px !important;
+  }
+}
+
+/* 针对iPad处于竖屏模式的特殊优化 */
+@media screen and (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+  .chat-content-area {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
