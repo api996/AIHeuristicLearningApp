@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('./components/ui/button-styles.css');
 
 @tailwind base;
 @tailwind components;
@@ -416,22 +417,36 @@ div[role="dialog"] {
   }
 }
 
-/* 自定义滚动条样式 */
+/* 自定义滚动条样式 - 深色模式 */
 ::-webkit-scrollbar {
   width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background-color: #1a1a1a;
+  background-color: rgba(26, 26, 26, 0.5);
+  border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #3a3a3a;
-  border-radius: 4px;
+  background-color: rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #555;
+  background-color: rgba(99, 102, 241, 0.5);
+}
+
+/* 自定义滚动条样式 - 浅色模式 */
+:root.light ::-webkit-scrollbar-track {
+  background-color: rgba(240, 240, 245, 0.5);
+}
+
+:root.light ::-webkit-scrollbar-thumb {
+  background-color: rgba(99, 102, 241, 0.2);
+}
+
+:root.light ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(99, 102, 241, 0.4);
 }
 
 /* 隐藏空内容区域的滚动条 */
@@ -626,7 +641,7 @@ div[role="dialog"] {
 /* ==== 针对不同平台的特殊处理 ==== */
 /* iOS 设备特殊处理 */
 @supports (-webkit-touch-callout: none) {
-  /* 固定输入区域，防止iOS中输入区被弹起的键盘推至不可见区域 */
+  /* 固定输入区域，防止iOS中输入区被弹起的键盘推至不可见区域 - 深色模式 */
   .keyboard-open .chat-input-container {
     position: fixed !important;
     /* 使用可视区域高度剩余部分的固定位置 - 自动适应键盘高度 */
@@ -635,6 +650,13 @@ div[role="dialog"] {
     background-color: rgba(15, 15, 15, 0.75) !important; /* 半透明深色背景 */
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
     padding-bottom: env(safe-area-inset-bottom, 8px) !important; /* 支持安全区域 */
+  }
+  
+  /* 浅色模式下的输入区域样式 */
+  :root.light .keyboard-open .chat-input-container {
+    background-color: rgba(250, 250, 255, 0.85) !important; /* 浅色半透明背景 */
+    border-top: 1px solid rgba(220, 225, 235, 0.5) !important;
+    box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.05) !important;
   }
 
   /* 键盘打开时，确保消息区域留有足够空间且内容可见 */
@@ -699,7 +721,7 @@ div[role="dialog"] {
     transition: transform 0.25s ease-out !important;
   }
 
-  /* 确保输入框背景与内容完全显示 */
+  /* 确保输入框背景与内容完全显示 - 深色模式 */
   .keyboard-open .chat-input-container > div,
   .keyboard-focused .chat-input-container > div {
     backdrop-filter: blur(10px) !important;
@@ -707,6 +729,17 @@ div[role="dialog"] {
     padding: 8px !important;
     border-radius: 12px !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  /* 确保输入框背景与内容完全显示 - 浅色模式 */
+  :root.light .keyboard-open .chat-input-container > div,
+  :root.light .keyboard-focused .chat-input-container > div {
+    backdrop-filter: blur(10px) saturate(180%) !important;
+    background-color: rgba(250, 250, 255, 0.85) !important; /* 浅色半透明磨砂玻璃效果 */
+    padding: 8px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(220, 225, 235, 0.5) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
   }
 }
 
@@ -777,7 +810,7 @@ div[role="dialog"] {
     align-items: stretch !important; /* 子元素拉伸填满高度 */
   }
 
-  /* 修复左侧栏溢出问题 - 解决遮挡内容的问题 */
+  /* 修复左侧栏溢出问题 - 解决遮挡内容的问题 - 深色模式 */
   .sidebar-container {
     position: absolute !important;
     width: 256px !important; /* 精确固定宽度，与JSX中保持一致 */
@@ -787,10 +820,22 @@ div[role="dialog"] {
     bottom: 0 !important;
     left: 0 !important;
     overflow-y: auto !important;
-    background-color: rgba(0, 0, 0, 0.8) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background-color: rgba(15, 15, 20, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
     transition: transform 0.3s ease !important;
     flex-shrink: 0 !important; /* 确保不会被挤压 */
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  /* 浅色模式侧边栏样式 */
+  :root.light .sidebar-container {
+    background-color: rgba(250, 250, 255, 0.85) !important;
+    backdrop-filter: blur(12px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+    border-right: 1px solid rgba(220, 225, 235, 0.5) !important;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.05) !important;
   }
 
   /* 修复当侧边栏关闭时的问题 */
@@ -876,7 +921,7 @@ div[role="dialog"] {
     padding-bottom: var(--content-bottom-padding, 80px) !important;
   }
 
-  /* 输入区域固定处理 */
+  /* 输入区域固定处理 - 深色模式 */
   .vh-chat-input,
   .chat-input-area,
   [class*="chat-input"] {
@@ -885,13 +930,26 @@ div[role="dialog"] {
     right: 0 !important;
     bottom: 0 !important;
     z-index: 1000 !important;
-    background-color: rgba(0, 0, 0, 0.8) !important;
-    backdrop-filter: blur(10px) !important;
+    background-color: rgba(15, 15, 20, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
     padding: 10px 16px !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  /* 浅色模式输入区域样式 */
+  :root.light .vh-chat-input,
+  :root.light .chat-input-area,
+  :root.light [class*="chat-input"] {
+    background-color: rgba(250, 250, 255, 0.9) !important;
+    backdrop-filter: blur(12px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+    border-top: 1px solid rgba(220, 225, 235, 0.5) !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05) !important;
   }
 
-  /* iPad特有标记时应用更特殊的规则 - 彻底简化iPad键盘处理 */
+  /* iPad特有标记时应用更特殊的规则 - 彻底简化iPad键盘处理 - 深色模式 */
   .ipad-device.keyboard-open .chat-input-area {
     position: fixed !important;
     left: 0 !important;
@@ -899,24 +957,45 @@ div[role="dialog"] {
     bottom: 0 !important;
     top: auto !important;
     z-index: 9999 !important;
-    background-color: rgba(0, 0, 0, 0.9) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+    background-color: rgba(15, 15, 20, 0.9) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
     transform: none !important;
     -webkit-transform: none !important;
     transition: none !important;
     animation: none !important;
     padding-bottom: env(safe-area-inset-bottom, 10px) !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  /* iPad浅色模式样式 */
+  :root.light .ipad-device.keyboard-open .chat-input-area {
+    background-color: rgba(250, 250, 255, 0.9) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
+    border-top: 1px solid rgba(220, 225, 235, 0.5) !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05) !important;
   }
 
-  /* 输入框聚焦时特殊样式 - 确保输入框始终在视野内 */
+  /* 输入框聚焦时特殊样式 - 确保输入框始终在视野内 - 深色模式 */
   .ipad-device.keyboard-open .chat-input-area textarea:focus,
   .ipad-device.keyboard-focused .chat-input-area textarea:focus {
     border-color: rgba(59, 130, 246, 0.5) !important; /* 高亮边框 */
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
     background-color: rgba(40, 40, 40, 0.95) !important;
   }
+  
+  /* 浅色模式下的输入框聚焦样式 */
+  :root.light .ipad-device.keyboard-open .chat-input-area textarea:focus,
+  :root.light .ipad-device.keyboard-focused .chat-input-area textarea:focus {
+    border-color: rgba(59, 130, 246, 0.5) !important; /* 高亮边框 */
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+    background-color: rgba(245, 245, 250, 0.95) !important;
+    color: #1e293b !important;
+  }
 
-  /* 输入框本身的样式增强 */
+  /* 输入框本身的样式增强 - 深色模式 */
   .ipad-device.keyboard-open .chat-input-container,
   .ipad-device.keyboard-focused .chat-input-container {
     padding: 12px !important;
@@ -924,6 +1003,19 @@ div[role="dialog"] {
     backdrop-filter: blur(15px) !important;
     background-color: rgba(30, 30, 30, 0.8) !important;
     border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+  }
+  
+  /* 浅色模式输入框样式增强 */
+  :root.light .ipad-device.keyboard-open .chat-input-container,
+  :root.light .ipad-device.keyboard-focused .chat-input-container {
+    padding: 12px !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
+    background-color: rgba(250, 250, 255, 0.85) !important;
+    border: 1px solid rgba(220, 225, 235, 0.5) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
   }
 
   /* 键盘弹出时的消息容器调整 - 固定布局而非弹性布局 */
