@@ -5,19 +5,7 @@
 
 import { storage } from '../../storage';
 import { log } from '../../vite';
-
-/**
- * 记忆条目接口
- */
-interface MemoryItem {
-  id?: string;
-  content: string;
-  type: string;
-  timestamp: string;
-  embedding?: number[];
-  summary?: string;
-  keywords?: string[];
-}
+import type { MemoryItem } from './memory_service';
 
 /**
  * 数据库记忆适配器类
@@ -102,15 +90,16 @@ export class DbMemoryAdapter {
         // 获取嵌入向量
         const embedding = await storage.getEmbeddingByMemoryId(memory.id);
         
-        // 构造记忆项
+        // 构造记忆项，安全处理时间戳
         const memoryItem: MemoryItem = {
           id: memory.id.toString(),
           content: memory.content,
           type: memory.type,
-          timestamp: memory.timestamp.toISOString(),
+          timestamp: memory.timestamp ? memory.timestamp.toISOString() : new Date().toISOString(),
           summary: memory.summary || undefined,
           keywords: keywords,
-          embedding: embedding ? (embedding.vectorData as number[]) : undefined
+          embedding: embedding ? (embedding.vectorData as number[]) : undefined,
+          userId: memory.userId // 添加userId
         };
         
         result.push(memoryItem);
@@ -148,15 +137,16 @@ export class DbMemoryAdapter {
         // 获取嵌入向量
         const embedding = await storage.getEmbeddingByMemoryId(memory.id);
         
-        // 构造记忆项
+        // 构造记忆项，安全处理时间戳
         const memoryItem: MemoryItem = {
           id: memory.id.toString(),
           content: memory.content,
           type: memory.type,
-          timestamp: memory.timestamp.toISOString(),
+          timestamp: memory.timestamp ? memory.timestamp.toISOString() : new Date().toISOString(),
           summary: memory.summary || undefined,
           keywords: keywords,
-          embedding: embedding ? (embedding.vectorData as number[]) : undefined
+          embedding: embedding ? (embedding.vectorData as number[]) : undefined,
+          userId: memory.userId // 添加userId
         };
         
         result.push(memoryItem);
