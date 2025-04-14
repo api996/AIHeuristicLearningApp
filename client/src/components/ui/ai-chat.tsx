@@ -4,6 +4,7 @@ import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
 import { setupViewportHeightListeners, scrollToBottom, isNearBottom } from "@/lib/viewportUtils";
 import "./ipad-fixes.css"; // 导入iPad专用修复样式
+import "./mobile-fixes.css"; // 导入手机设备专用修复样式
 import { useLocation } from "wouter";
 import {
   Search,
@@ -41,8 +42,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 type Message = {
-  role: "user" | "assistant";
-  content: string;
+  id?: number;                    // 消息ID，用于操作特定消息
+  role: "user" | "assistant";     // 消息角色
+  content: string;                // 消息内容
+  isRegenerating?: boolean;       // 标记消息是否正在重新生成
+  feedback?: "like" | "dislike";  // 消息反馈
+  created_at?: string;            // 创建时间
+  is_edited?: boolean;            // 是否已编辑
+  chat_id?: number;               // 所属对话ID
 };
 
 type Model = "search" | "deep" | "gemini" | "deepseek" | "grok";
@@ -642,19 +649,10 @@ export function AIChat({ userData }: AIChatProps) {
   
   // 完全简化：处理输入框获得焦点时的滚动行为 - 针对iOS/iPad直接使用CSS实现
   const handleInputFocus = () => {
-    // 判断设备类型 - 特别识别iPad
-    const isIOS = /iPhone|iPod/i.test(navigator.userAgent);
-    const isIPad = detectIsiPad(); // 使用我们定义的函数来检测iPad
-    const isAndroid = /Android/i.test(navigator.userAgent);
+    // 使用新的设备检测函数，获取多种设备类型
+    const deviceTypes = detectDeviceType();
     
-    // 标记设备类型，让CSS处理定位
-    if (isIPad) {
-      document.documentElement.classList.add('ipad-device');
-      document.body.classList.add('ipad-device');
-      console.log("检测到iPad设备，应用特定样式");
-    }
-    
-    // 标记键盘状态
+    // 标记键盘状态 - 所有设备通用
     document.documentElement.classList.add('keyboard-open');
     document.body.classList.add('keyboard-open');
     console.log("键盘打开，应用特殊布局");
@@ -1077,23 +1075,100 @@ export function AIChat({ userData }: AIChatProps) {
   };
 
 
-  // 检测是否为iPad或平板设备
-  const detectIsiPad = () => {
+  // 改进的设备检测函数 - 检测多种设备类型
+  const detectDeviceType = () => {
     const userAgent = navigator.userAgent.toLowerCase();
-    return /ipad/.test(userAgent) || 
-      ((/tablet|ipad|playbook|silk|android(?!.*mobile)/i.test(userAgent)) ||
-      (/macintosh/.test(userAgent) && 'ontouchend' in document));
+    
+    // 创建更完整的设备检测逻辑
+    const deviceTypes = {
+      // iPad 检测 - iPad + 平板标准检测规则 + MacOS触屏设备（新iPad Pro）
+      isIPad: /ipad/.test(userAgent) || 
+              ((/tablet|ipad|playbook|silk|android(?!.*mobile)/i.test(userAgent)) ||
+              (/macintosh/.test(userAgent) && 'ontouchend' in document)),
+      
+      // iPhone和iPod检测
+      isIPhone: /iphone|ipod/i.test(userAgent),
+      
+      // 安卓手机检测
+      isAndroidPhone: /android.*mobile/i.test(userAgent),
+      
+      // 安卓平板检测
+      isAndroidTablet: /android/i.test(userAgent) && !/mobile/i.test(userAgent),
+      
+      // 通用手机检测（包括所有手机设备）
+      isMobile: /iphone|ipod|android.*mobile|windows.*phone|blackberry/i.test(userAgent),
+      
+      // 通用平板检测（所有平板设备）
+      isTablet: /ipad|android(?!.*mobile)|tablet|playbook|silk/i.test(userAgent) || 
+                (/macintosh/.test(userAgent) && 'ontouchend' in document)
+    };
+    
+    return deviceTypes;
   };
 
-  // 在组件挂载时添加iPad设备标识类
+  // 判断当前屏幕方向
+  const getOrientation = () => {
+    return window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+  };
+
+  // 在组件挂载时添加设备类型标识
   useEffect(() => {
-    if (detectIsiPad()) {
-      document.body.classList.add('ipad-device');
+    const deviceTypes = detectDeviceType();
+    const orientation = getOrientation();
+    const root = document.documentElement;
+    const body = document.body;
+    
+    // 移除所有可能的设备类型标记，避免冲突
+    root.classList.remove('ipad-device', 'iphone-device', 'android-device', 'mobile-device', 'tablet-device');
+    body.classList.remove('ipad-device', 'iphone-device', 'android-device', 'mobile-device', 'tablet-device');
+    
+    // 标记当前设备类型
+    if (deviceTypes.isIPad) {
+      root.classList.add('ipad-device', 'tablet-device');
+      body.classList.add('ipad-device', 'tablet-device');
       console.log("检测到iPad设备，应用iPad布局优化");
+    } else if (deviceTypes.isIPhone) {
+      root.classList.add('iphone-device', 'mobile-device');
+      body.classList.add('iphone-device', 'mobile-device');
+      console.log("检测到iPhone设备，应用移动布局优化");
+    } else if (deviceTypes.isAndroidPhone) {
+      root.classList.add('android-device', 'mobile-device');
+      body.classList.add('android-device', 'mobile-device');
+      console.log("检测到Android手机，应用移动布局优化");
+    } else if (deviceTypes.isAndroidTablet) {
+      root.classList.add('android-tablet', 'tablet-device');
+      body.classList.add('android-tablet', 'tablet-device');
+      console.log("检测到Android平板，应用平板布局优化");
     }
     
+    // 标记屏幕方向
+    if (orientation === 'landscape') {
+      root.classList.add('landscape');
+      root.classList.remove('portrait');
+    } else {
+      root.classList.add('portrait');
+      root.classList.remove('landscape');
+    }
+    
+    // 添加屏幕方向变化监听
+    const handleOrientationChange = () => {
+      const newOrientation = getOrientation();
+      if (newOrientation === 'landscape') {
+        root.classList.add('landscape');
+        root.classList.remove('portrait');
+      } else {
+        root.classList.add('portrait');
+        root.classList.remove('landscape');
+      }
+    };
+    
+    window.addEventListener('resize', handleOrientationChange);
+    
     return () => {
-      document.body.classList.remove('ipad-device');
+      // 清理所有类名和事件监听
+      root.classList.remove('ipad-device', 'iphone-device', 'android-device', 'mobile-device', 'tablet-device', 'landscape', 'portrait');
+      body.classList.remove('ipad-device', 'iphone-device', 'android-device', 'mobile-device', 'tablet-device');
+      window.removeEventListener('resize', handleOrientationChange);
     };
   }, []);
   
