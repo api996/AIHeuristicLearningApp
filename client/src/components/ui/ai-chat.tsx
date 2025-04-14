@@ -1290,58 +1290,70 @@ export function AIChat({ userData }: AIChatProps) {
           </div>
         </header>
 
-        {/* 聊天消息容器 - 使用特定的类名便于CSS选择器定位 - 减小底部padding */}
-        <div className={"flex-1 flex flex-col p-4 sm:p-6 md:p-8 pb-20 overflow-y-auto chat-message-container " + (messages.length === 0 ? 'hide-empty-scrollbar' : '')}>
-          {messages.length === 0 ? (
-            // 欢迎页面 - 垂直居中不需要滚动，完全隐藏滚动条
-            <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
-              <div className="space-y-3">
-                <div className="flex justify-center">
-                  <div className="p-4 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-600/20">
-                    <Brain size={28} className="text-blue-400" />
+        {/* 聊天消息容器 - 使用响应式居中布局 */}
+        <div className={`
+          flex-1 flex flex-col overflow-y-auto chat-message-container 
+          ${messages.length === 0 ? 'hide-empty-scrollbar' : ''}
+        `}>
+          {/* 创建一个居中的内容容器 */}
+          <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 pb-20 flex-1 flex flex-col">
+            {messages.length === 0 ? (
+              // 欢迎页面 - 垂直居中不需要滚动
+              <div className="flex-1 flex items-center justify-center text-center hide-empty-scrollbar">
+                <div className="space-y-3">
+                  <div className="flex justify-center">
+                    <div className="p-4 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-600/20">
+                      <Brain size={28} className="text-blue-400" />
+                    </div>
                   </div>
+                  <h3 className="text-xl font-semibold text-white">{greetingMessage}</h3>
+                  <p className="max-w-md text-sm text-neutral-400">
+                    与AI开始交谈，探索不同学习模型
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold text-white">{greetingMessage}</h3>
-                <p className="max-w-md text-sm text-neutral-400">
-                  与AI开始交谈，探索不同学习模型
-                </p>
               </div>
-            </div>
-          ) : (
-            // 有消息时显示滚动区域 - 优化滚动体验与空间
-            <div 
-              ref={messagesContainerRef}
-              className="w-full flex-1 flex flex-col gap-4 py-1 overflow-y-auto vh-chat-messages"
-              style={{ 
-                scrollBehavior: 'smooth',
-                WebkitOverflowScrolling: 'touch',
-                overscrollBehavior: 'contain'
-              }}
-            >
-              {messages.map((msg, i) => (
-                <ChatMessage 
-                  key={i} 
-                  message={msg} 
-                  isThinking={isLoading && i === messages.length - 1 && msg.role === "assistant"}
-                  onEdit={handleEditMessage}
-                  onRegenerate={handleRegenerateMessage}
-                  onFeedback={handleMessageFeedback}
-                />
-              ))}
-              {/* 如果正在等待AI响应，且最后一条是用户消息，显示思考中的占位消息 */}
-              {isLoading && messages[messages.length - 1]?.role === "user" && (
-                <ChatMessage 
-                  message={{ role: "assistant", content: "" }} 
-                  isThinking={true} 
-                />
-              )}
-            </div>
-          )}
+            ) : (
+              // 有消息时显示滚动区域 - 优化滚动体验与空间
+              <div 
+                ref={messagesContainerRef}
+                className="w-full flex-1 flex flex-col gap-4 py-4 overflow-y-auto vh-chat-messages"
+                style={{ 
+                  scrollBehavior: 'smooth',
+                  WebkitOverflowScrolling: 'touch',
+                  overscrollBehavior: 'contain'
+                }}
+              >
+                {/* 消息列表 - 使用flex布局实现居中 */}
+                <div className="w-full flex flex-col gap-4 items-center">
+                  {messages.map((msg, i) => (
+                    <ChatMessage 
+                      key={i} 
+                      message={msg} 
+                      isThinking={isLoading && i === messages.length - 1 && msg.role === "assistant"}
+                      onEdit={handleEditMessage}
+                      onRegenerate={handleRegenerateMessage}
+                      onFeedback={handleMessageFeedback}
+                    />
+                  ))}
+                  {/* 如果正在等待AI响应，且最后一条是用户消息，显示思考中的占位消息 */}
+                  {isLoading && messages[messages.length - 1]?.role === "user" && (
+                    <ChatMessage 
+                      message={{ role: "assistant", content: "" }} 
+                      isThinking={true} 
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Input Area - 添加chat-input-container类便于CSS处理键盘状态 */}
-        <div className={"chat-input-area chat-input-container fixed bottom-0 left-0 right-0 pb-4 pt-2 px-2 z-20 " + (theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass')}>
-          <div className="max-w-3xl mx-auto px-2 sm:px-4">
+        {/* 输入区域 - 采用响应式居中布局 */}
+        <div className={`
+          chat-input-area chat-input-container fixed bottom-0 left-0 right-0 pb-4 pt-2 z-20 
+          ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}
+        `}>
+          <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8">
             {/* 模型选择 - 使用更紧凑的布局 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
               <Button
