@@ -53,10 +53,16 @@
 .chat-message-container .message-appear,
 .message-bubble,
 .message-content,
-div[role="dialog"],
-.chat-message {
+.chat-message,
+[class*="py-3 px-4 rounded-2xl"] {
   box-shadow: none !important; /* 彻底移除所有消息相关元素的阴影 */
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.06)) !important; /* 仅使用轻微的drop-shadow */
+  filter: none !important; /* 完全移除所有过滤器效果 */
+  text-shadow: none !important; /* 移除文本阴影 */
+}
+
+/* 对话框保留阴影效果 */
+div[role="dialog"] {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
 }
 
 /* 修复下拉菜单和弹出层的z-index问题 - 全局解决方案 */
@@ -79,7 +85,7 @@ div[role="dialog"],
 [data-radix-dropdown-menu-content],
 div[data-radix-popper-content-wrapper] [role="dialog"] {
   z-index: 99999 !important; /* 极高的z-index确保这些UI元素总是位于最上层 */
-  position: relative !important; /* 确保定位属性 */
+  /* 移除position:relative，这会导致下拉菜单被错误定位 */
 }
 
 @keyframes shimmer {
