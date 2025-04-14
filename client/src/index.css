@@ -944,44 +944,28 @@ div[role="dialog"] {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* 彻底移除消息外部框架和所有边框 - 完全清理所有外层元素 */
-.chat-message-container > div > div,
-.message-shadow,
-div[class*="chat-message-container"] > div,
-div[class*="message-wrapper"],
-div[class*="flex items-start"],
-div[class*="chat-message-wrapper"],
-div[class*="w-full mx-auto"],
-.chat-message-item,
-.chat-message,
-.chat-message > div,
-div[class*="flex flex-col"],
-div[class*="message-appear"],
-div[class*="chat-message-container"] div {
-  box-shadow: none !important; /* 移除阴影 */
-  filter: none !important;
-  -webkit-box-shadow: none !important;
-  -moz-box-shadow: none !important;
-  background: transparent !important; /* 确保背景透明 */
-  background-image: none !important; 
-  background-clip: padding-box !important;
-  border: none !important; /* 彻底移除边框 */
-  border-width: 0 !important;
-  border-radius: 0 !important;
-  outline: none !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-}
-
-/* 仅保留气泡本身的关键样式，确保气泡内容可见 */
-.message-bubble,
-.message-content,
+/* 彻底移除消息外部阴影效果 - 优化性能关键 */
+div[class*="message-bubble"],
+div[class*="message-content"],
+div[class*="py-3 px-4 rounded-2xl"],
+.message-appear,
 .ai-message,
 .user-message,
-div[class*="py-3 px-4 rounded-2xl"] {
+.message-shadow,
+.chat-message-container > div > div,
+.chat-message-item,
+.chat-message,
+div[class*="chat-message-"],
+div[class*="message-wrapper"],
+div[class*="flex flex-col"] > div,
+div[class*="w-full mx-auto"],
+div[class*="flex items-start"] {
+  box-shadow: none !important; /* 彻底移除所有消息相关元素的阴影 */
+  filter: none !important; /* 完全移除所有过滤器效果 */
   text-shadow: none !important; /* 移除文本阴影 */
-  background: rgba(30, 30, 35, 0.75) !important; /* 保留气泡背景色 */
-  border-radius: 16px !important; /* 保留气泡圆角 */
+  -webkit-box-shadow: none !important;
+  -moz-box-shadow: none !important;
+  background-clip: padding-box !important; /* 防止背景溢出到边框外 */
 }
 
 /* 保留消息气泡内部的适当阴影 */
