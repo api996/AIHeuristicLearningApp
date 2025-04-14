@@ -644,17 +644,20 @@ export function AIChat({ userData }: AIChatProps) {
   const handleInputFocus = () => {
     // 判断设备类型 - 特别识别iPad
     const isIOS = /iPhone|iPod/i.test(navigator.userAgent);
-    const isIPad = /iPad/i.test(navigator.userAgent) || 
-                   (/Macintosh/i.test(navigator.userAgent) && 'ontouchend' in document);
+    const isIPad = detectIsiPad(); // 使用我们定义的函数来检测iPad
     const isAndroid = /Android/i.test(navigator.userAgent);
     
     // 标记设备类型，让CSS处理定位
     if (isIPad) {
       document.documentElement.classList.add('ipad-device');
+      document.body.classList.add('ipad-device');
+      console.log("检测到iPad设备，应用特定样式");
     }
     
     // 标记键盘状态
     document.documentElement.classList.add('keyboard-open');
+    document.body.classList.add('keyboard-open');
+    console.log("键盘打开，应用特殊布局");
     
     // 强制重置页面滚动位置
     window.scrollTo(0, 0);
@@ -681,6 +684,8 @@ export function AIChat({ userData }: AIChatProps) {
       if (!isInputFocused) {
         // 移除键盘焦点状态标记
         document.documentElement.classList.remove('keyboard-open');
+        document.body.classList.remove('keyboard-open');
+        console.log("键盘关闭，恢复正常布局");
         
         // 重置页面滚动
         window.scrollTo(0, 0);
