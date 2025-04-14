@@ -5,6 +5,75 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 全局 - 磨砂玻璃效果公共样式 */
+.frosted-glass {
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.frosted-glass-dark {
+  background: rgba(30, 30, 40, 0.8) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 对话框磨砂玻璃样式 */
+.frosted-dialog {
+  background: rgba(30, 30, 35, 0.85) !important; 
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 磨砂玻璃提示框样式 */
+.frosted-toast-info {
+  background: rgba(59, 130, 246, 0.25) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  color: white !important;
+}
+
+.frosted-toast-success {
+  background: rgba(34, 197, 94, 0.25) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(34, 197, 94, 0.2) !important;
+  color: white !important;
+}
+
+.frosted-toast-error {
+  background: rgba(239, 68, 68, 0.25) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+  color: white !important;
+}
+
+/* 美化滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
 /* 长按菜单动画效果 */
 @keyframes scale-in-menu {
   0% {
