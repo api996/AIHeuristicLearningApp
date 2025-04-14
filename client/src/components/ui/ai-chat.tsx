@@ -889,6 +889,36 @@ export function AIChat({ userData }: AIChatProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 文件类型验证
+    const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!validImageTypes.includes(file.type)) {
+      toast({
+        title: "文件类型错误",
+        description: "请上传有效的图片文件（JPEG, PNG, GIF, WEBP, SVG）",
+        variant: "destructive",
+      });
+      
+      if (backgroundInputRef.current) {
+        backgroundInputRef.current.value = '';
+      }
+      return;
+    }
+
+    // 文件大小验证（限制为5MB）
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast({
+        title: "文件过大",
+        description: "图片大小不能超过5MB",
+        variant: "destructive",
+      });
+      
+      if (backgroundInputRef.current) {
+        backgroundInputRef.current.value = '';
+      }
+      return;
+    }
+
     try {
       const base64Image = await readFileAsBase64(file);
 
@@ -902,6 +932,9 @@ export function AIChat({ userData }: AIChatProps) {
         title: "背景已更新",
         description: "您的自定义背景已成功设置",
       });
+      
+      // 关闭偏好设置对话框
+      setShowPreferencesDialog(false);
     } catch (error) {
       console.error("背景图片上传失败:", error);
       toast({
@@ -1181,7 +1214,7 @@ export function AIChat({ userData }: AIChatProps) {
         </div>
       )}
 
-      {/* 背景图片上传按钮 */}
+      {/* 背景图片上传输入框（隐藏，通过偏好设置触发） */}
       <input
         type="file"
         ref={backgroundInputRef}
@@ -1190,13 +1223,6 @@ export function AIChat({ userData }: AIChatProps) {
         className="hidden"
         id="background-upload"
       />
-      <label 
-        htmlFor="background-upload" 
-        className="bg-upload-btn"
-        title="上传背景图片"
-      >
-        <ImageIcon className="h-5 w-5 text-white opacity-70" />
-      </label>
 
       {/* 轻微的全局透明效果，不使用磨砂玻璃效果在背景图片上 */}
       <div className="absolute inset-0 z-0 bg-black bg-opacity-20"></div>
@@ -1904,7 +1930,59 @@ export function AIChat({ userData }: AIChatProps) {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">自定义功能 <span className="text-xs text-neutral-500">(即将推出)</span></h3>
+              <h3 className="text-sm font-medium text-neutral-300">背景设置</h3>
+              <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-between items-center">
+                    <span>自定义背景图片</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('background-upload')?.click()}
+                      className="h-8 px-3 bg-neutral-700 hover:bg-neutral-600 border-neutral-600"
+                    >
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      上传图片
+                    </Button>
+                  </div>
+                  
+                  {backgroundImage && (
+                    <div className="mt-2">
+                      <div className="relative overflow-hidden rounded-md h-20 bg-neutral-900">
+                        <img src={backgroundImage} alt="当前背景" className="w-full h-full object-cover" />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            localStorage.removeItem('background-image');
+                            setBackgroundImage(null);
+                            toast({
+                              title: "背景已移除",
+                              description: "已恢复默认背景设置",
+                            });
+                          }}
+                          className="absolute top-1 right-1 h-7 w-7 p-0 bg-black/50 hover:bg-black/70 border-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-neutral-500 mt-1">
+                        提示：上传图片后会立即应用为背景
+                      </p>
+                    </div>
+                  )}
+                  
+                  {!backgroundImage && (
+                    <p className="text-xs text-neutral-500">
+                      上传图片作为聊天背景，支持JPG、PNG、GIF等常见图片格式，大小不超过5MB
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-neutral-300">其他功能 <span className="text-xs text-neutral-500">(即将推出)</span></h3>
               <div className="p-3 bg-neutral-800 rounded-md text-neutral-400 text-sm">
                 更多自定义功能将在后续版本推出，敬请期待！
               </div>
