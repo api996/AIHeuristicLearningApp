@@ -124,7 +124,7 @@
     background-image: none !important; /* 防止背景图像造成阴影效果 */
   }
 
-  /* 精确定位并移除iPad设备上消息外层方形阴影图层 - 保留气泡和背景图片 */
+  /* 彻底删除iPad设备上消息外部所有框架和边框 */
   .ipad-device [class*="flex items-start"],
   .tablet-device [class*="flex items-start"],
   .ipad-device [class*="chat-message-wrapper"],
@@ -136,24 +136,35 @@
   .ipad-device .chat-message-item,
   .tablet-device .chat-message-item,
   .ipad-device [class*="chat-message-container"] div,
-  .tablet-device [class*="chat-message-container"] div {
+  .tablet-device [class*="chat-message-container"] div,
+  .ipad-device .message-appear > div,
+  .tablet-device .message-appear > div,
+  .ipad-device .chat-message > div,
+  .tablet-device .chat-message > div,
+  .ipad-device [class*="flex flex-col"],
+  .tablet-device [class*="flex flex-col"] {
     box-shadow: none !important;
     -webkit-box-shadow: none !important;
     -moz-box-shadow: none !important;
     background-image: none !important;
     filter: none !important;
-    background: transparent !important; /* 确保背景透明，显示背景图片 */
-    border-shadow: none !important;
-    backdrop-filter: none !important; /* 防止在外层应用模糊效果 */
+    background: transparent !important;
+    border: none !important; /* 彻底移除所有边框 */
+    border-width: 0 !important;
+    border-color: transparent !important;
+    outline: none !important;
+    backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
 
-  /* 修复：确保消息气泡本身背景不透明，保留气泡效果 */
+  /* 仅保留消息气泡本身的样式 - 不包含任何外框 */
   .ipad-device .message-bubble,
-  .tablet-device .message-bubble {
+  .tablet-device .message-bubble,
+  .ipad-device div[class*="py-3 px-4 rounded-2xl"],
+  .tablet-device div[class*="py-3 px-4 rounded-2xl"] {
     background: rgba(30, 30, 35, 0.75) !important; /* 保留气泡背景 */
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 16px !important;
+    border-radius: 16px !important; /* 保留圆角 */
+    border: none !important; /* 移除气泡边框 */
   }
 
 
