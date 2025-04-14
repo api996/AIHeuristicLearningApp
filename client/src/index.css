@@ -945,18 +945,9 @@ div[role="dialog"] {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* 彻底移除消息外部阴影效果 - 优化性能关键 */
-div[class*="message-bubble"],
-div[class*="message-content"],
-div[class*="py-3 px-4 rounded-2xl"],
+/* 彻底移除消息外部阴影效果和框架，但保留气泡自身样式 */
 .message-appear,
-.ai-message,
-.user-message,
-.message-shadow,
-.chat-message-container > div > div,
-.chat-message-item,
-.chat-message,
-div[class*="chat-message-"],
+.w-full.max-w-3xl.mx-auto.px-4.py-2,
 div[class*="message-wrapper"],
 div[class*="flex flex-col"] > div,
 div[class*="w-full mx-auto"],
@@ -968,6 +959,22 @@ div[class*="flex items-start"] {
   -moz-box-shadow: none !important;
   background-clip: padding-box !important; /* 防止背景溢出到边框外 */
   border: none !important; /* Remove all borders */
+  backdrop-filter: none !important; /* 移除外部框架的磨砂效果 */
+  -webkit-backdrop-filter: none !important;
+  background: transparent !important; /* 确保外部框架背景透明 */
+  background-color: transparent !important;
+}
+
+/* 保留消息气泡本身样式 */
+div[class*="py-3 px-4 rounded-2xl"],
+.chat-message-item > div,
+.message-content {
+  /* 保留气泡自身的样式属性 */
+  backdrop-filter: inherit !important;
+  -webkit-backdrop-filter: inherit !important;
+  background: inherit !important;
+  box-shadow: inherit !important;
+  border: inherit !important;
 }
 
 /* 保留消息气泡内部的适当阴影 */

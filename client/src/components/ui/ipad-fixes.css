@@ -128,16 +128,30 @@
     background-color: transparent !important; /* 确保背景透明 */
   }
 
-  /* 完全删除iPad设备上外部方形框架和边框线 */
+  /* 完全删除iPad设备上外部方形框架，但保留气泡自身磨砂效果 */
   .ipad-device [class*="flex items-start"],
   .tablet-device [class*="flex items-start"],
   .ipad-device [class*="chat-message-wrapper"],
   .tablet-device [class*="chat-message-wrapper"],
-  .ipad-device [class*="message-appear"] > div,
-  .tablet-device [class*="message-appear"] > div {
+  .ipad-device .message-appear,
+  .tablet-device .message-appear,
+  .ipad-device .w-full.max-w-3xl.mx-auto.px-4.py-2,
+  .tablet-device .w-full.max-w-3xl.mx-auto.px-4.py-2 {
     box-shadow: none !important;
     background-image: none !important;
     filter: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  /* 保留气泡本身的磨砂效果 */
+  .ipad-device .py-3.px-4.rounded-2xl,
+  .tablet-device .py-3.px-4.rounded-2xl {
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
   }
 
 
