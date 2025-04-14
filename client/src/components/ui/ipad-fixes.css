@@ -66,7 +66,7 @@
   }
   
   /* ===== 聊天消息容器样式 ===== */
-  /* 聊天消息外层容器 - 流体布局 */
+  /* 聊天消息外层容器 - 流体布局 - 完全改进版 */
   .ipad-device .chat-message-container,
   .tablet-device .chat-message-container {
     flex: 1 !important;
@@ -77,18 +77,25 @@
     flex-direction: column !important;
     padding-bottom: 120px !important; /* 为底部输入框留出空间 */
     
-    /* 设置调试边框以检查布局
-    border: 1px solid rgba(255, 0, 0, 0.3) !important; */
+    /* 处理与侧边栏的关系 */
+    padding-left: 256px !important; /* 为侧边栏预留空间 */
+    box-sizing: border-box !important;
+  }
+
+  /* 当侧边栏隐藏时重置内边距 */
+  .ipad-device .sidebar-container.hidden ~ .chat-content-area .chat-message-container,
+  .tablet-device .sidebar-container.hidden ~ .chat-content-area .chat-message-container {
+    padding-left: 0 !important;
   }
   
-  /* 内容真正居中的容器 */
+  /* 内容真正居中的容器 - 改进版 */
   .ipad-device .chat-message-container > div,
   .tablet-device .chat-message-container > div {
     width: 100% !important;
-    max-width: 700px !important; /* 限制最大宽度 */
+    max-width: 650px !important; /* 限制最大宽度，与输入框一致 */
     margin-left: auto !important;
     margin-right: auto !important;
-    padding: 0 20px !important;
+    padding: 0 !important; /* 移除内边距，由子元素控制 */
   }
   
   /* 消息区域滚动容器 */

@@ -1508,7 +1508,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* Password Change Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent>
+        <DialogContent className="frosted-dialog">
           <DialogHeader>
             <DialogTitle>修改密码</DialogTitle>
           </DialogHeader>
@@ -1543,7 +1543,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* 修改标题对话框 */}
       <Dialog open={showTitleDialog} onOpenChange={setShowTitleDialog}>
-        <DialogContent>
+        <DialogContent className="frosted-dialog">
           <DialogHeader>
             <DialogTitle>修改对话标题</DialogTitle>
           </DialogHeader>
@@ -1574,7 +1574,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* 用户资料对话框 */}
       <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md frosted-dialog">
           <DialogHeader>
             <DialogTitle>个人资料</DialogTitle>
           </DialogHeader>
@@ -1611,7 +1611,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* 学习轨迹对话框 */}
       <Dialog open={showLearningPathDialog} onOpenChange={setShowLearningPathDialog}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] frosted-dialog">
           <DialogHeader>
             <DialogTitle>学习轨迹分析</DialogTitle>
           </DialogHeader>
@@ -1820,7 +1820,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* 偏好设置对话框 */}
       <Dialog open={showPreferencesDialog} onOpenChange={setShowPreferencesDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md frosted-dialog">
           <DialogHeader>
             <DialogTitle>偏好设置</DialogTitle>
           </DialogHeader>
