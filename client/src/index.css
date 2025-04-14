@@ -65,7 +65,17 @@ div[role="dialog"] {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
 }
 
-/* 修复下拉菜单和弹出层的z-index问题 - 全局解决方案 */
+/**
+ * 全局菜单和弹出层修复
+ * - 确保下拉菜单和对话框始终位于顶层
+ * - 不使用position:relative避免定位问题
+ * - 提供更高的z-index防止叠层问题
+ */
+[data-radix-popper-content-wrapper] {
+  z-index: 99999 !important; /* 极高的z-index确保菜单位于最上层 */
+}
+
+/* Radix UI组件通用修复 */
 .dropdown-menu,
 .popover-content,
 [role="menu"],
@@ -73,7 +83,6 @@ div[role="dialog"] {
 .user-dropdown,
 .dropdown-content,
 .dialog-content,
-[data-radix-popper-content-wrapper],
 [data-state="open"] div[role="dialog"],
 [data-radix-portal],
 [data-state="open"],
@@ -82,10 +91,21 @@ div[role="dialog"] {
 [aria-haspopup="menu"],
 [data-state="open"] .radix-dropdown,
 .context-menu-content,
-[data-radix-dropdown-menu-content],
-div[data-radix-popper-content-wrapper] [role="dialog"] {
-  z-index: 99999 !important; /* 极高的z-index确保这些UI元素总是位于最上层 */
-  /* 移除position:relative，这会导致下拉菜单被错误定位 */
+[data-radix-dropdown-menu-content] {
+  z-index: 99999 !important; /* 极高的z-index确保UI元素位于最上层 */
+}
+
+/* 特别处理弹出菜单的容器，确保它们使用正确的定位 */
+.dropdown-menu-container {
+  position: relative !important; /* 菜单容器使用相对定位 */
+}
+
+/* 修复iPad和移动设备上的菜单问题 */
+@media (max-width: 1366px) {
+  [data-radix-popper-content-wrapper] {
+    position: fixed !important; /* 在移动设备上使用fixed定位避免滚动问题 */
+    z-index: 999999 !important; /* 更高的z-index */
+  }
 }
 
 @keyframes shimmer {
