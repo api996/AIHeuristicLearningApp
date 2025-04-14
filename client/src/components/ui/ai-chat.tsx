@@ -904,12 +904,12 @@ export function AIChat({ userData }: AIChatProps) {
       return;
     }
 
-    // 文件大小验证（限制为5MB）
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    // 文件大小验证（限制为15MB）
+    const maxSize = 15 * 1024 * 1024; // 15MB
     if (file.size > maxSize) {
       toast({
         title: "文件过大",
-        description: "图片大小不能超过5MB",
+        description: "图片大小不能超过15MB",
         variant: "destructive",
       });
       
