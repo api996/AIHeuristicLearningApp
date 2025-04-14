@@ -990,15 +990,15 @@ div[class*="py-3 px-4 rounded-2xl"],
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important; /* 保留代码块内部阴影 */
 }
 
-/* iPad和平板设备消息区统一右对齐 */
+/* iPad和平板设备消息区统一对齐 - 保持消息右对齐 */
 .ipad-device .chat-message-container > div > div,
 .tablet-device .chat-message-container > div > div {
-  margin: 0 16px 0.75rem auto !important; /* 统一对齐方式：顶右底左，添加右侧小边距 */
+  margin: 0 16px 0.75rem auto !important; /* 保持消息右对齐 */
   width: auto !important; /* 宽度自适应内容 */
   max-width: 85% !important; /* 最大宽度限制 */
 }
 
-/* iPad设备用户和AI消息的特定样式 */
+/* iPad设备用户和AI消息的特定样式 - 保持消息右对齐 */
 .ipad-device .flex.flex-col,
 .tablet-device .flex.flex-col {
   width: auto !important;
@@ -1006,7 +1006,7 @@ div[class*="py-3 px-4 rounded-2xl"],
   margin-right: 16px !important; /* 添加右侧小边距 */
 }
 
-/* 确保所有消息气泡向右对齐 */
+/* 确保所有消息气泡向右对齐 - 保持消息右对齐 */
 .ipad-device .message-appear,
 .tablet-device .message-appear,
 .ipad-device .chat-message-item,
@@ -1033,16 +1033,32 @@ div[class*="py-3 px-4 rounded-2xl"],
   margin-right: 16px !important;
 }
 
-/* 确保导航栏和头部容器在iPad上正确对齐 */
+/* 侧边栏历史记录项保持左对齐 */
+.ipad-device .sidebar-container .group,
+.tablet-device .sidebar-container .group,
+.ipad-device .sidebar-container .flex,
+.tablet-device .sidebar-container .flex,
+.ipad-device .sidebar-container button,
+.tablet-device .sidebar-container button {
+  justify-content: flex-start !important; /* 历史记录项左对齐 */
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  text-align: left !important;
+}
+
+/* 确保导航栏和头部容器在iPad上对齐到左侧边缘 */
 .ipad-device header,
 .tablet-device header {
-  justify-content: flex-end !important; /* 从右开始对齐 */
-  padding-right: 16px !important; /* 保持与消息容器相同的右侧边距 */
+  justify-content: space-between !important; /* 两端对齐 */
+  padding-left: 0 !important; /* 移除左侧内边距，使其与侧边栏对齐 */
+  padding-right: 16px !important;
 }
 
 .ipad-device header > div,
 .tablet-device header > div {
   margin-right: 16px !important; /* 添加统一的右侧小边距 */
+  margin-left: 0 !important; /* 移除左侧自动间距 */
+  padding-left: 16px !important; /* 添加与侧边栏内部相同的左侧内边距 */
   display: flex !important;
-  justify-content: flex-end !important;
+  justify-content: space-between !important; /* 两端对齐 */
 }

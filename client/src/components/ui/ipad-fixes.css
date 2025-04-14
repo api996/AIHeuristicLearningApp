@@ -266,37 +266,39 @@
   }
 }
 
-/* ===== 头部调整 - 改为右对齐 ===== */
+/* ===== 头部调整 - 左侧与历史记录栏对齐 ===== */
   .ipad-device header,
   .tablet-device header,
   .ipad-device header.h-16,
   .tablet-device header.h-16 {
     height: 56px !important;
-    padding-left: 16px !important;
+    padding-left: 0 !important; /* 移除左侧内边距，使其与侧边栏对齐 */
     padding-right: 16px !important;
     width: 100% !important;
     display: flex !important;
-    justify-content: flex-end !important; /* 从右侧开始对齐 */
+    justify-content: space-between !important; /* 左右两端对齐 */
   }
 
-  /* 头部内容容器右对齐 */
+  /* 头部内容容器两端对齐 */
   .ipad-device header > div,
   .tablet-device header > div {
     width: 100% !important;
-    max-width: 700px !important;
-    margin-left: auto !important; /* 左侧自动，实现右对齐 */
+    max-width: 100% !important; /* 允许完全宽度 */
+    margin-left: 0 !important; /* 左侧不自动 */
+    padding-left: 16px !important; /* 左侧添加内边距与侧边栏内容对齐 */
     margin-right: 16px !important; /* 右侧保留小间距 */
     display: flex !important;
-    justify-content: flex-end !important; /* 子元素也从右侧开始对齐 */
+    justify-content: space-between !important; /* 子元素两端对齐 */
   }
   
-  /* 导航栏中所有子元素右对齐 */
+  /* 导航栏中所有子元素正常间距 */
   .ipad-device header > div > *,
   .tablet-device header > div > * {
-    margin-left: 16px !important; /* 为每个元素之间添加左侧间距 */
+    margin-left: 0 !important; /* 移除左侧强制间距 */
+    margin-right: 16px !important; /* 添加右侧间距 */
   }
   
-  /* 特别处理导航栏标题和按钮，确保它们向右对齐 */
+  /* 移除特殊对齐，恢复正常排序 */
   .ipad-device header h1,
   .tablet-device header h1,
   .ipad-device header button,
@@ -305,18 +307,18 @@
   .tablet-device header .button,
   .ipad-device header [class*="new-chat"],
   .tablet-device header [class*="new-chat"] {
-    margin-left: auto !important; /* 强制向右对齐 */
+    margin-left: 0 !important; /* 移除强制右对齐 */
   }
   
-  /* 确保导航栏左侧的标题也向右移动 */
+  /* 恢复左侧元素的正常位置 */
   .ipad-device header > div > div:first-child,
   .tablet-device header > div > div:first-child {
-    margin-right: auto !important; /* 确保它是最后一个元素 */
-    order: 2 !important; /* 改变排序，使其显示在右侧 */
+    margin-right: 0 !important; /* 移除强制间距 */
+    order: 0 !important; /* 恢复正常排序 */
   }
   
-  /* 移动新对话按钮到最右侧 */
+  /* 恢复新对话按钮的正常位置 */
   .ipad-device header [class*="new-chat"],
   .tablet-device header [class*="new-chat"] {
-    order: 1 !important; /* 改变排序，使其显示在最右侧 */
+    order: 0 !important; /* 恢复正常排序 */
   }
