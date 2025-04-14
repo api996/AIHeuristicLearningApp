@@ -58,6 +58,18 @@
   .message-appear {
     max-width: 90% !important;
     margin: 8px 0 !important; /* 用户消息靠右，AI消息靠左 */
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  /* 保留移动设备上消息气泡本身的样式 */
+  .mobile-device .message-content,
+  .mobile-device div[class*="py-3 px-4 rounded-2xl"] {
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
   }
   
   /* 头部调整 */
