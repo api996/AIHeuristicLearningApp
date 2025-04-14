@@ -115,8 +115,8 @@ async function migrateMemoriesToDatabase() {
     
     if (migratedMemories > 0) {
       log(`验证数据库记录...`);
-      const dbCount = await db.select({ count: db.fn.count() }).from(memories);
-      log(`数据库中现有 ${dbCount[0].count} 条记忆记录`);
+      const dbCount = await db.select().from(memories);
+      log(`数据库中现有 ${dbCount.length} 条记忆记录`);
     }
     
   } catch (error) {

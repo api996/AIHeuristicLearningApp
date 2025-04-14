@@ -5,7 +5,7 @@
 
 import { spawn } from 'child_process';
 import { log } from '../../vite';
-import { dbMemoryAdapter } from './db_memory_adapter';
+import { dbMemoryAdapter, MemoryItem } from './db_memory_adapter_fixed';
 
 // 存储模式枚举
 export enum StorageMode {
@@ -20,18 +20,17 @@ interface MemoryServiceConfig {
   enableMigration: boolean; // 是否允许文件迁移到数据库
 }
 
-/**
- * 记忆条目接口
- */
-export interface MemoryItem {
-  id?: string;
-  content: string;
-  type: string;
-  timestamp: string;
-  embedding?: number[];
-  summary?: string;
-  keywords?: string[];
-}
+// 使用从修复后的适配器导入的MemoryItem接口替代
+// export interface MemoryItem {
+//   id?: string;
+//   content: string;
+//   type: string;
+//   timestamp: string;
+//   embedding?: number[];
+//   summary?: string;
+//   keywords?: string[];
+//   userId?: number;
+// }
 
 /**
  * 记忆过滤条件
