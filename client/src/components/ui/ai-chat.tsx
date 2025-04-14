@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
 import { setupViewportHeightListeners, scrollToBottom, isNearBottom } from "@/lib/viewportUtils";
+import "./ipad-fixes.css"; // 导入iPad专用修复样式
 import { useLocation } from "wouter";
 import {
   Search,
@@ -1071,6 +1072,26 @@ export function AIChat({ userData }: AIChatProps) {
   };
 
 
+  // 检测是否为iPad或平板设备
+  const detectIsiPad = () => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    return /ipad/.test(userAgent) || 
+      ((/tablet|ipad|playbook|silk|android(?!.*mobile)/i.test(userAgent)) ||
+      (/macintosh/.test(userAgent) && 'ontouchend' in document));
+  };
+
+  // 在组件挂载时添加iPad设备标识类
+  useEffect(() => {
+    if (detectIsiPad()) {
+      document.body.classList.add('ipad-device');
+      console.log("检测到iPad设备，应用iPad布局优化");
+    }
+    
+    return () => {
+      document.body.classList.remove('ipad-device');
+    };
+  }, []);
+  
   return (
     <div className="flex h-screen text-white relative" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
       {/* 背景图片容器 */}
@@ -1135,8 +1156,8 @@ export function AIChat({ userData }: AIChatProps) {
         />
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col relative chat-content-area w-full">
+      {/* Main Content - 添加iPad优化类 */}
+      <div className="flex-1 flex flex-col relative chat-content-area w-full ipad-chat-content">
         {/* Header - 苹果风格磨砂透明 */}
         <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${theme === 'dark' ? 'frosted-glass-dark border-neutral-800' : 'frosted-glass border-neutral-200/20'}`}>
           <div className="flex items-center">
