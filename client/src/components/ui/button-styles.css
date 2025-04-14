@@ -1,12 +1,14 @@
 /* 自定义按钮样式 - 适用于所有主题 */
 
-/* 主按钮样式 - 系统浅蓝风格 */
+/* 主按钮样式 - 磨砂玻璃风格 */
 .btn-primary {
-  background-color: rgba(56, 139, 255, 0.9) !important; /* iOS风格浅蓝色 */
+  background-color: rgba(56, 139, 255, 0.2) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
   border-radius: 8px !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
   color: white !important;
-  border: none !important;
+  border: 1px solid rgba(56, 139, 255, 0.3) !important;
   transition: all 0.2s ease !important;
   cursor: pointer !important;
   font-weight: 500 !important;
@@ -15,42 +17,47 @@
 }
 
 .btn-primary:hover {
-  background-color: rgba(31, 122, 246, 1) !important; /* 稍深的蓝色 */
+  background-color: rgba(31, 122, 246, 0.25) !important;
+  border-color: rgba(31, 122, 246, 0.4) !important;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
 }
 
 .btn-primary:active {
   transform: scale(0.98) !important;
-  background-color: rgba(14, 99, 214, 1) !important; /* 更深的蓝色 */
+  background-color: rgba(14, 99, 214, 0.3) !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* 次级按钮样式 */
+/* 次级按钮样式 - 磨砂玻璃风格 */
 .btn-secondary {
-  background: rgba(99, 102, 241, 0.12) !important;
+  background: rgba(60, 60, 70, 0.2) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
   border-radius: 8px !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05) !important;
-  color: #6366f1 !important;
-  border: 1px solid rgba(99, 102, 241, 0.2) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   transition: all 0.3s ease !important;
   cursor: pointer !important;
   font-weight: 500 !important;
 }
 
 .btn-secondary:hover {
-  background: rgba(99, 102, 241, 0.18) !important;
-  border-color: rgba(99, 102, 241, 0.35) !important;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.15) !important;
+  background: rgba(70, 70, 80, 0.25) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
 }
 
 .btn-secondary:active {
-  background: rgba(99, 102, 241, 0.22) !important;
+  background: rgba(80, 80, 90, 0.3) !important;
   transform: translateY(1px) !important;
 }
 
-/* 危险按钮样式 - 系统风格 */
+/* 危险按钮样式 - 磨砂风格 */
 .btn-danger {
-  background-color: rgba(255, 55, 55, 0.1) !important;
+  background-color: rgba(255, 55, 55, 0.15) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
   border-radius: 8px !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
   color: #ff3b30 !important; /* iOS系统红色 */
@@ -62,66 +69,80 @@
 }
 
 .btn-danger:hover {
-  background-color: rgba(255, 55, 55, 0.15) !important;
+  background-color: rgba(255, 55, 55, 0.2) !important;
   border-color: rgba(255, 59, 48, 0.3) !important;
   box-shadow: 0 2px 5px rgba(255, 59, 48, 0.1) !important;
 }
 
 .btn-danger:active {
-  background-color: rgba(255, 55, 55, 0.2) !important;
+  background-color: rgba(255, 55, 55, 0.25) !important;
   transform: scale(0.98) !important;
   box-shadow: 0 1px 2px rgba(255, 59, 48, 0.15) !important;
 }
 
-/* 浅色模式按钮样式定制 - 系统风格浅蓝色 */
+/* 浅色模式按钮样式定制 - 浅蓝色磨砂风格 */
 :root.light .btn-primary {
-  background-color: rgba(0, 122, 255, 1) !important; /* iOS系统蓝色 */
+  background-color: rgba(0, 122, 255, 0.15) !important;
+  backdrop-filter: blur(10px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(180%) !important;
+  border: 1px solid rgba(0, 122, 255, 0.25) !important;
+  color: rgba(0, 122, 255, 1) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
 :root.light .btn-primary:hover {
-  background-color: rgba(10, 132, 255, 1) !important; /* 稍亮的iOS蓝色 */
+  background-color: rgba(10, 132, 255, 0.2) !important;
+  border-color: rgba(10, 132, 255, 0.35) !important;
+  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.15) !important;
 }
 
 :root.light .btn-primary:active {
-  background-color: rgba(0, 99, 225, 1) !important; /* 稍深的iOS蓝色 */
+  background-color: rgba(0, 99, 225, 0.25) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15) !important;
 }
 
 :root.light .btn-secondary {
-  background-color: rgba(242, 242, 247, 0.8) !important; /* iOS系统灰色 */
-  border: 1px solid rgba(199, 199, 204, 0.5) !important;
-  color: rgba(0, 122, 255, 1) !important; /* 文字使用iOS系统蓝色 */
+  background: rgba(0, 122, 255, 0.08) !important;
+  backdrop-filter: blur(8px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(180%) !important;
+  border: 1px solid rgba(0, 122, 255, 0.15) !important;
+  color: rgba(0, 122, 255, 0.9) !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 :root.light .btn-secondary:hover {
-  background-color: rgba(229, 229, 234, 0.9) !important; /* iOS系统灰色 - 稍深 */
-  border-color: rgba(199, 199, 204, 0.7) !important;
+  background: rgba(0, 122, 255, 0.12) !important;
+  border-color: rgba(0, 122, 255, 0.25) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
-/* 浅色模式危险按钮 - iOS风格 */
+/* 浅色模式危险按钮 - 浅红色磨砂风格 */
 :root.light .btn-danger {
-  background-color: rgba(255, 248, 248, 0.8) !important;
-  border: 1px solid rgba(255, 59, 48, 0.25) !important;
+  background-color: rgba(255, 59, 48, 0.1) !important;
+  backdrop-filter: blur(8px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(180%) !important;
+  border: 1px solid rgba(255, 59, 48, 0.2) !important;
   color: #ff3b30 !important; /* iOS系统红色 */
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
 }
 
 :root.light .btn-danger:hover {
-  background-color: rgba(255, 240, 240, 0.9) !important;
-  border-color: rgba(255, 59, 48, 0.35) !important;
+  background-color: rgba(255, 59, 48, 0.15) !important;
+  border-color: rgba(255, 59, 48, 0.3) !important;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* 浅色模式实心危险按钮 */
 :root.light .btn-danger-solid {
-  background-color: #ff3b30 !important; /* iOS系统红色 */
+  background-color: rgba(255, 59, 48, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
   color: white !important;
+  border: 1px solid rgba(255, 59, 48, 0.3) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
-/* 圆形图标按钮样式 - 系统风格 */
+/* 圆形图标按钮样式 - 磨砂风格 */
 .btn-icon-circle {
   width: 36px !important;
   height: 36px !important;
@@ -130,45 +151,54 @@
   align-items: center !important;
   justify-content: center !important;
   transition: all 0.2s ease !important;
-  background: rgba(80, 80, 80, 0.3) !important;
+  background: rgba(50, 50, 55, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
   color: white !important;
-  border: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
 .btn-icon-circle:hover {
-  background: rgba(90, 90, 90, 0.35) !important;
+  background: rgba(60, 60, 65, 0.35) !important;
   transform: scale(1.05) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
 .btn-icon-circle:active {
   transform: scale(0.95) !important;
-  background: rgba(70, 70, 70, 0.4) !important;
+  background: rgba(70, 70, 75, 0.4) !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* 浅色模式圆形图标按钮 - iOS风格 */
+/* 浅色模式圆形图标按钮 - 浅蓝色磨砂风格 */
 :root.light .btn-icon-circle {
-  background: rgba(242, 242, 247, 0.8) !important; /* iOS系统灰色 */
-  color: rgba(0, 122, 255, 1) !important; /* iOS系统蓝色 */
+  background: rgba(0, 122, 255, 0.1) !important;
+  backdrop-filter: blur(8px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(180%) !important;
+  color: rgba(0, 122, 255, 0.9) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
-  border: 1px solid rgba(200, 200, 200, 0.3) !important;
+  border: 1px solid rgba(0, 122, 255, 0.2) !important;
 }
 
 :root.light .btn-icon-circle:hover {
-  background: rgba(245, 245, 250, 0.9) !important;
+  background: rgba(0, 122, 255, 0.15) !important;
+  border-color: rgba(0, 122, 255, 0.3) !important;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08) !important;
 }
 
-/* 大型操作按钮 - 系统风格 */
+/* 大型操作按钮 - 磨砂风格 */
 .btn-action {
   padding: 10px 20px !important;
   border-radius: 10px !important;
   font-weight: 500 !important;
   letter-spacing: 0.01em !important;
   transition: all 0.2s ease !important;
-  background-color: rgba(56, 139, 255, 0.9) !important;
+  background-color: rgba(56, 139, 255, 0.2) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
   color: white !important;
+  border: 1px solid rgba(56, 139, 255, 0.3) !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
   transform-origin: center !important;
   -webkit-appearance: none !important;
@@ -176,27 +206,43 @@
 
 .btn-action:hover {
   transform: scale(1.01) !important;
-  background-color: rgba(31, 122, 246, 1) !important;
+  background-color: rgba(31, 122, 246, 0.25) !important;
+  border-color: rgba(31, 122, 246, 0.4) !important;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
 }
 
 .btn-action:active {
   transform: scale(0.98) !important;
-  background-color: rgba(14, 99, 214, 1) !important;
+  background-color: rgba(14, 99, 214, 0.3) !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
 }
 
 :root.light .btn-action {
-  background-color: rgba(0, 122, 255, 1) !important; /* iOS系统蓝色 */
+  background-color: rgba(0, 122, 255, 0.15) !important;
+  backdrop-filter: blur(10px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(180%) !important;
+  border: 1px solid rgba(0, 122, 255, 0.25) !important;
+  color: rgba(0, 122, 255, 1) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+:root.light .btn-action:hover {
+  background-color: rgba(10, 132, 255, 0.2) !important;
+  border-color: rgba(10, 132, 255, 0.35) !important;
+  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.15) !important;
+}
+
+:root.light .btn-action:active {
+  background-color: rgba(0, 99, 225, 0.25) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15) !important;
 }
 
 /* 磨砂玻璃按钮 - 系统风格 */
 .btn-glass {
-  background: rgba(80, 80, 80, 0.3) !important;
+  background: rgba(50, 50, 55, 0.3) !important;
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
-  border: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: white !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
   border-radius: 8px !important;
@@ -204,29 +250,30 @@
 }
 
 .btn-glass:hover {
-  background: rgba(90, 90, 90, 0.35) !important;
+  background: rgba(60, 60, 65, 0.35) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25) !important;
 }
 
 .btn-glass:active {
   transform: scale(0.98) !important;
-  background: rgba(70, 70, 70, 0.4) !important;
+  background: rgba(70, 70, 75, 0.4) !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* 浅色模式磨砂按钮 - iOS风格 */
+/* 浅色模式磨砂按钮 - 浅蓝色风格 */
 :root.light .btn-glass {
-  background: rgba(248, 248, 248, 0.6) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(220, 220, 220, 0.5) !important;
-  color: rgba(0, 122, 255, 1) !important; /* iOS系统蓝色文字 */
+  background: rgba(0, 122, 255, 0.1) !important;
+  backdrop-filter: blur(8px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(180%) !important;
+  border: 1px solid rgba(0, 122, 255, 0.2) !important;
+  color: rgba(0, 122, 255, 0.9) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
 }
 
 :root.light .btn-glass:hover {
-  background: rgba(248, 248, 248, 0.75) !important;
-  border-color: rgba(220, 220, 220, 0.6) !important;
+  background: rgba(0, 122, 255, 0.15) !important;
+  border-color: rgba(0, 122, 255, 0.3) !important;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08) !important;
 }
 
