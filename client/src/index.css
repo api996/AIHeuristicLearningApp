@@ -126,6 +126,7 @@
   box-shadow: none !important; /* 彻底移除所有消息相关元素的阴影 */
   filter: none !important; /* 完全移除所有过滤器效果 */
   text-shadow: none !important; /* 移除文本阴影 */
+  border: none !important; /* Remove all borders */
 }
 
 /* 对话框保留阴影效果 */
@@ -966,6 +967,7 @@ div[class*="flex items-start"] {
   -webkit-box-shadow: none !important;
   -moz-box-shadow: none !important;
   background-clip: padding-box !important; /* 防止背景溢出到边框外 */
+  border: none !important; /* Remove all borders */
 }
 
 /* 保留消息气泡内部的适当阴影 */

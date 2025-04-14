@@ -122,13 +122,19 @@
     -webkit-box-shadow: none !important;
     filter: none !important;
     background-image: none !important; /* 防止背景图像造成阴影效果 */
+    border: none !important; /* 强制移除所有边框 */
+    border-width: 0 !important; /* 确保边框宽度为0 */
+    outline: none !important; /* 移除轮廓线 */
+    background-color: transparent !important; /* 确保背景透明 */
   }
 
-  /* 消息外层容器阴影清除 - 修复外部方形阴影问题 */
+  /* 完全删除iPad设备上外部方形框架和边框线 */
   .ipad-device [class*="flex items-start"],
   .tablet-device [class*="flex items-start"],
   .ipad-device [class*="chat-message-wrapper"],
-  .tablet-device [class*="chat-message-wrapper"] {
+  .tablet-device [class*="chat-message-wrapper"],
+  .ipad-device [class*="message-appear"] > div,
+  .tablet-device [class*="message-appear"] > div {
     box-shadow: none !important;
     background-image: none !important;
     filter: none !important;
