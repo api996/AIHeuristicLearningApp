@@ -59,7 +59,7 @@ div[role="dialog"],
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.06)) !important; /* 仅使用轻微的drop-shadow */
 }
 
-/* 修复下拉菜单和弹出层的z-index问题 */
+/* 修复下拉菜单和弹出层的z-index问题 - 全局解决方案 */
 .dropdown-menu,
 .popover-content,
 [role="menu"],
@@ -67,8 +67,19 @@ div[role="dialog"],
 .user-dropdown,
 .dropdown-content,
 .dialog-content,
-[data-radix-popper-content-wrapper] {
-  z-index: 9999 !important; /* 确保这些UI元素总是位于最上层 */
+[data-radix-popper-content-wrapper],
+[data-state="open"] div[role="dialog"],
+[data-radix-portal],
+[data-state="open"],
+.ContextMenu,
+[data-radix-menu-content],
+[aria-haspopup="menu"],
+[data-state="open"] .radix-dropdown,
+.context-menu-content,
+[data-radix-dropdown-menu-content],
+div[data-radix-popper-content-wrapper] [role="dialog"] {
+  z-index: 99999 !important; /* 极高的z-index确保这些UI元素总是位于最上层 */
+  position: relative !important; /* 确保定位属性 */
 }
 
 @keyframes shimmer {
