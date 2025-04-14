@@ -684,8 +684,8 @@ export function ChatMessage({
               className={cn(
                 "py-3 px-4 rounded-2xl relative transition-all duration-200 user-select-none",
                 message.role === "assistant" 
-                  ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20 text-white border border-blue-800/30" 
-                  : "bg-blue-600/30 backdrop-blur-sm text-white border border-blue-500/40",
+                  ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20 text-white border border-blue-800/30 shadow-none" 
+                  : "bg-blue-600/30 backdrop-blur-sm text-white border border-blue-500/40 shadow-none",
                 // 长按时的视觉效果，使消息和菜单同时可见且更加突出
                 isLongPressing && message.role === "user" && "scale-110 border-blue-500/80 z-[60] relative brightness-130 bg-blue-600/40 ring-2 ring-blue-400/30 text-white font-medium focus:outline-none"
               )}
