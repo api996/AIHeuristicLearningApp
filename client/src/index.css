@@ -22,13 +22,13 @@
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* 浅色模式磨砂玻璃 */
+/* 浅色模式磨砂玻璃 - 浅蓝色系统风格 */
 .light-mode .frosted-glass {
-  background: rgba(255, 255, 255, 0.7) !important;
-  backdrop-filter: blur(18px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
-  border: 1px solid rgba(220, 220, 235, 0.5) !important;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04) !important;
+  background: rgba(240, 248, 255, 0.7) !important; /* 浅蓝色背景 */
+  backdrop-filter: blur(16px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+  border: 1px solid rgba(200, 225, 255, 0.4) !important; /* 浅蓝色边框 */
+  box-shadow: 0 4px 24px rgba(0, 120, 255, 0.05) !important; /* 蓝色阴影 */
 }
 
 /* 对话框磨砂玻璃样式 - 深色模式 */
@@ -176,6 +176,7 @@
 [class*="py-3 px-4 rounded-2xl"] {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08) !important; /* 添加微妙阴影 */
   border-radius: 18px !important; /* 更圆润的边角 */
+  text-align: center !important; /* 文字居中 */
 }
 
 /* 深色模式下的消息样式 */
@@ -345,14 +346,15 @@ div[role="dialog"] {
 
 :root.light {
   --primary-foreground: #1c1e24;
-  --primary-background: rgba(255, 255, 255, 0.85);
-  --secondary-foreground: #4d5358; 
-  --secondary-background: rgba(242, 243, 245, 0.75);
-  --border-color: rgba(208, 213, 221, 0.5);
-  --input-background: rgba(249, 249, 251, 0.8);
-  --selected-background: rgba(233, 238, 247, 0.7);
-  --hover-background: rgba(234, 236, 240, 0.6);
-  --glass-effect: saturate(180%) blur(20px);
+  --primary-background: rgba(230, 242, 255, 0.85); /* 更浅蓝色背景 */
+  --secondary-foreground: #406080; /* 蓝灰色文字 */
+  --secondary-background: rgba(235, 245, 255, 0.8); /* 浅蓝色二级背景 */
+  --border-color: rgba(190, 215, 250, 0.5); /* 浅蓝色边框 */
+  --input-background: rgba(240, 248, 255, 0.9); /* 更亮的浅蓝色输入框 */
+  --selected-background: rgba(210, 230, 255, 0.8); /* 蓝色选中背景 */
+  --hover-background: rgba(220, 235, 255, 0.7); /* 蓝色悬停背景 */
+  --glass-effect: saturate(150%) blur(16px);
+  --accent-blue: rgba(0, 122, 255, 1); /* iOS系统蓝色 */
   color-scheme: light;
 }
 
@@ -436,17 +438,18 @@ div[role="dialog"] {
   background-color: rgba(99, 102, 241, 0.5);
 }
 
-/* 自定义滚动条样式 - 浅色模式 */
+/* 自定义滚动条样式 - 浅色模式蓝色系 */
 :root.light ::-webkit-scrollbar-track {
-  background-color: rgba(240, 240, 245, 0.5);
+  background-color: rgba(230, 242, 255, 0.5); /* 浅蓝色背景 */
 }
 
 :root.light ::-webkit-scrollbar-thumb {
-  background-color: rgba(99, 102, 241, 0.2);
+  background-color: rgba(0, 122, 255, 0.2); /* 浅蓝色滑块 */
+  border-radius: 8px;
 }
 
 :root.light ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(99, 102, 241, 0.4);
+  background-color: rgba(0, 122, 255, 0.4); /* 更深的浅蓝色 */
 }
 
 /* 隐藏空内容区域的滚动条 */
@@ -654,9 +657,9 @@ div[role="dialog"] {
   
   /* 浅色模式下的输入区域样式 */
   :root.light .keyboard-open .chat-input-container {
-    background-color: rgba(250, 250, 255, 0.85) !important; /* 浅色半透明背景 */
-    border-top: 1px solid rgba(220, 225, 235, 0.5) !important;
-    box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.05) !important;
+    background-color: rgba(230, 242, 255, 0.85) !important; /* 浅蓝色半透明背景 */
+    border-top: 1px solid rgba(190, 215, 250, 0.5) !important; /* 浅蓝色边框 */
+    box-shadow: 0 -5px 15px rgba(0, 122, 255, 0.05) !important; /* 蓝色阴影 */
   }
 
   /* 键盘打开时，确保消息区域留有足够空间且内容可见 */
@@ -734,12 +737,12 @@ div[role="dialog"] {
   /* 确保输入框背景与内容完全显示 - 浅色模式 */
   :root.light .keyboard-open .chat-input-container > div,
   :root.light .keyboard-focused .chat-input-container > div {
-    backdrop-filter: blur(10px) saturate(180%) !important;
-    background-color: rgba(250, 250, 255, 0.85) !important; /* 浅色半透明磨砂玻璃效果 */
+    backdrop-filter: blur(10px) saturate(150%) !important;
+    background-color: rgba(230, 242, 255, 0.85) !important; /* 浅蓝色半透明磨砂玻璃效果 */
     padding: 8px !important;
     border-radius: 12px !important;
-    border: 1px solid rgba(220, 225, 235, 0.5) !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(190, 215, 250, 0.5) !important; /* 浅蓝色边框 */
+    box-shadow: 0 4px 15px rgba(0, 122, 255, 0.05) !important; /* 蓝色阴影 */
   }
 }
 
