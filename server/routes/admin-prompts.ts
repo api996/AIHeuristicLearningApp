@@ -64,7 +64,19 @@ router.get('/:modelId', async (req: Request, res: Response) => {
 // 创建或更新提示词模板
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { modelId, promptTemplate } = req.body;
+    const { 
+      modelId, 
+      promptTemplate,
+      baseTemplate,
+      kTemplate,
+      wTemplate,
+      lTemplate, 
+      qTemplate,
+      styleTemplate,
+      policyTemplate,
+      sensitiveWords
+    } = req.body;
+    
     const userId = req.body.userId || req.query.userId as string;
     
     if (!userId) {
@@ -84,7 +96,15 @@ router.post('/', async (req: Request, res: Response) => {
     const savedTemplate = await storage.createOrUpdatePromptTemplate(
       modelId,
       promptTemplate,
-      Number(userId)
+      Number(userId),
+      baseTemplate,
+      kTemplate,
+      wTemplate,
+      lTemplate,
+      qTemplate,
+      styleTemplate,
+      policyTemplate,
+      sensitiveWords
     );
 
     log(`${savedTemplate ? '更新' : '创建'}了模型 ${modelId} 的提示词模板`);
