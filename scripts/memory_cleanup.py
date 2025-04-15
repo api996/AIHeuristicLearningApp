@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -51,7 +52,7 @@ def fix_truncated_json(content: str) -> Dict[str, Any]:
         return data
     except json.JSONDecodeError as e:
         # 更复杂的修复尝试
-        logger.info(f"基本修复失败，尝试更深入的修复: {str(e)}")
+        logger.debug(f"基本修复失败，尝试更深入的修复: {str(e)}")
         
         # 找到最后一个有效的属性
         pattern = r'("[\w_]+"\s*:\s*(?:"[^"]*"|\d+(?:\.\d+)?|true|false|null|\[.*?\]|{.*?}))'
@@ -155,7 +156,7 @@ def scan_and_fix_memory_files(memory_dir: str) -> Dict[str, int]:
                 stats["valid"] += 1
                 continue
                 
-            logger.warning(f"发现无效JSON文件: {file_path}")
+            logger.info(f"发现无效JSON文件: {file_path}")
             
             try:
                 # 尝试读取并修复文件内容
@@ -209,14 +210,18 @@ def main():
     memory_dir = "memory_space"
     
     logger.info(f"开始扫描记忆目录: {memory_dir}")
-    stats = scan_and_fix_memory_files(memory_dir)
     
-    logger.info(f"记忆文件扫描完成:")
-    logger.info(f"  扫描文件: {stats['scanned']}")
-    logger.info(f"  有效文件: {stats['valid']}")
-    logger.info(f"  已修复: {stats['fixed']}")
-    logger.info(f"  已创建: {stats['created']}")
-    logger.info(f"  修复失败: {stats['failed']}")
+    try:
+        stats = scan_and_fix_memory_files(memory_dir)
+        
+        logger.info(f"记忆文件扫描完成:")
+        logger.info(f"  扫描文件: {stats['scanned']}")
+        logger.info(f"  有效文件: {stats['valid']}")
+        logger.info(f"  已修复: {stats['fixed']}")
+        logger.info(f"  已创建: {stats['created']}")
+        logger.info(f"  修复失败: {stats['failed']}")
+    except Exception as e:
+        logger.error(f"记忆文件修复过程中发生错误: {str(e)}")
 
 if __name__ == "__main__":
     main()

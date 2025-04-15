@@ -2,8 +2,10 @@ import {
   users, type User, type InsertUser, 
   chats, messages, type Chat, type Message,
   memories, memoryKeywords, memoryEmbeddings,
+  promptTemplates, searchResults,
   type Memory, type MemoryKeyword, type MemoryEmbedding,
-  type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding
+  type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding,
+  type PromptTemplate, type SearchResult
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, ne, and, asc, desc, sql, inArray } from "drizzle-orm";
@@ -27,7 +29,7 @@ export interface IStorage {
   updateChatModel(chatId: number, model: string): Promise<void>;
 
   // Message methods
-  createMessage(chatId: number, content: string, role: string): Promise<Message>;
+  createMessage(chatId: number, content: string, role: string, model?: string): Promise<Message>;
   getChatMessages(chatId: number, userId: number, isAdmin: boolean): Promise<Message[]>;
   updateMessage(messageId: number, content: string, isUserOwned: boolean): Promise<Message>;
   updateMessageFeedback(messageId: number, feedback: "like" | "dislike"): Promise<Message>;
@@ -53,6 +55,17 @@ export interface IStorage {
   
   // Admin methods
   getAllUsers(): Promise<User[]>;
+  
+  // Prompt template methods
+  getPromptTemplate(modelId: string): Promise<PromptTemplate | undefined>;
+  createOrUpdatePromptTemplate(modelId: string, template: string, userId: number): Promise<PromptTemplate>;
+  getAllPromptTemplates(): Promise<PromptTemplate[]>;
+  deletePromptTemplate(modelId: string): Promise<void>;
+  
+  // Search results methods
+  saveSearchResult(query: string, results: any, expiryMinutes?: number): Promise<SearchResult>;
+  getSearchResult(query: string): Promise<SearchResult | undefined>;
+  deleteExpiredSearchResults(): Promise<number>; // Returns number of deleted records
 }
 
 export class DatabaseStorage implements IStorage {
@@ -286,10 +299,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createMessage(chatId: number, content: string, role: string): Promise<Message> {
+  async createMessage(chatId: number, content: string, role: string, model?: string): Promise<Message> {
     try {
       const [message] = await db.insert(messages)
-        .values({ chatId, content, role })
+        .values({ chatId, content, role, model })
         .returning();
       return message;
     } catch (error) {
@@ -724,6 +737,184 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       log(`Error calculating cosine similarity: ${error}`);
       return 0;
+    }
+  }
+
+  // Prompt template methods
+  async getPromptTemplate(modelId: string): Promise<PromptTemplate | undefined> {
+    try {
+      if (!modelId || typeof modelId !== 'string') {
+        throw new Error("Invalid model ID");
+      }
+      
+      const [template] = await db.select()
+        .from(promptTemplates)
+        .where(eq(promptTemplates.modelId, modelId));
+      
+      return template;
+    } catch (error) {
+      log(`Error getting prompt template for model ${modelId}: ${error}`);
+      throw error;
+    }
+  }
+
+  async createOrUpdatePromptTemplate(modelId: string, template: string, userId: number): Promise<PromptTemplate> {
+    try {
+      if (!modelId || typeof modelId !== 'string') {
+        throw new Error("Invalid model ID");
+      }
+      
+      if (!template || typeof template !== 'string') {
+        throw new Error("Invalid prompt template");
+      }
+
+      // 检查是否存在现有模板
+      const existingTemplate = await this.getPromptTemplate(modelId);
+      
+      if (existingTemplate) {
+        // 更新现有模板
+        const [updatedTemplate] = await db.update(promptTemplates)
+          .set({ 
+            promptTemplate: template,
+            updatedAt: new Date(),
+            createdBy: userId 
+          })
+          .where(eq(promptTemplates.modelId, modelId))
+          .returning();
+        
+        log(`Prompt template updated for model ${modelId}`);
+        return updatedTemplate;
+      } else {
+        // 创建新模板
+        const [newTemplate] = await db.insert(promptTemplates)
+          .values({
+            modelId,
+            promptTemplate: template,
+            createdBy: userId
+          })
+          .returning();
+        
+        log(`New prompt template created for model ${modelId}`);
+        return newTemplate;
+      }
+    } catch (error) {
+      log(`Error creating/updating prompt template for model ${modelId}: ${error}`);
+      throw error;
+    }
+  }
+
+  async getAllPromptTemplates(): Promise<PromptTemplate[]> {
+    try {
+      return await db.select().from(promptTemplates);
+    } catch (error) {
+      log(`Error getting all prompt templates: ${error}`);
+      throw error;
+    }
+  }
+
+  async deletePromptTemplate(modelId: string): Promise<void> {
+    try {
+      if (!modelId || typeof modelId !== 'string') {
+        throw new Error("Invalid model ID");
+      }
+      
+      await db.delete(promptTemplates)
+        .where(eq(promptTemplates.modelId, modelId));
+      
+      log(`Prompt template deleted for model ${modelId}`);
+    } catch (error) {
+      log(`Error deleting prompt template for model ${modelId}: ${error}`);
+      throw error;
+    }
+  }
+
+  // Search results methods
+  async saveSearchResult(query: string, results: any, expiryMinutes: number = 60): Promise<SearchResult> {
+    try {
+      if (!query || typeof query !== 'string') {
+        throw new Error("Invalid search query");
+      }
+      
+      if (!results) {
+        throw new Error("Invalid search results");
+      }
+      
+      // 计算过期时间
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + expiryMinutes);
+      
+      // 尝试更新现有结果
+      const existingResult = await this.getSearchResult(query);
+      
+      if (existingResult) {
+        // 更新现有记录
+        const [updatedResult] = await db.update(searchResults)
+          .set({
+            results,
+            createdAt: new Date(),
+            expiresAt
+          })
+          .where(eq(searchResults.query, query))
+          .returning();
+        
+        log(`Search result updated for query: ${query}`);
+        return updatedResult;
+      } else {
+        // 创建新记录
+        const [newResult] = await db.insert(searchResults)
+          .values({
+            query,
+            results,
+            expiresAt
+          })
+          .returning();
+        
+        log(`New search result saved for query: ${query}`);
+        return newResult;
+      }
+    } catch (error) {
+      log(`Error saving search result for query ${query}: ${error}`);
+      throw error;
+    }
+  }
+
+  async getSearchResult(query: string): Promise<SearchResult | undefined> {
+    try {
+      if (!query || typeof query !== 'string') {
+        throw new Error("Invalid search query");
+      }
+      
+      // 获取未过期的搜索结果
+      const [result] = await db.select()
+        .from(searchResults)
+        .where(
+          and(
+            eq(searchResults.query, query),
+            sql`${searchResults.expiresAt} > NOW()`
+          )
+        );
+      
+      return result;
+    } catch (error) {
+      log(`Error getting search result for query ${query}: ${error}`);
+      throw error;
+    }
+  }
+
+  async deleteExpiredSearchResults(): Promise<number> {
+    try {
+      // 删除已过期的搜索结果
+      const result = await db.delete(searchResults)
+        .where(sql`${searchResults.expiresAt} <= NOW()`)
+        .returning();
+      
+      const count = result.length;
+      log(`Deleted ${count} expired search results`);
+      
+      return count;
+    } catch (error) {
+      log(`Error deleting expired search results: ${error}`);
+      throw error;
     }
   }
 }

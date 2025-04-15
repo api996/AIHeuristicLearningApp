@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { chatService } from "./services/chat";
 import { log } from "./vite";
+import { utils } from "./utils";
 import { Buffer } from "buffer";
 import path from "path";
 import fs from "fs";
@@ -10,6 +11,7 @@ import express from 'express';
 import { verifyTurnstileToken } from './services/turnstile';
 import { spawn } from 'child_process';
 import learningPathRoutes from './routes/learning-path';
+import adminPromptsRoutes from './routes/admin-prompts';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
@@ -229,7 +231,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             const filePath = path.join(userDir, files[0]);
             const fileContent = fs.readFileSync(filePath, 'utf8');
-            log(`记忆文件内容示例: ${fileContent.substring(0, 100)}...`);
+            
+            // 使用工具函数安全记录包含向量的对象
+            try {
+              const memoryData = JSON.parse(fileContent);
+              utils.logWithEmbeddings("记忆文件内容示例", memoryData);
+            } catch (parseError) {
+              // 如果解析失败，退回到原始方式
+              log(`记忆文件内容示例: ${fileContent.substring(0, 100)}...`);
+            }
           } catch (e) {
             log(`读取记忆文件失败: ${e}`);
           }
@@ -554,6 +564,8 @@ asyncio.run(analyze())
       res.status(500).json({ message: "Failed to update chat title" });
     }
   });
+  
+
 
   // User management routes
   app.get("/api/users", async (req, res) => {
@@ -917,35 +929,72 @@ asyncio.run(analyze())
     }
   });
 
-  // 更新聊天模型
+  // 更新聊天模型 - 用于跨模型上下文共享
   app.patch("/api/chats/:chatId/model", async (req, res) => {
     try {
       const chatId = parseInt(req.params.chatId, 10);
       const { model, userId, userRole } = req.body;
 
       if (isNaN(chatId) || !model || !userId) {
-        return res.status(400).json({ message: "Invalid request parameters" });
+        return res.status(400).json({ 
+          message: "Invalid request parameters",
+          error: "INVALID_PARAMETERS" 
+        });
+      }
+      
+      // 验证模型格式
+      const validModels = ["deep", "gemini", "deepseek", "grok"];
+      if (!validModels.includes(model)) {
+        return res.status(400).json({
+          message: "Unsupported model type",
+          error: "UNSUPPORTED_MODEL"
+        });
       }
 
       // 验证用户对此聊天的访问权限
       const isAdmin = userRole === "admin";
       const chat = await storage.getChatById(chatId, userId, isAdmin);
       if (!chat) {
-        return res.status(404).json({ message: "Chat not found or access denied" });
+        return res.status(404).json({ 
+          message: "Chat not found or access denied",
+          error: "CHAT_NOT_FOUND"
+        });
+      }
+
+      // 如果模型没有变化，直接返回成功
+      if (chat.model === model) {
+        return res.json({ 
+          success: true, 
+          message: "Chat model unchanged",
+          model: model,
+          changed: false
+        });
       }
 
       // 更新聊天模型
       await storage.updateChatModel(chatId, model);
-      res.json({ success: true });
+      
+      log(`已更新聊天 ${chatId} 的模型从 ${chat.model} 变更为 ${model}，用户ID: ${userId}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Chat model updated successfully",
+        previousModel: chat.model,
+        newModel: model,
+        changed: true
+      });
     } catch (error) {
-      log(`Error updating chat model: ${error}`);
-      res.status(500).json({ message: "Failed to update chat model" });
+      log(`更新聊天模型错误: ${error instanceof Error ? error.message : String(error)}`);
+      res.status(500).json({ 
+        message: "Failed to update chat model", 
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
   app.post("/api/chat", async (req, res) => {
     try {
-      const { message, model, chatId, userId, role } = req.body;
+      const { message, model, chatId, userId, role, useWebSearch } = req.body;
 
       if (!message) {
         return res.status(400).json({
@@ -966,17 +1015,6 @@ asyncio.run(analyze())
         });
       }
 
-      if (model) {
-        try {
-          chatService.setModel(model);
-        } catch (error) {
-          return res.status(400).json({
-            message: "Invalid model selected",
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
-      }
-
       // 确保我们有有效的聊天ID
       if (!chatId) {
         log(`警告: 收到没有chatId的消息请求`);
@@ -995,10 +1033,50 @@ asyncio.run(analyze())
           message: "Access denied or chat not found" 
         });
       }
-
-      // 获取AI响应，传入userId用于记忆检索
-      log(`处理来自用户 ${userId} 的聊天消息，聊天ID: ${chatId}`);
-      const response = await chatService.sendMessage(message, Number(userId));
+      
+      // 如果提供了模型参数，设置聊天服务的模型
+      if (model) {
+        try {
+          chatService.setModel(model);
+          
+          // 如果模型与聊天记录中的不同，更新聊天记录模型
+          if (chat.model !== model) {
+            await storage.updateChatModel(chatId, model);
+            log(`已更新聊天 ${chatId} 的模型为 ${model}`);
+          }
+        } catch (error) {
+          return res.status(400).json({
+            message: "Invalid model selected",
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      } else {
+        // 使用聊天记录中的模型
+        try {
+          chatService.setModel(chat.model);
+        } catch (error) {
+          log(`警告: 无法设置模型为 ${chat.model}, 使用默认模型: ${error}`);
+          // 使用默认模型，不返回错误
+        }
+      }
+      
+      // 判断是否使用网络搜索
+      // 网络搜索现在是一个辅助功能，不再是独立模型
+      const shouldUseSearch = (useWebSearch === true);
+        
+      // 获取AI响应，传入userId用于记忆检索，以及网络搜索参数
+      log(`处理来自用户 ${userId} 的聊天消息，聊天ID: ${chatId}，模型: ${chat.model}，搜索: ${shouldUseSearch}`);
+      
+      // 如果需要搜索API key但未设置
+      if (shouldUseSearch && !process.env.SERPER_API_KEY) {
+        log('请求网络搜索，但SERPER_API_KEY未设置');
+        return res.status(400).json({
+          message: "搜索功能需要设置SERPER_API_KEY环境变量",
+          error: "MISSING_SEARCH_API_KEY"
+        });
+      }
+      
+      const response = await chatService.sendMessage(message, Number(userId), shouldUseSearch);
 
       // 存储消息到数据库
       try {
@@ -1006,9 +1084,9 @@ asyncio.run(analyze())
         const userMsg = await storage.createMessage(chatId, message, "user");
         log(`已存储用户消息，ID: ${userMsg.id}`);
 
-        // 再存储AI响应
-        const aiMsg = await storage.createMessage(chatId, response.text, "assistant");
-        log(`已存储AI响应，ID: ${aiMsg.id}`);
+        // 再存储AI响应，包含模型信息
+        const aiMsg = await storage.createMessage(chatId, response.text, "assistant", response.model);
+        log(`已存储AI响应，ID: ${aiMsg.id}，模型: ${response.model || "未知"}`);
         
         // 保存到记忆系统
         try {
@@ -1411,6 +1489,7 @@ asyncio.run(test_memory())
 
   // 注册学习轨迹路由
   app.use('/api/learning-path', learningPathRoutes);
+  app.use('/api/admin/prompts', adminPromptsRoutes);
 
   const httpServer = createServer(app);
   return httpServer;

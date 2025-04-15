@@ -50,9 +50,10 @@ type Message = {
   created_at?: string;            // 创建时间
   is_edited?: boolean;            // 是否已编辑
   chat_id?: number;               // 所属对话ID
+  model?: string;                 // 使用的模型，如"deep"、"gemini"等
 };
 
-type Model = "search" | "deep" | "gemini" | "deepseek" | "grok";
+type Model = "deep" | "gemini" | "deepseek" | "grok";
 
 interface UploadResponse {
   url: string;
@@ -79,6 +80,67 @@ export function AIChat({ userData }: AIChatProps) {
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentModel, setCurrentModel] = useState<Model>("deep");
+  
+  // 跨模型上下文共享函数，用于在模型切换时更新聊天模型设置
+  const handleModelChange = async (newModel: Model) => {
+    // 如果已经是当前模型，不执行任何操作
+    if (newModel === currentModel) return;
+    
+    // 设置新的模型
+    setCurrentModel(newModel);
+    
+    // 显示模型切换提示
+    toast({
+      title: `已切换到${newModel === "deep" ? "深度推理" : 
+             newModel === "gemini" ? "Gemini" :
+             newModel === "deepseek" ? "Deepseek" : "Grok"}模型`,
+      description: "对话上下文已保留，继续您的对话",
+      variant: "default",
+    });
+    
+    // 如果有当前聊天ID，则更新聊天的模型设置
+    if (currentChatId) {
+      try {
+        // 发送请求更新聊天模型
+        const response = await fetch(`/api/chats/${currentChatId}/model`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ 
+            model: newModel,
+            userId: user.userId,
+            userRole: user.role // 添加用户角色参数
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error("更新聊天模型失败:", errorData);
+          throw new Error(errorData.message || "更新聊天模型失败");
+        }
+        
+        const responseData = await response.json().catch(() => ({}));
+        
+        // 只有在实际变更模型时才更新缓存
+        if (responseData.changed) {
+          // 更新查询缓存
+          queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
+          console.log(`聊天ID ${currentChatId} 的模型已更新从 ${responseData.previousModel} 变更为 ${responseData.newModel}`);
+        } else {
+          console.log(`聊天ID ${currentChatId} 的模型未变更，保持为 ${newModel}`);
+        }
+      } catch (error) {
+        console.error("更新聊天模型时出错:", error);
+        toast({
+          title: "更新模型设置失败",
+          description: "无法更新聊天模型，但您仍可继续使用当前模型",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+  const [useWebSearch, setUseWebSearch] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<number>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -584,6 +646,7 @@ export function AIChat({ userData }: AIChatProps) {
         chatId: chatIdForRequest, // 使用可能新创建的聊天ID
         userId: user.userId,
         role: user.role,
+        useWebSearch: useWebSearch, // 添加网络搜索选项
       });
       const data = await response.json();
 
@@ -599,7 +662,8 @@ export function AIChat({ userData }: AIChatProps) {
           // 用真实响应替换它
           updatedMessages[updatedMessages.length - 1] = {
             role: "assistant" as const,
-            content: aiResponse
+            content: aiResponse,
+            model: data.model || currentModel // 添加模型信息
           };
         }
         return updatedMessages;
@@ -619,14 +683,19 @@ export function AIChat({ userData }: AIChatProps) {
           const updatedMessages = [...prev];
           updatedMessages[updatedMessages.length - 1] = { 
             role: "assistant" as const, 
-            content: "抱歉，发生了一些错误，请稍后再试。" 
+            content: "抱歉，发生了一些错误，请稍后再试。",
+            model: currentModel // 即使是错误消息也添加模型信息 
           };
           return updatedMessages;
         } else {
           // 否则，添加新的错误消息
           return [
             ...prev,
-            { role: "assistant" as const, content: "抱歉，发生了一些错误，请稍后再试。" }
+            { 
+              role: "assistant" as const, 
+              content: "抱歉，发生了一些错误，请稍后再试。",
+              model: currentModel // 添加模型信息
+            }
           ];
         }
       });
@@ -833,10 +902,11 @@ export function AIChat({ userData }: AIChatProps) {
         }
         const messagesData = await response.json();
 
-        // 转换消息格式并更新状态
+        // 转换消息格式并更新状态，确保包含模型信息
         const formattedMessages = messagesData.map((msg: any) => ({
           role: msg.role,
-          content: msg.content
+          content: msg.content,
+          model: msg.model || currentModel // 包含模型信息，如果消息中没有则使用当前模型
         }));
 
         setMessages(formattedMessages);
@@ -869,10 +939,11 @@ export function AIChat({ userData }: AIChatProps) {
       const response = await apiRequest("POST", "/api/upload", { image: base64Image });
       const data: UploadResponse = await response.json();
 
-      // Add image to messages
+      // Add image to messages with model
       setMessages([...messages, {
         role: "user",
-        content: `![Uploaded Image](${data.url})`
+        content: `![Uploaded Image](${data.url})`,
+        model: currentModel // 设置模型信息
       }]);
     } catch (error) {
       console.error("Failed to upload image:", error);
@@ -1383,26 +1454,29 @@ export function AIChat({ userData }: AIChatProps) {
           ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}
         `}>
           <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8">
-            {/* 模型选择 - 使用更紧凑的布局 */}
+            {/* 模型选择和网络搜索开关 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
+              {/* 网络搜索按钮 - 作为一个可以切换的辅助功能 */}
               <Button
                 variant="outline"
                 size="sm"
                 className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
-                  (currentModel === "search" ? "border-blue-500" : "border-neutral-700")
+                  (useWebSearch ? "border-blue-500" : "border-neutral-700")
                 }
-                onClick={() => setCurrentModel("search")}
+                onClick={() => setUseWebSearch(!useWebSearch)}
               >
                 <Search className="w-3.5 h-3.5 mr-1.5" />
                 网络搜索
               </Button>
+              
+              {/* 模型选择按钮 */}
               <Button
                 variant="outline"
                 size="sm"
                 className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
                   (currentModel === "deep" ? "border-blue-500" : "border-neutral-700")
                 }
-                onClick={() => setCurrentModel("deep")}
+                onClick={() => handleModelChange("deep")}
               >
                 <Brain className="w-3.5 h-3.5 mr-1.5" />
                 深度推理
@@ -1413,7 +1487,7 @@ export function AIChat({ userData }: AIChatProps) {
                 className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
                   (currentModel === "gemini" ? "border-blue-500" : "border-neutral-700")
                 }
-                onClick={() => setCurrentModel("gemini")}
+                onClick={() => handleModelChange("gemini")}
               >
                 <Sparkles className="w-3.5 h-3.5 mr-1.5" />
                 Gemini
@@ -1424,7 +1498,7 @@ export function AIChat({ userData }: AIChatProps) {
                 className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
                   (currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700")
                 }
-                onClick={() => setCurrentModel("deepseek")}
+                onClick={() => handleModelChange("deepseek")}
               >
                 <Code className="w-3.5 h-3.5 mr-1.5" />
                 Deepseek
@@ -1435,7 +1509,7 @@ export function AIChat({ userData }: AIChatProps) {
                 className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
                   (currentModel === "grok" ? "border-blue-500" : "border-neutral-700")
                 }
-                onClick={() => setCurrentModel("grok")}
+                onClick={() => handleModelChange("grok")}
               >
                 <Rocket className="w-3.5 h-3.5 mr-1.5" />
                 Grok
