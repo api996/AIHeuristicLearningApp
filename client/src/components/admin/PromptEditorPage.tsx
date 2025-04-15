@@ -458,45 +458,45 @@ export function PromptEditorPage() {
   const templateContent = getTemplateContent(activeTab);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6">
+    <div className="min-h-screen bg-black py-6">
       <div className="container px-4 mx-auto max-w-6xl">
         <div className="mb-6 flex items-center">
           <Button 
-            variant="ghost" 
+            variant="default" 
             onClick={() => navigate('/admin-dashboard')}
-            className="mr-3"
+            className="mr-3 bg-blue-600 hover:bg-blue-700"
           >
             <ChevronLeft className="h-4 w-4 mr-1" /> 返回
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">提示词模板编辑器</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">基于KWLQ教育模型的多阶段动态提示词系统</p>
+            <h1 className="text-2xl font-bold text-white">提示词模板编辑器</h1>
+            <p className="text-sm text-gray-300">基于KWLQ教育模型的多阶段动态提示词系统</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* 左侧边栏 */}
           <div className="lg:col-span-1">
-            <Card>
+            <Card className="bg-neutral-900 border-neutral-800">
               <CardHeader>
-                <CardTitle className="text-lg">模型选择</CardTitle>
-                <CardDescription>选择要编辑的模型</CardDescription>
+                <CardTitle className="text-lg text-white">模型选择</CardTitle>
+                <CardDescription className="text-gray-300">选择要编辑的模型</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="model-select">AI模型</Label>
+                    <Label htmlFor="model-select" className="text-gray-200">AI模型</Label>
                     <Select
                       value={selectedModel}
                       onValueChange={(value) => loadModelTemplate(value)}
                       disabled={loading}
                     >
-                      <SelectTrigger id="model-select" className="w-full">
+                      <SelectTrigger id="model-select" className="w-full bg-neutral-800 border-neutral-700 text-white">
                         <SelectValue placeholder="选择模型" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
                         {availableModels.map(model => (
-                          <SelectItem key={model.id} value={model.id}>
+                          <SelectItem key={model.id} value={model.id} className="focus:bg-blue-600 focus:text-white hover:bg-neutral-700">
                             {model.name}
                             {templatesList.some((t: PromptTemplate) => t.modelId === model.id) ? ' (已配置)' : ''}
                           </SelectItem>
@@ -505,67 +505,67 @@ export function PromptEditorPage() {
                     </Select>
                   </div>
 
-                  <Separator className="my-4" />
+                  <Separator className="my-4 bg-neutral-700" />
 
                   <div className="space-y-1">
-                    <Label className="mb-2 block">提示词类型</Label>
+                    <Label className="mb-2 block text-gray-200">提示词类型</Label>
                     <Tabs value={activeTab} onValueChange={setActiveTab} orientation="vertical">
-                      <TabsList className="w-full flex flex-col h-auto bg-transparent border-r space-y-1">
+                      <TabsList className="w-full flex flex-col h-auto bg-transparent border-r border-neutral-700 space-y-1">
                         <TabsTrigger 
                           value="base" 
-                          className="justify-start"
+                          className="justify-start text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white"
                         >
                           <Settings className="h-4 w-4 mr-2" />
                           基础模板
                         </TabsTrigger>
                         <TabsTrigger 
                           value="knowledge" 
-                          className="justify-start"
+                          className="justify-start text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white"
                         >
                           <BookOpen className="h-4 w-4 mr-2" />
                           K-知识阶段
                         </TabsTrigger>
                         <TabsTrigger 
                           value="wisdom" 
-                          className="justify-start"
+                          className="justify-start text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white"
                         >
                           <Lightbulb className="h-4 w-4 mr-2" />
                           W-智慧阶段
                         </TabsTrigger>
                         <TabsTrigger 
                           value="logic" 
-                          className="justify-start"
+                          className="justify-start text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white"
                         >
                           <LampDesk className="h-4 w-4 mr-2" />
                           L-逻辑阶段
                         </TabsTrigger>
                         <TabsTrigger 
                           value="question" 
-                          className="justify-start"
+                          className="justify-start text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white"
                         >
                           <HelpCircle className="h-4 w-4 mr-2" />
                           Q-提问阶段
                         </TabsTrigger>
                         
-                        <Separator className="my-2" />
+                        <Separator className="my-2 bg-neutral-700" />
                         
                         <TabsTrigger 
                           value="style" 
-                          className="justify-start"
+                          className="justify-start text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white"
                         >
                           <Pencil className="h-4 w-4 mr-2" />
                           表达风格
                         </TabsTrigger>
                         <TabsTrigger 
                           value="policy" 
-                          className="justify-start"
+                          className="justify-start text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white"
                         >
                           <Settings className="h-4 w-4 mr-2" />
                           策略约束
                         </TabsTrigger>
                         <TabsTrigger 
                           value="sensitive" 
-                          className="justify-start"
+                          className="justify-start text-white data-[state=active]:bg-blue-600 data-[state=active]:text-white"
                         >
                           <Settings className="h-4 w-4 mr-2" />
                           敏感词列表
@@ -595,33 +595,35 @@ export function PromptEditorPage() {
 
           {/* 右侧编辑区 */}
           <div className="lg:col-span-3">
-            <Card className="h-full">
+            <Card className="h-full bg-neutral-900 border-neutral-800">
               <CardHeader>
                 <div className="flex items-center">
-                  {currentTab.icon}
+                  <div className="text-blue-500 mr-2">
+                    {currentTab.icon}
+                  </div>
                   <div>
-                    <CardTitle>{currentTab.title}</CardTitle>
-                    <CardDescription>{currentTab.description}</CardDescription>
+                    <CardTitle className="text-white">{currentTab.title}</CardTitle>
+                    <CardDescription className="text-gray-300">{currentTab.description}</CardDescription>
                   </div>
                 </div>
                 {isEditing && (
-                  <div className="text-sm text-green-600 dark:text-green-400 font-medium">
+                  <div className="text-sm text-green-400 font-medium">
                     该模型已有配置的提示词模板
                   </div>
                 )}
               </CardHeader>
               <CardContent>
-                <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-md mb-3 text-sm">
-                  <p>提示词支持以下变量：</p>
+                <div className="bg-neutral-800 border border-neutral-700 p-3 rounded-md mb-3 text-sm text-white">
+                  <p className="text-gray-200">提示词支持以下变量：</p>
                   <div className="grid grid-cols-2 gap-2 mt-1">
-                    <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded text-xs">{"{{user_input}}"}</code>
-                    <span>用户输入</span>
-                    <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded text-xs">{"{{memory}}"}</code>
-                    <span>记忆上下文</span>
-                    <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded text-xs">{"{{search}}"}</code>
-                    <span>搜索结果</span>
-                    <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded text-xs">{"{{date}}"}</code>
-                    <span>当前日期</span>
+                    <code className="bg-neutral-700 px-1 rounded text-xs text-blue-300">{"{{user_input}}"}</code>
+                    <span className="text-gray-300">用户输入</span>
+                    <code className="bg-neutral-700 px-1 rounded text-xs text-blue-300">{"{{memory}}"}</code>
+                    <span className="text-gray-300">记忆上下文</span>
+                    <code className="bg-neutral-700 px-1 rounded text-xs text-blue-300">{"{{search}}"}</code>
+                    <span className="text-gray-300">搜索结果</span>
+                    <code className="bg-neutral-700 px-1 rounded text-xs text-blue-300">{"{{date}}"}</code>
+                    <span className="text-gray-300">当前日期</span>
                   </div>
                 </div>
                 
@@ -629,7 +631,7 @@ export function PromptEditorPage() {
                   value={templateContent.value}
                   onChange={(e) => templateContent.setter(e.target.value)}
                   placeholder={templateContent.placeholder}
-                  className="min-h-[400px] font-mono text-sm"
+                  className="min-h-[400px] font-mono text-sm bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500"
                   disabled={loading}
                 />
               </CardContent>
