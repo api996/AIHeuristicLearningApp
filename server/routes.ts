@@ -564,6 +564,8 @@ asyncio.run(analyze())
       res.status(500).json({ message: "Failed to update chat title" });
     }
   });
+  
+
 
   // User management routes
   app.get("/api/users", async (req, res) => {
@@ -927,29 +929,66 @@ asyncio.run(analyze())
     }
   });
 
-  // 更新聊天模型
+  // 更新聊天模型 - 用于跨模型上下文共享
   app.patch("/api/chats/:chatId/model", async (req, res) => {
     try {
       const chatId = parseInt(req.params.chatId, 10);
       const { model, userId, userRole } = req.body;
 
       if (isNaN(chatId) || !model || !userId) {
-        return res.status(400).json({ message: "Invalid request parameters" });
+        return res.status(400).json({ 
+          message: "Invalid request parameters",
+          error: "INVALID_PARAMETERS" 
+        });
+      }
+      
+      // 验证模型格式
+      const validModels = ["deep", "gemini", "deepseek", "grok"];
+      if (!validModels.includes(model)) {
+        return res.status(400).json({
+          message: "Unsupported model type",
+          error: "UNSUPPORTED_MODEL"
+        });
       }
 
       // 验证用户对此聊天的访问权限
       const isAdmin = userRole === "admin";
       const chat = await storage.getChatById(chatId, userId, isAdmin);
       if (!chat) {
-        return res.status(404).json({ message: "Chat not found or access denied" });
+        return res.status(404).json({ 
+          message: "Chat not found or access denied",
+          error: "CHAT_NOT_FOUND"
+        });
+      }
+
+      // 如果模型没有变化，直接返回成功
+      if (chat.model === model) {
+        return res.json({ 
+          success: true, 
+          message: "Chat model unchanged",
+          model: model,
+          changed: false
+        });
       }
 
       // 更新聊天模型
       await storage.updateChatModel(chatId, model);
-      res.json({ success: true });
+      
+      log(`已更新聊天 ${chatId} 的模型从 ${chat.model} 变更为 ${model}，用户ID: ${userId}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Chat model updated successfully",
+        previousModel: chat.model,
+        newModel: model,
+        changed: true
+      });
     } catch (error) {
-      log(`Error updating chat model: ${error}`);
-      res.status(500).json({ message: "Failed to update chat model" });
+      log(`更新聊天模型错误: ${error instanceof Error ? error.message : String(error)}`);
+      res.status(500).json({ 
+        message: "Failed to update chat model", 
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
