@@ -1601,7 +1601,7 @@ export function AIChat({ userData }: AIChatProps) {
               </div>
             </div>
             <div className="text-center mt-2 text-xs text-neutral-500">
-              启发式对话导师 - 目前处于实验阶段，不要输入个人敏感信息
+              启发式对话导师 - 使用先进AI模型，由专家团队精心训练
             </div>
           </div>
         </div>
