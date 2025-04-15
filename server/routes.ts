@@ -13,6 +13,7 @@ import { spawn } from 'child_process';
 import learningPathRoutes from './routes/learning-path';
 import adminPromptsRoutes from './routes/admin-prompts';
 import contentModerationRoutes from './routes/content-moderation';
+import webSearchRoutes from './routes/web-search';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
