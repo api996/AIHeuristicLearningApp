@@ -76,7 +76,7 @@ export class PromptManagerService {
     searchResults?: string
   ): Promise<string> {
     // 根据当前阶段选择适当的模板
-    let baseTemplate = template.template || ""; // 基础模板
+    let baseTemplate = template.promptTemplate || template.baseTemplate || ""; // 基础模板
     
     // 添加阶段特定模板
     let phaseTemplate = "";
