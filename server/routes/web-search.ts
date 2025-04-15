@@ -41,7 +41,7 @@ router.post('/enable', requireAdmin, (req, res) => {
 });
 
 // 禁用网络搜索
-router.post('/disable', requireLogin, (req, res) => {
+router.post('/disable', requireAdmin, (req, res) => {
   try {
     chatService.setWebSearchEnabled(false);
     res.json({
@@ -59,7 +59,7 @@ router.post('/disable', requireLogin, (req, res) => {
 });
 
 // 切换网络搜索状态
-router.post('/toggle', requireLogin, (req, res) => {
+router.post('/toggle', requireAdmin, (req, res) => {
   try {
     const newStatus = chatService.toggleWebSearch();
     res.json({
