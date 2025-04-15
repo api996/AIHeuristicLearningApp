@@ -285,9 +285,11 @@ asyncio.run(get_embeddings())
           if (code === 0 && output) {
             try {
               const embeddings = JSON.parse(output.trim());
+              // 不要在日志中打印完整向量
+              log(`成功获取嵌入向量: ${embeddings.length}个向量，每个维度${embeddings[0]?.length || 0}`);
               resolve(embeddings);
             } catch (e) {
-              log(`解析嵌入向量结果出错: ${e}, 输出内容: ${output}`);
+              log(`解析嵌入向量结果出错: ${e}, 输出长度: ${output?.length || 0}字符`);
               // 返回随机向量作为替代
               resolve(texts.map(() => this.generateRandomVector(384)));
             }
