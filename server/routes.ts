@@ -1013,9 +1013,8 @@ asyncio.run(analyze())
       }
       
       // 判断是否使用网络搜索
-      // 如果模型是"search"，则强制启用搜索
-      const shouldUseSearch = 
-        chat.model === "search" || (useWebSearch === true);
+      // 网络搜索现在是一个辅助功能，不再是独立模型
+      const shouldUseSearch = (useWebSearch === true);
         
       // 获取AI响应，传入userId用于记忆检索，以及网络搜索参数
       log(`处理来自用户 ${userId} 的聊天消息，聊天ID: ${chatId}，模型: ${chat.model}，搜索: ${shouldUseSearch}`);
