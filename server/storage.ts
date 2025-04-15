@@ -58,7 +58,19 @@ export interface IStorage {
   
   // Prompt template methods
   getPromptTemplate(modelId: string): Promise<PromptTemplate | undefined>;
-  createOrUpdatePromptTemplate(modelId: string, template: string, userId: number): Promise<PromptTemplate>;
+  createOrUpdatePromptTemplate(
+    modelId: string, 
+    template: string, 
+    userId: number,
+    baseTemplate?: string,
+    kTemplate?: string,
+    wTemplate?: string,
+    lTemplate?: string,
+    qTemplate?: string,
+    styleTemplate?: string,
+    policyTemplate?: string,
+    sensitiveWords?: string
+  ): Promise<PromptTemplate>;
   getAllPromptTemplates(): Promise<PromptTemplate[]>;
   deletePromptTemplate(modelId: string): Promise<void>;
   
@@ -66,6 +78,15 @@ export interface IStorage {
   saveSearchResult(query: string, results: any, expiryMinutes?: number): Promise<SearchResult>;
   getSearchResult(query: string): Promise<SearchResult | undefined>;
   deleteExpiredSearchResults(): Promise<number>; // Returns number of deleted records
+  
+  // Conversation analytics methods
+  saveConversationAnalytic(
+    chatId: number, 
+    currentPhase: "K" | "W" | "L" | "Q", 
+    summary: string
+  ): Promise<ConversationAnalytic>;
+  getLatestConversationAnalytic(chatId: number): Promise<ConversationAnalytic | undefined>;
+  getConversationAnalyticHistory(chatId: number): Promise<ConversationAnalytic[]>;
 }
 
 export class DatabaseStorage implements IStorage {
