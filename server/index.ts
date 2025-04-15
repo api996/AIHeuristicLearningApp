@@ -10,23 +10,23 @@ import fs from "fs";
 const runMemoryCleanup = () => {
   try {
     const scriptPath = path.join(process.cwd(), "scripts", "memory_cleanup.py");
-    
+
     // 检查脚本是否存在
     if (fs.existsSync(scriptPath)) {
       log("正在执行记忆文件修复脚本...");
-      
+
       const cleanupProcess = spawn("python", [scriptPath], {
         stdio: ["ignore", "pipe", "pipe"],
       });
-      
+
       cleanupProcess.stdout.on("data", (data) => {
         log(`[记忆修复] ${data.toString().trim()}`);
       });
-      
+
       cleanupProcess.stderr.on("data", (data) => {
         log(`[记忆修复错误] ${data.toString().trim()}`);
       });
-      
+
       cleanupProcess.on("close", (code) => {
         log(`记忆文件修复脚本执行完成，退出码: ${code}`);
       });
@@ -89,7 +89,7 @@ app.use((req, res, next) => {
   try {
     // 先运行记忆文件修复
     runMemoryCleanup();
-    
+
     const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -111,7 +111,7 @@ app.use((req, res, next) => {
     // Try to find an available port starting with 5000
     const startPort = 5000;
     let port = startPort;
-    
+
     const startServer = (portToUse: number) => {
       server.listen({
         port: portToUse,
@@ -130,7 +130,7 @@ app.use((req, res, next) => {
         }
       });
     };
-    
+
     startServer(port);
   } catch (error) {
     log(`Failed to start server: ${error instanceof Error ? error.message : String(error)}`);
