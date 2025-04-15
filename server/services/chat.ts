@@ -44,6 +44,7 @@ export class ChatService {
     ].filter(Boolean);
     
     log(`ChatService 初始化，可用API: ${availableKeys.join(", ")}`);
+    log(`使用的模型版本: Gemini-2.5-Pro-Preview-03-25, DeepSeek-R1, Grok-3-Fast-Beta`);
     
     // 默认使用deep模型
     this.currentModel = "deep";
@@ -51,7 +52,7 @@ export class ChatService {
     
     this.modelConfigs = {
       gemini: {
-        endpoint: `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent`,
+        endpoint: `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-exp:generateContent`,
         headers: {
           "Content-Type": "application/json",
         },
@@ -168,7 +169,7 @@ ${searchResults}`;
         }
       },
       deepseek: {
-        endpoint: `https://api.nvcf.nvidia.com/v2/nvcf/pexec/functions/2c5a0480-1681-4d95-a199-995301f8ad61`,
+        endpoint: `https://integrate.api.nvidia.com/v1/chat/completions`,
         headers: {
           "Authorization": `Bearer ${deepseekApiKey}`,
           "Content-Type": "application/json",
@@ -217,12 +218,16 @@ ${searchResults}
             
           // 适配NVIDIA NIM平台的API格式
           return {
-            input: {
-              prompt: basePrompt,
-              temperature: 0.7,
-              top_p: 0.9,
-              max_tokens: 4096
-            }
+            model: "deepseek-ai/deepseek-r1",
+            messages: [
+              {
+                role: "user",
+                content: basePrompt
+              }
+            ],
+            temperature: 0.7,
+            top_p: 0.9,
+            max_tokens: 4096
           };
         },
         getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
@@ -247,7 +252,7 @@ ${searchResults}
           
           try {
             const transformedMessage = this.modelConfigs.deepseek.transformRequest!(message, contextMemories, searchResults);
-            log(`Calling DeepSeek API (NVIDIA NIM) with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
+            log(`Calling DeepSeek API (NVIDIA NIM平台) with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
             
             const response = await fetchWithRetry(this.modelConfigs.deepseek.endpoint!, {
               method: "POST",
@@ -266,7 +271,7 @@ ${searchResults}
             log(`Received DeepSeek API response`);
             
             // NVIDIA NIM平台的响应格式处理
-            const responseText = data.output?.text || data.output || "DeepSeek模型无法生成回应";
+            const responseText = data.choices?.[0]?.message?.content || "DeepSeek模型无法生成回应";
             
             return {
               text: responseText,
@@ -279,7 +284,7 @@ ${searchResults}
         }
       },
       grok: {
-        endpoint: `https://api.xai-grok.com/v1/chat/completions`,
+        endpoint: `https://api.x.ai/v1/chat/completions`,
         headers: {
           "Authorization": `Bearer ${grokApiKey}`,
           "Content-Type": "application/json",
@@ -287,7 +292,7 @@ ${searchResults}
         isSimulated: !grokApiKey,
         transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
           // 构建系统提示
-          let systemPrompt = `你是Grok，一个先进的AI助手，来自XAI公司，具有幽默感和独特见解。你的回答应该既有信息量又有趣味性。`;
+          let systemPrompt = `你是Grok-3，一个先进的AI助手，来自XAI公司，具有幽默感和独特见解。你的回答应该既有信息量又有趣味性。`;
           
           // 构建用户提示
           let userPrompt = message;
@@ -303,7 +308,7 @@ ${searchResults}
           }
             
           return {
-            model: "grok-1",
+            model: "grok-3-fast-beta",
             messages: [
               {
                 role: "system",
@@ -315,7 +320,8 @@ ${searchResults}
               }
             ],
             temperature: 0.7,
-            max_tokens: 4096
+            top_p: 0.9,
+            max_tokens: 1024
           };
         },
         getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
