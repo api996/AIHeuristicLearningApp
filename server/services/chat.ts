@@ -110,7 +110,7 @@ ${searchResults}`;
               temperature: 0.7,
               topP: 0.95,
               topK: 40,
-              maxOutputTokens: 4096,
+              maxOutputTokens: 8192, // 增加到8192以支持更长的响应
             }
           };
         },
@@ -227,7 +227,7 @@ ${searchResults}
             ],
             temperature: 0.7,
             top_p: 0.9,
-            max_tokens: 4096
+            max_tokens: 8192 // 增加到8192以支持更长的回答
           };
         },
         getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
@@ -321,7 +321,7 @@ ${searchResults}
             ],
             temperature: 0.7,
             top_p: 0.9,
-            max_tokens: 1024
+            max_tokens: 4096 // 增加到4096以支持更长的生成内容
           };
         },
         getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
