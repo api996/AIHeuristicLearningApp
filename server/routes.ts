@@ -1493,6 +1493,7 @@ asyncio.run(test_memory())
   app.use('/api/learning-path', learningPathRoutes);
   app.use('/api/admin/prompts', adminPromptsRoutes);
   app.use('/api/admin/content-moderation', contentModerationRoutes);
+  app.use('/api/web-search', webSearchRoutes);
 
   const httpServer = createServer(app);
   return httpServer;
