@@ -1,22 +1,34 @@
+/**
+ * 内容审查设置组件
+ * 用于管理OpenAI Moderation API内容审查设置
+ */
+
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Button } from "@/components/ui/button";
+
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Loader2, ShieldAlert, Shield, CheckCircle } from "lucide-react";
+import {
+  Shield,
+  ShieldAlert,
+  CheckCircle,
+  Loader2,
+} from "lucide-react";
 
+// 内容审查设置接口
 interface ModerationSettings {
   enabled: boolean;
   threshold: number;
@@ -24,7 +36,8 @@ interface ModerationSettings {
   blockModelOutput: boolean;
 }
 
-interface ModerationTestResult {
+// 内容审查测试结果接口
+interface TestResult {
   flagged: boolean;
   categories: Record<string, boolean>;
   categoryScores: Record<string, number>;
@@ -33,57 +46,50 @@ interface ModerationTestResult {
 
 export function ContentModerationSettings() {
   const { toast } = useToast();
-  const [settings, setSettings] = useState<ModerationSettings>({
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  
+  // 默认设置
+  const defaultSettings: ModerationSettings = {
     enabled: false,
     threshold: 0.7,
     blockUserInput: true,
     blockModelOutput: true,
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [testText, setTestText] = useState<string>("");
-  const [isTesting, setIsTesting] = useState<boolean>(false);
-  const [testResult, setTestResult] = useState<ModerationTestResult | null>(null);
-
-  // 获取当前设置
+  };
+  
+  const [settings, setSettings] = useState<ModerationSettings>(defaultSettings);
+  const [testText, setTestText] = useState("");
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+  
+  // 加载设置
   useEffect(() => {
-    async function fetchSettings() {
+    const fetchSettings = async () => {
       try {
         setIsLoading(true);
         const user = JSON.parse(localStorage.getItem("user") || "{}");
-        const response = await fetch(`/api/admin/content-moderation/settings?userId=${user.userId}`);
         
-        if (!response.ok) {
-          throw new Error("获取设置失败");
-        }
+        const response = await apiRequest("/api/admin/content-moderation/settings", "GET", {
+          userId: user.userId,
+        });
         
-        const data = await response.json();
-        if (data.success && data.settings) {
-          setSettings(data.settings);
-          
-          // 显示API密钥配置状态
-          if (data.message) {
-            toast({
-              title: "API配置提示",
-              description: data.message,
-              variant: "destructive",
-            });
-          }
+        if (response.success && response.settings) {
+          setSettings(response.settings);
         }
       } catch (error) {
         toast({
           title: "错误",
-          description: "无法获取内容审查设置",
+          description: "加载内容审查设置失败",
           variant: "destructive",
         });
       } finally {
         setIsLoading(false);
       }
-    }
+    };
     
     fetchSettings();
   }, [toast]);
-
+  
   // 保存设置
   const saveSettings = async () => {
     try {
@@ -113,7 +119,7 @@ export function ContentModerationSettings() {
       setIsSaving(false);
     }
   };
-
+  
   // 测试内容审查
   const testModeration = async () => {
     if (!testText.trim()) {
@@ -151,7 +157,7 @@ export function ContentModerationSettings() {
       setIsTesting(false);
     }
   };
-
+  
   // 渲染测试结果
   const renderTestResult = () => {
     if (!testResult) return null;

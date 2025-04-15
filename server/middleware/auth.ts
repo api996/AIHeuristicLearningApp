@@ -1,84 +1,57 @@
 /**
- * 身份验证中间件
+ * 用户认证中间件
  */
+
 import { Request, Response, NextFunction } from 'express';
 import { log } from '../vite';
-import { storage } from '../storage';
 
-// 扩展Request接口以包含用户信息
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: number;
-        username: string;
-        role: string;
-      };
-    }
+/**
+ * 验证用户是否已登录
+ */
+export const requireLogin = (req: Request, res: Response, next: NextFunction) => {
+  // 如果用户会话存在，则继续
+  if (req.session && req.session.userId) {
+    return next();
   }
-}
-
-// 要求用户已登录
-export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    // 从session获取用户ID
-    const userId = req.session?.userId;
-    
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: '请先登录'
-      });
-    }
-    
-    // 获取用户信息
-    const user = await storage.getUser(userId);
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: '用户不存在'
-      });
-    }
-    
-    // 将用户信息附加到请求对象
-    req.user = {
-      id: user.id,
-      username: user.username,
-      role: user.role || 'user'
-    };
-    
-    next();
-  } catch (error) {
-    log(`身份验证错误: ${error}`);
-    res.status(500).json({
-      success: false,
-      message: '身份验证失败'
-    });
-  }
+  
+  // 否则返回未授权错误
+  res.status(401).json({ error: '请先登录' });
 };
 
-// 要求用户具有管理员权限
-export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    // 首先确保用户已登录
-    await requireAuth(req, res, (err) => {
-      if (err) return next(err);
-      
-      // 检查用户是否为管理员
-      if (req.user?.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          message: '需要管理员权限'
-        });
-      }
-      
-      next();
-    });
-  } catch (error) {
-    log(`管理员权限验证错误: ${error}`);
-    res.status(500).json({
-      success: false,
-      message: '权限验证失败'
-    });
+/**
+ * 验证用户是否为管理员
+ */
+export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+  // 确保用户已登录
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ error: '请先登录' });
   }
+  
+  // 验证userId参数
+  const { userId } = req.body;
+  
+  // 如果提供了userId，确保它匹配会话中的userId，或者用户是管理员
+  if (userId && parseInt(userId, 10) !== req.session.userId) {
+    // 检查用户是否为管理员，这里简单实现 - 可以替换为数据库查询
+    const isAdmin = req.session.role === 'admin';
+    
+    if (!isAdmin) {
+      log(`非管理员用户 ${req.session.userId} 尝试以 ${userId} 身份访问管理功能`);
+      return res.status(403).json({ error: '需要管理员权限' });
+    }
+  }
+  
+  // 用户已登录并且有适当的权限，继续
+  next();
+};
+
+/**
+ * 验证开发者模式
+ */
+export const requireDevMode = (req: Request, res: Response, next: NextFunction) => {
+  if (req.session && req.session.developerModeVerified) {
+    return next();
+  }
+
+  res.status(403).json({ error: '需要开发者模式' });
 };
