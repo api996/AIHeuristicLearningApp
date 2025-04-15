@@ -685,7 +685,16 @@ ${searchResults}
             // 添加当前用户消息到分析列表（因为它还未保存到数据库）
             const messagesWithCurrent = [
               ...messages,
-              { content: message, role: "user", chatId, id: 0, createdAt: new Date() }
+              { 
+                content: message, 
+                role: "user", 
+                chatId, 
+                id: 0, 
+                createdAt: new Date(),
+                model: null,
+                feedback: null,
+                isEdited: null
+              }
             ];
             
             // 分析对话阶段
