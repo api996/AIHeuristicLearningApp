@@ -21,7 +21,6 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { PromptTemplateManager } from "@/components/admin/PromptTemplateManager";
 import { ContentModerationSettings } from "@/components/admin/ContentModerationSettings";
-import { WebSearchSettings } from "@/components/admin/WebSearchSettings";
 
 interface ChatStats {
   total: number;
@@ -115,7 +114,6 @@ export default function AdminDashboard() {
               <TabsTrigger value="dashboard">控制面板</TabsTrigger>
               <TabsTrigger value="prompts">提示词模板</TabsTrigger>
               <TabsTrigger value="moderation">内容审查</TabsTrigger>
-              <TabsTrigger value="websearch">网络搜索</TabsTrigger>
             </TabsList>
             
             {/* Dashboard Tab */}
