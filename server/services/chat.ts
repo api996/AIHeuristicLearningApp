@@ -44,7 +44,7 @@ export class ChatService {
     ].filter(Boolean);
     
     log(`ChatService 初始化，可用API: ${availableKeys.join(", ")}`);
-    log(`使用的模型版本: Gemini-2.5-Pro-Preview-03-25, DeepSeek-R1, Grok-3-Fast-Beta`);
+    log(`使用的模型版本: Gemini-Pro-Exp, DeepSeek-R1, Grok-3-Fast-Beta`);
     
     // 默认使用deep模型
     this.currentModel = "deep";
