@@ -4,7 +4,6 @@ import { storage } from "../storage";
 import { webSearchService, type SearchSnippet } from "./web-search";
 import { promptManagerService } from "./prompt-manager";
 import { conversationAnalyticsService } from "./conversation-analytics";
-import { contentModerationService } from "./content-moderation";
 import { type Message } from "../../shared/schema";
 
 interface ModelConfig {
@@ -776,16 +775,6 @@ ${searchResults}
       log(`Processing message with ${this.currentModel} model: ${message}, web search: ${this.useWebSearch}`);
       const config = this.modelConfigs[this.currentModel];
       
-      // 对用户输入进行内容审查 - 前置审查
-      const userInputModerationResult = await contentModerationService.moderateUserInput(message);
-      if (userInputModerationResult) {
-        log(`用户输入被内容审查系统拦截，提示: ${userInputModerationResult}`);
-        return {
-          text: userInputModerationResult,
-          model: this.currentModel
-        };
-      }
-      
       // 如果有用户ID，尝试获取相似记忆
       let contextMemories: string | undefined = undefined;
       if (userId) {
@@ -837,19 +826,7 @@ ${searchResults}
             log(`使用动态提示词模板处理消息`);
             
             // 使用动态提示词而不是原始消息
-            const response = await config.getResponse(dynamicPrompt, userId, contextMemories, searchResults, this.useWebSearch);
-            
-            // 对模型输出进行内容审查 - 后置审查
-            const modelOutputModerationResult = await contentModerationService.moderateModelOutput(response.text);
-            if (modelOutputModerationResult) {
-              log(`模型输出被内容审查系统拦截，提示: ${modelOutputModerationResult}`);
-              return {
-                text: modelOutputModerationResult,
-                model: response.model
-              };
-            }
-            
-            return response;
+            return await config.getResponse(dynamicPrompt, userId, contextMemories, searchResults, this.useWebSearch);
           }
         } catch (error) {
           log(`动态提示词生成错误，回退到默认提示词: ${error}`);
@@ -861,7 +838,6 @@ ${searchResults}
       const promptTemplate = await this.getModelPromptTemplate(this.currentModel);
       
       // 如果有提示词模板，应用模板
-      let response;
       if (promptTemplate) {
         const processedPrompt = this.applyPromptTemplate(
           promptTemplate,
@@ -873,23 +849,11 @@ ${searchResults}
         log(`Applied prompt template for model ${this.currentModel}`);
         
         // 使用处理后的提示词
-        response = await config.getResponse(processedPrompt, userId, contextMemories, searchResults, this.useWebSearch);
-      } else {
-        // 使用默认处理（无模板）
-        response = await config.getResponse(message, userId, contextMemories, searchResults, this.useWebSearch);
+        return await config.getResponse(processedPrompt, userId, contextMemories, searchResults, this.useWebSearch);
       }
       
-      // 对模型输出进行内容审查 - 后置审查
-      const modelOutputModerationResult = await contentModerationService.moderateModelOutput(response.text);
-      if (modelOutputModerationResult) {
-        log(`模型输出被内容审查系统拦截，提示: ${modelOutputModerationResult}`);
-        return {
-          text: modelOutputModerationResult,
-          model: response.model
-        };
-      }
-      
-      return response;
+      // 使用默认处理（无模板）
+      return await config.getResponse(message, userId, contextMemories, searchResults, this.useWebSearch);
     } catch (error) {
       log(`Error in ${this.currentModel} chat: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
