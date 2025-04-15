@@ -52,7 +52,7 @@ export class ChatService {
     
     this.modelConfigs = {
       gemini: {
-        endpoint: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-preview-03-25:generateContent`,
+        endpoint: `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-exp:generateContent`,
         headers: {
           "Content-Type": "application/json",
         },
@@ -284,7 +284,7 @@ ${searchResults}
         }
       },
       grok: {
-        endpoint: `https://integrate.api.nvidia.com/v1/chat/completions`,
+        endpoint: `https://api.x.ai/v1/chat/completions`,
         headers: {
           "Authorization": `Bearer ${grokApiKey}`,
           "Content-Type": "application/json",
@@ -292,7 +292,7 @@ ${searchResults}
         isSimulated: !grokApiKey,
         transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
           // 构建系统提示
-          let systemPrompt = `你是Grok，一个先进的AI助手，来自XAI公司，具有幽默感和独特见解。你的回答应该既有信息量又有趣味性。`;
+          let systemPrompt = `你是Grok-3，一个先进的AI助手，来自XAI公司，具有幽默感和独特见解。你的回答应该既有信息量又有趣味性。`;
           
           // 构建用户提示
           let userPrompt = message;
@@ -308,7 +308,7 @@ ${searchResults}
           }
             
           return {
-            model: "xai/grok-3-fast-beta",
+            model: "grok-3-fast-beta",
             messages: [
               {
                 role: "system",
@@ -320,7 +320,8 @@ ${searchResults}
               }
             ],
             temperature: 0.7,
-            max_tokens: 4096
+            top_p: 0.9,
+            max_tokens: 1024
           };
         },
         getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
