@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { PromptTemplateManager } from "@/components/admin/PromptTemplateManager";
+import { ContentModerationSettings } from "@/components/admin/ContentModerationSettings";
 
 interface ChatStats {
   total: number;
@@ -112,6 +113,7 @@ export default function AdminDashboard() {
             <TabsList className="bg-neutral-800 mt-2">
               <TabsTrigger value="dashboard">控制面板</TabsTrigger>
               <TabsTrigger value="prompts">提示词模板</TabsTrigger>
+              <TabsTrigger value="moderation">内容审查</TabsTrigger>
             </TabsList>
             
             {/* Dashboard Tab */}
@@ -243,6 +245,23 @@ export default function AdminDashboard() {
                   </Card>
                 </div>
                 <PromptTemplateManager />
+              </div>
+            </TabsContent>
+            
+            {/* Content Moderation Tab */}
+            <TabsContent value="moderation">
+              <div className="py-8">
+                <div className="container mx-auto px-4 mb-6">
+                  <Card className="bg-neutral-900 border-neutral-800">
+                    <CardHeader>
+                      <CardTitle className="text-white">内容审查设置</CardTitle>
+                      <CardDescription>
+                        配置OpenAI Moderation API用于过滤不当内容，保护用户体验和平台安全
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </div>
+                <ContentModerationSettings />
               </div>
             </TabsContent>
           </Tabs>
