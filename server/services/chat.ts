@@ -113,7 +113,7 @@ ${searchResults}`;
             }
           };
         },
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string) => {
+        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
           // 如果没有API密钥，返回模拟响应
           if (!geminiApiKey) {
             log(`No Gemini API key found, returning simulated response`);
@@ -225,7 +225,7 @@ ${searchResults}
             }
           };
         },
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string) => {
+        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
           // 如果没有API密钥，返回模拟响应
           if (!deepseekApiKey) {
             log(`No DeepSeek API key found, returning simulated response`);
@@ -318,7 +318,7 @@ ${searchResults}
             max_tokens: 4096
           };
         },
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string) => {
+        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
           // 如果没有API密钥，返回模拟响应
           if (!grokApiKey) {
             log(`No Grok API key found, returning simulated response`);
@@ -371,84 +371,8 @@ ${searchResults}
           }
         }
       },
-      search: {
-        endpoint: `https://api.serper.dev/search`,
-        headers: {
-          "X-API-KEY": serperApiKey || "",
-          "Content-Type": "application/json",
-        },
-        isSimulated: !serperApiKey,
-        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
-          return {
-            q: message,
-            gl: "us",
-            hl: "en",
-            num: 10
-          };
-        },
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string) => {
-          // 这个模型强制启用搜索，不论全局设置如何
-          const memoryInfo = contextMemories ? `[使用了${contextMemories.split('\n').length}条相关记忆]` : '';
-          
-          // 如果没有API密钥，返回模拟响应
-          if (!serperApiKey) {
-            log(`No Serper API key found, returning simulated response`);
-            let responseText = `[Search模型-模拟] `;
-            if (memoryInfo) responseText += memoryInfo + ' ';
-            responseText += `[尝试网络搜索] `;
-            responseText += `搜索您的问题："${message}"...\n\n`;
-            responseText += `这是一个模拟的Search响应，因为尚未配置有效的SERPER_API_KEY。配置密钥后，将显示真实的搜索结果。`;
-            
-            return {
-              text: responseText,
-              model: "search"
-            };
-          }
-          
-          try {
-            // 直接使用搜索服务进行搜索
-            log(`Search model performing web search for: ${message}`);
-            const searchResults = await webSearchService.search(message);
-            
-            let responseText = `[Search模型] `;
-            if (memoryInfo) responseText += memoryInfo + ' ';
-            
-            if (!searchResults || searchResults.length === 0) {
-              responseText += `[无搜索结果] 搜索您的问题："${message}"...\n\n`;
-              responseText += `很抱歉，当前无法获取相关的搜索结果。这可能是由于：\n`;
-              responseText += `1. 查询内容可能需要更具体的关键词\n`;
-              responseText += `2. 该主题可能缺乏公开资料\n`;
-              responseText += `3. 搜索服务暂时限制\n\n`;
-              responseText += `您可以尝试重新提问，或者使用更具体的关键词。`;
-            } else {
-              responseText += `[使用了网络搜索结果] 搜索您的问题："${message}"...\n\n`;
-              responseText += `根据网络搜索结果，我找到了以下信息：\n\n`;
-              
-              // 格式化搜索结果
-              searchResults.forEach((result, idx) => {
-                const title = result.title || '无标题';
-                const snippet = result.snippet || '无详细描述';
-                const url = result.url || '无链接';
-                
-                responseText += `[${idx + 1}] ${title}\n`;
-                responseText += `${snippet}\n`;
-                responseText += `来源: ${url}\n\n`;
-              });
-              
-              // 添加总结
-              responseText += `以上是关于"${message}"的搜索结果摘要。您可以从这些信息中获取最新的、客观的参考资料。如需更详细的信息，可以访问提供的链接。`;
-            }
-            
-            return {
-              text: responseText,
-              model: "search"
-            };
-          } catch (error) {
-            log(`Error in search model: ${error}`);
-            throw error;
-          }
-        }
-      },
+      // search模型已移除，网络搜索现在作为辅助功能集成到其他模型中
+      
       deep: {
         endpoint: `https://api.dify.ai/v1/chat-messages`,
         headers: {
