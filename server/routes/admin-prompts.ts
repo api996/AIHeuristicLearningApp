@@ -1,181 +1,127 @@
-/**
- * 管理员提示词注入模块路由
- * 提供提示词模板的管理功能
- */
-
-import { Router } from 'express';
+import express, { Request, Response } from 'express';
 import { storage } from '../storage';
 import { log } from '../vite';
-import { z } from 'zod';
 
-const router = Router();
+const router = express.Router();
 
-// 验证提示词模板的格式
-const promptTemplateSchema = z.object({
-  modelId: z.string().min(1).max(50),
-  promptTemplate: z.string().min(10),
-});
-
-// 获取特定模型的提示词模板
-router.get('/:modelId', async (req, res) => {
+// 获取所有提示词模板
+router.get('/', async (req: Request, res: Response) => {
   try {
-    // 验证用户身份（必须是管理员）
-    const { userId, role } = req.query;
-    
-    if (!userId || role !== 'admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: '只有管理员可以访问提示词模板'
-      });
+    const userId = req.query.userId as string;
+    if (!userId) {
+      return res.status(401).json({ message: "请先登录" });
     }
-    
-    const modelId = req.params.modelId;
-    if (!modelId) {
-      return res.status(400).json({
-        success: false,
-        message: '模型ID不能为空'
-      });
+
+    // 验证用户是否为管理员
+    const user = await storage.getUser(Number(userId));
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: "需要管理员权限" });
     }
-    
-    const template = await storage.getPromptTemplate(modelId);
-    
-    if (!template) {
-      return res.status(404).json({
-        success: false,
-        message: `未找到模型 ${modelId} 的提示词模板`
-      });
-    }
-    
-    res.json({
-      success: true,
-      template
-    });
+
+    const templates = await storage.getAllPromptTemplates();
+    log(`获取了${templates.length}个提示词模板`);
+    res.json(templates);
   } catch (error) {
-    log(`[管理员提示词] 获取模板错误: ${error}`);
-    res.status(500).json({
-      success: false,
-      message: '获取提示词模板失败'
-    });
+    log(`获取提示词模板错误: ${error}`);
+    res.status(500).json({ message: "获取提示词模板失败", error: String(error) });
   }
 });
 
-// 获取所有提示词模板
-router.get('/', async (req, res) => {
+// 获取指定模型的提示词模板
+router.get('/:modelId', async (req: Request, res: Response) => {
   try {
-    // 验证用户身份（必须是管理员）
-    const { userId, role } = req.query;
+    const { modelId } = req.params;
+    const userId = req.query.userId as string;
     
-    if (!userId || role !== 'admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: '只有管理员可以访问提示词模板'
-      });
+    if (!userId) {
+      return res.status(401).json({ message: "请先登录" });
     }
+
+    // 验证用户是否为管理员
+    const user = await storage.getUser(Number(userId));
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: "需要管理员权限" });
+    }
+
+    if (!modelId) {
+      return res.status(400).json({ message: "需要提供模型ID" });
+    }
+
+    const template = await storage.getPromptTemplate(modelId);
     
-    const templates = await storage.getAllPromptTemplates();
-    
-    res.json({
-      success: true,
-      templates
-    });
+    if (!template) {
+      return res.status(404).json({ message: `未找到模型 ${modelId} 的提示词模板` });
+    }
+
+    log(`获取了模型 ${modelId} 的提示词模板`);
+    res.json(template);
   } catch (error) {
-    log(`[管理员提示词] 获取所有模板错误: ${error}`);
-    res.status(500).json({
-      success: false,
-      message: '获取所有提示词模板失败'
-    });
+    log(`获取特定提示词模板错误: ${error}`);
+    res.status(500).json({ message: "获取提示词模板失败", error: String(error) });
   }
 });
 
 // 创建或更新提示词模板
-router.post('/', async (req, res) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
-    // 验证用户身份（必须是管理员）
-    const { userId, role } = req.query;
+    const { modelId, promptTemplate } = req.body;
+    const userId = req.body.userId || req.query.userId as string;
     
-    if (!userId || role !== 'admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: '只有管理员可以管理提示词模板'
-      });
+    if (!userId) {
+      return res.status(401).json({ message: "请先登录" });
     }
-    
-    // 验证请求体
-    const validationResult = promptTemplateSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      return res.status(400).json({
-        success: false,
-        message: '无效的提示词模板格式',
-        errors: validationResult.error.format()
-      });
+
+    // 验证用户是否为管理员
+    const user = await storage.getUser(Number(userId));
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: "需要管理员权限" });
     }
-    
-    const { modelId, promptTemplate } = validationResult.data;
-    
-    // 创建或更新模板
-    const template = await storage.createOrUpdatePromptTemplate(
-      modelId, 
-      promptTemplate, 
+
+    if (!modelId || !promptTemplate) {
+      return res.status(400).json({ message: "需要提供模型ID和提示词模板" });
+    }
+
+    const savedTemplate = await storage.createOrUpdatePromptTemplate(
+      modelId,
+      promptTemplate,
       Number(userId)
     );
-    
-    res.json({
-      success: true,
-      message: '提示词模板已保存',
-      template
-    });
+
+    log(`${savedTemplate ? '更新' : '创建'}了模型 ${modelId} 的提示词模板`);
+    res.json(savedTemplate);
   } catch (error) {
-    log(`[管理员提示词] 保存模板错误: ${error}`);
-    res.status(500).json({
-      success: false,
-      message: '保存提示词模板失败'
-    });
+    log(`保存提示词模板错误: ${error}`);
+    res.status(500).json({ message: "保存提示词模板失败", error: String(error) });
   }
 });
 
 // 删除提示词模板
-router.delete('/:modelId', async (req, res) => {
+router.delete('/:modelId', async (req: Request, res: Response) => {
   try {
-    // 验证用户身份（必须是管理员）
-    const { userId, role } = req.query;
+    const { modelId } = req.params;
+    const userId = req.query.userId as string;
     
-    if (!userId || role !== 'admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: '只有管理员可以删除提示词模板'
-      });
+    if (!userId) {
+      return res.status(401).json({ message: "请先登录" });
     }
-    
-    const modelId = req.params.modelId;
+
+    // 验证用户是否为管理员
+    const user = await storage.getUser(Number(userId));
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: "需要管理员权限" });
+    }
+
     if (!modelId) {
-      return res.status(400).json({
-        success: false,
-        message: '模型ID不能为空'
-      });
+      return res.status(400).json({ message: "需要提供模型ID" });
     }
-    
-    // 先检查模板是否存在
-    const template = await storage.getPromptTemplate(modelId);
-    if (!template) {
-      return res.status(404).json({
-        success: false,
-        message: `未找到模型 ${modelId} 的提示词模板`
-      });
-    }
-    
-    // 删除模板
+
     await storage.deletePromptTemplate(modelId);
+    log(`删除了模型 ${modelId} 的提示词模板`);
     
-    res.json({
-      success: true,
-      message: `模型 ${modelId} 的提示词模板已删除`
-    });
+    res.json({ success: true, message: `已删除模型 ${modelId} 的提示词模板` });
   } catch (error) {
-    log(`[管理员提示词] 删除模板错误: ${error}`);
-    res.status(500).json({
-      success: false,
-      message: '删除提示词模板失败'
-    });
+    log(`删除提示词模板错误: ${error}`);
+    res.status(500).json({ message: "删除提示词模板失败", error: String(error) });
   }
 });
 
