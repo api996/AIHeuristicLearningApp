@@ -4,6 +4,7 @@ import { storage } from "../storage";
 import { webSearchService, type SearchSnippet } from "./web-search";
 import { promptManagerService } from "./prompt-manager";
 import { conversationAnalyticsService } from "./conversation-analytics";
+import { type Message } from "../../shared/schema";
 
 interface ModelConfig {
   endpoint?: string;
@@ -683,18 +684,20 @@ ${searchResults}
           
           if (messages && messages.length > 0) {
             // 添加当前用户消息到分析列表（因为它还未保存到数据库）
-            const messagesWithCurrent = [
+            const currentMessage: Message = {
+              content: message,
+              role: "user", 
+              chatId,
+              id: 0, 
+              createdAt: new Date(),
+              model: null,
+              feedback: null,
+              isEdited: null
+            };
+            
+            const messagesWithCurrent: Message[] = [
               ...messages,
-              { 
-                content: message, 
-                role: "user", 
-                chatId, 
-                id: 0, 
-                createdAt: new Date(),
-                model: null,
-                feedback: null,
-                isEdited: null
-              }
+              currentMessage
             ];
             
             // 分析对话阶段
