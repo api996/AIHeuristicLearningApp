@@ -602,7 +602,8 @@ export function AIChat({ userData }: AIChatProps) {
           // 用真实响应替换它
           updatedMessages[updatedMessages.length - 1] = {
             role: "assistant" as const,
-            content: aiResponse
+            content: aiResponse,
+            model: data.model || currentModel // 添加模型信息
           };
         }
         return updatedMessages;
@@ -622,14 +623,19 @@ export function AIChat({ userData }: AIChatProps) {
           const updatedMessages = [...prev];
           updatedMessages[updatedMessages.length - 1] = { 
             role: "assistant" as const, 
-            content: "抱歉，发生了一些错误，请稍后再试。" 
+            content: "抱歉，发生了一些错误，请稍后再试。",
+            model: currentModel // 即使是错误消息也添加模型信息 
           };
           return updatedMessages;
         } else {
           // 否则，添加新的错误消息
           return [
             ...prev,
-            { role: "assistant" as const, content: "抱歉，发生了一些错误，请稍后再试。" }
+            { 
+              role: "assistant" as const, 
+              content: "抱歉，发生了一些错误，请稍后再试。",
+              model: currentModel // 添加模型信息
+            }
           ];
         }
       });
@@ -836,10 +842,11 @@ export function AIChat({ userData }: AIChatProps) {
         }
         const messagesData = await response.json();
 
-        // 转换消息格式并更新状态
+        // 转换消息格式并更新状态，确保包含模型信息
         const formattedMessages = messagesData.map((msg: any) => ({
           role: msg.role,
-          content: msg.content
+          content: msg.content,
+          model: msg.model || currentModel // 包含模型信息，如果消息中没有则使用当前模型
         }));
 
         setMessages(formattedMessages);
@@ -872,10 +879,11 @@ export function AIChat({ userData }: AIChatProps) {
       const response = await apiRequest("POST", "/api/upload", { image: base64Image });
       const data: UploadResponse = await response.json();
 
-      // Add image to messages
+      // Add image to messages with model
       setMessages([...messages, {
         role: "user",
-        content: `![Uploaded Image](${data.url})`
+        content: `![Uploaded Image](${data.url})`,
+        model: currentModel // 设置模型信息
       }]);
     } catch (error) {
       console.error("Failed to upload image:", error);
