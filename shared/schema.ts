@@ -35,6 +35,7 @@ export const messages = pgTable("messages", {
   chatId: serial("chat_id").references(() => chats.id),
   content: text("content").notNull(),
   role: text("role").notNull(),
+  model: text("model"),  // 添加模型字段，记录消息来自哪个AI模型
   feedback: text("feedback", { enum: ["like", "dislike"] }),
   isEdited: boolean("is_edited").default(false),
   createdAt: timestamp("created_at").defaultNow(),
