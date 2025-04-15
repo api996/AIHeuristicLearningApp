@@ -101,9 +101,29 @@ export const memoryEmbeddingsRelations = relations(memoryEmbeddings, ({ one }) =
 export const insertUserSchema = createInsertSchema(users);
 export const insertChatSchema = createInsertSchema(chats);
 export const insertMessageSchema = createInsertSchema(messages);
+// 模型提示词模板表：存储各模型的提示词模板
+export const promptTemplates = pgTable("prompt_templates", {
+  id: serial("id").primaryKey(),
+  modelId: text("model_id").notNull().unique(), // 模型ID，例如 'gpt-4', 'claude' 等
+  promptTemplate: text("prompt_template").notNull(), // 提示词模板
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
+// 搜索结果缓存表：存储搜索结果
+export const searchResults = pgTable("search_results", {
+  id: serial("id").primaryKey(),
+  query: text("query").notNull(), // 搜索查询
+  results: json("results").notNull(), // 搜索结果 JSON
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // 缓存过期时间
+});
+
 export const insertMemorySchema = createInsertSchema(memories);
 export const insertMemoryKeywordSchema = createInsertSchema(memoryKeywords);
 export const insertMemoryEmbeddingSchema = createInsertSchema(memoryEmbeddings);
+export const insertPromptTemplateSchema = createInsertSchema(promptTemplates);
+export const insertSearchResultSchema = createInsertSchema(searchResults);
 
 export type User = typeof users.$inferSelect;
 export type Chat = typeof chats.$inferSelect;
@@ -113,6 +133,8 @@ export type Message = typeof messages.$inferSelect & {
 export type Memory = typeof memories.$inferSelect;
 export type MemoryKeyword = typeof memoryKeywords.$inferSelect;
 export type MemoryEmbedding = typeof memoryEmbeddings.$inferSelect;
+export type PromptTemplate = typeof promptTemplates.$inferSelect;
+export type SearchResult = typeof searchResults.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertChat = z.infer<typeof insertChatSchema>;
@@ -120,3 +142,5 @@ export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertMemory = z.infer<typeof insertMemorySchema>;
 export type InsertMemoryKeyword = z.infer<typeof insertMemoryKeywordSchema>;
 export type InsertMemoryEmbedding = z.infer<typeof insertMemoryEmbeddingSchema>;
+export type InsertPromptTemplate = z.infer<typeof insertPromptTemplateSchema>;
+export type InsertSearchResult = z.infer<typeof insertSearchResultSchema>;
