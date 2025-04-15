@@ -279,7 +279,7 @@ ${searchResults}
         }
       },
       grok: {
-        endpoint: `https://api.groq.com/openai/v1/chat/completions`,
+        endpoint: `https://api.xai-grok.com/v1/chat/completions`,
         headers: {
           "Authorization": `Bearer ${grokApiKey}`,
           "Content-Type": "application/json",
@@ -287,7 +287,7 @@ ${searchResults}
         isSimulated: !grokApiKey,
         transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
           // 构建系统提示
-          let systemPrompt = `你是Grok，一个先进的AI助手，具有幽默感和独特见解。你的回答应该既有信息量又有趣味性。`;
+          let systemPrompt = `你是Grok，一个先进的AI助手，来自XAI公司，具有幽默感和独特见解。你的回答应该既有信息量又有趣味性。`;
           
           // 构建用户提示
           let userPrompt = message;
@@ -303,7 +303,7 @@ ${searchResults}
           }
             
           return {
-            model: "llama3-70b-8192",
+            model: "grok-1",
             messages: [
               {
                 role: "system",
@@ -374,7 +374,7 @@ ${searchResults}
       search: {
         endpoint: `https://api.serper.dev/search`,
         headers: {
-          "X-API-KEY": serperApiKey,
+          "X-API-KEY": serperApiKey || "",
           "Content-Type": "application/json",
         },
         isSimulated: !serperApiKey,
@@ -427,12 +427,12 @@ ${searchResults}
               // 格式化搜索结果
               searchResults.forEach((result, idx) => {
                 const title = result.title || '无标题';
-                const snippet = result.snippet || result.description || '无详细描述';
-                const link = result.link || '无链接';
+                const snippet = result.snippet || '无详细描述';
+                const url = result.url || '无链接';
                 
                 responseText += `[${idx + 1}] ${title}\n`;
                 responseText += `${snippet}\n`;
-                responseText += `来源: ${link}\n\n`;
+                responseText += `来源: ${url}\n\n`;
               });
               
               // 添加总结
