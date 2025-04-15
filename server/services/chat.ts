@@ -429,7 +429,7 @@ ${searchResults}
             inputs: {},
           };
         },
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string) => {
+        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
           // 如果没有API密钥，返回模拟响应
           if (!difyApiKey) {
             log(`No Dify API key found, returning simulated response`);
