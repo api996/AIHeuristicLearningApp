@@ -6,9 +6,7 @@
 import { log } from '../vite';
 import fetch from 'node-fetch';
 
-// 从环境变量获取OpenAI API密钥
-const openaiApiKey = process.env.OPENAI_API_KEY;
-
+// 审查结果接口
 export interface ModerationResult {
   flagged: boolean;
   categories: {
@@ -20,6 +18,7 @@ export interface ModerationResult {
   error?: string;
 }
 
+// 审查设置接口
 export interface ModerationSettings {
   enabled: boolean;
   threshold: number; // 0.0 - 1.0, 数值越低越严格
@@ -27,15 +26,21 @@ export interface ModerationSettings {
   blockModelOutput: boolean; // 是否阻止违规模型输出
 }
 
+/**
+ * 内容审查服务
+ */
 class ContentModerationService {
   private settings: ModerationSettings = {
-    enabled: false,
-    threshold: 0.7, // 默认阈值
-    blockUserInput: true,
-    blockModelOutput: true
+    enabled: false, // 默认禁用
+    threshold: 0.7, // 默认阈值，可根据需要调整
+    blockUserInput: true, // 默认阻止违规用户输入
+    blockModelOutput: true, // 默认阻止违规模型输出
   };
+  private openaiApiKey?: string;
 
   constructor() {
+    // 从环境变量获取OpenAI API密钥
+    this.openaiApiKey = process.env.OPENAI_API_KEY;
     log(`内容审查服务初始化，默认状态: ${this.settings.enabled ? '启用' : '禁用'}`);
   }
 
@@ -43,8 +48,11 @@ class ContentModerationService {
    * 更新内容审查设置
    */
   updateSettings(settings: Partial<ModerationSettings>): void {
-    this.settings = { ...this.settings, ...settings };
-    log(`内容审查设置已更新: 状态=${this.settings.enabled ? '启用' : '禁用'}, 阈值=${this.settings.threshold}`);
+    this.settings = {
+      ...this.settings,
+      ...settings
+    };
+    log(`内容审查设置已更新: ${JSON.stringify(this.settings)}`);
   }
 
   /**
@@ -60,7 +68,7 @@ class ContentModerationService {
    * @returns 审查结果
    */
   async moderateContent(text: string): Promise<ModerationResult> {
-    // 如果审查功能关闭，直接返回未标记
+    // 如果未启用审查，直接返回未标记结果
     if (!this.settings.enabled) {
       return {
         flagged: false,
@@ -69,9 +77,9 @@ class ContentModerationService {
       };
     }
 
-    // 如果没有OpenAI API密钥，记录警告并返回未标记
-    if (!openaiApiKey) {
-      log(`警告: 未配置OpenAI API密钥，内容审查功能无法使用`);
+    // 如果未设置API密钥，返回错误
+    if (!this.openaiApiKey) {
+      log('内容审查失败: 未设置OpenAI API密钥');
       return {
         flagged: false,
         categories: {},
@@ -85,48 +93,54 @@ class ContentModerationService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${openaiApiKey}`
+          'Authorization': `Bearer ${this.openaiApiKey}`
         },
         body: JSON.stringify({
-          input: text,
-          model: 'text-moderation-latest' // 使用最新的审查模型
+          input: text
         })
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        log(`OpenAI Moderation API错误: ${response.status} - ${errorData}`);
-        throw new Error(`Moderation API错误: ${response.status}`);
+        const errorBody = await response.text();
+        log(`内容审查API错误 (${response.status}): ${errorBody}`);
+        return {
+          flagged: false,
+          categories: {},
+          categoryScores: {},
+          error: `审查API错误: ${response.status}`
+        };
       }
 
-      const data = await response.json() as any;
+      const data = await response.json();
       const result = data.results[0];
 
-      // 应用自定义阈值逻辑 - 如果任何类别的得分超过阈值，则标记
+      // 应用自定义阈值
+      // 如果任何分类的得分超过阈值，则标记内容
       let flagged = false;
-      const categoryScores = result.category_scores || {};
-      
-      // 检查是否有任何类别分数超过阈值
-      for (const key in categoryScores) {
-        const score = categoryScores[key];
-        if (typeof score === 'number' && score > this.settings.threshold) {
+      const categoryScores = { ...result.category_scores };
+      const categories: { [key: string]: boolean } = {};
+
+      // 按照阈值重新计算flagged状态
+      for (const [category, score] of Object.entries(categoryScores)) {
+        const scoreValue = score as number;
+        categories[category] = scoreValue > this.settings.threshold;
+        if (categories[category]) {
           flagged = true;
-          break;
         }
       }
 
       return {
-        flagged: flagged,
-        categories: result.categories || {},
-        categoryScores: categoryScores
+        flagged,
+        categories,
+        categoryScores
       };
     } catch (error) {
-      log(`内容审查出错: ${error instanceof Error ? error.message : String(error)}`);
+      log(`内容审查请求失败: ${error}`);
       return {
         flagged: false,
         categories: {},
         categoryScores: {},
-        error: `审查出错: ${error instanceof Error ? error.message : String(error)}`
+        error: `审查请求失败: ${error}`
       };
     }
   }
@@ -137,19 +151,24 @@ class ContentModerationService {
    * @returns 如果内容被标记且设置为阻止，返回错误信息；否则返回null
    */
   async moderateUserInput(text: string): Promise<string | null> {
+    // 如果未启用或未设置阻止用户输入，直接返回null(允许通过)
     if (!this.settings.enabled || !this.settings.blockUserInput) {
-      return null; // 未启用审查或未启用阻止用户输入，不进行处理
+      return null;
     }
 
     const result = await this.moderateContent(text);
     
     if (result.flagged) {
-      // 记录违规情况
-      log(`用户输入被标记为不适当内容: ${JSON.stringify(result.categoryScores)}`);
-      return "⚠️ 您的输入包含不适当内容，请修改后再试。";
+      // 找出触发的具体分类
+      const triggeredCategories = Object.entries(result.categories)
+        .filter(([_, isFlagged]) => isFlagged)
+        .map(([category]) => category)
+        .join(', ');
+      
+      return `您的输入包含不适当内容 (${triggeredCategories})，请修改后重试。`;
     }
     
-    return null; // 未被标记
+    return null;
   }
 
   /**
@@ -158,21 +177,25 @@ class ContentModerationService {
    * @returns 如果内容被标记且设置为阻止，返回错误信息；否则返回null
    */
   async moderateModelOutput(text: string): Promise<string | null> {
+    // 如果未启用或未设置阻止模型输出，直接返回null(允许通过)
     if (!this.settings.enabled || !this.settings.blockModelOutput) {
-      return null; // 未启用审查或未启用阻止模型输出，不进行处理
+      return null;
     }
 
     const result = await this.moderateContent(text);
     
     if (result.flagged) {
-      // 记录违规情况
-      log(`模型输出被标记为不适当内容: ${JSON.stringify(result.categoryScores)}`);
-      return "⚠️ 模型生成的内容不符合政策，已被屏蔽。请尝试调整您的提问方式。";
+      // 找出触发的具体分类
+      const triggeredCategories = Object.entries(result.categories)
+        .filter(([_, isFlagged]) => isFlagged)
+        .map(([category]) => category)
+        .join(', ');
+      
+      return `模型生成的回复包含不适当内容 (${triggeredCategories})，已被拦截。请尝试其他提问方式。`;
     }
     
-    return null; // 未被标记
+    return null;
   }
 }
 
-// 导出单例实例
 export const contentModerationService = new ContentModerationService();
