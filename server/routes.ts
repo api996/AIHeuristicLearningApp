@@ -1076,7 +1076,7 @@ asyncio.run(analyze())
         });
       }
       
-      const response = await chatService.sendMessage(message, Number(userId), shouldUseSearch);
+      const response = await chatService.sendMessage(message, Number(userId), Number(chatId), shouldUseSearch);
 
       // 存储消息到数据库
       try {
