@@ -584,7 +584,7 @@ export function PromptEditorPage() {
                     templateContent.setter(defaultTemplate);
                   }}
                   disabled={loading}
-                  className="w-full"
+                  className="w-full bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
                 >
                   <RotateCcw className="h-4 w-4 mr-2" />
                   重置当前模板
@@ -640,6 +640,7 @@ export function PromptEditorPage() {
                   <Button
                     variant="outline"
                     onClick={() => navigate('/admin-dashboard')}
+                    className="bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
                   >
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     返回
@@ -650,6 +651,7 @@ export function PromptEditorPage() {
                       variant="destructive"
                       onClick={deleteTemplate}
                       disabled={loading || deleteLoading}
+                      className="bg-red-600 hover:bg-red-700"
                     >
                       {deleteLoading ? "删除中..." : "删除模板"}
                       <Trash className="ml-2 h-4 w-4" />
@@ -660,6 +662,7 @@ export function PromptEditorPage() {
                 <Button
                   onClick={saveTemplate}
                   disabled={loading || saveLoading || (!baseTemplate && !promptTemplate)}
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   {saveLoading ? "保存中..." : (isEditing ? "更新模板" : "创建模板")}
                   <Save className="ml-2 h-4 w-4" />

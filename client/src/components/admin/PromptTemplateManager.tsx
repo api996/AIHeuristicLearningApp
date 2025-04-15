@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Trash, Info, LampDesk, HelpCircle, Lightbulb, BookOpen, AlignVerticalJustifyCenter, Pencil } from 'lucide-react';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Trash, Info } from 'lucide-react';
 
 // 提示词模板接口
 interface PromptTemplate {
@@ -42,7 +40,6 @@ export function PromptTemplateManager() {
   const [styleTemplate, setStyleTemplate] = useState('');
   const [policyTemplate, setPolicyTemplate] = useState('');
   const [sensitiveWords, setSensitiveWords] = useState('');
-  const [activePromptTab, setActivePromptTab] = useState('base');
   const [isEditing, setIsEditing] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -242,18 +239,7 @@ export function PromptTemplateManager() {
       return;
     }
 
-    // 基础提示词模板必须存在
-    const currentTemplate = activePromptTab === 'base' ? baseTemplate : 
-                           activePromptTab === 'knowledge' ? kTemplate : 
-                           activePromptTab === 'wisdom' ? wTemplate : 
-                           activePromptTab === 'logic' ? lTemplate : 
-                           activePromptTab === 'question' ? qTemplate : 
-                           activePromptTab === 'style' ? styleTemplate : 
-                           activePromptTab === 'policy' ? policyTemplate : 
-                           activePromptTab === 'sensitive' ? sensitiveWords : 
-                           promptTemplate;
-
-    if (activePromptTab === 'base' && !currentTemplate) {
+    if (!baseTemplate) {
       toast({
         title: "无法保存",
         description: "基础提示词模板不能为空",
@@ -281,7 +267,7 @@ export function PromptTemplateManager() {
         },
         body: JSON.stringify({
           modelId: selectedModel,
-          promptTemplate: promptTemplate,
+          promptTemplate: promptTemplate || baseTemplate, // 兼容旧版
           baseTemplate: baseTemplate,
           kTemplate: kTemplate,
           wTemplate: wTemplate,
@@ -374,38 +360,6 @@ export function PromptTemplateManager() {
       setDeleteLoading(false);
     }
   };
-  
-  // 根据当前选中的标签获取对应的提示词模板
-  const getCurrentTemplateValue = () => {
-    switch (activePromptTab) {
-      case 'legacy': return promptTemplate; 
-      case 'base': return baseTemplate;
-      case 'knowledge': return kTemplate;
-      case 'wisdom': return wTemplate;
-      case 'logic': return lTemplate;
-      case 'question': return qTemplate;
-      case 'style': return styleTemplate;
-      case 'policy': return policyTemplate;
-      case 'sensitive': return sensitiveWords;
-      default: return promptTemplate;
-    }
-  };
-
-  // 根据当前选中的标签设置对应的提示词模板
-  const setCurrentTemplateValue = (value: string) => {
-    switch (activePromptTab) {
-      case 'legacy': setPromptTemplate(value); break;
-      case 'base': setBaseTemplate(value); break;
-      case 'knowledge': setKTemplate(value); break;
-      case 'wisdom': setWTemplate(value); break;
-      case 'logic': setLTemplate(value); break;
-      case 'question': setQTemplate(value); break;
-      case 'style': setStyleTemplate(value); break;
-      case 'policy': setPolicyTemplate(value); break;
-      case 'sensitive': setSensitiveWords(value); break;
-      default: setPromptTemplate(value);
-    }
-  };
 
   // 首次加载时获取所有模板
   useEffect(() => {
@@ -426,24 +380,18 @@ export function PromptTemplateManager() {
       <CardHeader>
         <CardTitle>提示词模板管理</CardTitle>
         <CardDescription>
-          设置各个模型使用的提示词模板，支持多阶段动态提示词注入
+          设置各个模型使用的提示词模板
         </CardDescription>
         <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-md text-sm">
-          <h4 className="font-semibold mb-1">多阶段提示词系统</h4>
-          <p className="mb-2">本系统基于KWLQ教育模型实现了多阶段提示词，能根据对话阶段动态注入不同的提示词内容：</p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li><span className="font-semibold">K阶段</span>：知识传授，提供基础信息和事实</li>
-            <li><span className="font-semibold">W阶段</span>：智慧分享，提供深度洞察和观点</li>
-            <li><span className="font-semibold">L阶段</span>：逻辑思考，分析问题和推理过程</li>
-            <li><span className="font-semibold">Q阶段</span>：提问引导，促进用户自我思考</li>
-          </ul>
-          <p className="mt-2 text-blue-600 dark:text-blue-400">系统会通过AI分析对话内容，自动判断当前所处阶段并动态注入对应提示词</p>
+          <h4 className="font-semibold mb-1">基础提示词管理</h4>
+          <p className="mb-2">在这里可以快速设置各个模型的基础提示词模板。</p>
+          <p className="text-blue-600 dark:text-blue-400">如需使用多阶段动态提示词系统，请点击上方的"高级提示词编辑器"按钮。</p>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <div className="flex items-center space-x-4">
-            <div className="w-1/4">
+            <div className="w-1/3">
               <Label htmlFor="model-select">选择模型</Label>
               <Select
                 value={selectedModel}
@@ -488,174 +436,23 @@ export function PromptTemplateManager() {
           </div>
 
           <div>
-            <div className="mb-4">
-              <Label htmlFor="prompt-template" className="mb-2 block">
-                提示词模板 - {isEditing && <span className="text-green-600">(已配置)</span>}
-              </Label>
-              
-              <Tabs value={activePromptTab} onValueChange={setActivePromptTab} className="w-full">
-                <TabsList className="w-full grid grid-cols-2 lg:grid-cols-4 mb-4">
-                  <TabsTrigger value="legacy" className="flex items-center">
-                    <Pencil className="h-4 w-4 mr-1" />
-                    <span>传统模板</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="base" className="flex items-center">
-                    <AlignVerticalJustifyCenter className="h-4 w-4 mr-1" />
-                    <span>基础模板</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="knowledge" className="flex items-center">
-                    <BookOpen className="h-4 w-4 mr-1" />
-                    <span>K-知识阶段</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="wisdom" className="flex items-center">
-                    <Lightbulb className="h-4 w-4 mr-1" />
-                    <span>W-智慧阶段</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="logic" className="flex items-center">
-                    <LampDesk className="h-4 w-4 mr-1" />
-                    <span>L-逻辑阶段</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="question" className="flex items-center">
-                    <HelpCircle className="h-4 w-4 mr-1" />
-                    <span>Q-提问阶段</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="style" className="flex items-center">
-                    <Pencil className="h-4 w-4 mr-1" />
-                    <span>表达风格</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="policy" className="flex items-center">
-                    <Info className="h-4 w-4 mr-1" />
-                    <span>策略约束</span>
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="legacy" className="mt-0">
-                  <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded mb-1">
-                    <p className="text-xs text-slate-500">传统单一提示词模板 (向后兼容)</p>
-                  </div>
-                  <Textarea
-                    id="legacy-template"
-                    value={promptTemplate}
-                    onChange={(e) => setPromptTemplate(e.target.value)}
-                    placeholder="输入传统格式的提示词模板..."
-                    className="min-h-[300px] font-mono text-sm"
-                    disabled={loading}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="base" className="mt-0">
-                  <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded mb-1">
-                    <p className="text-xs text-slate-500">基础提示词模板，定义模型的基本行为和角色</p>
-                  </div>
-                  <Textarea
-                    id="base-template"
-                    value={baseTemplate}
-                    onChange={(e) => setBaseTemplate(e.target.value)}
-                    placeholder="输入基础提示词模板..."
-                    className="min-h-[300px] font-mono text-sm"
-                    disabled={loading}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="knowledge" className="mt-0">
-                  <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded mb-1">
-                    <p className="text-xs text-slate-500">知识阶段 (K) - 定义模型在提供知识时的行为</p>
-                  </div>
-                  <Textarea
-                    id="k-template"
-                    value={kTemplate}
-                    onChange={(e) => setKTemplate(e.target.value)}
-                    placeholder="输入知识阶段 (K) 提示词模板..."
-                    className="min-h-[300px] font-mono text-sm"
-                    disabled={loading}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="wisdom" className="mt-0">
-                  <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded mb-1">
-                    <p className="text-xs text-slate-500">智慧阶段 (W) - 定义模型在提供见解和智慧时的行为</p>
-                  </div>
-                  <Textarea
-                    id="w-template"
-                    value={wTemplate}
-                    onChange={(e) => setWTemplate(e.target.value)}
-                    placeholder="输入智慧阶段 (W) 提示词模板..."
-                    className="min-h-[300px] font-mono text-sm"
-                    disabled={loading}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="logic" className="mt-0">
-                  <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded mb-1">
-                    <p className="text-xs text-slate-500">逻辑阶段 (L) - 定义模型在进行推理和分析时的行为</p>
-                  </div>
-                  <Textarea
-                    id="l-template"
-                    value={lTemplate}
-                    onChange={(e) => setLTemplate(e.target.value)}
-                    placeholder="输入逻辑阶段 (L) 提示词模板..."
-                    className="min-h-[300px] font-mono text-sm"
-                    disabled={loading}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="question" className="mt-0">
-                  <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded mb-1">
-                    <p className="text-xs text-slate-500">提问阶段 (Q) - 定义模型在引导用户思考和提问时的行为</p>
-                  </div>
-                  <Textarea
-                    id="q-template"
-                    value={qTemplate}
-                    onChange={(e) => setQTemplate(e.target.value)}
-                    placeholder="输入提问阶段 (Q) 提示词模板..."
-                    className="min-h-[300px] font-mono text-sm"
-                    disabled={loading}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="style" className="mt-0">
-                  <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded mb-1">
-                    <p className="text-xs text-slate-500">表达风格 - 定义模型的语言风格、语调和表达方式</p>
-                  </div>
-                  <Textarea
-                    id="style-template"
-                    value={styleTemplate}
-                    onChange={(e) => setStyleTemplate(e.target.value)}
-                    placeholder="输入风格提示词模板..."
-                    className="min-h-[300px] font-mono text-sm"
-                    disabled={loading}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="policy" className="mt-0">
-                  <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded mb-1">
-                    <p className="text-xs text-slate-500">策略约束 - 定义模型的安全边界、禁止话题和行为约束</p>
-                  </div>
-                  <Textarea
-                    id="policy-template"
-                    value={policyTemplate}
-                    onChange={(e) => setPolicyTemplate(e.target.value)}
-                    placeholder="输入策略约束提示词模板..."
-                    className="min-h-[300px] font-mono text-sm"
-                    disabled={loading}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="sensitive" className="mt-0">
-                  <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded mb-1">
-                    <p className="text-xs text-slate-500">敏感词列表 - 定义模型需要特别注意或避免的特定词汇，每行一个</p>
-                  </div>
-                  <Textarea
-                    id="sensitive-words"
-                    value={sensitiveWords}
-                    onChange={(e) => setSensitiveWords(e.target.value)}
-                    placeholder="输入敏感词列表，每行一个..."
-                    className="min-h-[300px] font-mono text-sm"
-                    disabled={loading}
-                  />
-                </TabsContent>
-              </Tabs>
+            <Label htmlFor="base-template" className="mb-2 block">
+              基础提示词模板 {isEditing && <span className="text-green-600">(已配置)</span>}
+            </Label>
+            
+            <div className="mb-2 text-sm text-blue-600 dark:text-blue-400 flex items-center">
+              <Info className="h-4 w-4 mr-2" />
+              <span>如需编辑高级提示词设置，请使用高级提示词编辑器</span>
             </div>
+
+            <Textarea
+              id="base-template"
+              value={baseTemplate}
+              onChange={(e) => setBaseTemplate(e.target.value)}
+              placeholder="输入基础提示词模板..."
+              className="min-h-[300px] font-mono text-sm"
+              disabled={loading}
+            />
           </div>
         </div>
       </CardContent>
@@ -680,8 +477,7 @@ export function PromptTemplateManager() {
           )}
           <Button
             onClick={saveTemplate}
-            disabled={loading || saveLoading || (activePromptTab === 'base' && !baseTemplate) || 
-                     (activePromptTab === 'legacy' && !promptTemplate)}
+            disabled={loading || saveLoading || !baseTemplate}
           >
             {saveLoading ? "保存中..." : (isEditing ? "更新模板" : "创建模板")}
           </Button>
