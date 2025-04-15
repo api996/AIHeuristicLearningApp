@@ -109,18 +109,27 @@ export function AIChat({ userData }: AIChatProps) {
           },
           body: JSON.stringify({ 
             model: newModel,
-            userId: user.userId
+            userId: user.userId,
+            userRole: user.role // 添加用户角色参数
           }),
         });
         
         if (!response.ok) {
-          throw new Error("更新聊天模型失败");
+          const errorData = await response.json().catch(() => ({}));
+          console.error("更新聊天模型失败:", errorData);
+          throw new Error(errorData.message || "更新聊天模型失败");
         }
         
-        // 更新查询缓存
-        queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
+        const responseData = await response.json().catch(() => ({}));
         
-        console.log(`聊天ID ${currentChatId} 的模型已更新为 ${newModel}`);
+        // 只有在实际变更模型时才更新缓存
+        if (responseData.changed) {
+          // 更新查询缓存
+          queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
+          console.log(`聊天ID ${currentChatId} 的模型已更新从 ${responseData.previousModel} 变更为 ${responseData.newModel}`);
+        } else {
+          console.log(`聊天ID ${currentChatId} 的模型未变更，保持为 ${newModel}`);
+        }
       } catch (error) {
         console.error("更新聊天模型时出错:", error);
         toast({
