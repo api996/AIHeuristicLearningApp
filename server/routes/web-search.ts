@@ -1,12 +1,12 @@
 import express from 'express';
 import { chatService } from '../services/chat';
 import { log } from '../vite';
-import { checkUserSession } from '../middleware/auth';
+import { requireLogin } from '../middleware/auth';
 
 const router = express.Router();
 
 // 获取当前网络搜索状态
-router.get('/status', checkUserSession, (req, res) => {
+router.get('/status', requireLogin, (req, res) => {
   try {
     const status = chatService.isWebSearchEnabled();
     res.json({
@@ -23,7 +23,7 @@ router.get('/status', checkUserSession, (req, res) => {
 });
 
 // 启用网络搜索
-router.post('/enable', checkUserSession, (req, res) => {
+router.post('/enable', requireLogin, (req, res) => {
   try {
     chatService.setWebSearchEnabled(true);
     res.json({
@@ -41,7 +41,7 @@ router.post('/enable', checkUserSession, (req, res) => {
 });
 
 // 禁用网络搜索
-router.post('/disable', checkUserSession, (req, res) => {
+router.post('/disable', requireLogin, (req, res) => {
   try {
     chatService.setWebSearchEnabled(false);
     res.json({
@@ -59,7 +59,7 @@ router.post('/disable', checkUserSession, (req, res) => {
 });
 
 // 切换网络搜索状态
-router.post('/toggle', checkUserSession, (req, res) => {
+router.post('/toggle', requireLogin, (req, res) => {
   try {
     const newStatus = chatService.toggleWebSearch();
     res.json({
