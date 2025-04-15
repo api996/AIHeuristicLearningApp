@@ -60,44 +60,76 @@ export class ChatService {
           "Content-Type": "application/json",
         },
         isSimulated: !geminiApiKey,
-        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
-          // 构建基础提示词
-          let basePrompt = `你是一个先进的AI学习助手，能够提供个性化学习体验。`;
+        transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
+          // 获取Gemini的提示词模板（如果有）
+          let basePrompt = '';
+          try {
+            const templateRecord = await storage.getPromptTemplate('gemini');
+            if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
+              log('Using custom template for Gemini model');
+              basePrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
+              
+              // 执行模板变量替换
+              basePrompt = basePrompt
+                .replace(/{{user_input}}/g, message)
+                .replace(/{{date}}/g, new Date().toLocaleString())
+                .replace(/{{memory}}/g, contextMemories || "")
+                .replace(/{{search}}/g, searchResults || "");
+              
+              // 处理条件部分
+              basePrompt = basePrompt.replace(
+                /{{#if\s+memory}}([\s\S]*?){{\/if}}/g,
+                contextMemories ? "$1" : ""
+              );
+              
+              basePrompt = basePrompt.replace(
+                /{{#if\s+search}}([\s\S]*?){{\/if}}/g,
+                searchResults ? "$1" : ""
+              );
+            }
+          } catch (error) {
+            log(`Error getting Gemini template: ${error}`);
+          }
           
-          // 添加记忆上下文（如果有）
-          if (contextMemories) {
-            basePrompt += `
+          // 如果没有自定义提示词模板，使用默认模板
+          if (!basePrompt) {
+            basePrompt = `你是一个先进的AI学习助手，能够提供个性化学习体验。`;
             
+            // 添加记忆上下文（如果有）
+            if (contextMemories) {
+              basePrompt += `
+              
 以下是用户的历史学习记忆和对话上下文。请在回答用户当前问题时，自然地融入这些上下文信息，使回答更加连贯和个性化。
 不要明确提及"根据你的历史记忆"或"根据你之前提到的"等字眼，而是像熟悉用户的导师一样自然地利用这些信息提供帮助。
 
 为用户构建知识图谱:
 ${contextMemories}`;
-          }
-          
-          // 添加搜索结果（如果有）
-          if (searchResults) {
-            basePrompt += `
+            }
             
+            // 添加搜索结果（如果有）
+            if (searchResults) {
+              basePrompt += `
+              
 ${searchResults}`;
-          }
-          
-          // 添加用户问题
-          basePrompt += `
-
+            }
+            
+            // 添加用户问题
+            basePrompt += `
+  
 用户当前问题: ${message}
-
+  
 请提供详细、有帮助的回答，体现出你了解用户的学习历程。回答应当清晰、准确、富有教育意义`;
-          
-          if (contextMemories) {
-            basePrompt += `，同时与用户之前的学习轨迹保持连贯性`;
+            
+            if (contextMemories) {
+              basePrompt += `，同时与用户之前的学习轨迹保持连贯性`;
+            }
+            
+            if (searchResults) {
+              basePrompt += `。引用网络搜索结果时，可以标注来源编号`;
+            }
+            
+            basePrompt += `。`;
           }
-          
-          if (searchResults) {
-            basePrompt += `。引用网络搜索结果时，可以标注来源编号`;
-          }
-          
-          basePrompt += `。`;
             
           return {
             contents: [
@@ -138,7 +170,7 @@ ${searchResults}`;
           }
           
           try {
-            const transformedMessage = this.modelConfigs.gemini.transformRequest!(message, contextMemories, searchResults);
+            const transformedMessage = await this.modelConfigs.gemini.transformRequest!(message, contextMemories, searchResults);
             log(`Calling Gemini API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
             
             const url = `${this.modelConfigs.gemini.endpoint}?key=${geminiApiKey}`;
@@ -178,46 +210,78 @@ ${searchResults}`;
           "Content-Type": "application/json",
         },
         isSimulated: !deepseekApiKey,
-        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
-          // 构建基础提示词
-          let basePrompt = `你是一个先进的AI学习助手DeepSeek，专注于深度分析和详细解释。`;
+        transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
+          // 获取DeepSeek的提示词模板（如果有）
+          let basePrompt = '';
+          try {
+            const templateRecord = await storage.getPromptTemplate('deepseek');
+            if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
+              log('Using custom template for DeepSeek model');
+              basePrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
+              
+              // 执行模板变量替换
+              basePrompt = basePrompt
+                .replace(/{{user_input}}/g, message)
+                .replace(/{{date}}/g, new Date().toLocaleString())
+                .replace(/{{memory}}/g, contextMemories || "")
+                .replace(/{{search}}/g, searchResults || "");
+              
+              // 处理条件部分
+              basePrompt = basePrompt.replace(
+                /{{#if\s+memory}}([\s\S]*?){{\/if}}/g,
+                contextMemories ? "$1" : ""
+              );
+              
+              basePrompt = basePrompt.replace(
+                /{{#if\s+search}}([\s\S]*?){{\/if}}/g,
+                searchResults ? "$1" : ""
+              );
+            }
+          } catch (error) {
+            log(`Error getting DeepSeek template: ${error}`);
+          }
           
-          // 添加记忆上下文（如果有）
-          if (contextMemories) {
-            basePrompt += `
+          // 如果没有自定义提示词模板，使用默认模板
+          if (!basePrompt) {
+            basePrompt = `你是一个先进的AI学习助手DeepSeek，专注于深度分析和详细解释。`;
             
+            // 添加记忆上下文（如果有）
+            if (contextMemories) {
+              basePrompt += `
+              
 以下是用户的历史学习记忆和对话上下文:
 ${contextMemories}
 
 请在回答时自然地融入这些上下文信息，使回答更加深入和个性化。`;
-          }
-          
-          // 添加搜索结果（如果有）
-          if (searchResults) {
-            basePrompt += `
+            }
             
+            // 添加搜索结果（如果有）
+            if (searchResults) {
+              basePrompt += `
+              
 以下是与用户问题相关的网络搜索结果:
 ${searchResults}
 
 请根据这些搜索结果为用户提供准确的信息。`;
-          }
-          
-          // 添加用户问题
-          basePrompt += `
+            }
+            
+            // 添加用户问题
+            basePrompt += `
 
 用户当前问题: ${message}
 
 请提供详细、有深度的回答，体现出专业的洞察力。回答应当结构清晰、内容全面、分析深入`;
-          
-          if (contextMemories) {
-            basePrompt += `，同时与用户之前的学习轨迹保持连贯性`;
+            
+            if (contextMemories) {
+              basePrompt += `，同时与用户之前的学习轨迹保持连贯性`;
+            }
+            
+            if (searchResults) {
+              basePrompt += `。引用网络搜索结果时，可以标注来源编号`;
+            }
+            
+            basePrompt += `。`;
           }
-          
-          if (searchResults) {
-            basePrompt += `。引用网络搜索结果时，可以标注来源编号`;
-          }
-          
-          basePrompt += `。`;
             
           // 适配NVIDIA NIM平台的API格式
           return {
@@ -254,7 +318,7 @@ ${searchResults}
           }
           
           try {
-            const transformedMessage = this.modelConfigs.deepseek.transformRequest!(message, contextMemories, searchResults);
+            const transformedMessage = await this.modelConfigs.deepseek.transformRequest!(message, contextMemories, searchResults);
             log(`Calling DeepSeek API (NVIDIA NIM平台) with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
             
             const response = await fetchWithRetry(this.modelConfigs.deepseek.endpoint!, {
@@ -403,46 +467,78 @@ ${searchResults}
           "Content-Type": "application/json",
         },
         isSimulated: !difyApiKey,
-        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
-          // 构建基础提示词
-          let basePrompt = `你是一个多语言AI学习助手，专注于提供深入的学习体验和知识分析。`;
+        transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
+          // 获取Deep的提示词模板（如果有）
+          let basePrompt = '';
+          try {
+            const templateRecord = await storage.getPromptTemplate('deep');
+            if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
+              log('Using custom template for Deep model');
+              basePrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
+              
+              // 执行模板变量替换
+              basePrompt = basePrompt
+                .replace(/{{user_input}}/g, message)
+                .replace(/{{date}}/g, new Date().toLocaleString())
+                .replace(/{{memory}}/g, contextMemories || "")
+                .replace(/{{search}}/g, searchResults || "");
+              
+              // 处理条件部分
+              basePrompt = basePrompt.replace(
+                /{{#if\s+memory}}([\s\S]*?){{\/if}}/g,
+                contextMemories ? "$1" : ""
+              );
+              
+              basePrompt = basePrompt.replace(
+                /{{#if\s+search}}([\s\S]*?){{\/if}}/g,
+                searchResults ? "$1" : ""
+              );
+            }
+          } catch (error) {
+            log(`Error getting Deep template: ${error}`);
+          }
           
-          // 添加记忆上下文（如果有）
-          if (contextMemories) {
-            basePrompt += `
+          // 如果没有自定义提示词模板，使用默认模板
+          if (!basePrompt) {
+            basePrompt = `你是一个多语言AI学习助手，专注于提供深入的学习体验和知识分析。`;
             
+            // 添加记忆上下文（如果有）
+            if (contextMemories) {
+              basePrompt += `
+              
 以下是用户的历史学习记忆和对话上下文:
 ${contextMemories}
 
 请在回答时自然地融入这些上下文信息，使回答更加连贯和个性化。避免明确提及这些记忆，而是像熟悉用户的专业导师一样利用这些信息提供帮助。`;
-          }
-          
-          // 添加搜索结果（如果有）
-          if (searchResults) {
-            basePrompt += `
+            }
             
+            // 添加搜索结果（如果有）
+            if (searchResults) {
+              basePrompt += `
+              
 以下是与用户问题相关的网络搜索结果:
 ${searchResults}
 
 请根据这些搜索结果为用户提供最新、最准确的信息。`;
-          }
-          
-          // 添加用户问题和回答指导
-          basePrompt += `
+            }
+            
+            // 添加用户问题和回答指导
+            basePrompt += `
 
 用户当前问题: ${message}
 
 请提供详细、有深度的回答，体现出专业的分析和洞察。回答应当逻辑清晰、内容准确、分析深入`;
-          
-          if (contextMemories) {
-            basePrompt += `，同时与用户之前的学习内容保持连贯性`;
+            
+            if (contextMemories) {
+              basePrompt += `，同时与用户之前的学习内容保持连贯性`;
+            }
+            
+            if (searchResults) {
+              basePrompt += `。引用网络搜索结果时，可以标注来源编号[1],[2]等`;
+            }
+            
+            basePrompt += `。`;
           }
-          
-          if (searchResults) {
-            basePrompt += `。引用网络搜索结果时，可以标注来源编号[1],[2]等`;
-          }
-          
-          basePrompt += `。`;
             
           return {
             query: basePrompt,
@@ -473,7 +569,7 @@ ${searchResults}
           }
           
           try {
-            const transformedMessage = this.modelConfigs.deep.transformRequest!(message, contextMemories, searchResults);
+            const transformedMessage = await this.modelConfigs.deep.transformRequest!(message, contextMemories, searchResults);
             log(`Calling Dify API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
             
             const response = await fetchWithRetry(this.modelConfigs.deep.endpoint!, {
