@@ -31,12 +31,16 @@ export class ChatService {
     const difyApiKey = process.env.DIFY_API_KEY;
     const geminiApiKey = process.env.GEMINI_API_KEY;
     const serperApiKey = process.env.SERPER_API_KEY;
+    const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
+    const grokApiKey = process.env.GROK_API_KEY;
     
     // 记录可用的模型API密钥
     const availableKeys = [
       difyApiKey ? "DIFY_API_KEY" : null,
       geminiApiKey ? "GEMINI_API_KEY" : null,
-      serperApiKey ? "SERPER_API_KEY" : null
+      serperApiKey ? "SERPER_API_KEY" : null,
+      deepseekApiKey ? "DEEPSEEK_API_KEY" : null,
+      grokApiKey ? "GROK_API_KEY" : null
     ].filter(Boolean);
     
     log(`ChatService 初始化，可用API: ${availableKeys.join(", ")}`);
@@ -164,115 +168,285 @@ ${searchResults}`;
         }
       },
       deepseek: {
-        isSimulated: true,
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
-          // 模拟使用记忆和搜索结果生成回复
-          const memoryInfo = contextMemories ? `[使用了${contextMemories.split('\n').length}条相关记忆]` : '';
-          const searchInfo = (useWebSearch && searchResults) ? `[使用了网络搜索结果]` : '';
+        endpoint: `https://api.nvcf.nvidia.com/v2/nvcf/pexec/functions/2c5a0480-1681-4d95-a199-995301f8ad61`,
+        headers: {
+          "Authorization": `Bearer ${deepseekApiKey}`,
+          "Content-Type": "application/json",
+        },
+        isSimulated: !deepseekApiKey,
+        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
+          // 构建基础提示词
+          let basePrompt = `你是一个先进的AI学习助手DeepSeek，专注于深度分析和详细解释。`;
           
-          log(`Simulating Deepseek response for: ${message} ${memoryInfo} ${searchInfo}`);
-          
-          let responseText = `[Deepseek模型] `;
-          
-          if (memoryInfo) {
-            responseText += memoryInfo + ' ';
+          // 添加记忆上下文（如果有）
+          if (contextMemories) {
+            basePrompt += `
+            
+以下是用户的历史学习记忆和对话上下文:
+${contextMemories}
+
+请在回答时自然地融入这些上下文信息，使回答更加深入和个性化。`;
           }
           
-          if (searchInfo) {
-            responseText += searchInfo + ' ';
+          // 添加搜索结果（如果有）
+          if (searchResults) {
+            basePrompt += `
+            
+以下是与用户问题相关的网络搜索结果:
+${searchResults}
+
+请根据这些搜索结果为用户提供准确的信息。`;
           }
           
-          responseText += `分析您的问题："${message}"...\n\n`;
+          // 添加用户问题
+          basePrompt += `
+
+用户当前问题: ${message}
+
+请提供详细、有深度的回答，体现出专业的洞察力。回答应当结构清晰、内容全面、分析深入`;
           
-          if (useWebSearch && searchResults) {
-            responseText += `根据网络搜索结果，我发现以下信息：\n\n`;
-            responseText += `1. 您的问题涉及到的核心概念有多个不同的解释。\n`;
-            responseText += `2. 多数权威来源强调了这个主题的重要性和应用场景。\n`;
-            responseText += `3. 根据[1]来源，最佳实践包括系统化的学习方法和定期复习。\n\n`;
+          if (contextMemories) {
+            basePrompt += `，同时与用户之前的学习轨迹保持连贯性`;
           }
           
-          responseText += `这是一个模拟的Deepseek回应，实际情况下会提供更详细的解答。`;
+          if (searchResults) {
+            basePrompt += `。引用网络搜索结果时，可以标注来源编号`;
+          }
           
+          basePrompt += `。`;
+            
+          // 适配NVIDIA NIM平台的API格式
           return {
-            text: responseText,
-            model: "deepseek"
+            input: {
+              prompt: basePrompt,
+              temperature: 0.7,
+              top_p: 0.9,
+              max_tokens: 4096
+            }
           };
+        },
+        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string) => {
+          // 如果没有API密钥，返回模拟响应
+          if (!deepseekApiKey) {
+            log(`No DeepSeek API key found, returning simulated response`);
+            const memoryInfo = contextMemories ? `[使用了${contextMemories.split('\n').length}条相关记忆]` : '';
+            const searchInfo = (searchResults) ? `[使用了网络搜索结果]` : '';
+            
+            let responseText = `[DeepSeek模型-模拟] `;
+            if (memoryInfo) responseText += memoryInfo + ' ';
+            if (searchInfo) responseText += searchInfo + ' ';
+            
+            responseText += `分析您的问题："${message}"...\n\n`;
+            responseText += `这是一个模拟的DeepSeek响应，因为尚未配置有效的API密钥。当API密钥配置后，此处将显示真实的DeepSeek AI生成内容。`;
+            
+            return {
+              text: responseText,
+              model: "deepseek"
+            };
+          }
+          
+          try {
+            const transformedMessage = this.modelConfigs.deepseek.transformRequest!(message, contextMemories, searchResults);
+            log(`Calling DeepSeek API (NVIDIA NIM) with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
+            
+            const response = await fetchWithRetry(this.modelConfigs.deepseek.endpoint!, {
+              method: "POST",
+              headers: this.modelConfigs.deepseek.headers!,
+              body: JSON.stringify(transformedMessage),
+              timeout: 60000, // 60秒超时，因为大模型推理可能需要更长时间
+            }, 3, 1000);
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              log(`DeepSeek API error: ${response.status} - ${errorText}`);
+              throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`);
+            }
+
+            const data: any = await response.json();
+            log(`Received DeepSeek API response`);
+            
+            // NVIDIA NIM平台的响应格式处理
+            const responseText = data.output?.text || data.output || "DeepSeek模型无法生成回应";
+            
+            return {
+              text: responseText,
+              model: "deepseek"
+            };
+          } catch (error) {
+            log(`Error calling DeepSeek API: ${error}`);
+            throw error;
+          }
         }
       },
       grok: {
-        isSimulated: true,
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
-          // 模拟使用记忆和搜索结果生成回复
-          const memoryInfo = contextMemories ? `[使用了${contextMemories.split('\n').length}条相关记忆]` : '';
-          const searchInfo = (useWebSearch && searchResults) ? `[使用了网络搜索结果]` : '';
+        endpoint: `https://api.groq.com/openai/v1/chat/completions`,
+        headers: {
+          "Authorization": `Bearer ${grokApiKey}`,
+          "Content-Type": "application/json",
+        },
+        isSimulated: !grokApiKey,
+        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
+          // 构建系统提示
+          let systemPrompt = `你是Grok，一个先进的AI助手，具有幽默感和独特见解。你的回答应该既有信息量又有趣味性。`;
           
-          log(`Simulating Grok response for: ${message} ${memoryInfo} ${searchInfo}`);
+          // 构建用户提示
+          let userPrompt = message;
           
-          let responseText = `[Grok模型] `;
-          
-          if (memoryInfo) {
-            responseText += memoryInfo + ' ';
+          // 添加记忆上下文（如果有）
+          if (contextMemories) {
+            systemPrompt += `\n\n以下是用户的历史学习记忆，请在回答时自然地利用这些信息提供个性化帮助：\n${contextMemories}`;
           }
           
-          if (searchInfo) {
-            responseText += searchInfo + ' ';
+          // 添加搜索结果（如果有）
+          if (searchResults) {
+            userPrompt = `我的问题是: ${message}\n\n这是一些相关的网络搜索结果:\n${searchResults}\n\n请使用这些信息来帮助我回答问题，但不要明确提及你在使用搜索结果。`;
           }
-          
-          responseText += `处理您的问题："${message}"...\n\n`;
-          
-          if (useWebSearch && searchResults) {
-            responseText += `基于网络搜索的最新信息表明：\n\n`;
-            responseText += `• 您询问的主题有多个维度的考量\n`;
-            responseText += `• 最新研究指出了一些创新方法\n`;
-            responseText += `• 参考[2]来源，有专家提出了新的理论框架\n\n`;
-          }
-          
-          responseText += `这是一个模拟的Grok回应，仅作演示用途。`;
-          
+            
           return {
-            text: responseText,
-            model: "grok"
+            model: "llama3-70b-8192",
+            messages: [
+              {
+                role: "system",
+                content: systemPrompt
+              },
+              {
+                role: "user",
+                content: userPrompt
+              }
+            ],
+            temperature: 0.7,
+            max_tokens: 4096
           };
+        },
+        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string) => {
+          // 如果没有API密钥，返回模拟响应
+          if (!grokApiKey) {
+            log(`No Grok API key found, returning simulated response`);
+            const memoryInfo = contextMemories ? `[使用了${contextMemories.split('\n').length}条相关记忆]` : '';
+            const searchInfo = (searchResults) ? `[使用了网络搜索结果]` : '';
+            
+            let responseText = `[Grok模型-模拟] `;
+            if (memoryInfo) responseText += memoryInfo + ' ';
+            if (searchInfo) responseText += searchInfo + ' ';
+            
+            responseText += `处理您的问题："${message}"...\n\n`;
+            responseText += `这是一个模拟的Grok响应，因为尚未配置有效的API密钥。当API密钥配置后，此处将显示真实的Grok AI生成内容。`;
+            
+            return {
+              text: responseText,
+              model: "grok"
+            };
+          }
+          
+          try {
+            const transformedMessage = this.modelConfigs.grok.transformRequest!(message, contextMemories, searchResults);
+            log(`Calling Grok API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
+            
+            const response = await fetchWithRetry(this.modelConfigs.grok.endpoint!, {
+              method: "POST",
+              headers: this.modelConfigs.grok.headers!,
+              body: JSON.stringify(transformedMessage),
+              timeout: 60000, // 60秒超时
+            }, 3, 1000);
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              log(`Grok API error: ${response.status} - ${errorText}`);
+              throw new Error(`Grok API error: ${response.status} - ${errorText}`);
+            }
+
+            const data: any = await response.json();
+            log(`Received Grok API response`);
+            
+            // 提取响应文本
+            const responseText = data.choices?.[0]?.message?.content || "Grok模型无法生成回应";
+            
+            return {
+              text: responseText,
+              model: "grok"
+            };
+          } catch (error) {
+            log(`Error calling Grok API: ${error}`);
+            throw error;
+          }
         }
       },
       search: {
-        isSimulated: true,
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
+        endpoint: `https://api.serper.dev/search`,
+        headers: {
+          "X-API-KEY": serperApiKey,
+          "Content-Type": "application/json",
+        },
+        isSimulated: !serperApiKey,
+        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
+          return {
+            q: message,
+            gl: "us",
+            hl: "en",
+            num: 10
+          };
+        },
+        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string) => {
           // 这个模型强制启用搜索，不论全局设置如何
           const memoryInfo = contextMemories ? `[使用了${contextMemories.split('\n').length}条相关记忆]` : '';
-          const searchInfo = searchResults ? `[使用了网络搜索结果]` : '[尝试网络搜索]';
           
-          log(`Simulating Search response for: ${message} ${memoryInfo} ${searchInfo}`);
-          
-          let responseText = `[Search模型] `;
-          
-          if (memoryInfo) {
-            responseText += memoryInfo + ' ';
+          // 如果没有API密钥，返回模拟响应
+          if (!serperApiKey) {
+            log(`No Serper API key found, returning simulated response`);
+            let responseText = `[Search模型-模拟] `;
+            if (memoryInfo) responseText += memoryInfo + ' ';
+            responseText += `[尝试网络搜索] `;
+            responseText += `搜索您的问题："${message}"...\n\n`;
+            responseText += `这是一个模拟的Search响应，因为尚未配置有效的SERPER_API_KEY。配置密钥后，将显示真实的搜索结果。`;
+            
+            return {
+              text: responseText,
+              model: "search"
+            };
           }
           
-          responseText += searchInfo + ' ';
-          responseText += `搜索您的问题："${message}"...\n\n`;
-          
-          if (searchResults) {
-            responseText += `根据网络搜索结果，我找到了如下信息：\n\n`;
-            responseText += `[1] 您的问题在多个领域都有相关研究和应用\n`;
-            responseText += `[2] 主流观点认为这是一个复杂的主题，需要多角度分析\n`;
-            responseText += `[3] 最新的研究成果指出了一些创新的解决方案\n\n`;
-            responseText += `综合以上信息，建议您可以从以下几个方面进一步探索：...\n\n`;
-          } else {
-            responseText += `很抱歉，当前无法获取相关的搜索结果。这可能是由于：\n`;
-            responseText += `1. 网络连接问题\n`;
-            responseText += `2. 搜索API限制\n`;
-            responseText += `3. 查询内容可能需要更具体的关键词\n\n`;
-            responseText += `您可以尝试重新提问，或者使用更具体的关键词。\n\n`;
+          try {
+            // 直接使用搜索服务进行搜索
+            log(`Search model performing web search for: ${message}`);
+            const searchResults = await webSearchService.search(message);
+            
+            let responseText = `[Search模型] `;
+            if (memoryInfo) responseText += memoryInfo + ' ';
+            
+            if (!searchResults || searchResults.length === 0) {
+              responseText += `[无搜索结果] 搜索您的问题："${message}"...\n\n`;
+              responseText += `很抱歉，当前无法获取相关的搜索结果。这可能是由于：\n`;
+              responseText += `1. 查询内容可能需要更具体的关键词\n`;
+              responseText += `2. 该主题可能缺乏公开资料\n`;
+              responseText += `3. 搜索服务暂时限制\n\n`;
+              responseText += `您可以尝试重新提问，或者使用更具体的关键词。`;
+            } else {
+              responseText += `[使用了网络搜索结果] 搜索您的问题："${message}"...\n\n`;
+              responseText += `根据网络搜索结果，我找到了以下信息：\n\n`;
+              
+              // 格式化搜索结果
+              searchResults.forEach((result, idx) => {
+                const title = result.title || '无标题';
+                const snippet = result.snippet || result.description || '无详细描述';
+                const link = result.link || '无链接';
+                
+                responseText += `[${idx + 1}] ${title}\n`;
+                responseText += `${snippet}\n`;
+                responseText += `来源: ${link}\n\n`;
+              });
+              
+              // 添加总结
+              responseText += `以上是关于"${message}"的搜索结果摘要。您可以从这些信息中获取最新的、客观的参考资料。如需更详细的信息，可以访问提供的链接。`;
+            }
+            
+            return {
+              text: responseText,
+              model: "search"
+            };
+          } catch (error) {
+            log(`Error in search model: ${error}`);
+            throw error;
           }
-          
-          responseText += `这是一个模拟的Search回应，实际系统会提供更全面的搜索结果和分析。`;
-          
-          return {
-            text: responseText,
-            model: "search"
-          };
         }
       },
       deep: {
