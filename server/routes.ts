@@ -13,6 +13,7 @@ import { spawn } from 'child_process';
 import learningPathRoutes from './routes/learning-path';
 import adminPromptsRoutes from './routes/admin-prompts';
 import contentModerationRoutes from './routes/content-moderation';
+import webSearchRoutes from './routes/web-search';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
@@ -1492,6 +1493,7 @@ asyncio.run(test_memory())
   app.use('/api/learning-path', learningPathRoutes);
   app.use('/api/admin/prompts', adminPromptsRoutes);
   app.use('/api/admin/content-moderation', contentModerationRoutes);
+  app.use('/api/web-search', webSearchRoutes);
 
   const httpServer = createServer(app);
   return httpServer;
