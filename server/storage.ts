@@ -29,7 +29,7 @@ export interface IStorage {
   updateChatModel(chatId: number, model: string): Promise<void>;
 
   // Message methods
-  createMessage(chatId: number, content: string, role: string): Promise<Message>;
+  createMessage(chatId: number, content: string, role: string, model?: string): Promise<Message>;
   getChatMessages(chatId: number, userId: number, isAdmin: boolean): Promise<Message[]>;
   updateMessage(messageId: number, content: string, isUserOwned: boolean): Promise<Message>;
   updateMessageFeedback(messageId: number, feedback: "like" | "dislike"): Promise<Message>;
@@ -299,10 +299,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createMessage(chatId: number, content: string, role: string): Promise<Message> {
+  async createMessage(chatId: number, content: string, role: string, model?: string): Promise<Message> {
     try {
       const [message] = await db.insert(messages)
-        .values({ chatId, content, role })
+        .values({ chatId, content, role, model })
         .returning();
       return message;
     } catch (error) {
