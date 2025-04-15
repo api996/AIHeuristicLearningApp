@@ -895,6 +895,33 @@ ${searchResults}
       throw error;
     }
   }
+  
+  /**
+   * 获取网络搜索结果
+   * @param query 搜索查询
+   * @returns 格式化的搜索结果上下文
+   */
+  private async getWebSearchResults(query: string): Promise<string | undefined> {
+    try {
+      if (!this.useWebSearch) {
+        return undefined;
+      }
+      
+      log(`正在为查询获取网络搜索结果: ${query}`);
+      const searchSnippets = await webSearchService.search(query);
+      
+      if (!searchSnippets || searchSnippets.length === 0) {
+        log('没有找到相关的搜索结果');
+        return undefined;
+      }
+      
+      log(`找到 ${searchSnippets.length} 条搜索结果`);
+      return webSearchService.formatSearchContext(searchSnippets);
+    } catch (error) {
+      log(`获取网络搜索结果时出错: ${error instanceof Error ? error.message : String(error)}`);
+      return undefined;
+    }
+  }
 }
 
 export const chatService = new ChatService();
@@ -930,29 +957,3 @@ const fetchWithRetry = async (url: string, options: any, retries = 3, backoff = 
   // 所有重试都失败了
   throw lastError || new Error('Failed after retries');
 };
-/**
- * 获取网络搜索结果
- * @param query 搜索查询
- * @returns 格式化的搜索结果上下文
- */
-private async getWebSearchResults(query: string): Promise<string | undefined> {
-  try {
-    if (!this.useWebSearch) {
-      return undefined;
-    }
-    
-    log(`正在为查询获取网络搜索结果: ${query}`);
-    const searchSnippets = await webSearchService.search(query);
-    
-    if (!searchSnippets || searchSnippets.length === 0) {
-      log('没有找到相关的搜索结果');
-      return undefined;
-    }
-    
-    log(`找到 ${searchSnippets.length} 条搜索结果`);
-    return webSearchService.formatSearchContext(searchSnippets);
-  } catch (error) {
-    log(`获取网络搜索结果时出错: ${error instanceof Error ? error.message : String(error)}`);
-    return undefined;
-  }
-}
