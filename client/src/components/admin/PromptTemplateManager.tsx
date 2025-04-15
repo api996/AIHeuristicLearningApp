@@ -30,11 +30,34 @@ export function PromptTemplateManager() {
     { id: 'search', name: 'Search' },
   ];
 
+  // 获取当前登录的管理员用户ID
+  const getCurrentUserId = (): number | null => {
+    try {
+      const userStr = localStorage.getItem("user");
+      if (!userStr) return null;
+      const user = JSON.parse(userStr);
+      return user.userId || null;
+    } catch (error) {
+      console.error("获取用户信息失败:", error);
+      return null;
+    }
+  };
+
   // 获取所有提示词模板
   const fetchTemplates = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/prompts');
+      const userId = getCurrentUserId();
+      if (!userId) {
+        toast({
+          title: "认证错误",
+          description: "未找到用户信息，请重新登录",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const response = await fetch(`/api/admin/prompts?userId=${userId}`);
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data)) {
@@ -45,9 +68,10 @@ export function PromptTemplateManager() {
           });
         }
       } else {
+        const errorText = await response.text();
         toast({
           title: "加载失败",
-          description: "无法获取提示词模板",
+          description: errorText || "无法获取提示词模板",
           variant: "destructive"
         });
       }
@@ -176,6 +200,16 @@ export function PromptTemplateManager() {
 
     try {
       setSaveLoading(true);
+      const userId = getCurrentUserId();
+      if (!userId) {
+        toast({
+          title: "认证错误",
+          description: "未找到用户信息，请重新登录",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const response = await fetch('/api/admin/prompts', {
         method: 'POST',
         headers: {
@@ -183,7 +217,8 @@ export function PromptTemplateManager() {
         },
         body: JSON.stringify({
           modelId: selectedModel,
-          promptTemplate: promptTemplate
+          promptTemplate: promptTemplate,
+          userId: userId
         })
       });
 
@@ -218,7 +253,17 @@ export function PromptTemplateManager() {
 
     try {
       setDeleteLoading(true);
-      const response = await fetch(`/api/admin/prompts/${selectedModel}`, {
+      const userId = getCurrentUserId();
+      if (!userId) {
+        toast({
+          title: "认证错误",
+          description: "未找到用户信息，请重新登录",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const response = await fetch(`/api/admin/prompts/${selectedModel}?userId=${userId}`, {
         method: 'DELETE'
       });
 
