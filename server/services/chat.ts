@@ -293,9 +293,23 @@ ${searchResults}
           "Content-Type": "application/json",
         },
         isSimulated: !grokApiKey,
-        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
-          // 构建系统提示
-          let systemPrompt = `你是Grok-3，一个先进的AI助手，来自XAI公司，具有幽默感和独特见解。你的回答应该既有信息量又有趣味性。`;
+        transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
+          // 获取Grok的提示词模板（如果有）
+          let systemPrompt = '';
+          try {
+            const templateRecord = await storage.getPromptTemplate('grok');
+            if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
+              log('Using custom template for Grok model');
+              systemPrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
+            }
+          } catch (error) {
+            log(`Error getting Grok template: ${error}`);
+          }
+          
+          // 如果没有自定义提示词模板，使用默认模板
+          if (!systemPrompt) {
+            systemPrompt = `你是Grok-3，一个先进的AI助手，来自XAI公司，具有幽默感和独特见解。你的回答应该既有信息量又有趣味性。`;
+          }
           
           // 构建用户提示
           let userPrompt = message;
@@ -348,7 +362,7 @@ ${searchResults}
           }
           
           try {
-            const transformedMessage = this.modelConfigs.grok.transformRequest!(message, contextMemories, searchResults);
+            const transformedMessage = await this.modelConfigs.grok.transformRequest!(message, contextMemories, searchResults);
             log(`Calling Grok API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
             
             const response = await fetchWithRetry(this.modelConfigs.grok.endpoint!, {
@@ -518,7 +532,8 @@ ${searchResults}
       const templateRecord = await storage.getPromptTemplate(modelId);
       if (templateRecord) {
         log(`Using prompt template for model ${modelId}`);
-        return templateRecord.promptTemplate;
+        // 优先使用baseTemplate，如果不存在则回退到promptTemplate
+        return templateRecord.baseTemplate || templateRecord.promptTemplate;
       }
       return undefined;
     } catch (error) {
