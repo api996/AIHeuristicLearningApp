@@ -111,7 +111,7 @@ class ContentModerationService {
         };
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       const result = data.results[0];
 
       // 应用自定义阈值
