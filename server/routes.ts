@@ -823,7 +823,7 @@ asyncio.run(analyze())
           
           // 重新生成回复，传入userId用于记忆检索
           log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."`);
-          const response = await chatService.sendMessage(promptMessage, userId, messageToRegenerate.chatId);
+          const response = await chatService.sendMessage(promptMessage, userId, Number(chatId));
           
           // 更新数据库中的消息
           const updatedMessage = await storage.updateMessage(messageId, response.text, false);
@@ -885,7 +885,7 @@ asyncio.run(analyze())
       
       // 重新生成回复
       log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."`);
-      const response = await chatService.sendMessage(promptMessage, userId);
+      const response = await chatService.sendMessage(promptMessage, userId, Number(chatId));
       
       // 更新数据库中的消息
       const updatedMessage = await storage.updateMessage(lastAiMessage.id, response.text, false);
