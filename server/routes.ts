@@ -1045,9 +1045,9 @@ asyncio.run(analyze())
         const userMsg = await storage.createMessage(chatId, message, "user");
         log(`已存储用户消息，ID: ${userMsg.id}`);
 
-        // 再存储AI响应
-        const aiMsg = await storage.createMessage(chatId, response.text, "assistant");
-        log(`已存储AI响应，ID: ${aiMsg.id}`);
+        // 再存储AI响应，包含模型信息
+        const aiMsg = await storage.createMessage(chatId, response.text, "assistant", response.model);
+        log(`已存储AI响应，ID: ${aiMsg.id}，模型: ${response.model || "未知"}`);
         
         // 保存到记忆系统
         try {
