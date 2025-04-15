@@ -52,7 +52,7 @@ type Message = {
   chat_id?: number;               // 所属对话ID
 };
 
-type Model = "search" | "deep" | "gemini" | "deepseek" | "grok";
+type Model = "deep" | "gemini" | "deepseek" | "grok";
 
 interface UploadResponse {
   url: string;
