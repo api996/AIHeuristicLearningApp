@@ -10,6 +10,7 @@ import express from 'express';
 import { verifyTurnstileToken } from './services/turnstile';
 import { spawn } from 'child_process';
 import learningPathRoutes from './routes/learning-path';
+import adminPromptsRoutes from './routes/admin-prompts';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
@@ -945,7 +946,7 @@ asyncio.run(analyze())
 
   app.post("/api/chat", async (req, res) => {
     try {
-      const { message, model, chatId, userId, role } = req.body;
+      const { message, model, chatId, userId, role, useWebSearch } = req.body;
 
       if (!message) {
         return res.status(400).json({
@@ -966,17 +967,6 @@ asyncio.run(analyze())
         });
       }
 
-      if (model) {
-        try {
-          chatService.setModel(model);
-        } catch (error) {
-          return res.status(400).json({
-            message: "Invalid model selected",
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
-      }
-
       // 确保我们有有效的聊天ID
       if (!chatId) {
         log(`警告: 收到没有chatId的消息请求`);
@@ -995,10 +985,51 @@ asyncio.run(analyze())
           message: "Access denied or chat not found" 
         });
       }
-
-      // 获取AI响应，传入userId用于记忆检索
-      log(`处理来自用户 ${userId} 的聊天消息，聊天ID: ${chatId}`);
-      const response = await chatService.sendMessage(message, Number(userId));
+      
+      // 如果提供了模型参数，设置聊天服务的模型
+      if (model) {
+        try {
+          chatService.setModel(model);
+          
+          // 如果模型与聊天记录中的不同，更新聊天记录模型
+          if (chat.model !== model) {
+            await storage.updateChatModel(chatId, model);
+            log(`已更新聊天 ${chatId} 的模型为 ${model}`);
+          }
+        } catch (error) {
+          return res.status(400).json({
+            message: "Invalid model selected",
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      } else {
+        // 使用聊天记录中的模型
+        try {
+          chatService.setModel(chat.model);
+        } catch (error) {
+          log(`警告: 无法设置模型为 ${chat.model}, 使用默认模型: ${error}`);
+          // 使用默认模型，不返回错误
+        }
+      }
+      
+      // 判断是否使用网络搜索
+      // 如果模型是"search"，则强制启用搜索
+      const shouldUseSearch = 
+        chat.model === "search" || (useWebSearch === true);
+        
+      // 获取AI响应，传入userId用于记忆检索，以及网络搜索参数
+      log(`处理来自用户 ${userId} 的聊天消息，聊天ID: ${chatId}，模型: ${chat.model}，搜索: ${shouldUseSearch}`);
+      
+      // 如果需要搜索API key但未设置
+      if (shouldUseSearch && !process.env.SERPER_API_KEY) {
+        log('请求网络搜索，但SERPER_API_KEY未设置');
+        return res.status(400).json({
+          message: "搜索功能需要设置SERPER_API_KEY环境变量",
+          error: "MISSING_SEARCH_API_KEY"
+        });
+      }
+      
+      const response = await chatService.sendMessage(message, Number(userId), shouldUseSearch);
 
       // 存储消息到数据库
       try {
@@ -1411,6 +1442,7 @@ asyncio.run(test_memory())
 
   // 注册学习轨迹路由
   app.use('/api/learning-path', learningPathRoutes);
+  app.use('/api/admin/prompts', adminPromptsRoutes);
 
   const httpServer = createServer(app);
   return httpServer;
