@@ -105,8 +105,16 @@ export const insertMessageSchema = createInsertSchema(messages);
 // 模型提示词模板表：存储各模型的提示词模板
 export const promptTemplates = pgTable("prompt_templates", {
   id: serial("id").primaryKey(),
-  modelId: text("model_id").notNull().unique(), // 模型ID，例如 'gpt-4', 'claude' 等
-  promptTemplate: text("prompt_template").notNull(), // 提示词模板
+  modelId: text("model_id").notNull().unique(), // 模型ID，例如 'gemini', 'deepseek', 'grok' 等
+  promptTemplate: text("prompt_template").notNull(), // 完整提示词模板（向后兼容）
+  baseTemplate: text("base_template"), // 基础提示词
+  kTemplate: text("k_template"), // K阶段提示词
+  wTemplate: text("w_template"), // W阶段提示词
+  lTemplate: text("l_template"), // L阶段提示词
+  qTemplate: text("q_template"), // Q阶段提示词
+  styleTemplate: text("style_template"), // 风格提示词
+  policyTemplate: text("policy_template"), // 政策提示词
+  sensitiveWords: text("sensitive_words"), // 敏感词列表，以逗号分隔
   updatedAt: timestamp("updated_at").defaultNow(),
   createdBy: integer("created_by").references(() => users.id),
 });
@@ -120,11 +128,21 @@ export const searchResults = pgTable("search_results", {
   expiresAt: timestamp("expires_at"), // 缓存过期时间
 });
 
+// 对话阶段分析表：存储对话阶段分析结果
+export const conversationAnalytics = pgTable("conversation_analytics", {
+  id: serial("id").primaryKey(),
+  chatId: integer("chat_id").notNull().references(() => chats.id),
+  currentPhase: text("current_phase", { enum: ["K", "W", "L", "Q"] }).notNull(), // 当前对话阶段
+  summary: text("summary").notNull(), // 对话摘要
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
 export const insertMemorySchema = createInsertSchema(memories);
 export const insertMemoryKeywordSchema = createInsertSchema(memoryKeywords);
 export const insertMemoryEmbeddingSchema = createInsertSchema(memoryEmbeddings);
 export const insertPromptTemplateSchema = createInsertSchema(promptTemplates);
 export const insertSearchResultSchema = createInsertSchema(searchResults);
+export const insertConversationAnalyticsSchema = createInsertSchema(conversationAnalytics);
 
 export type User = typeof users.$inferSelect;
 export type Chat = typeof chats.$inferSelect;
@@ -136,6 +154,7 @@ export type MemoryKeyword = typeof memoryKeywords.$inferSelect;
 export type MemoryEmbedding = typeof memoryEmbeddings.$inferSelect;
 export type PromptTemplate = typeof promptTemplates.$inferSelect;
 export type SearchResult = typeof searchResults.$inferSelect;
+export type ConversationAnalytic = typeof conversationAnalytics.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertChat = z.infer<typeof insertChatSchema>;
@@ -145,3 +164,4 @@ export type InsertMemoryKeyword = z.infer<typeof insertMemoryKeywordSchema>;
 export type InsertMemoryEmbedding = z.infer<typeof insertMemoryEmbeddingSchema>;
 export type InsertPromptTemplate = z.infer<typeof insertPromptTemplateSchema>;
 export type InsertSearchResult = z.infer<typeof insertSearchResultSchema>;
+export type InsertConversationAnalytic = z.infer<typeof insertConversationAnalyticsSchema>;
