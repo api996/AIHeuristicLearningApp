@@ -252,7 +252,7 @@ ${searchResults}
           
           try {
             const transformedMessage = this.modelConfigs.deepseek.transformRequest!(message, contextMemories, searchResults);
-            log(`Calling DeepSeek API (NVIDIA NIM) with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
+            log(`Calling DeepSeek API (NVIDIA NIM平台) with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
             
             const response = await fetchWithRetry(this.modelConfigs.deepseek.endpoint!, {
               method: "POST",
