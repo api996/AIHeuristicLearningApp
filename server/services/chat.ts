@@ -703,38 +703,6 @@ ${searchResults}
       return undefined;
     }
   }
-  
-  /**
-   * 设置网络搜索功能状态
-   * @param enabled 是否启用网络搜索
-   */
-  setWebSearchEnabled(enabled: boolean): void {
-    const serperApiKey = process.env.SERPER_API_KEY;
-    if (enabled && !serperApiKey) {
-      log(`无法启用网络搜索：缺少SERPER_API_KEY`);
-      this.useWebSearch = false;
-      return;
-    }
-    this.useWebSearch = enabled;
-    log(`网络搜索功能已${enabled ? '启用' : '禁用'}`);
-  }
-  
-  /**
-   * 获取网络搜索功能状态
-   * @returns 网络搜索是否启用
-   */
-  isWebSearchEnabled(): boolean {
-    return this.useWebSearch;
-  }
-  
-  /**
-   * 切换网络搜索状态
-   * @returns 切换后的状态
-   */
-  toggleWebSearch(): boolean {
-    this.setWebSearchEnabled(!this.useWebSearch);
-    return this.useWebSearch;
-  }
 
   /**
    * 获取网络搜索结果
@@ -927,8 +895,6 @@ ${searchResults}
       throw error;
     }
   }
-  
-
 }
 
 export const chatService = new ChatService();
