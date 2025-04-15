@@ -50,7 +50,6 @@ export function PromptTemplateManager() {
     { id: 'deep', name: 'Deep' },
     { id: 'deepseek', name: 'DeepSeek' },
     { id: 'grok', name: 'Grok' },
-    { id: 'search', name: 'Search' },
   ];
 
   // 获取当前登录的管理员用户ID
@@ -228,6 +227,59 @@ export function PromptTemplateManager() {
     return defaultTemplates[modelId] || '';
   };
 
+  // 保存单个模型的提示词模板
+  const saveTemplateForModel = async (modelId: string, userId: number) => {
+    if (!baseTemplate) {
+      toast({
+        title: "无法保存",
+        description: "基础提示词模板不能为空",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    try {
+      const response = await fetch('/api/admin/prompts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          modelId: modelId,
+          promptTemplate: promptTemplate || baseTemplate, // 兼容旧版
+          baseTemplate: baseTemplate,
+          kTemplate: kTemplate,
+          wTemplate: wTemplate,
+          lTemplate: lTemplate,
+          qTemplate: qTemplate,
+          styleTemplate: styleTemplate,
+          policyTemplate: policyTemplate,
+          sensitiveWords: sensitiveWords,
+          userId: userId
+        })
+      });
+
+      if (response.ok) {
+        return true;
+      } else {
+        const error = await response.text();
+        toast({
+          title: `保存 ${modelId} 失败`,
+          description: error || "无法保存提示词模板",
+          variant: "destructive"
+        });
+        return false;
+      }
+    } catch (error) {
+      toast({
+        title: `保存 ${modelId} 错误`,
+        description: String(error),
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
   // 保存提示词模板
   const saveTemplate = async () => {
     if (!selectedModel) {
@@ -260,43 +312,73 @@ export function PromptTemplateManager() {
         return;
       }
 
-      const response = await fetch('/api/admin/prompts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          modelId: selectedModel,
-          promptTemplate: promptTemplate || baseTemplate, // 兼容旧版
-          baseTemplate: baseTemplate,
-          kTemplate: kTemplate,
-          wTemplate: wTemplate,
-          lTemplate: lTemplate,
-          qTemplate: qTemplate,
-          styleTemplate: styleTemplate,
-          policyTemplate: policyTemplate,
-          sensitiveWords: sensitiveWords,
-          userId: userId
-        })
-      });
-
-      if (response.ok) {
+      const success = await saveTemplateForModel(selectedModel, userId);
+      
+      if (success) {
         toast({
           title: "保存成功",
           description: `${selectedModel} 模型的提示词模板已更新`
         });
         await fetchTemplates(); // 重新加载所有模板
-      } else {
-        const error = await response.text();
+      }
+    } catch (error) {
+      toast({
+        title: "保存错误",
+        description: String(error),
+        variant: "destructive"
+      });
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+  
+  // 一键配置所有模型
+  const configureAllModels = async () => {
+    if (!baseTemplate) {
+      toast({
+        title: "无法配置",
+        description: "基础提示词模板不能为空",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setSaveLoading(true);
+      const userId = getCurrentUserId();
+      if (!userId) {
         toast({
-          title: "保存失败",
-          description: error || "无法保存提示词模板",
+          title: "认证错误",
+          description: "未找到用户信息，请重新登录",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      let successCount = 0;
+      for (const model of availableModels) {
+        const success = await saveTemplateForModel(model.id, userId);
+        if (success) {
+          successCount++;
+        }
+      }
+      
+      if (successCount > 0) {
+        toast({
+          title: "批量配置成功",
+          description: `已成功配置 ${successCount}/${availableModels.length} 个模型的提示词模板`
+        });
+        await fetchTemplates(); // 重新加载所有模板
+      } else {
+        toast({
+          title: "批量配置失败",
+          description: "所有模型配置均失败，请检查网络或权限",
           variant: "destructive"
         });
       }
     } catch (error) {
       toast({
-        title: "保存错误",
+        title: "批量配置错误",
         description: String(error),
         variant: "destructive"
       });
@@ -456,14 +538,24 @@ export function PromptTemplateManager() {
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={() => loadModelTemplate(selectedModel)}
-          disabled={loading}
-        >
-          重置
-        </Button>
+      <CardFooter className="flex justify-between flex-wrap gap-y-2">
+        <div className="space-x-2">
+          <Button
+            variant="outline"
+            onClick={() => loadModelTemplate(selectedModel)}
+            disabled={loading}
+          >
+            重置
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={configureAllModels}
+            disabled={loading || saveLoading || !baseTemplate}
+            className="bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+          >
+            一键配置全部模型
+          </Button>
+        </div>
         <div className="space-x-2">
           {isEditing && (
             <Button
