@@ -50,6 +50,7 @@ type Message = {
   created_at?: string;            // 创建时间
   is_edited?: boolean;            // 是否已编辑
   chat_id?: number;               // 所属对话ID
+  model?: string;                 // 使用的模型，如"deep"、"gemini"等
 };
 
 type Model = "deep" | "gemini" | "deepseek" | "grok";
