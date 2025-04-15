@@ -29,8 +29,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // 这里不再验证令牌，因为前端已经验证过了
-      // 相信前端传来的令牌，假设它已经被验证过
+      // 特殊处理绕过令牌
+      const isBypassToken = turnstileToken === "bypass-token";
+      if (isBypassToken) {
+        log('[Auth] 使用绕过令牌注册用户');
+      } else {
+        // 这里不再验证令牌，因为前端已经验证过了
+        // 相信前端传来的令牌，假设它已经被验证过
+      }
 
       // 检查用户名是否存在
       const existingUser = await storage.getUserByUsername(username);
@@ -71,8 +77,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // 这里不再验证令牌，因为前端已经验证过了
-      // 相信前端传来的令牌，假设它已经被验证过
+      // 特殊处理绕过令牌
+      const isBypassToken = turnstileToken === "bypass-token";
+      if (isBypassToken) {
+        log('[Auth] 使用绕过令牌登录用户');
+      } else {
+        // 这里不再验证令牌，因为前端已经验证过了
+        // 相信前端传来的令牌，假设它已经被验证过
+      }
 
       // 获取用户信息
       let user = await storage.getUserByUsername(username);
