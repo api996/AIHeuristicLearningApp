@@ -15,20 +15,38 @@ const runMemoryCleanup = () => {
     if (fs.existsSync(scriptPath)) {
       log("正在执行记忆文件修复脚本...");
 
-      const cleanupProcess = spawn("python", [scriptPath], {
+      const cleanupProcess = spawn("python3", [scriptPath], {
         stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
       });
 
+      let errorOutput = '';
+
       cleanupProcess.stdout.on("data", (data) => {
-        log(`[记忆修复] ${data.toString().trim()}`);
+        const output = data.toString().trim();
+        if (output) {
+          log(`[记忆系统] ${output}`);
+        }
       });
 
       cleanupProcess.stderr.on("data", (data) => {
-        log(`[记忆修复错误] ${data.toString().trim()}`);
+        const errorMsg = data.toString().trim();
+        errorOutput += errorMsg;
+        // 仅输出非空错误信息
+        if (errorMsg) {
+          log(`[记忆系统错误] ${errorMsg}`);
+        }
       });
 
       cleanupProcess.on("close", (code) => {
-        log(`记忆文件修复脚本执行完成，退出码: ${code}`);
+        if (code === 0) {
+          log(`记忆文件修复脚本执行成功，退出码: ${code}`);
+        } else {
+          log(`记忆文件修复脚本执行失败，退出码: ${code}`);
+          if (errorOutput) {
+            log(`错误详情: ${errorOutput}`);
+          }
+        }
       });
     } else {
       log("未找到记忆文件修复脚本，跳过修复步骤");
