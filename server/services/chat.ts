@@ -27,22 +27,31 @@ export class ChatService {
   private useWebSearch: boolean = false;
 
   constructor() {
-    const apiKey = process.env.DIFY_API_KEY;
-    if (!apiKey) {
-      throw new Error("DIFY_API_KEY is required");
-    }
-    this.apiKey = apiKey;
-    this.currentModel = "deep"; // Default model
-    log("ChatService initialized");
-
+    // 检查必要的API密钥
+    const difyApiKey = process.env.DIFY_API_KEY;
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const serperApiKey = process.env.SERPER_API_KEY;
+    
+    // 记录可用的模型API密钥
+    const availableKeys = [
+      difyApiKey ? "DIFY_API_KEY" : null,
+      geminiApiKey ? "GEMINI_API_KEY" : null,
+      serperApiKey ? "SERPER_API_KEY" : null
+    ].filter(Boolean);
+    
+    log(`ChatService 初始化，可用API: ${availableKeys.join(", ")}`);
+    
+    // 默认使用deep模型
+    this.currentModel = "deep";
+    this.apiKey = difyApiKey || "";
+    
     this.modelConfigs = {
       gemini: {
-        endpoint: `https://api.dify.ai/v1/chat-messages`,
+        endpoint: `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent`,
         headers: {
-          "Authorization": `Bearer ${this.apiKey}`,
           "Content-Type": "application/json",
         },
-        isSimulated: false,
+        isSimulated: !geminiApiKey,
         transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
           // 构建基础提示词
           let basePrompt = `你是一个先进的AI学习助手，能够提供个性化学习体验。`;
@@ -83,36 +92,75 @@ ${searchResults}`;
           basePrompt += `。`;
             
           return {
-            query: basePrompt,
-            response_mode: "blocking",
-            conversation_id: null,
-            user: "user",
-            inputs: {},
+            contents: [
+              {
+                parts: [
+                  {
+                    text: basePrompt
+                  }
+                ]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.7,
+              topP: 0.95,
+              topK: 40,
+              maxOutputTokens: 4096,
+            }
           };
         },
         getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string) => {
-          const transformedMessage = this.modelConfigs.gemini.transformRequest!(message, contextMemories, searchResults);
-          log(`Calling Dify API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
-          
-          const response = await fetchWithRetry(this.modelConfigs.gemini.endpoint!, {
-            method: "POST",
-            headers: this.modelConfigs.gemini.headers!,
-            body: JSON.stringify(transformedMessage),
-            timeout: 30000, // 30秒超时
-          }, 3, 500);
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            log(`Dify API error: ${response.status} - ${errorText}`);
-            throw new Error(`API error: ${response.status} - ${errorText}`);
+          // 如果没有API密钥，返回模拟响应
+          if (!geminiApiKey) {
+            log(`No Gemini API key found, returning simulated response`);
+            const memoryInfo = contextMemories ? `[使用了${contextMemories.split('\n').length}条相关记忆]` : '';
+            const searchInfo = (searchResults) ? `[使用了网络搜索结果]` : '';
+            
+            let responseText = `[Gemini模型-模拟] `;
+            if (memoryInfo) responseText += memoryInfo + ' ';
+            if (searchInfo) responseText += searchInfo + ' ';
+            
+            responseText += `处理您的问题："${message}"...\n\n`;
+            responseText += `这是一个模拟的Gemini响应，因为尚未配置有效的API密钥。当API密钥配置后，此处将显示真实的Gemini AI生成内容。`;
+            
+            return {
+              text: responseText,
+              model: "gemini"
+            };
           }
+          
+          try {
+            const transformedMessage = this.modelConfigs.gemini.transformRequest!(message, contextMemories, searchResults);
+            log(`Calling Gemini API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
+            
+            const url = `${this.modelConfigs.gemini.endpoint}?key=${geminiApiKey}`;
+            const response = await fetchWithRetry(url, {
+              method: "POST",
+              headers: this.modelConfigs.gemini.headers!,
+              body: JSON.stringify(transformedMessage),
+              timeout: 30000, // 30秒超时
+            }, 3, 500);
 
-          const data: any = await response.json();
-          log(`Received Dify API response: ${JSON.stringify(data)}`);
-          return {
-            text: data.answer || "Gemini暂时无法回应",
-            model: "gemini"
-          };
+            if (!response.ok) {
+              const errorText = await response.text();
+              log(`Gemini API error: ${response.status} - ${errorText}`);
+              throw new Error(`API error: ${response.status} - ${errorText}`);
+            }
+
+            const data: any = await response.json();
+            log(`Received Gemini API response`);
+            
+            // 提取响应文本
+            const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Gemini模型无法生成回应";
+            
+            return {
+              text: responseText,
+              model: "gemini"
+            };
+          } catch (error) {
+            log(`Error calling Gemini API: ${error}`);
+            throw error;
+          }
         }
       },
       deepseek: {
@@ -228,39 +276,109 @@ ${searchResults}`;
         }
       },
       deep: {
-        isSimulated: true,
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
-          // 模拟使用记忆和搜索结果生成回复
-          const memoryInfo = contextMemories ? `[使用了${contextMemories.split('\n').length}条相关记忆]` : '';
-          const searchInfo = (useWebSearch && searchResults) ? `[使用了网络搜索结果]` : '';
+        endpoint: `https://api.dify.ai/v1/chat-messages`,
+        headers: {
+          "Authorization": `Bearer ${difyApiKey}`,
+          "Content-Type": "application/json",
+        },
+        isSimulated: !difyApiKey,
+        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
+          // 构建基础提示词
+          let basePrompt = `你是一个多语言AI学习助手，专注于提供深入的学习体验和知识分析。`;
           
-          log(`Simulating Deep response for: ${message} ${memoryInfo} ${searchInfo}`);
-          
-          let responseText = `[Deep模型] `;
-          
-          if (memoryInfo) {
-            responseText += memoryInfo + ' ';
+          // 添加记忆上下文（如果有）
+          if (contextMemories) {
+            basePrompt += `
+            
+以下是用户的历史学习记忆和对话上下文:
+${contextMemories}
+
+请在回答时自然地融入这些上下文信息，使回答更加连贯和个性化。避免明确提及这些记忆，而是像熟悉用户的专业导师一样利用这些信息提供帮助。`;
           }
           
-          if (searchInfo) {
-            responseText += searchInfo + ' ';
+          // 添加搜索结果（如果有）
+          if (searchResults) {
+            basePrompt += `
+            
+以下是与用户问题相关的网络搜索结果:
+${searchResults}
+
+请根据这些搜索结果为用户提供最新、最准确的信息。`;
           }
           
-          responseText += `分析您的问题："${message}"...\n\n`;
+          // 添加用户问题和回答指导
+          basePrompt += `
+
+用户当前问题: ${message}
+
+请提供详细、有深度的回答，体现出专业的分析和洞察。回答应当逻辑清晰、内容准确、分析深入`;
           
-          if (useWebSearch && searchResults) {
-            responseText += `综合网络搜索和知识库分析：\n\n`;
-            responseText += `1. 这个主题有多个层次的解读\n`;
-            responseText += `2. 从历史发展来看，理论框架经历了多次演变\n`;
-            responseText += `3. 当前学术界对此有不同观点，引用[1]和[3]源的研究\n\n`;
+          if (contextMemories) {
+            basePrompt += `，同时与用户之前的学习内容保持连贯性`;
           }
           
-          responseText += `这是一个模拟的Deep模型回应，实际系统会提供更深入的分析和见解。`;
+          if (searchResults) {
+            basePrompt += `。引用网络搜索结果时，可以标注来源编号[1],[2]等`;
+          }
           
+          basePrompt += `。`;
+            
           return {
-            text: responseText,
-            model: "deep"
+            query: basePrompt,
+            response_mode: "blocking",
+            conversation_id: null,
+            user: "user",
+            inputs: {},
           };
+        },
+        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string) => {
+          // 如果没有API密钥，返回模拟响应
+          if (!difyApiKey) {
+            log(`No Dify API key found, returning simulated response`);
+            const memoryInfo = contextMemories ? `[使用了${contextMemories.split('\n').length}条相关记忆]` : '';
+            const searchInfo = (searchResults) ? `[使用了网络搜索结果]` : '';
+            
+            let responseText = `[Deep模型-模拟] `;
+            if (memoryInfo) responseText += memoryInfo + ' ';
+            if (searchInfo) responseText += searchInfo + ' ';
+            
+            responseText += `分析您的问题："${message}"...\n\n`;
+            responseText += `这是一个模拟的Deep响应，因为尚未配置有效的Dify API密钥。当API密钥配置后，此处将显示真实的Dify AI生成内容。`;
+            
+            return {
+              text: responseText,
+              model: "deep"
+            };
+          }
+          
+          try {
+            const transformedMessage = this.modelConfigs.deep.transformRequest!(message, contextMemories, searchResults);
+            log(`Calling Dify API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
+            
+            const response = await fetchWithRetry(this.modelConfigs.deep.endpoint!, {
+              method: "POST",
+              headers: this.modelConfigs.deep.headers!,
+              body: JSON.stringify(transformedMessage),
+              timeout: 30000, // 30秒超时
+            }, 3, 500);
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              log(`Dify API error: ${response.status} - ${errorText}`);
+              throw new Error(`Dify API error: ${response.status} - ${errorText}`);
+            }
+
+            const data: any = await response.json();
+            log(`Received Dify API response`);
+            
+            return {
+              text: data.answer || "Deep模型暂时无法回应",
+              model: "deep"
+            };
+          } catch (error) {
+            log(`Error calling Dify API: ${error}`);
+            throw error;
+          }
         }
       }
     };
