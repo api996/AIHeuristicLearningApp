@@ -18,6 +18,7 @@ interface ChatMessageProps {
     role: "user" | "assistant";
     content: string;
     isRegenerating?: boolean; // 添加是否正在重新生成的状态
+    model?: string;           // 使用的模型
   };
   isThinking?: boolean; // 用于表示AI是否正在思考
   onEdit?: (id: number | undefined, newContent: string) => Promise<void>; // 编辑消息
@@ -814,6 +815,20 @@ export function ChatMessage({
                   >
                     <ThumbsDown className="h-3.5 w-3.5" />
                   </Button>
+                </div>
+              )}
+              
+              {/* 模型标记 - 仅在AI消息下显示 */}
+              {message.role === "assistant" && message.model && (
+                <div className="mt-2 text-xs text-neutral-500 flex items-center">
+                  <span>回答来自: </span>
+                  <span className="ml-1 font-medium">
+                    {message.model === "deep" && "Deep AI"}
+                    {message.model === "gemini" && "Gemini"}
+                    {message.model === "deepseek" && "DeepSeek"}
+                    {message.model === "grok" && "Grok"}
+                    {!["deep", "gemini", "deepseek", "grok"].includes(message.model as string) && message.model}
+                  </span>
                 </div>
               )}
             </div>
