@@ -44,7 +44,7 @@ export class ChatService {
     ].filter(Boolean);
     
     log(`ChatService 初始化，可用API: ${availableKeys.join(", ")}`);
-    log(`使用的模型版本: Gemini-2.5-Pro-Preview-03-25, DeepSeek-R1, Grok-3-Fast-Beta`);
+    log(`使用的模型版本: Gemini-Pro-Exp, DeepSeek-R1, Grok-3-Fast-Beta`);
     
     // 默认使用deep模型
     this.currentModel = "deep";
@@ -110,7 +110,7 @@ ${searchResults}`;
               temperature: 0.7,
               topP: 0.95,
               topK: 40,
-              maxOutputTokens: 4096,
+              maxOutputTokens: 8192, // 增加到8192以支持更长的响应
             }
           };
         },
@@ -227,7 +227,7 @@ ${searchResults}
             ],
             temperature: 0.7,
             top_p: 0.9,
-            max_tokens: 4096
+            max_tokens: 8192 // 增加到8192以支持更长的回答
           };
         },
         getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
@@ -321,7 +321,7 @@ ${searchResults}
             ],
             temperature: 0.7,
             top_p: 0.9,
-            max_tokens: 1024
+            max_tokens: 4096 // 增加到4096以支持更长的生成内容
           };
         },
         getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {

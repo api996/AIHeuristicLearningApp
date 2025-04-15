@@ -230,7 +230,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             const filePath = path.join(userDir, files[0]);
             const fileContent = fs.readFileSync(filePath, 'utf8');
-            log(`记忆文件内容示例: ${fileContent.substring(0, 100)}...`);
+            
+            // 优化向量日志输出，如果包含embedding，进行处理
+            try {
+              const memoryData = JSON.parse(fileContent);
+              if (memoryData.embedding && Array.isArray(memoryData.embedding)) {
+                // 创建一个新的对象，只保留向量的前5个元素
+                const trimmedMemory = { ...memoryData };
+                const vectorLength = memoryData.embedding.length;
+                trimmedMemory.embedding = [...memoryData.embedding.slice(0, 5), `...省略${vectorLength - 5}个元素...`];
+                log(`记忆文件内容示例: ${JSON.stringify(trimmedMemory)}`);
+              } else {
+                log(`记忆文件内容示例: ${fileContent.substring(0, 100)}...`);
+              }
+            } catch (parseError) {
+              // 如果解析失败，退回到原始方式
+              log(`记忆文件内容示例: ${fileContent.substring(0, 100)}...`);
+            }
           } catch (e) {
             log(`读取记忆文件失败: ${e}`);
           }
