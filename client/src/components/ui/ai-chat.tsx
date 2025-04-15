@@ -80,6 +80,57 @@ export function AIChat({ userData }: AIChatProps) {
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentModel, setCurrentModel] = useState<Model>("deep");
+  
+  // 跨模型上下文共享函数，用于在模型切换时更新聊天模型设置
+  const handleModelChange = async (newModel: Model) => {
+    // 如果已经是当前模型，不执行任何操作
+    if (newModel === currentModel) return;
+    
+    // 设置新的模型
+    setCurrentModel(newModel);
+    
+    // 显示模型切换提示
+    toast({
+      title: `已切换到${newModel === "deep" ? "深度推理" : 
+             newModel === "gemini" ? "Gemini" :
+             newModel === "deepseek" ? "Deepseek" : "Grok"}模型`,
+      description: "对话上下文已保留，继续您的对话",
+      variant: "default",
+    });
+    
+    // 如果有当前聊天ID，则更新聊天的模型设置
+    if (currentChatId) {
+      try {
+        // 发送请求更新聊天模型
+        const response = await fetch(`/api/chats/${currentChatId}/model`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ 
+            model: newModel,
+            userId: user.userId
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error("更新聊天模型失败");
+        }
+        
+        // 更新查询缓存
+        queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
+        
+        console.log(`聊天ID ${currentChatId} 的模型已更新为 ${newModel}`);
+      } catch (error) {
+        console.error("更新聊天模型时出错:", error);
+        toast({
+          title: "更新模型设置失败",
+          description: "无法更新聊天模型，但您仍可继续使用当前模型",
+          variant: "destructive",
+        });
+      }
+    }
+  };
   const [useWebSearch, setUseWebSearch] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<number>();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1427,7 +1478,7 @@ export function AIChat({ userData }: AIChatProps) {
                 className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
                   (currentModel === "gemini" ? "border-blue-500" : "border-neutral-700")
                 }
-                onClick={() => setCurrentModel("gemini")}
+                onClick={() => handleModelChange("gemini")}
               >
                 <Sparkles className="w-3.5 h-3.5 mr-1.5" />
                 Gemini
@@ -1438,7 +1489,7 @@ export function AIChat({ userData }: AIChatProps) {
                 className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
                   (currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700")
                 }
-                onClick={() => setCurrentModel("deepseek")}
+                onClick={() => handleModelChange("deepseek")}
               >
                 <Code className="w-3.5 h-3.5 mr-1.5" />
                 Deepseek
@@ -1449,7 +1500,7 @@ export function AIChat({ userData }: AIChatProps) {
                 className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
                   (currentModel === "grok" ? "border-blue-500" : "border-neutral-700")
                 }
-                onClick={() => setCurrentModel("grok")}
+                onClick={() => handleModelChange("grok")}
               >
                 <Rocket className="w-3.5 h-3.5 mr-1.5" />
                 Grok
