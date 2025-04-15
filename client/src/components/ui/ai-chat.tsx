@@ -1416,7 +1416,7 @@ export function AIChat({ userData }: AIChatProps) {
                 className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
                   (currentModel === "deep" ? "border-blue-500" : "border-neutral-700")
                 }
-                onClick={() => setCurrentModel("deep")}
+                onClick={() => handleModelChange("deep")}
               >
                 <Brain className="w-3.5 h-3.5 mr-1.5" />
                 深度推理
