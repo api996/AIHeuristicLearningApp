@@ -2,6 +2,8 @@ import fetch from "node-fetch";
 import { log } from "../vite";
 import { storage } from "../storage";
 import { webSearchService, type SearchSnippet } from "./web-search";
+import { promptManagerService } from "./prompt-manager";
+import { conversationAnalyticsService } from "./conversation-analytics";
 
 interface ModelConfig {
   endpoint?: string;
@@ -651,7 +653,7 @@ ${searchResults}
     return processedPrompt;
   }
 
-  async sendMessage(message: string, userId?: number, useWebSearch?: boolean) {
+  async sendMessage(message: string, userId?: number, chatId?: number, useWebSearch?: boolean) {
     try {
       // 如果提供了参数，则更新搜索设置
       if (useWebSearch !== undefined) {
@@ -671,6 +673,42 @@ ${searchResults}
       let searchResults: string | undefined = undefined;
       if (this.useWebSearch) {
         searchResults = await this.getWebSearchResults(message);
+      }
+      
+      // 如果有chatId，尝试分析当前对话阶段并获取动态提示词
+      if (chatId && userId) {
+        try {
+          // 如果有聊天历史，获取最近的消息进行分析
+          const messages = await storage.getChatMessages(chatId, userId, false);
+          
+          if (messages && messages.length > 0) {
+            // 添加当前用户消息到分析列表（因为它还未保存到数据库）
+            const messagesWithCurrent = [
+              ...messages,
+              { content: message, role: "user", chatId, id: 0, createdAt: new Date() }
+            ];
+            
+            // 分析对话阶段
+            await conversationAnalyticsService.analyzeConversationPhase(chatId, messagesWithCurrent);
+            
+            // 使用提示词管理服务获取动态提示词
+            const dynamicPrompt = await promptManagerService.getDynamicPrompt(
+              this.currentModel,
+              chatId,
+              message,
+              contextMemories,
+              searchResults
+            );
+            
+            log(`使用动态提示词模板处理消息`);
+            
+            // 使用动态提示词而不是原始消息
+            return await config.getResponse(dynamicPrompt, userId, contextMemories, searchResults, this.useWebSearch);
+          }
+        } catch (error) {
+          log(`动态提示词生成错误，回退到默认提示词: ${error}`);
+          // 出错时继续使用默认提示词
+        }
       }
       
       // 尝试获取模型的提示词模板
