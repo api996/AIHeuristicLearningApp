@@ -2,8 +2,10 @@ import {
   users, type User, type InsertUser, 
   chats, messages, type Chat, type Message,
   memories, memoryKeywords, memoryEmbeddings,
+  promptTemplates, searchResults,
   type Memory, type MemoryKeyword, type MemoryEmbedding,
-  type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding
+  type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding,
+  type PromptTemplate, type SearchResult
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, ne, and, asc, desc, sql, inArray } from "drizzle-orm";
