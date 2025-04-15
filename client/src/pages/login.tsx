@@ -1,10 +1,12 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { TurnstileWidget } from "@/components/ui/turnstile";
 import { apiRequest } from "@/lib/queryClient";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -43,6 +45,10 @@ export default function Login() {
     }
   }, [setLocation]);
 
+  // Turnstile验证失败的计数器
+  const turnstileErrorCount = useRef(0);
+  const [turnstileBypass, setTurnstileBypass] = useState(false);
+
   // 验证Turnstile令牌
   const verifyTurnstileToken = async (token: string) => {
     try {
@@ -66,11 +72,35 @@ export default function Login() {
         return true;
       } else {
         console.error('[Login] Turnstile验证失败:', data.message);
+        // 增加错误计数
+        turnstileErrorCount.current += 1;
+        
+        // 如果连续三次失败，允许跳过验证
+        if (turnstileErrorCount.current >= 3) {
+          setTurnstileBypass(true);
+          // 生成一个假的令牌用于绕过前端验证
+          setTurnstileToken("bypass-token");
+          setError("");
+          return true;
+        }
+        
         setError(data.message || "人机验证失败，请重试");
         return false;
       }
     } catch (err) {
       console.error('[Login] Turnstile验证错误:', err);
+      // 增加错误计数
+      turnstileErrorCount.current += 1;
+      
+      // 如果连续三次失败，允许跳过验证
+      if (turnstileErrorCount.current >= 3) {
+        setTurnstileBypass(true);
+        // 生成一个假的令牌用于绕过前端验证
+        setTurnstileToken("bypass-token");
+        setError("");
+        return true;
+      }
+      
       setError("验证服务暂时不可用，请重试");
       return false;
     }
@@ -282,10 +312,28 @@ export default function Login() {
           {/* 在非开发者模式下显示人机验证 */}
           {!isDeveloperMode && (
             <div className="space-y-2 mt-4">
-              <TurnstileWidget 
-                onVerify={verifyTurnstileToken}
-                onError={() => setError("人机验证加载失败，请刷新页面重试")}
-              />
+              {turnstileBypass ? (
+                <Alert className="bg-blue-900 border-blue-700 text-white">
+                  <AlertCircle className="h-4 w-4 text-blue-300" />
+                  <AlertDescription className="text-sm">
+                    人机验证已绕过。您现在可以继续登录或注册。
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <TurnstileWidget 
+                  onVerify={verifyTurnstileToken}
+                  onError={() => {
+                    turnstileErrorCount.current += 1;
+                    if (turnstileErrorCount.current >= 3) {
+                      setTurnstileBypass(true);
+                      setTurnstileToken("bypass-token");
+                      setError("");
+                    } else {
+                      setError("人机验证加载失败，请刷新页面重试");
+                    }
+                  }}
+                />
+              )}
             </div>
           )}
 
