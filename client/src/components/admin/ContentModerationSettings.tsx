@@ -81,15 +81,9 @@ export function ContentModerationSettings() {
       setIsSaving(true);
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       
-      const response = await apiRequest("/api/admin/content-moderation/settings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: user.userId,
-          ...settings,
-        }),
+      const response = await apiRequest("/api/admin/content-moderation/settings", "POST", {
+        userId: user.userId,
+        ...settings,
       });
 
       if (response.success) {
@@ -128,15 +122,9 @@ export function ContentModerationSettings() {
       
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       
-      const response = await apiRequest("/api/admin/content-moderation/test", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: user.userId,
-          text: testText,
-        }),
+      const response = await apiRequest("/api/admin/content-moderation/test", "POST", {
+        userId: user.userId,
+        text: testText,
       });
 
       if (response.success && response.result) {
