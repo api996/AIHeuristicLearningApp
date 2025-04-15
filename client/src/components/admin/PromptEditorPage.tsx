@@ -123,7 +123,7 @@ export function PromptEditorPage() {
     setSelectedModel(modelId);
     
     // 使用传入的模板列表或状态中的模板列表
-    const templateData = templateList || templates;
+    const templateData = templateList || templatesList;
     
     // 查找是否已有此模型的模板
     const existingTemplate = templateData.find((t: PromptTemplate) => t.modelId === modelId);
@@ -498,7 +498,7 @@ export function PromptEditorPage() {
                         {availableModels.map(model => (
                           <SelectItem key={model.id} value={model.id}>
                             {model.name}
-                            {templates.some(t => t.modelId === model.id) ? ' (已配置)' : ''}
+                            {templatesList.some((t: PromptTemplate) => t.modelId === model.id) ? ' (已配置)' : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -509,75 +509,69 @@ export function PromptEditorPage() {
 
                   <div className="space-y-1">
                     <Label className="mb-2 block">提示词类型</Label>
-                    <TabsList className="w-full flex flex-col h-auto bg-transparent border-r space-y-1">
-                      <TabsTrigger 
-                        value="base" 
-                        onClick={() => setActiveTab('base')}
-                        className={`justify-start ${activeTab === 'base' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-                      >
-                        <Settings className="h-4 w-4 mr-2" />
-                        基础模板
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="knowledge" 
-                        onClick={() => setActiveTab('knowledge')}
-                        className={`justify-start ${activeTab === 'knowledge' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-                      >
-                        <BookOpen className="h-4 w-4 mr-2" />
-                        K-知识阶段
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="wisdom" 
-                        onClick={() => setActiveTab('wisdom')}
-                        className={`justify-start ${activeTab === 'wisdom' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-                      >
-                        <Lightbulb className="h-4 w-4 mr-2" />
-                        W-智慧阶段
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="logic" 
-                        onClick={() => setActiveTab('logic')}
-                        className={`justify-start ${activeTab === 'logic' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-                      >
-                        <LampDesk className="h-4 w-4 mr-2" />
-                        L-逻辑阶段
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="question" 
-                        onClick={() => setActiveTab('question')}
-                        className={`justify-start ${activeTab === 'question' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-                      >
-                        <HelpCircle className="h-4 w-4 mr-2" />
-                        Q-提问阶段
-                      </TabsTrigger>
-                      
-                      <Separator className="my-2" />
-                      
-                      <TabsTrigger 
-                        value="style" 
-                        onClick={() => setActiveTab('style')}
-                        className={`justify-start ${activeTab === 'style' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-                      >
-                        <Pencil className="h-4 w-4 mr-2" />
-                        表达风格
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="policy" 
-                        onClick={() => setActiveTab('policy')}
-                        className={`justify-start ${activeTab === 'policy' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-                      >
-                        <Settings className="h-4 w-4 mr-2" />
-                        策略约束
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="sensitive" 
-                        onClick={() => setActiveTab('sensitive')}
-                        className={`justify-start ${activeTab === 'sensitive' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-                      >
-                        <Settings className="h-4 w-4 mr-2" />
-                        敏感词列表
-                      </TabsTrigger>
-                    </TabsList>
+                    <Tabs value={activeTab} onValueChange={setActiveTab} orientation="vertical">
+                      <TabsList className="w-full flex flex-col h-auto bg-transparent border-r space-y-1">
+                        <TabsTrigger 
+                          value="base" 
+                          className="justify-start"
+                        >
+                          <Settings className="h-4 w-4 mr-2" />
+                          基础模板
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="knowledge" 
+                          className="justify-start"
+                        >
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          K-知识阶段
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="wisdom" 
+                          className="justify-start"
+                        >
+                          <Lightbulb className="h-4 w-4 mr-2" />
+                          W-智慧阶段
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="logic" 
+                          className="justify-start"
+                        >
+                          <LampDesk className="h-4 w-4 mr-2" />
+                          L-逻辑阶段
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="question" 
+                          className="justify-start"
+                        >
+                          <HelpCircle className="h-4 w-4 mr-2" />
+                          Q-提问阶段
+                        </TabsTrigger>
+                        
+                        <Separator className="my-2" />
+                        
+                        <TabsTrigger 
+                          value="style" 
+                          className="justify-start"
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          表达风格
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="policy" 
+                          className="justify-start"
+                        >
+                          <Settings className="h-4 w-4 mr-2" />
+                          策略约束
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="sensitive" 
+                          className="justify-start"
+                        >
+                          <Settings className="h-4 w-4 mr-2" />
+                          敏感词列表
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
                   </div>
                 </div>
               </CardContent>
