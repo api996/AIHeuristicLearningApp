@@ -79,6 +79,7 @@ export function AIChat({ userData }: AIChatProps) {
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentModel, setCurrentModel] = useState<Model>("deep");
+  const [useWebSearch, setUseWebSearch] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<number>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -584,6 +585,7 @@ export function AIChat({ userData }: AIChatProps) {
         chatId: chatIdForRequest, // 使用可能新创建的聊天ID
         userId: user.userId,
         role: user.role,
+        useWebSearch: useWebSearch, // 添加网络搜索选项
       });
       const data = await response.json();
 
@@ -1383,19 +1385,22 @@ export function AIChat({ userData }: AIChatProps) {
           ${theme === 'dark' ? 'frosted-glass-dark' : 'frosted-glass'}
         `}>
           <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8">
-            {/* 模型选择 - 使用更紧凑的布局 */}
+            {/* 模型选择和网络搜索开关 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
+              {/* 网络搜索按钮 - 作为一个可以切换的辅助功能 */}
               <Button
                 variant="outline"
                 size="sm"
                 className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
-                  (currentModel === "search" ? "border-blue-500" : "border-neutral-700")
+                  (useWebSearch ? "border-blue-500" : "border-neutral-700")
                 }
-                onClick={() => setCurrentModel("search")}
+                onClick={() => setUseWebSearch(!useWebSearch)}
               >
                 <Search className="w-3.5 h-3.5 mr-1.5" />
                 网络搜索
               </Button>
+              
+              {/* 模型选择按钮 */}
               <Button
                 variant="outline"
                 size="sm"
