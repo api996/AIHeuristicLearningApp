@@ -60,6 +60,15 @@ export function ContentModerationSettings() {
         const data = await response.json();
         if (data.success && data.settings) {
           setSettings(data.settings);
+          
+          // 显示API密钥配置状态
+          if (data.message) {
+            toast({
+              title: "API配置提示",
+              description: data.message,
+              variant: "destructive",
+            });
+          }
         }
       } catch (error) {
         toast({

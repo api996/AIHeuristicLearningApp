@@ -41,7 +41,12 @@ class ContentModerationService {
   constructor() {
     // 从环境变量获取OpenAI API密钥
     this.openaiApiKey = process.env.OPENAI_API_KEY;
-    log(`内容审查服务初始化，默认状态: ${this.settings.enabled ? '启用' : '禁用'}`);
+    
+    if (this.openaiApiKey) {
+      log(`内容审查服务初始化成功，API密钥已配置，默认状态: ${this.settings.enabled ? '启用' : '禁用'}`);
+    } else {
+      log(`内容审查服务初始化警告: OpenAI API密钥未配置或无法读取，内容审查功能将不可用`);
+    }
   }
 
   /**

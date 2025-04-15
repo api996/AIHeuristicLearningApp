@@ -13,9 +13,13 @@ const router = Router();
 router.get('/settings', requireAdmin, async (req: Request, res: Response) => {
   try {
     const settings = contentModerationService.getSettings();
+    const apiKeyConfigured = !!process.env.OPENAI_API_KEY;
+    
     res.json({
       success: true,
-      settings
+      settings,
+      apiConfigured: apiKeyConfigured,
+      message: apiKeyConfigured ? undefined : 'OpenAI API密钥未配置或无法读取，内容审查功能将不可用'
     });
   } catch (error) {
     log(`Error getting content moderation settings: ${error}`);
