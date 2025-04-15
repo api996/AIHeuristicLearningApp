@@ -3,83 +3,85 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Search, Globe } from "lucide-react";
 
+// 定义响应类型
+interface WebSearchStatusResponse {
+  success: boolean;
+  enabled: boolean;
+  message?: string;
+}
+
 const WebSearchSettings = () => {
   const [isEnabled, setIsEnabled] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, setIsPending] = useState(false);
   const queryClient = useQueryClient();
 
   // 获取当前网络搜索状态
-  const { data, isLoading } = useQuery({
-    queryKey: ['/api/web-search/status'],
-    onSuccess: (data) => {
-      if (data.success) {
-        setIsEnabled(data.enabled);
-      }
-    },
-    onError: () => {
-      toast({
-        title: "获取状态失败",
-        description: "无法获取网络搜索状态，请稍后重试",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // 启用网络搜索
-  const enableMutation = useMutation({
-    mutationFn: () => apiRequest('/api/web-search/enable', 'POST'),
-    onSuccess: (data) => {
-      if (data.success) {
-        setIsEnabled(true);
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/web-search/status');
+        if (!response.ok) {
+          throw new Error('Failed to fetch status');
+        }
+        const data = await response.json() as WebSearchStatusResponse;
+        if (data.success) {
+          setIsEnabled(data.enabled);
+        }
+      } catch (error) {
         toast({
-          title: "已启用",
-          description: "网络搜索功能已成功启用",
-          variant: "default"
+          title: "获取状态失败",
+          description: "无法获取网络搜索状态，请稍后重试",
+          variant: "destructive"
         });
-        queryClient.invalidateQueries({ queryKey: ['/api/web-search/status'] });
+      } finally {
+        setIsLoading(false);
       }
-    },
-    onError: () => {
-      toast({
-        title: "启用失败",
-        description: "无法启用网络搜索功能，请检查服务器配置",
-        variant: "destructive"
-      });
-    }
-  });
+    };
 
-  // 禁用网络搜索
-  const disableMutation = useMutation({
-    mutationFn: () => apiRequest('/api/web-search/disable', 'POST'),
-    onSuccess: (data) => {
-      if (data.success) {
-        setIsEnabled(false);
-        toast({
-          title: "已禁用",
-          description: "网络搜索功能已成功禁用",
-          variant: "default"
-        });
-        queryClient.invalidateQueries({ queryKey: ['/api/web-search/status'] });
-      }
-    },
-    onError: () => {
-      toast({
-        title: "禁用失败",
-        description: "无法禁用网络搜索功能，请稍后重试",
-        variant: "destructive"
-      });
-    }
-  });
-  
+    fetchStatus();
+  }, []);
+
   // 切换网络搜索状态
-  const toggleWebSearch = () => {
-    if (isEnabled) {
-      disableMutation.mutate();
-    } else {
-      enableMutation.mutate();
+  const toggleWebSearch = async () => {
+    try {
+      setIsPending(true);
+      const endpoint = isEnabled ? '/api/web-search/disable' : '/api/web-search/enable';
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to ${isEnabled ? 'disable' : 'enable'} web search`);
+      }
+      
+      const data = await response.json() as WebSearchStatusResponse;
+      
+      if (data.success) {
+        setIsEnabled(!isEnabled);
+        toast({
+          title: isEnabled ? "已禁用" : "已启用",
+          description: isEnabled ? "网络搜索功能已成功禁用" : "网络搜索功能已成功启用",
+          variant: "default"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: isEnabled ? "禁用失败" : "启用失败",
+        description: `无法${isEnabled ? '禁用' : '启用'}网络搜索功能，请稍后重试`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsPending(false);
     }
   };
 
@@ -105,7 +107,7 @@ const WebSearchSettings = () => {
           <Switch
             checked={isEnabled}
             onCheckedChange={toggleWebSearch}
-            disabled={isLoading || enableMutation.isPending || disableMutation.isPending}
+            disabled={isLoading || isPending}
           />
         </div>
       </CardContent>

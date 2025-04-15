@@ -1,12 +1,12 @@
 import express from 'express';
 import { chatService } from '../services/chat';
 import { log } from '../vite';
-import { requireLogin } from '../middleware/auth';
+import { requireLogin, requireAdmin } from '../middleware/auth';
 
 const router = express.Router();
 
 // 获取当前网络搜索状态
-router.get('/status', requireLogin, (req, res) => {
+router.get('/status', requireAdmin, (req, res) => {
   try {
     const status = chatService.isWebSearchEnabled();
     res.json({
@@ -23,7 +23,7 @@ router.get('/status', requireLogin, (req, res) => {
 });
 
 // 启用网络搜索
-router.post('/enable', requireLogin, (req, res) => {
+router.post('/enable', requireAdmin, (req, res) => {
   try {
     chatService.setWebSearchEnabled(true);
     res.json({
