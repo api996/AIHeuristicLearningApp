@@ -12,7 +12,6 @@ import { verifyTurnstileToken } from './services/turnstile';
 import { spawn } from 'child_process';
 import learningPathRoutes from './routes/learning-path';
 import adminPromptsRoutes from './routes/admin-prompts';
-import contentModerationRoutes from './routes/content-moderation';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
@@ -1491,7 +1490,6 @@ asyncio.run(test_memory())
   // 注册学习轨迹路由
   app.use('/api/learning-path', learningPathRoutes);
   app.use('/api/admin/prompts', adminPromptsRoutes);
-  app.use('/api/admin/content-moderation', contentModerationRoutes);
 
   const httpServer = createServer(app);
   return httpServer;
