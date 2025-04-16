@@ -15,6 +15,8 @@ import adminPromptsRoutes from './routes/admin-prompts';
 import contentModerationRoutes from './routes/content-moderation';
 import memorySpaceRoutes from './routes/memory-space';
 import memoryTestRoutes from './routes/memory-test';
+import filesRoutes from './routes/files';
+import { initializeBucket } from './services/file-bucket.service';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
@@ -1619,6 +1621,14 @@ asyncio.run(test_memory())
   });
 
   // 注册学习轨迹路由
+  // 初始化文件存储桶
+  await initializeBucket();
+  
+  // 静态文件服务
+  app.use('/backgrounds', express.static(path.join(process.cwd(), 'public/backgrounds')));
+  
+  // API路由
+  app.use('/api/files', filesRoutes);
   app.use('/api/learning-path', learningPathRoutes);
   app.use('/api/memory-space', memorySpaceRoutes);
   app.use('/api/memory-test', memoryTestRoutes);

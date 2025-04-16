@@ -10,8 +10,33 @@ export const users = pgTable("users", {
   role: text("role", { enum: ["admin", "user"] }).notNull().default("user"),
 });
 
-export const usersRelations = relations(users, ({ many }) => ({
+// 用户文件表 - 用于存储用户上传的文件（背景图片、头像等）
+export const userFiles = pgTable("user_files", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  fileId: text("file_id").notNull().unique(),
+  originalName: text("original_name").notNull(),
+  filePath: text("file_path").notNull(),
+  fileType: text("file_type", { enum: ["background", "avatar", "attachment"] }).notNull().default("attachment"),
+  publicUrl: text("public_url").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// 用户设置表 - 存储用户偏好设置
+export const userSettings = pgTable("user_settings", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  backgroundFile: text("background_file"), // 引用userFiles中的fileId
+  theme: text("theme", { enum: ["light", "dark"] }).default("light"),
+  fontSize: text("font_size", { enum: ["small", "medium", "large"] }).default("medium"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const usersRelations = relations(users, ({ many, one }) => ({
   chats: many(chats),
+  files: many(userFiles),
+  settings: one(userSettings),
 }));
 
 export const chats = pgTable("chats", {
@@ -143,6 +168,8 @@ export const insertMemoryEmbeddingSchema = createInsertSchema(memoryEmbeddings);
 export const insertPromptTemplateSchema = createInsertSchema(promptTemplates);
 export const insertSearchResultSchema = createInsertSchema(searchResults);
 export const insertConversationAnalyticsSchema = createInsertSchema(conversationAnalytics);
+export const insertUserFileSchema = createInsertSchema(userFiles);
+export const insertUserSettingSchema = createInsertSchema(userSettings);
 
 export type User = typeof users.$inferSelect;
 export type Chat = typeof chats.$inferSelect;
@@ -155,6 +182,8 @@ export type MemoryEmbedding = typeof memoryEmbeddings.$inferSelect;
 export type PromptTemplate = typeof promptTemplates.$inferSelect;
 export type SearchResult = typeof searchResults.$inferSelect;
 export type ConversationAnalytic = typeof conversationAnalytics.$inferSelect;
+export type UserFile = typeof userFiles.$inferSelect;
+export type UserSetting = typeof userSettings.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertChat = z.infer<typeof insertChatSchema>;
@@ -165,3 +194,5 @@ export type InsertMemoryEmbedding = z.infer<typeof insertMemoryEmbeddingSchema>;
 export type InsertPromptTemplate = z.infer<typeof insertPromptTemplateSchema>;
 export type InsertSearchResult = z.infer<typeof insertSearchResultSchema>;
 export type InsertConversationAnalytic = z.infer<typeof insertConversationAnalyticsSchema>;
+export type InsertUserFile = z.infer<typeof insertUserFileSchema>;
+export type InsertUserSetting = z.infer<typeof insertUserSettingSchema>;
