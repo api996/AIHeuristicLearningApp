@@ -223,6 +223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 设置开发者模式已通过的标记到会话
       if (req.session) {
+        // @ts-ignore - 我们知道这个属性存在
         req.session.developerModeVerified = true;
         log(`[开发者登录] 会话已设置开发者模式标志`);
       }
@@ -1328,9 +1329,17 @@ asyncio.run(save_memory())
   // Add this route handler inside the registerRoutes function
   app.post("/api/verify-turnstile", async (req, res) => {
     try {
-      // 检查是否之前已通过开发者模式验证
+      // 检查是否之前已通过开发者模式验证 - 允许有特定注册会话
+      // @ts-ignore - 我们知道这个属性存在
       if (req.session && req.session.developerModeVerified === true) {
         log('[Turnstile] 开发者模式已验证，跳过Turnstile验证');
+        return res.json({ success: true });
+      }
+      
+      // 开发环境或测试环境中自动跳过验证
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      if (isDevelopment) {
+        log('[Turnstile] 开发环境中跳过验证');
         return res.json({ success: true });
       }
       
