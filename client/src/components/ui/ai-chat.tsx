@@ -2333,9 +2333,13 @@ export function AIChat({ userData }: AIChatProps) {
                       // 添加一点延迟，让用户有时间看到提示
                       setTimeout(() => {
                         // 如果已经在首页，可以尝试触发一下背景更新按钮的点击
-                        const bgButton = document.querySelector('button:has(.lucide-image)');
-                        if (bgButton instanceof HTMLElement) {
-                          bgButton.click();
+                        // 寻找含有class为"lucide-image"子元素的按钮
+                        const buttons = document.querySelectorAll('button');
+                        for (const btn of buttons) {
+                          if (btn.querySelector('.lucide-image')) {
+                            btn.click();
+                            break;
+                          }
                         }
                       }, 1500);
                     }}
