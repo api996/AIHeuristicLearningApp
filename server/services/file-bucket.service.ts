@@ -35,12 +35,24 @@ export async function initializeBucket(): Promise<void> {
   try {
     const assetsDir = path.join(process.cwd(), 'attached_assets');
     if (fs.existsSync(assetsDir)) {
+      // 桌面端默认背景
       const defaultBgSource = path.join(assetsDir, 'IMG_9907.jpeg');
       const defaultBgDest = path.join(DEFAULT_BACKGROUNDS_DIR, 'default-background.jpg');
       
+      // 移动端默认背景
+      const mobileBgSource = path.join(assetsDir, 'IMG_9918.jpeg');
+      const mobileBgDest = path.join(DEFAULT_BACKGROUNDS_DIR, 'mobile-background.jpg');
+      
+      // 复制桌面端默认背景
       if (fs.existsSync(defaultBgSource) && !fs.existsSync(defaultBgDest)) {
         fs.copyFileSync(defaultBgSource, defaultBgDest);
-        console.log('默认背景图片已复制到公共目录');
+        console.log('桌面端默认背景图片已复制到公共目录');
+      }
+      
+      // 复制移动端默认背景
+      if (fs.existsSync(mobileBgSource) && !fs.existsSync(mobileBgDest)) {
+        fs.copyFileSync(mobileBgSource, mobileBgDest);
+        console.log('移动端默认背景图片已复制到公共目录');
       }
     }
   } catch (error) {
@@ -160,24 +172,31 @@ export async function deleteFileFromBucket(userId: number, fileId: string): Prom
 }
 
 /**
- * 获取默认背景图片
+ * 获取默认背景图片路径
+ * @param isMobile 是否为移动设备
  */
-export function getDefaultBackgroundPath(): string {
-  return path.join(DEFAULT_BACKGROUNDS_DIR, 'default-background.jpg');
+export function getDefaultBackgroundPath(isMobile: boolean = false): string {
+  return isMobile 
+    ? path.join(DEFAULT_BACKGROUNDS_DIR, 'mobile-background.jpg')
+    : path.join(DEFAULT_BACKGROUNDS_DIR, 'default-background.jpg');
 }
 
 /**
  * 获取默认背景图片URL
+ * @param isMobile 是否为移动设备
  */
-export function getDefaultBackgroundUrl(): string {
-  return '/backgrounds/default-background.jpg';
+export function getDefaultBackgroundUrl(isMobile: boolean = false): string {
+  return isMobile
+    ? '/backgrounds/mobile-background.jpg'
+    : '/backgrounds/default-background.jpg';
 }
 
 /**
  * 获取用户当前背景图片
  * @param userId 用户ID
+ * @param isMobile 是否为移动设备
  */
-export async function getUserBackground(userId: number): Promise<string> {
+export async function getUserBackground(userId: number, isMobile: boolean = false): Promise<string> {
   const backgrounds = await getUserFiles(userId, 'background');
   
   if (backgrounds && backgrounds.length > 0) {
@@ -186,5 +205,5 @@ export async function getUserBackground(userId: number): Promise<string> {
   }
   
   // 默认背景
-  return getDefaultBackgroundUrl();
+  return getDefaultBackgroundUrl(isMobile);
 }
