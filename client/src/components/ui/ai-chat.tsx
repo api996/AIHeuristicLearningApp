@@ -2356,11 +2356,13 @@ export function AIChat({ userData }: AIChatProps) {
                             const formData = new FormData();
                             formData.append('file', file);
                             formData.append('fileType', 'background');
+                            formData.append('userId', String(userData.userId)); // 确保传递用户ID
                             
                             const baseUrl = window.location.origin;
                             const response = await fetch(`${baseUrl}/api/files/upload`, {
                               method: 'POST',
                               body: formData,
+                              credentials: 'include', // 确保包含凭据（cookies）
                             });
                             
                             if (!response.ok) {
@@ -2376,7 +2378,7 @@ export function AIChat({ userData }: AIChatProps) {
                               });
                               
                               // 刷新背景
-                              const bgResponse = await fetch(`${baseUrl}/api/files/background`);
+                              const bgResponse = await fetch(`${baseUrl}/api/files/background?userId=${userData.userId}&orientation=portrait`);
                               if (bgResponse.ok) {
                                 const bgData = await bgResponse.json();
                                 if (bgData && bgData.url) {
