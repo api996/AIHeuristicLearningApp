@@ -1619,23 +1619,71 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-black/40 hover:bg-[#0deae4]/10 ` + 
-                  (currentModel === "deepseek" ? "border-[#0deae4] text-[#0deae4]" : "border-[#0deae4]/40 text-white")
+                className={`h-8 text-xs bg-black/40 hover:bg-opacity-10 ` + 
+                  (currentModel === "deepseek" 
+                    ? (theme === 'dark' 
+                        ? "border-[#0deae4] text-[#0deae4]" 
+                        : "border-custom-theme text-custom-theme") 
+                    : (theme === 'dark'
+                        ? "border-[#0deae4]/40 text-white"
+                        : "border-custom-theme/40 text-white"))
                 }
+                style={theme === 'light' && currentModel === "deepseek" ? {
+                  borderColor: 'var(--custom-theme-color)',
+                  color: 'var(--custom-theme-color)'
+                } : theme === 'light' ? {
+                  borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
+                  '--tw-hover-bg-opacity': 0.1
+                } as React.CSSProperties : {}}
                 onClick={() => handleModelChange("deepseek")}
               >
-                <Code className={`w-3.5 h-3.5 mr-1.5 ${currentModel === "deepseek" ? "text-[#0deae4]" : "text-[#0deae4]/70"}`} />
+                <Code 
+                  className={`w-3.5 h-3.5 mr-1.5 ${
+                    theme === 'dark' 
+                      ? (currentModel === "deepseek" ? 'text-[#0deae4]' : 'text-[#0deae4]/70')
+                      : ''
+                  }`} 
+                  style={theme === 'light' ? {
+                    color: currentModel === "deepseek" 
+                      ? 'var(--custom-theme-color)' 
+                      : 'rgba(var(--custom-theme-color-rgb), 0.7)'
+                  } : {}}
+                />
                 Deepseek
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-black/40 hover:bg-[#0deae4]/10 ` + 
-                  (currentModel === "grok" ? "border-[#0deae4] text-[#0deae4]" : "border-[#0deae4]/40 text-white")
+                className={`h-8 text-xs bg-black/40 hover:bg-opacity-10 ` + 
+                  (currentModel === "grok" 
+                    ? (theme === 'dark' 
+                        ? "border-[#0deae4] text-[#0deae4]" 
+                        : "border-custom-theme text-custom-theme") 
+                    : (theme === 'dark'
+                        ? "border-[#0deae4]/40 text-white"
+                        : "border-custom-theme/40 text-white"))
                 }
+                style={theme === 'light' && currentModel === "grok" ? {
+                  borderColor: 'var(--custom-theme-color)',
+                  color: 'var(--custom-theme-color)'
+                } : theme === 'light' ? {
+                  borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
+                  '--tw-hover-bg-opacity': 0.1
+                } as React.CSSProperties : {}}
                 onClick={() => handleModelChange("grok")}
               >
-                <Rocket className={`w-3.5 h-3.5 mr-1.5 ${currentModel === "grok" ? "text-[#0deae4]" : "text-[#0deae4]/70"}`} />
+                <Rocket 
+                  className={`w-3.5 h-3.5 mr-1.5 ${
+                    theme === 'dark' 
+                      ? (currentModel === "grok" ? 'text-[#0deae4]' : 'text-[#0deae4]/70')
+                      : ''
+                  }`} 
+                  style={theme === 'light' ? {
+                    color: currentModel === "grok" 
+                      ? 'var(--custom-theme-color)' 
+                      : 'rgba(var(--custom-theme-color-rgb), 0.7)'
+                  } : {}}
+                />
                 Grok
               </Button>
             </div>
@@ -1662,8 +1710,11 @@ export function AIChat({ userData }: AIChatProps) {
             {/* 输入框区域 - 青色主题磨砂玻璃效果 */}
             <div className={`
               relative rounded-xl border shadow-lg overflow-hidden
-              border-[#0deae4]/30 bg-black/40 backdrop-blur-lg
-            `}>
+              ${theme === 'dark' ? 'border-[#0deae4]/30' : ''} bg-black/40 backdrop-blur-lg
+            `}
+            style={theme === 'light' ? {
+              borderColor: 'rgba(var(--custom-theme-color-rgb), 0.3)'
+            } : {}}>
               <div className="flex items-end">
                 <div className="flex-1 relative">
                   <textarea
@@ -1681,7 +1732,7 @@ export function AIChat({ userData }: AIChatProps) {
                       appearance: 'none',
                       WebkitUserSelect: 'text',
                       userSelect: 'text',
-                      caretColor: '#0deae4'
+                      caretColor: theme === 'dark' ? '#0deae4' : 'var(--custom-theme-color)'
                     }}
                   />
                   <input
@@ -1694,7 +1745,15 @@ export function AIChat({ userData }: AIChatProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute bottom-[13px] left-2 h-8 w-8 rounded-full hover:bg-[#0deae4]/20 text-[#0deae4]"
+                    className={`absolute bottom-[13px] left-2 h-8 w-8 rounded-full ${
+                      theme === 'dark' 
+                        ? 'hover:bg-[#0deae4]/20 text-[#0deae4]' 
+                        : 'hover:bg-opacity-20'
+                    }`}
+                    style={theme === 'light' ? {
+                      color: 'var(--custom-theme-color)',
+                      '--tw-hover-bg-opacity': 0.2
+                    } as React.CSSProperties : {}}
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <ImageIcon className="h-5 w-5" />
@@ -1706,11 +1765,27 @@ export function AIChat({ userData }: AIChatProps) {
                   className={`
                     h-10 w-10 mr-3 mb-2 rounded-full shadow-lg transition-all
                     ${isLoading 
-                      ? 'opacity-50 cursor-not-allowed bg-black/60 border border-[#0deae4]/40' 
-                      : 'bg-[#0deae4] hover:bg-[#0deae4]/80 hover:scale-105 text-black'}
+                      ? 'opacity-50 cursor-not-allowed bg-black/60 border border-opacity-40' 
+                      : 'hover:scale-105 text-black'}
+                    ${theme === 'dark' 
+                      ? (isLoading ? 'border-[#0deae4]/40' : 'bg-[#0deae4] hover:bg-[#0deae4]/80') 
+                      : ''}
                   `}
                   style={{
-                    boxShadow: isLoading ? '0 0 10px rgba(13, 234, 228, 0.2)' : '0 0 20px rgba(13, 234, 228, 0.5)'
+                    ...(!isLoading && theme === 'light' ? {
+                      backgroundColor: 'var(--custom-theme-color)',
+                      boxShadow: '0 0 20px rgba(var(--custom-theme-color-rgb), 0.5)'
+                    } : {}),
+                    ...(isLoading && theme === 'light' ? {
+                      borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
+                      boxShadow: '0 0 10px rgba(var(--custom-theme-color-rgb), 0.2)'
+                    } : {}),
+                    ...(isLoading && theme === 'dark' ? {
+                      boxShadow: '0 0 10px rgba(13, 234, 228, 0.2)'
+                    } : {}),
+                    ...(!isLoading && theme === 'dark' ? {
+                      boxShadow: '0 0 20px rgba(13, 234, 228, 0.5)'
+                    } : {})
                   }}
                 >
                   <Send className="h-5 w-5" />
