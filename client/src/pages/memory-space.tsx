@@ -142,10 +142,12 @@ const MemorySpace: React.FC = () => {
         `/api/memory-space/${effectiveUserId}/repair`
       );
     },
-    onSuccess: (data) => {
+    onSuccess: (response) => {
+      // 确保响应数据正确解析
+      const data = response || {};
       toast({
         title: '记忆修复完成',
-        description: data.message || `已整理 ${data.count} 条记忆数据`,
+        description: data.message || `已整理 ${data.count || 0} 条记忆数据`,
       });
       refetchMemories();
     },
