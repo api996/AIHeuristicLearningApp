@@ -5,8 +5,8 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import { db } from '../server/db.js';
-import { memories, memoryKeywords, memoryEmbeddings } from '../shared/schema.js';
+import { db } from '../server/db';
+import { memories, memoryKeywords, memoryEmbeddings } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 
 /**
