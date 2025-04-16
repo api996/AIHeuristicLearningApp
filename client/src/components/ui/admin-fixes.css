@@ -6,6 +6,16 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 10;
+}
+
+/* 确保管理员界面各区域可滚动 */
+.admin-dashboard-container main,
+.admin-dashboard-container .py-8 {
+  overflow-y: auto;
+  position: relative;
+  z-index: 20;
 }
 
 /* 内容区域滚动 */
@@ -23,9 +33,33 @@
   z-index: 40;
 }
 
-/* 个人中心下拉菜单修复 */
+/* 个人中心下拉菜单修复 - 通用样式 */
 [data-radix-popper-content-wrapper] {
   z-index: 9999 !important; 
+}
+
+/* 移动设备下拉菜单样式 */
+@media screen and (max-width: 767px) {
+  [data-radix-popper-content-wrapper] {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 70px !important;
+    left: 20px !important;
+    transform: none !important;
+  }
+}
+
+/* 个人中心触发按钮增强 */
+.profile-menu-container {
+  position: relative;
+  z-index: 100;
+}
+
+.profile-trigger-button {
+  position: relative;
+  z-index: 110;
+  background-color: rgba(25, 25, 25, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* iPad 特定修复 */
@@ -39,5 +73,29 @@
   /* 提高下拉菜单的层级 */
   .dropdown-menu-content {
     z-index: 9999 !important;
+  }
+  
+  /* iPad特定个人菜单定位 */
+  [data-radix-popper-content-wrapper] {
+    position: absolute !important;
+    top: auto !important;
+    bottom: 200px !important;
+    left: 130px !important;
+    transform: none !important;
+  }
+  
+  /* iPad特定菜单样式改进 */
+  .profile-menu-container {
+    background-color: rgba(25, 25, 25, 0.9) !important;
+    padding: 8px !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  /* 增大菜单项点击区域 */
+  [role="menuitem"] {
+    padding: 12px !important;
+    margin: 4px 0 !important;
+    border-radius: 8px !important;
   }
 }
