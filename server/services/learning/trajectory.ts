@@ -169,6 +169,160 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
       return await getDefaultLearningPath(userId);
     }
     
+    log(`[trajectory] 为用户 ${userId} 生成学习轨迹，已找到 ${memories.length} 条记忆`);
+    
+    // 首先尝试从memory-space API获取聚类结果
+    let memorySpaceClusters = null;
+    
+    try {
+      // 导入需要的模块
+      const { memoryService } = await import('../learning/memory_service');
+      const { storage } = await import('../../storage');
+      
+      // 获取所有记忆
+      const memoryObjects = memories;
+      
+      // 获取记忆的向量嵌入
+      const memoriesWithEmbeddings = await Promise.all(
+        memoryObjects.map(async (memory) => {
+          const memoryId = typeof memory.id === 'string' ? parseInt(memory.id, 10) : memory.id;
+          const embedding = await storage.getEmbeddingByMemoryId(memoryId);
+          return {
+            memory,
+            embedding: embedding?.vectorData || null
+          };
+        })
+      );
+      
+      // 过滤出有向量嵌入的记忆
+      const validMemoriesWithEmbeddings = memoriesWithEmbeddings.filter(
+        item => item.embedding !== null
+      );
+      
+      if (validMemoriesWithEmbeddings.length >= 5) {
+        // 转换为聚类分析服务需要的格式
+        const validMemories = validMemoriesWithEmbeddings.map(item => item.memory);
+        const embeddings = validMemoriesWithEmbeddings.map(item => item.embedding as number[]);
+        
+        // 执行聚类分析
+        // 由于类型不兼容，转换为memory_service需要的格式
+        // 我们先做类型转换，确保ID是数字，并且时间戳是Date对象
+        const convertedMemories = validMemories.map(m => {
+          // 确保ID是数字
+          const memoryId = typeof m.id === 'string' ? parseInt(m.id, 10) : (m.id as unknown as number);
+          const userIdNum = typeof m.userId === 'string' ? parseInt(m.userId, 10) : (m.userId as unknown as number);
+          
+          // 确保timestamp和createdAt是Date对象
+          let timestamp: Date | null = null;
+          try {
+            if (m.timestamp) {
+              timestamp = typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp as unknown as Date;
+            }
+          } catch (e) {
+            log(`[trajectory] 解析timestamp失败: ${e}, 原始值: ${m.timestamp}`);
+          }
+          
+          return {
+            id: memoryId,
+            userId: userIdNum,
+            content: m.content,
+            type: m.type,
+            timestamp: timestamp,
+            summary: m.summary || null,
+            createdAt: timestamp // 用timestamp替代createdAt
+          };
+        });
+        // 强制类型转换，解决类型不兼容问题
+        const compatibleMemories = convertedMemories as any as { 
+          id: number; 
+          userId: number; 
+          content: string; 
+          type: string; 
+          timestamp: Date | null; 
+          summary: string | null; 
+          createdAt: Date | null;
+        }[];
+        const clusterResults = await memoryService.analyzeMemoryClusters(userId, compatibleMemories, embeddings);
+        memorySpaceClusters = clusterResults.topics;
+        
+        log(`[trajectory] 成功从memory_service获取聚类数据: ${memorySpaceClusters.length} 个聚类`);
+      } else {
+        log(`[trajectory] 用户 ${userId} 的有效向量记忆不足5条，无法使用memory_service聚类`);
+      }
+    } catch (error) {
+      log(`[trajectory] 尝试从memory_service获取聚类时出错: ${error}`);
+    }
+    
+    // 如果从memory-space获取到了聚类结果，使用这些结果
+    if (memorySpaceClusters && memorySpaceClusters.length > 0) {
+      log(`[trajectory] 使用memory_service提供的聚类结果生成学习轨迹`);
+      
+      // 构建知识图谱节点
+      const nodes: TrajectoryNode[] = memorySpaceClusters.map((cluster: any) => {
+        // 计算节点大小（基于百分比）
+        const size = Math.max(10, Math.min(50, 10 + cluster.percentage * 0.4));
+        
+        return {
+          id: cluster.id,
+          label: cluster.topic,
+          size,
+          category: '记忆主题', // 这里可以增加分类逻辑
+          clusterId: cluster.id
+        };
+      });
+      
+      // 构建知识图谱连接 (简单连接最大的节点与其他节点)
+      const links: TrajectoryLink[] = [];
+      if (memorySpaceClusters.length > 1) {
+        // 找出最大的聚类
+        const largestCluster = [...memorySpaceClusters].sort((a, b) => b.percentage - a.percentage)[0];
+        
+        // 将其他聚类连接到最大聚类
+        for (const cluster of memorySpaceClusters) {
+          if (cluster.id !== largestCluster.id) {
+            links.push({
+              source: largestCluster.id,
+              target: cluster.id,
+              value: Math.max(1, Math.min(10, cluster.percentage / 10)) // 缩放到1-10范围
+            });
+          }
+        }
+      }
+      
+      // 生成进度数据
+      const progress: ProgressData[] = memorySpaceClusters.map((cluster: any) => {
+        return {
+          category: cluster.topic,
+          score: cluster.percentage,
+          change: 0 // 暂无变化数据
+        };
+      });
+      
+      // 直接使用聚类作为主题分布
+      const topics = memorySpaceClusters.map((cluster: any) => {
+        return {
+          topic: cluster.topic,
+          id: cluster.id,
+          count: cluster.count,
+          percentage: cluster.percentage
+        };
+      });
+      
+      // 根据聚类生成学习建议
+      const suggestions = generateSuggestionsFromMemorySpaceClusters(memorySpaceClusters);
+      
+      return {
+        nodes,
+        links,
+        progress,
+        suggestions,
+        topics
+      };
+    }
+    
+    // 如果没有获取到memory-space聚类结果，回退到旧方法
+    log(`[trajectory] 回退到传统聚类方法生成学习轨迹`);
+    
     // 对记忆进行聚类
     const clusters = await clusterMemories(memories);
     
@@ -427,6 +581,60 @@ function getCategoryFromKeywords(keywords: string[]): string {
   }
   
   return bestCategory;
+}
+
+/**
+ * 基于聚类生成学习建议
+ * 
+ * @param clusters 聚类列表
+ * @param memories 记忆列表
+ * @returns 学习建议列表
+ */
+/**
+ * 基于memory-space聚类生成学习建议
+ * 
+ * @param clusters memory-space聚类结果
+ * @returns 学习建议列表
+ */
+function generateSuggestionsFromMemorySpaceClusters(clusters: any[]): string[] {
+  if (!clusters || clusters.length === 0) {
+    return [
+      "开始探索您感兴趣的学习主题",
+      "尝试向AI提问不同领域的问题",
+      "通过持续对话加深特定主题的理解"
+    ];
+  }
+  
+  // 按百分比排序聚类
+  const sortedClusters = [...clusters].sort(
+    (a, b) => b.percentage - a.percentage
+  );
+  
+  const suggestions: string[] = [];
+  
+  // 基于最大聚类的建议
+  if (sortedClusters.length > 0) {
+    const topCluster = sortedClusters[0];
+    suggestions.push(`深入探索"${topCluster.topic}"主题以加强您的知识基础`);
+  }
+  
+  // 第二大聚类的建议
+  if (sortedClusters.length > 1) {
+    const secondCluster = sortedClusters[1];
+    suggestions.push(`继续学习"${secondCluster.topic}"，这是您的重要学习方向之一`);
+  }
+  
+  // 小聚类的建议
+  if (sortedClusters.length > 2) {
+    const smallCluster = sortedClusters[sortedClusters.length - 1];
+    suggestions.push(`拓展"${smallCluster.topic}"方面的知识，这是您较少涉及的领域`);
+  }
+  
+  // 通用建议
+  suggestions.push("尝试将不同主题的知识联系起来，建立更完整的知识网络");
+  suggestions.push("回顾之前学习过的内容，巩固已有知识");
+  
+  return suggestions;
 }
 
 /**
