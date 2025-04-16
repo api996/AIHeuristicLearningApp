@@ -54,11 +54,8 @@ export function ChatHistory({
   user 
 }: ChatHistoryProps) {
   // 状态变量
-  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
-  const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<number | null>(null);
-  const [longPressActive, setLongPressActive] = useState(false);
   
   // 如果用户不存在或未登录，不渲染任何内容
   if (!user?.userId) {
@@ -96,61 +93,9 @@ export function ChatHistory({
   // 常规删除处理函数
   const handleDeleteChat = async (chatId: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      await deleteChatMutation.mutateAsync(chatId);
-      if (onDeleteChat) onDeleteChat(chatId);
-      toast({
-        title: "删除成功",
-        description: "已成功删除对话",
-      });
-    } catch (error) {
-      console.error('Failed to delete chat:', error);
-      toast({
-        title: "删除失败",
-        description: "删除对话时发生错误",
-        variant: "destructive",
-      });
-    }
-  };
-  
-  // 长按开始函数
-  const handleLongPressStart = (chatId: number, e: React.MouseEvent) => {
-    // 防止触发正常点击事件
-    e.stopPropagation();
-    e.preventDefault();
-    
-    // 记录当前活动的聊天ID
-    setActiveChatId(chatId);
-    
-    // 设置3秒定时器
-    const timer = setTimeout(() => {
-      // 显示删除确认对话框
-      setChatToDelete(chatId);
-      setShowDeleteAlert(true);
-      setLongPressActive(true);
-      
-      // 提供触觉反馈（如果浏览器支持）
-      if (navigator.vibrate) {
-        navigator.vibrate(100);
-      }
-    }, 3000); // 3秒长按
-    
-    setLongPressTimer(timer);
-  };
-  
-  // 长按结束函数
-  const handleLongPressEnd = () => {
-    // 清除定时器
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
-    
-    // 如果长按已激活并且已显示删除确认框，则保持状态不变
-    // 否则重置状态
-    if (!longPressActive) {
-      setActiveChatId(null);
-    }
+    // 先显示确认对话框
+    setChatToDelete(chatId);
+    setShowDeleteAlert(true);
   };
   
   // 确认删除函数
@@ -176,8 +121,6 @@ export function ChatHistory({
     // 重置状态
     setShowDeleteAlert(false);
     setChatToDelete(null);
-    setActiveChatId(null);
-    setLongPressActive(false);
   };
 
   // 确定使用哪个chats数据
@@ -211,56 +154,25 @@ export function ChatHistory({
               key={chat.id}
               className={`group flex items-center rounded-lg ${
                 currentChatId === chat.id ? 'bg-neutral-800' : 'hover:bg-neutral-800/50'
-              } ${activeChatId === chat.id && longPressActive ? 'bg-red-900/30' : ''}`}
+              }`}
             >
               <Button
                 variant="ghost"
                 className="w-full justify-start text-sm py-3 px-3 h-auto"
                 onClick={() => {
-                  if (longPressActive && activeChatId === chat.id) return;
                   if (onSelectChat) onSelectChat(chat.id);
                   if (setCurrentChatId) setCurrentChatId(chat.id);
                 }}
-                // 添加长按事件
-                onMouseDown={(e) => handleLongPressStart(chat.id, e)}
-                onMouseUp={handleLongPressEnd}
-                onMouseLeave={handleLongPressEnd}
-                onTouchStart={(e) => handleLongPressStart(chat.id, e as unknown as React.MouseEvent)}
-                onTouchEnd={handleLongPressEnd}
-                onTouchCancel={handleLongPressEnd}
               >
                 <MessageSquare className="mr-3 h-4 w-4 shrink-0 text-neutral-400" />
                 <div className="flex flex-col items-start truncate">
-                  <span className="truncate w-full">{chat.title}</span>
+                  <span className="truncate w-[180px]">{chat.title}</span>
                   {user.role === "admin" && chat.username && (
                     <span className="text-xs text-neutral-500">
                       by {chat.username}
                     </span>
                   )}
                 </div>
-                {/* 倒计时指示器 - 仅在长按过程中显示 */}
-                {activeChatId === chat.id && !longPressActive && (
-                  <div className="ml-auto">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center bg-neutral-700/50">
-                      <svg className="w-4 h-4 text-white animate-spin" viewBox="0 0 24 24">
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                          fill="none"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                )}
               </Button>
               <Button
                 variant="ghost"
@@ -289,8 +201,6 @@ export function ChatHistory({
               onClick={() => {
                 setShowDeleteAlert(false);
                 setChatToDelete(null);
-                setActiveChatId(null);
-                setLongPressActive(false);
               }}
               className="bg-neutral-700 hover:bg-neutral-600 text-white border-none"
             >
