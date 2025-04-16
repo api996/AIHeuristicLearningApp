@@ -1377,15 +1377,15 @@ export function AIChat({ userData }: AIChatProps) {
 
           {/* 右侧功能区 - 只保留新对话按钮，改为ChatGPT风格 */}
           <div className="flex items-center">
-            {/* 新对话按钮 - 使用ChatGPT风格 */}
+            {/* 新对话按钮 - 更可爱的青色主题样式 */}
             <Button 
               variant="outline" 
               onClick={handleNewChat}
-              className="h-12 px-6 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700 flex items-center transition-colors"
+              className="h-12 px-6 rounded-full bg-white/10 backdrop-blur-md hover:bg-[#0deae4]/20 text-white border-[#0deae4] border-2 flex items-center transition-all shadow-md hover:shadow-[#0deae4]/30 hover:scale-105"
               title="新对话"
             >
-              <Plus className="h-6 w-6 mr-2" />
-              <span>新对话</span>
+              <Plus className="h-5 w-5 mr-2 text-[#0deae4]" />
+              <span className="font-medium">新对话</span>
             </Button>
           </div>
         </header>
@@ -1474,44 +1474,44 @@ export function AIChat({ userData }: AIChatProps) {
                 variant="outline"
                 size="sm"
                 className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
-                  (currentModel === "deep" ? "border-blue-500" : theme === 'dark' ? "border-neutral-700" : "border-blue-300")
+                  (currentModel === "deep" ? "border-[#0deae4]" : "border-[#0deae4]/40")
                 }
                 onClick={() => handleModelChange("deep")}
               >
-                <Brain className={`w-3.5 h-3.5 mr-1.5 ${theme !== 'dark' && 'text-blue-600'}`} />
+                <Brain className={`w-3.5 h-3.5 mr-1.5 ${currentModel === "deep" ? "text-[#0deae4]" : "text-[#0deae4]/70"}`} />
                 深度推理
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
-                  (currentModel === "gemini" ? "border-blue-500" : theme === 'dark' ? "border-neutral-700" : "border-blue-300")
+                  (currentModel === "gemini" ? "border-[#0deae4]" : "border-[#0deae4]/40")
                 }
                 onClick={() => handleModelChange("gemini")}
               >
-                <Sparkles className={`w-3.5 h-3.5 mr-1.5 ${theme !== 'dark' && 'text-blue-600'}`} />
+                <Sparkles className={`w-3.5 h-3.5 mr-1.5 ${currentModel === "gemini" ? "text-[#0deae4]" : "text-[#0deae4]/70"}`} />
                 Gemini
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
-                  (currentModel === "deepseek" ? "border-blue-500" : theme === 'dark' ? "border-neutral-700" : "border-blue-300")
+                  (currentModel === "deepseek" ? "border-[#0deae4]" : "border-[#0deae4]/40")
                 }
                 onClick={() => handleModelChange("deepseek")}
               >
-                <Code className={`w-3.5 h-3.5 mr-1.5 ${theme !== 'dark' && 'text-blue-600'}`} />
+                <Code className={`w-3.5 h-3.5 mr-1.5 ${currentModel === "deepseek" ? "text-[#0deae4]" : "text-[#0deae4]/70"}`} />
                 Deepseek
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
-                  (currentModel === "grok" ? "border-blue-500" : theme === 'dark' ? "border-neutral-700" : "border-blue-300")
+                  (currentModel === "grok" ? "border-[#0deae4]" : "border-[#0deae4]/40")
                 }
                 onClick={() => handleModelChange("grok")}
               >
-                <Rocket className={`w-3.5 h-3.5 mr-1.5 ${theme !== 'dark' && 'text-blue-600'}`} />
+                <Rocket className={`w-3.5 h-3.5 mr-1.5 ${currentModel === "grok" ? "text-[#0deae4]" : "text-[#0deae4]/70"}`} />
                 Grok
               </Button>
             </div>
