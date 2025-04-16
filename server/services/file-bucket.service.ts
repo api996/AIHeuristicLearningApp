@@ -35,8 +35,8 @@ export async function initializeBucket(): Promise<void> {
   try {
     const assetsDir = path.join(process.cwd(), 'attached_assets');
     if (fs.existsSync(assetsDir)) {
-      const defaultBgSource = path.join(assetsDir, 'IMG_9905.png');
-      const defaultBgDest = path.join(DEFAULT_BACKGROUNDS_DIR, 'default-background.png');
+      const defaultBgSource = path.join(assetsDir, 'IMG_9907.jpeg');
+      const defaultBgDest = path.join(DEFAULT_BACKGROUNDS_DIR, 'default-background.jpg');
       
       if (fs.existsSync(defaultBgSource) && !fs.existsSync(defaultBgDest)) {
         fs.copyFileSync(defaultBgSource, defaultBgDest);
@@ -163,14 +163,14 @@ export async function deleteFileFromBucket(userId: number, fileId: string): Prom
  * 获取默认背景图片
  */
 export function getDefaultBackgroundPath(): string {
-  return path.join(DEFAULT_BACKGROUNDS_DIR, 'default-background.png');
+  return path.join(DEFAULT_BACKGROUNDS_DIR, 'default-background.jpg');
 }
 
 /**
  * 获取默认背景图片URL
  */
 export function getDefaultBackgroundUrl(): string {
-  return '/backgrounds/default-background.png';
+  return '/backgrounds/default-background.jpg';
 }
 
 /**

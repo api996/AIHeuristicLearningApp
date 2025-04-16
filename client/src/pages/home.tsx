@@ -57,7 +57,7 @@ export default function Home() {
     } catch (error) {
       console.error('获取背景图片失败:', error);
       // 使用默认背景
-      setBackgroundUrl('/backgrounds/default-background.png');
+      setBackgroundUrl('/backgrounds/default-background.jpg');
     }
   };
   
