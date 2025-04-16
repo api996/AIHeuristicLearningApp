@@ -6,7 +6,10 @@ import { log } from "./vite";
 
 neonConfig.webSocketConstructor = ws;
 
-if (!process.env.DATABASE_URL) {
+// 使用指定的原始数据库URL
+const DATABASE_URL = "postgresql://neondb_owner:npg_6aGbrZqS3Qjg@ep-tiny-grass-a5mbunjc.us-east-2.aws.neon.tech/neondb?sslmode=require";
+
+if (!DATABASE_URL) {
   throw new Error(
     "DATABASE_URL must be set. Did you forget to provision a database?",
   );
@@ -14,7 +17,7 @@ if (!process.env.DATABASE_URL) {
 
 // 配置连接池限制连接数量和超时，减少资源滥用风险
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: DATABASE_URL,
   max: 20, // 最大连接数
   idleTimeoutMillis: 30000, // 连接最大空闲时间
   connectionTimeoutMillis: 2000 // 连接超时
