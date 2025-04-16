@@ -1,0 +1,43 @@
+/* 管理员界面修复 */
+
+/* 主容器允许滚动 */
+.admin-dashboard-container {
+  max-height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 内容区域滚动 */
+.admin-content {
+  position: relative;
+  overflow-y: auto;
+  max-height: calc(100vh - 150px);
+}
+
+/* 滚动容器 */
+.scroll-container {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  position: relative;
+  z-index: 40;
+}
+
+/* 个人中心下拉菜单修复 */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important; 
+}
+
+/* iPad 特定修复 */
+@media screen and (min-width: 768px) and (max-width: 1366px) {
+  /* 确保管理员界面在iPad上可以滚动 */
+  .admin-dashboard-container {
+    height: auto;
+    min-height: 100vh;
+  }
+  
+  /* 提高下拉菜单的层级 */
+  .dropdown-menu-content {
+    z-index: 9999 !important;
+  }
+}
