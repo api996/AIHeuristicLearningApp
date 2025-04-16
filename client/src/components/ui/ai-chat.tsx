@@ -1432,7 +1432,7 @@ export function AIChat({ userData }: AIChatProps) {
                 }`}>
                   <Brain className="h-5 w-5 text-white" />
                 </div>
-                <h1 className="text-lg font-bold text-white">启发式对话导师</h1>
+                <h1 className="text-lg font-bold text-white whitespace-nowrap">启发式对话导师</h1>
               </div>
             )}
           </div>
