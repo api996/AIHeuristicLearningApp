@@ -13,7 +13,8 @@ import {
   getUserFiles, 
   deleteFileFromBucket,
   getUserBackground,
-  getDefaultBackgroundPath
+  getDefaultBackgroundPath,
+  getDefaultBackgroundUrl
 } from '../services/file-bucket.service';
 
 const router = Router();
@@ -95,12 +96,27 @@ router.get('/background', async (req: Request, res: Response) => {
     // 从请求参数或会话中获取用户ID
     const userId = Number(req.query.userId) || req.session.userId;
     
+    // 检测是否为移动设备 - 从User-Agent进行简单判断
+    const userAgent = req.headers['user-agent'] || '';
+    const isMobile = Boolean(
+      userAgent.match(/Android/i) ||
+      userAgent.match(/iPhone/i) ||
+      userAgent.match(/iPad/i) ||
+      userAgent.match(/iPod/i) ||
+      userAgent.match(/BlackBerry/i) ||
+      userAgent.match(/Windows Phone/i) ||
+      (req.query.deviceType === 'mobile') // 支持通过查询参数明确指定设备类型
+    );
+    
+    console.log(`设备类型: ${isMobile ? '移动设备' : '桌面设备'}`);
+    
     // 如果无法获取用户ID，返回默认背景
     if (!userId) {
-      return res.json({ url: '/backgrounds/default-background.jpg' });
+      const defaultUrl = getDefaultBackgroundUrl(isMobile);
+      return res.json({ url: defaultUrl });
     }
 
-    const backgroundUrl = await getUserBackground(userId);
+    const backgroundUrl = await getUserBackground(userId, isMobile);
     res.json({ url: backgroundUrl });
   } catch (error) {
     console.error('获取背景图片失败:', error);
@@ -128,10 +144,21 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
     const realFileId = path.parse(fileId).name;
     const fileData = await getFileFromBucket(userIdNum, realFileId);
     
+    // 检测是否为移动设备，用于返回适合的默认背景
+    const userAgent = req.headers['user-agent'] || '';
+    const isMobile = Boolean(
+      userAgent.match(/Android/i) ||
+      userAgent.match(/iPhone/i) ||
+      userAgent.match(/iPod/i) ||
+      userAgent.match(/BlackBerry/i) ||
+      userAgent.match(/Windows Phone/i) ||
+      (req.query.deviceType === 'mobile')
+    );
+    
     if (!fileData) {
       // 如果是背景请求且找不到文件，返回默认背景
       if (fileType === 'background') {
-        const defaultBgPath = getDefaultBackgroundPath();
+        const defaultBgPath = getDefaultBackgroundPath(isMobile);
         if (fs.existsSync(defaultBgPath)) {
           const defaultData = fs.readFileSync(defaultBgPath);
           const ext = path.extname(defaultBgPath).substring(1);
