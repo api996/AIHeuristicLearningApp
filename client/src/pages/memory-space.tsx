@@ -372,7 +372,21 @@ const MemorySpace: React.FC = () => {
               <div className="flex justify-center items-center h-64">
                 <Spinner className="h-8 w-8" />
               </div>
-            ) : (clustersData?.topics?.length || 0) === 0 ? (
+            ) : (clustersData?.topics?.length || 0) === 0 && (memoriesData?.memories?.length || 0) >= 5 ? (
+              <div className="flex justify-center items-center h-64 flex-col gap-4">
+                <p className="text-muted-foreground">没有聚类数据，但有足够的记忆</p>
+                <p className="text-sm text-muted-foreground max-w-md text-center">
+                  您已有 {memoriesData?.memories?.length || 0} 条记忆，足够进行聚类分析，但尚未生成聚类结果。
+                  请点击"整理记忆数据"按钮生成主题聚类。
+                </p>
+                <div className="flex gap-2">
+                  <Button onClick={handleRepairMemories} disabled={isRepairing}>
+                    {isRepairing ? <Spinner className="mr-2 h-4 w-4" /> : null}
+                    整理记忆数据
+                  </Button>
+                </div>
+              </div>
+            ) : (clustersData?.topics?.length || 0) === 0 && (memoriesData?.memories?.length || 0) < 5 ? (
               <div className="flex justify-center items-center h-64 flex-col gap-4">
                 <p className="text-muted-foreground">没有足够的记忆数据进行聚类分析</p>
                 <p className="text-sm text-muted-foreground max-w-md text-center">
@@ -380,9 +394,8 @@ const MemorySpace: React.FC = () => {
                   再创建 {Math.max(0, 5 - (memoriesData?.memories?.length || 0))} 条即可启用此功能。
                 </p>
                 <div className="flex gap-2">
-                  <Button onClick={handleRepairMemories} disabled={isRepairing}>
-                    {isRepairing ? <Spinner className="mr-2 h-4 w-4" /> : null}
-                    整理记忆数据
+                  <Button onClick={() => setSelectedTab('all')} variant="secondary">
+                    查看现有记忆
                   </Button>
                   <Button variant="outline" onClick={() => setLocation('/')}>开始新对话</Button>
                 </div>
