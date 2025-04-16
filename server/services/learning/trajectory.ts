@@ -166,7 +166,7 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
     
     if (!memories || memories.length === 0) {
       log(`[trajectory] 用户 ${userId} 没有记忆数据，返回默认学习轨迹`);
-      return getDefaultLearningPath();
+      return await getDefaultLearningPath(userId);
     }
     
     // 对记忆进行聚类
@@ -174,7 +174,7 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
     
     if (!clusters || clusters.length === 0) {
       log(`[trajectory] 用户 ${userId} 的记忆无法聚类，返回默认学习轨迹`);
-      return getDefaultLearningPath();
+      return await getDefaultLearningPath(userId);
     }
     
     // 计算主题之间的关系
@@ -239,7 +239,7 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
     };
   } catch (error) {
     log(`[trajectory] 从记忆生成学习轨迹时遇到错误: ${error}`);
-    return getDefaultLearningPath();
+    return await getDefaultLearningPath(userId);
   }
 }
 
@@ -248,34 +248,137 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
  * 
  * @returns 默认学习轨迹
  */
-function getDefaultLearningPath(): LearningPathResult {
-  return {
-    topics: [
-      {topic: "英语学习", id: "topic_english", count: 1, percentage: 30},
-      {topic: "编程技术", id: "topic_programming", count: 1, percentage: 20},
-      {topic: "科学知识", id: "topic_science", count: 1, percentage: 15}
-    ],
-    progress: [
-      {category: "英语学习", score: 30, change: 0},
-      {category: "编程技术", score: 20, change: 0},
-      {category: "科学知识", score: 15, change: 0}
-    ],
-    suggestions: [
-      "继续提问感兴趣的学习话题",
-      "探索英语学习的不同维度",
-      "尝试询问编程或科学方面的问题"
-    ],
-    nodes: [
-      {id: "topic_english", label: "英语学习", size: 30, category: "语言"},
-      {id: "topic_programming", label: "编程技术", size: 20, category: "技术"},
-      {id: "topic_science", label: "科学知识", size: 15, category: "科学"}
-    ],
-    links: [
-      {source: "topic_english", target: "topic_programming", value: 3},
-      {source: "topic_english", target: "topic_science", value: 2},
-      {source: "topic_programming", target: "topic_science", value: 5}
-    ]
-  };
+async function getDefaultLearningPath(userId?: number): Promise<LearningPathResult> {
+  try {
+    // 首先尝试获取用户的实际记忆来生成轨迹
+    const memories = await getMemoriesByFilter(userId ? { userId } : {});
+    
+    // 如果确实有一些记忆（即使很少），也尝试根据这些记忆生成主题
+    if (memories && memories.length > 0) {
+      // 获取记忆内容的主要关键词
+      const keywords = memories.flatMap(memory => {
+        // 简单提取记忆内容中的主要词汇
+        const content = memory.content || "";
+        const words = content.split(/\s+/).filter(word => 
+          word.length > 1 && 
+          !["的", "了", "是", "在", "我", "有", "和", "就", "不", "人", "都", "一", "一个", "上", "也", "很", "到", "说"].includes(word)
+        );
+        return words.slice(0, 5); // 每个记忆取前5个关键词
+      });
+      
+      // 计算关键词频率
+      const keywordFreq: Record<string, number> = {};
+      keywords.forEach(keyword => {
+        keywordFreq[keyword] = (keywordFreq[keyword] || 0) + 1;
+      });
+      
+      // 按频率排序
+      const sortedKeywords = Object.entries(keywordFreq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3); // 取前3个关键词作为主题
+      
+      // 如果能够提取到有意义的关键词
+      if (sortedKeywords.length > 0) {
+        const topics = sortedKeywords.map(([keyword, count], index) => {
+          const topicName = keyword.length > 1 ? `${keyword}相关` : "对话主题";
+          return {
+            topic: topicName,
+            id: `topic_${index}`,
+            count: count,
+            percentage: Math.min(95, 30 + index * 10 + Math.floor(Math.random() * 10))
+          };
+        });
+        
+        // 确保至少有一个主题
+        if (topics.length === 0) {
+          topics.push({
+            topic: "对话主题",
+            id: "topic_general",
+            count: 1,
+            percentage: 45
+          });
+        }
+        
+        // 构建基于实际关键词的学习路径
+        return {
+          topics,
+          progress: topics.map(t => ({
+            category: t.topic,
+            score: t.percentage,
+            change: 0
+          })),
+          suggestions: [
+            "继续提问感兴趣的学习话题",
+            "探索更多相关内容",
+            "尝试提出更具体的问题以获取深入解答"
+          ],
+          nodes: topics.map(t => ({
+            id: t.id,
+            label: t.topic,
+            size: t.percentage * 0.6,
+            category: "对话主题"
+          })),
+          links: topics.length > 1 ? [
+            {source: topics[0].id, target: topics.length > 1 ? topics[1].id : topics[0].id, value: 3}
+          ] : []
+        };
+      }
+    }
+    
+    // 如果上面的方法没有生成有效的主题，则使用一个非常通用的默认模板
+    return {
+      topics: [
+        {topic: "对话主题", id: "topic_conversation", count: 1, percentage: 40},
+        {topic: "问答交流", id: "topic_qa", count: 1, percentage: 30},
+        {topic: "知识探索", id: "topic_knowledge", count: 1, percentage: 25}
+      ],
+      progress: [
+        {category: "对话主题", score: 40, change: 0},
+        {category: "问答交流", score: 30, change: 0},
+        {category: "知识探索", score: 25, change: 0}
+      ],
+      suggestions: [
+        "继续提问感兴趣的学习话题",
+        "探索您感兴趣的不同知识领域",
+        "尝试与AI进行更深入的对话"
+      ],
+      nodes: [
+        {id: "topic_conversation", label: "对话主题", size: 30, category: "交流"},
+        {id: "topic_qa", label: "问答交流", size: 20, category: "交流"},
+        {id: "topic_knowledge", label: "知识探索", size: 15, category: "学习"}
+      ],
+      links: [
+        {source: "topic_conversation", target: "topic_qa", value: 3},
+        {source: "topic_conversation", target: "topic_knowledge", value: 2},
+        {source: "topic_qa", target: "topic_knowledge", value: 3}
+      ]
+    };
+  } catch (error) {
+    log(`[trajectory] 生成默认学习轨迹时遇到错误: ${error}`);
+    
+    // 出错时返回最基本的默认值
+    return {
+      topics: [
+        {topic: "对话主题", id: "topic_conversation", count: 1, percentage: 40},
+        {topic: "问答交流", id: "topic_qa", count: 1, percentage: 30}
+      ],
+      progress: [
+        {category: "对话主题", score: 40, change: 0},
+        {category: "问答交流", score: 30, change: 0}
+      ],
+      suggestions: [
+        "继续提问感兴趣的学习话题",
+        "尝试与AI进行更深入的对话"
+      ],
+      nodes: [
+        {id: "topic_conversation", label: "对话主题", size: 30, category: "交流"},
+        {id: "topic_qa", label: "问答交流", size: 20, category: "交流"}
+      ],
+      links: [
+        {source: "topic_conversation", target: "topic_qa", value: 3}
+      ]
+    };
+  }
 }
 
 /**
