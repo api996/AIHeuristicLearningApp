@@ -71,7 +71,12 @@ export default function Login() {
       }
 
       // 常规环境中验证令牌
-      const response = await fetch('/api/verify-turnstile', {
+      // 确保我们使用完整URL
+      const baseUrl = window.location.origin;
+      const verifyUrl = `${baseUrl}/api/verify-turnstile`;
+      console.log('[Login] 人机验证请求URL:', verifyUrl);
+      
+      const response = await fetch(verifyUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -147,7 +152,12 @@ export default function Login() {
 
       try {
         console.log('[Login] Starting developer authentication process');
-        const response = await fetch('/api/developer-login', {
+        // 确保使用完整URL
+        const baseUrl = window.location.origin;
+        const devLoginUrl = `${baseUrl}/api/developer-login`;
+        console.log('[Login] 开发者登录请求URL:', devLoginUrl);
+        
+        const response = await fetch(devLoginUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -213,10 +223,14 @@ export default function Login() {
         ? { username, password, confirmPassword, turnstileToken }
         : { username, password, turnstileToken };
 
-      console.log(`[Login] 发送${isRegistering ? '注册' : '登录'}请求到 ${endpoint}`, requestBody);
+      // 确保我们使用正确的URL（在Replit环境中特别重要）
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}${endpoint}`;
+      
+      console.log(`[Login] 发送${isRegistering ? '注册' : '登录'}请求到 ${apiUrl}`, requestBody);
       
       // 发送登录请求
-      const response = await fetch(endpoint, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -238,24 +252,38 @@ export default function Login() {
         localStorage.setItem("user", JSON.stringify(userData));
         
         // 触发用户注册事件，通知其他组件更新状态
+        console.log('[Login] 用户登录成功，保存用户信息');
+        
+        // 这里改为直接手动触发事件，不依赖于动态导入
         if (window.document) {
-          console.log('[Login] 触发用户注册事件');
-          // 导入并使用authEvents
-          const { authEvents } = require("@/hooks/use-auth");
-          authEvents.dispatchUserRegistered();
+          console.log('[Login] 手动创建并触发用户注册事件');
+          const event = new CustomEvent('userRegistered');
+          document.dispatchEvent(event);
         }
 
         // 根据角色导航到相应页面
-        if (data.role === 'admin') {
-          setLocation("/admin");
-        } else {
-          setLocation("/");
-        }
+        console.log('[Login] 登录成功，即将导航到相应页面');
+        
+        // 添加短暂延迟，确保状态更新完成
+        setTimeout(() => {
+          if (data.role === 'admin') {
+            console.log('[Login] 导航到管理页面');
+            setLocation("/admin");
+          } else {
+            console.log('[Login] 导航到主页');
+            setLocation("/");
+          }
+        }, 100);
       } else {
         setError(data.message || "验证失败，请稍后重试");
       }
     } catch (err) {
       console.error('[Login] Authentication error:', err);
+      console.error('[Login] Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+      console.error('[Login] Error occurred after response:', {
+        localStorage: !!window.localStorage,
+        navigator: !!window.navigator
+      });
       setError("服务器错误，请稍后重试");
     } finally {
       setIsVerifying(false);

@@ -79,7 +79,10 @@ export function PromptTemplateManager() {
         return;
       }
 
-      const response = await fetch(`/api/admin/prompts?userId=${userId}`);
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/admin/prompts?userId=${userId}`;
+      console.log("[PromptTemplateManager] 获取模板列表URL:", apiUrl);
+      const response = await fetch(apiUrl);
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data)) {
@@ -239,7 +242,10 @@ export function PromptTemplateManager() {
     }
 
     try {
-      const response = await fetch('/api/admin/prompts', {
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/admin/prompts`;
+      console.log("[PromptTemplateManager] 保存模板URL:", apiUrl);
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -403,7 +409,10 @@ export function PromptTemplateManager() {
         return;
       }
 
-      const response = await fetch(`/api/admin/prompts/${selectedModel}?userId=${userId}`, {
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/admin/prompts/${selectedModel}?userId=${userId}`;
+      console.log("[PromptTemplateManager] 删除模板URL:", apiUrl);
+      const response = await fetch(apiUrl, {
         method: 'DELETE'
       });
 

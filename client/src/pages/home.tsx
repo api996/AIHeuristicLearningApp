@@ -50,14 +50,26 @@ export default function Home() {
   const fetchUserBackground = async () => {
     try {
       const userId = JSON.parse(localStorage.getItem("user") || "{}").userId;
-      const response = await axios.get(`/api/files/background?userId=${userId}`);
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/files/background?userId=${userId}`;
+      
+      console.log('[Home] 获取用户背景图片，请求:', apiUrl);
+      const response = await axios.get(apiUrl);
+      
       if (response.data && response.data.url) {
-        setBackgroundUrl(response.data.url);
+        const fullImageUrl = response.data.url.startsWith('http') 
+          ? response.data.url 
+          : `${baseUrl}${response.data.url}`;
+        console.log('[Home] 设置背景图片:', fullImageUrl);
+        setBackgroundUrl(fullImageUrl);
       }
     } catch (error) {
       console.error('获取背景图片失败:', error);
       // 使用默认背景
-      setBackgroundUrl('/backgrounds/default-background.jpg');
+      const baseUrl = window.location.origin;
+      const defaultBackground = `${baseUrl}/backgrounds/default-background.jpg`;
+      console.log('[Home] 使用默认背景:', defaultBackground);
+      setBackgroundUrl(defaultBackground);
     }
   };
   
