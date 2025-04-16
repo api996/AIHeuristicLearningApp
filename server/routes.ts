@@ -440,14 +440,14 @@ asyncio.run(analyze())
       pythonProcess.on('close', (code) => {
         if (code !== 0) {
           log(`学习轨迹分析进程退出，错误码 ${code}: ${errorOutput}`);
-          // 返回一个默认结果而不是错误状态，这样前端仍能正常显示
+          // 返回空结果而不是默认的错误状态，这样前端仍能正常显示
           return res.json({
             topics: [],
             progress: [],
             suggestions: [
-              "系统正在处理您的记忆数据",
-              "请继续提问，丰富您的学习记录",
-              "数据积累后将能生成更准确的学习分析"
+              "尚未收集到足够的学习数据",
+              "请继续探索感兴趣的主题",
+              "随着对话的增加，我们将能更好地理解您的学习偏好"
             ],
             knowledge_graph: {
               nodes: [],
@@ -458,18 +458,42 @@ asyncio.run(analyze())
 
         try {
           const result = JSON.parse(output);
-          return res.json(result);
+          
+          // 确保结果中的topics是从实际数据中分析得出的
+          if (result.topics && Array.isArray(result.topics) && result.topics.length > 0) {
+            return res.json(result);
+          } else {
+            // 如果没有实际的topics数据，返回空结果
+            log(`学习轨迹分析没有返回有效的topics数据，返回空结果`);
+            return res.json({
+              topics: [],
+              progress: [],
+              suggestions: [
+                "尚未收集到足够的学习数据",
+                "请继续探索感兴趣的主题",
+                "随着对话的增加，我们将能更好地理解您的学习偏好"
+              ],
+              knowledge_graph: {
+                nodes: [],
+                links: []
+              }
+            });
+          }
         } catch (e) {
           log(`解析学习轨迹分析结果失败: ${e}`);
-          // 同样返回默认结果而不是错误状态
+          // 返回空结果，不使用默认数据
           return res.json({
             topics: [],
             progress: [],
             suggestions: [
-              "系统正在适应您的学习风格",
+              "系统正在处理您的学习数据",
               "请继续探索感兴趣的主题",
               "稍后查看将展示您的学习轨迹分析"
-            ]
+            ],
+            knowledge_graph: {
+              nodes: [],
+              links: []
+            }
           });
         }
       });
