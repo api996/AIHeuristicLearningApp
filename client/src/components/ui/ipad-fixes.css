@@ -1,14 +1,14 @@
-/* iPad和平板设备特定修复 - 全新响应式布局技术 */
+/* iPad设备修复 - 完全重写版本 */
 
 /**
- * 新的主布局策略:
- * 1. 使用CSS Grid和Flexbox实现真正的响应式布局
- * 2. 固定底部输入框，默认贴底
- * 3. 美化输入框样式，实现玻璃态效果
- * 4. 完全避免任何绝对定位
+ * iPad UI修复策略:
+ * 1. 使用简单的Flexbox布局，避免复杂的Grid
+ * 2. 简化CSS，减少覆盖规则
+ * 3. 增加z-index确保元素正确显示
+ * 4. 修复滚动问题
  */
 
-/* ===== iPad/平板专用布局(768px-1366px) ===== */
+/* ===== 全局重置 - 所有iPad设备 ===== */
 @media screen and (min-width: 768px) and (max-width: 1366px) {
   /* ===== 基础容器结构 ===== */
   .ipad-device #root,
@@ -267,6 +267,7 @@
 }
 
 /* ===== 头部调整 - 左侧与历史记录栏对齐 ===== */
+@media screen and (min-width: 768px) and (max-width: 1366px) {
   .ipad-device header,
   .tablet-device header,
   .ipad-device header.h-16,
@@ -322,3 +323,4 @@
   .tablet-device header [class*="new-chat"] {
     order: 0 !important; /* 恢复正常排序 */
   }
+}
