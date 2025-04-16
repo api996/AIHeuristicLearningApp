@@ -21,11 +21,25 @@ export async function verifyTurnstileToken(token: string): Promise<boolean> {
       log('[Turnstile] 令牌为空');
       return false;
     }
+    
+    // 检查是否为开发环境中的特定测试令牌
+    if (process.env.NODE_ENV === 'development' && 
+       (token === 'bypass-token-from-widget' || 
+        token === 'bypass-token-missing-key' || 
+        token === 'bypass-token')) {
+      log('[Turnstile] 开发环境测试令牌，自动通过验证');
+      return true;
+    }
 
     // 获取密钥
     const secretKey = process.env.TURNSTILE_SECRET_KEY || '';
     if (!secretKey) {
       log('[Turnstile] 错误: 未设置 TURNSTILE_SECRET_KEY 环境变量');
+      // 在开发环境中，如果缺少密钥，允许通过验证
+      if (process.env.NODE_ENV === 'development') {
+        log('[Turnstile] 开发环境中缺少密钥，自动通过验证');
+        return true;
+      }
       return false;
     }
 
