@@ -205,13 +205,44 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
         const embeddings = validMemoriesWithEmbeddings.map(item => item.embedding as number[]);
         
         // 执行聚类分析
-        // 由于类型不兼容问题，我们采用更直接的方法
-        // 为避免复杂的类型转换，直接使用any类型绕过TypeScript的类型检查
-        const clusterResults = await memoryService.analyzeMemoryClusters(
-          userId, 
-          validMemories as any, 
-          embeddings
-        );
+        // 由于类型不兼容，转换为memory_service需要的格式
+        // 我们先做类型转换，确保ID是数字，并且时间戳是Date对象
+        const convertedMemories = validMemories.map(m => {
+          // 确保ID是数字
+          const memoryId = typeof m.id === 'string' ? parseInt(m.id, 10) : (m.id as unknown as number);
+          const userIdNum = typeof m.userId === 'string' ? parseInt(m.userId, 10) : (m.userId as unknown as number);
+          
+          // 确保timestamp和createdAt是Date对象
+          let timestamp: Date | null = null;
+          try {
+            if (m.timestamp) {
+              timestamp = typeof m.timestamp === 'string' ? new Date(m.timestamp) : m.timestamp as unknown as Date;
+            }
+          } catch (e) {
+            log(`[trajectory] 解析timestamp失败: ${e}, 原始值: ${m.timestamp}`);
+          }
+          
+          return {
+            id: memoryId,
+            userId: userIdNum,
+            content: m.content,
+            type: m.type,
+            timestamp: timestamp,
+            summary: m.summary || null,
+            createdAt: timestamp // 用timestamp替代createdAt
+          };
+        });
+        // 强制类型转换，解决类型不兼容问题
+        const compatibleMemories = convertedMemories as any as { 
+          id: number; 
+          userId: number; 
+          content: string; 
+          type: string; 
+          timestamp: Date | null; 
+          summary: string | null; 
+          createdAt: Date | null;
+        }[];
+        const clusterResults = await memoryService.analyzeMemoryClusters(userId, compatibleMemories, embeddings);
         memorySpaceClusters = clusterResults.topics;
         
         log(`[trajectory] 成功从memory_service获取聚类数据: ${memorySpaceClusters.length} 个聚类`);
