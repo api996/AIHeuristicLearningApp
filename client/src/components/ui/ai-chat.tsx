@@ -2318,91 +2318,35 @@ export function AIChat({ userData }: AIChatProps) {
                 <p className="text-neutral-400 text-xs">
                   上传自定义背景图片，支持JPG、PNG和WebP格式
                 </p>
-                <div className="flex justify-between items-center mt-2">
-                  <input
-                    type="file"
-                    ref={backgroundInputRef}
-                    accept="image/jpeg,image/png,image/webp"
-                    style={{ display: 'none' }}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        try {
-                          // 检查文件大小，最大10MB
-                          if (file.size > 10 * 1024 * 1024) {
-                            toast({
-                              title: "文件过大",
-                              description: "背景图片不能超过10MB",
-                              variant: "destructive",
-                            });
-                            return;
-                          }
-                          
-                          // 构建FormData
-                          const formData = new FormData();
-                          formData.append('file', file);
-                          formData.append('fileType', 'background');
-                          
-                          const baseUrl = window.location.origin;
-                          const response = await fetch(`${baseUrl}/api/files/upload`, {
-                            method: 'POST',
-                            body: formData,
-                          });
-                          
-                          if (!response.ok) {
-                            throw new Error('上传失败');
-                          }
-                          
-                          const data = await response.json();
-                          
-                          if (data && data.success && data.url) {
-                            toast({
-                              title: "上传成功",
-                              description: "背景图片已成功上传并设置",
-                            });
-                            
-                            // 刷新背景
-                            const bgResponse = await fetch(`${baseUrl}/api/files/background`);
-                            if (bgResponse.ok) {
-                              const bgData = await bgResponse.json();
-                              if (bgData && bgData.url) {
-                                // 刷新页面背景
-                                try {
-                                  // 找到主页背景元素并更新
-                                  const homeBackground = document.querySelector('.bg-cover.bg-center');
-                                  if (homeBackground && homeBackground instanceof HTMLElement) {
-                                    homeBackground.style.backgroundImage = `url('${bgData.url}')`;
-                                  }
-
-                                  // 或者使用广播事件通知页面更新背景
-                                  const event = new CustomEvent('background-updated', { 
-                                    detail: { url: bgData.url } 
-                                  });
-                                  window.dispatchEvent(event);
-                                } catch (e) {
-                                  console.log("无法直接更新背景:", e);
-                                }
-                              }
-                            }
-                          }
-                        } catch (error) {
-                          console.error("上传背景图片失败:", error);
-                          toast({
-                            title: "上传失败",
-                            description: "无法上传背景图片，请重试",
-                            variant: "destructive",
-                          });
-                        }
-                      }
-                    }}
-                  />
+                <div className="flex flex-col gap-2">
                   <Button 
-                    onClick={() => backgroundInputRef.current?.click()}
+                    variant="outline"
+                    onClick={() => {
+                      // 重定向到主页，然后点击首页右上角的更换背景按钮
+                      toast({
+                        title: "提示",
+                        description: "请在首页右上角点击「更换背景」按钮来上传背景图片",
+                      });
+                      // 关闭当前对话框
+                      setShowPreferencesDialog(false);
+                      
+                      // 添加一点延迟，让用户有时间看到提示
+                      setTimeout(() => {
+                        // 如果已经在首页，可以尝试触发一下背景更新按钮的点击
+                        const bgButton = document.querySelector('button:has(.lucide-image)');
+                        if (bgButton instanceof HTMLElement) {
+                          bgButton.click();
+                        }
+                      }, 1500);
+                    }}
                     className="w-full"
                   >
                     <ImageIcon size={16} className="mr-2" />
-                    上传背景图片
+                    管理背景图片
                   </Button>
+                  <p className="text-xs text-neutral-400 mt-1">
+                    在首页右上角找到「更换背景」按钮，可上传和管理您的背景图片
+                  </p>
                 </div>
               </div>
             </div>
