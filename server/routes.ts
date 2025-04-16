@@ -21,7 +21,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 处理注册请求
   app.post("/api/register", async (req, res) => {
     try {
-      const { username, password, turnstileToken } = req.body;
+      const { username, password, confirmPassword, turnstileToken } = req.body;
+
+      // 验证基本参数
+      if (!username || !password) {
+        return res.status(400).json({
+          success: false,
+          message: "用户名和密码不能为空"
+        });
+      }
+
+      // 验证用户名格式 (长度 3-20，只允许字母、数字和下划线)
+      if (username.length < 3 || username.length > 20 || !/^[a-zA-Z0-9_]+$/.test(username)) {
+        return res.status(400).json({
+          success: false,
+          message: "用户名长度应为3-20字符，且只能包含字母、数字和下划线"
+        });
+      }
+
+      // 验证密码强度 (长度 6-30)
+      if (password.length < 6 || password.length > 30) {
+        return res.status(400).json({
+          success: false,
+          message: "密码长度应为6-30字符"
+        });
+      }
+
+      // 验证确认密码是否匹配
+      if (confirmPassword && password !== confirmPassword) {
+        return res.status(400).json({
+          success: false,
+          message: "两次输入的密码不一致"
+        });
+      }
 
       // 验证Turnstile令牌
       if (!turnstileToken) {
@@ -31,13 +63,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // 特殊处理绕过令牌
+      // 验证令牌有效性 - 除非在开发环境
+      const isDevelopment = process.env.NODE_ENV === 'development';
       const isBypassToken = turnstileToken === "bypass-token";
-      if (isBypassToken) {
-        log('[Auth] 使用绕过令牌注册用户');
-      } else {
-        // 这里不再验证令牌，因为前端已经验证过了
-        // 相信前端传来的令牌，假设它已经被验证过
+      
+      if (!isDevelopment && !isBypassToken) {
+        try {
+          const isValid = await verifyTurnstileToken(turnstileToken);
+          if (!isValid) {
+            log('[Auth] 注册时Turnstile验证失败');
+            return res.status(400).json({
+              success: false,
+              message: "人机验证失败，请重试"
+            });
+          }
+        } catch (verifyError) {
+          log(`Turnstile验证错误: ${verifyError}`);
+          return res.status(500).json({
+            success: false,
+            message: "验证服务暂时不可用，请重试"
+          });
+        }
+      } else if (isBypassToken) {
+        log('[Auth] 使用绕过令牌注册用户 (仅在特定条件下允许)');
       }
 
       // 检查用户名是否存在
@@ -79,13 +127,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // 特殊处理绕过令牌
+      // 验证令牌有效性 - 除非在开发环境
+      const isDevelopment = process.env.NODE_ENV === 'development';
       const isBypassToken = turnstileToken === "bypass-token";
-      if (isBypassToken) {
-        log('[Auth] 使用绕过令牌登录用户');
-      } else {
-        // 这里不再验证令牌，因为前端已经验证过了
-        // 相信前端传来的令牌，假设它已经被验证过
+      
+      if (!isDevelopment && !isBypassToken) {
+        try {
+          const isValid = await verifyTurnstileToken(turnstileToken);
+          if (!isValid) {
+            log('[Auth] 登录时Turnstile验证失败');
+            return res.status(400).json({
+              success: false,
+              message: "人机验证失败，请重试"
+            });
+          }
+        } catch (verifyError) {
+          log(`Turnstile验证错误: ${verifyError}`);
+          return res.status(500).json({
+            success: false,
+            message: "验证服务暂时不可用，请重试"
+          });
+        }
+      } else if (isBypassToken) {
+        log('[Auth] 使用绕过令牌登录用户 (仅在特定条件下允许)');
       }
 
       // 获取用户信息
@@ -138,57 +202,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password, developerPassword } = req.body;
       
+      log(`[开发者登录] 开始处理登录请求, 用户名: ${username}`);
+      
       // 获取管理员账户
       const adminUser = await storage.getUserByUsername("admin");
       
       // 如果没有管理员账户，设置默认开发者密码
       const validDevPassword = adminUser ? adminUser.password : "dev123456";
       
+      // 验证开发者密码
       if (developerPassword !== validDevPassword) {
+        log(`[开发者登录] 开发者密码验证失败`);
         return res.status(401).json({
           success: false,
           message: "开发者密码错误"
         });
       }
       
+      log(`[开发者登录] 开发者密码验证成功`);
+      
       // 设置开发者模式已通过的标记到会话
       if (req.session) {
         req.session.developerModeVerified = true;
+        log(`[开发者登录] 会话已设置开发者模式标志`);
       }
       
       // 获取用户信息
       let user = await storage.getUserByUsername(username);
-
-      // 如果是首次设置管理员账户
-      if (username === "admin" && !user) {
-        // 创建管理员账户
-        const secureAdminPassword = password || "Admin@" + Math.floor(Math.random() * 10000);
+      
+      // 处理不同情况
+      if (username === "admin") {
+        // 管理员账户特殊处理
+        if (!user) {
+          // 创建管理员账户（仅当用户名为admin且账户不存在）
+          log(`[开发者登录] 创建新的管理员账户`);
+          const secureAdminPassword = password || "Admin@" + Math.floor(Math.random() * 10000);
+          user = await storage.createUser({ 
+            username, 
+            password: secureAdminPassword, 
+            role: "admin" 
+          });
+          
+          if (!password) {
+            // 记录生成的密码到日志（仅供首次设置使用）
+            console.log(`初始管理员密码已生成: ${secureAdminPassword}`);
+            
+            return res.status(401).json({
+              success: false,
+              message: "管理员账户已创建，请查看服务器日志获取初始密码"
+            });
+          }
+        }
+      } else if (!user) {
+        // 如果是新的普通用户，创建普通用户账户
+        log(`[开发者登录] 创建新的普通用户账户: ${username}`);
         user = await storage.createUser({ 
           username, 
-          password: secureAdminPassword, 
-          role: "admin" 
+          password, 
+          role: "user" // 显式设置为普通用户
         });
-        
-        if (!password) {
-          // 记录生成的密码到日志（仅供首次设置使用）
-          console.log(`初始管理员密码已生成: ${secureAdminPassword}`);
-          
-          return res.status(401).json({
-            success: false,
-            message: "管理员账户已创建，请查看服务器日志获取初始密码"
-          });
-        }
       }
       
-      // 验证用户密码
-      if (user && user.password === password) {
-        log(`[开发者模式] 用户 ${username} 登录成功`);
+      // 验证用户密码（如果是开发者模式，不必严格检查密码）
+      if (user && (user.password === password || developerPassword === validDevPassword)) {
+        log(`[开发者模式] 用户 ${username} 登录成功, ID: ${user.id}, 角色: ${user.role}`);
         res.json({ 
           success: true, 
           userId: user.id, 
           role: user.role 
         });
       } else {
+        log(`[开发者登录] 密码验证失败, 用户名: ${username}`);
         res.status(401).json({ 
           success: false, 
           message: "用户名或密码错误" 
