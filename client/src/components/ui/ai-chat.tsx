@@ -171,6 +171,8 @@ export function AIChat({ userData }: AIChatProps) {
   // 偏好设置状态
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light"); // 默认设置为浅色主题以展示苹果风格效果
   const [fontSize, setFontSize] = useState<"small" | "medium" | "large">("medium");
+  const [customThemeColor, setCustomThemeColor] = useState<string>("#0deae4"); // 默认青色
+  const [tempThemeColor, setTempThemeColor] = useState<string>("#0deae4"); // 临时存储编辑中的颜色
 
   // 背景图片相关状态
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
@@ -1338,36 +1340,54 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* Main Content - 添加iPad优化类 */}
       <div className="flex-1 flex flex-col relative chat-content-area w-full ipad-chat-content">
-        {/* Header - 苹果风格磨砂透明 */}
-        <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${theme === 'dark' ? 'frosted-glass-dark border-neutral-800' : 'frosted-glass border-neutral-200/20'}`}>
+        {/* Header - 主题样式根据模式切换 */}
+        <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${
+          theme === 'dark' 
+            ? 'frosted-glass-dark border-neutral-800' 
+            : 'bg-black/30 backdrop-blur-md border-[#0deae4]/20'
+        }`}>
           <div className="flex items-center">
             {/* 左侧菜单按钮 - 显示历史记录 */}
             <Button
               variant="ghost"
               size="icon"
-              className="mr-4 hover:bg-neutral-800 rounded-lg h-12 w-12"
+              className={`mr-4 rounded-lg h-12 w-12 ${
+                theme === 'dark'
+                  ? 'hover:bg-neutral-800'
+                  : 'hover:bg-[#0deae4]/10'
+              }`}
               onClick={toggleSidebar}
               aria-label="显示侧边栏"
             >
-              <Menu className="h-7 w-7 text-neutral-300" />
+              <Menu className={`h-7 w-7 ${theme === 'dark' ? 'text-neutral-300' : 'text-[#0deae4]'}`} />
             </Button>
 
             {/* 当前对话标题 */}
             {currentChatId ? (
               <div className="flex items-center">
-                <h1 className="text-lg font-medium text-neutral-200 mr-2 truncate max-w-[180px] sm:max-w-[320px] md:max-w-[400px]">{currentChat?.title}</h1>
+                <h1 className={`text-lg font-medium mr-2 truncate max-w-[180px] sm:max-w-[320px] md:max-w-[400px] ${
+                  theme === 'dark' ? 'text-neutral-200' : 'text-white'
+                }`}>{currentChat?.title}</h1>
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   onClick={() => setShowTitleDialog(true)}
-                  className="h-8 w-8 rounded-full hover:bg-neutral-800"
+                  className={`h-8 w-8 rounded-full ${
+                    theme === 'dark' ? 'hover:bg-neutral-800' : 'hover:bg-[#0deae4]/10'
+                  }`}
                 >
-                  <Edit className="h-4 w-4 text-neutral-400" />
+                  <Edit className={`h-4 w-4 ${
+                    theme === 'dark' ? 'text-neutral-400' : 'text-[#0deae4]'
+                  }`} />
                 </Button>
               </div>
             ) : (
               <div className="flex items-center">
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-lg mr-2.5">
+                <div className={`p-1.5 rounded-lg mr-2.5 ${
+                  theme === 'dark' 
+                    ? 'bg-gradient-to-br from-blue-500 to-purple-600' 
+                    : 'bg-gradient-to-br from-[#0deae4] to-[#0d8ae4]'
+                }`}>
                   <Brain className="h-5 w-5 text-white" />
                 </div>
                 <h1 className="text-lg font-bold text-white">启发式对话导师</h1>
@@ -2050,6 +2070,97 @@ export function AIChat({ userData }: AIChatProps) {
                 </div>
               </div>
             </div>
+            
+            {/* 自定义主题颜色 - 仅在浅色模式下显示 */}
+            {theme === 'light' && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-neutral-300">主题颜色 <span className="text-xs text-[#0deae4]">(浅色模式)</span></h3>
+                <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span>自定义颜色</span>
+                    <div className="flex items-center space-x-2">
+                      <div 
+                        className="w-6 h-6 rounded-full border border-white/30"
+                        style={{ backgroundColor: tempThemeColor }}
+                      ></div>
+                      <input
+                        type="text"
+                        value={tempThemeColor}
+                        onChange={(e) => setTempThemeColor(e.target.value)}
+                        placeholder="#0deae4"
+                        className="w-24 h-8 px-2 bg-neutral-700 border border-neutral-600 rounded text-xs text-white"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // 验证颜色代码合法性
+                          const isValidColor = /^#([0-9A-F]{3}){1,2}$/i.test(tempThemeColor);
+                          if (isValidColor) {
+                            setCustomThemeColor(tempThemeColor);
+                            
+                            // 保存到 localStorage
+                            localStorage.setItem('custom-theme-color', tempThemeColor);
+                            
+                            // 将颜色应用到全局CSS变量
+                            document.documentElement.style.setProperty('--custom-theme-color', tempThemeColor);
+                            
+                            toast({
+                              title: "颜色已更新",
+                              description: "自定义主题颜色已应用",
+                            });
+                          } else {
+                            toast({
+                              title: "无效的颜色代码",
+                              description: "请输入有效的十六进制颜色代码，例如 #0deae4",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                        className="h-8 bg-neutral-700 hover:bg-neutral-600 border-neutral-600"
+                      >
+                        应用
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <div 
+                      className="w-8 h-8 rounded-full cursor-pointer border border-white/30 transition-all hover:scale-110"
+                      style={{ backgroundColor: "#0deae4" }}
+                      onClick={() => setTempThemeColor("#0deae4")}
+                    ></div>
+                    <div 
+                      className="w-8 h-8 rounded-full cursor-pointer border border-white/30 transition-all hover:scale-110"
+                      style={{ backgroundColor: "#FF5E5B" }}
+                      onClick={() => setTempThemeColor("#FF5E5B")}
+                    ></div>
+                    <div 
+                      className="w-8 h-8 rounded-full cursor-pointer border border-white/30 transition-all hover:scale-110"
+                      style={{ backgroundColor: "#9d65ff" }}
+                      onClick={() => setTempThemeColor("#9d65ff")}
+                    ></div>
+                    <div 
+                      className="w-8 h-8 rounded-full cursor-pointer border border-white/30 transition-all hover:scale-110"
+                      style={{ backgroundColor: "#5e17eb" }}
+                      onClick={() => setTempThemeColor("#5e17eb")}
+                    ></div>
+                    <div 
+                      className="w-8 h-8 rounded-full cursor-pointer border border-white/30 transition-all hover:scale-110"
+                      style={{ backgroundColor: "#00C6FF" }}
+                      onClick={() => setTempThemeColor("#00C6FF")}
+                    ></div>
+                    <div 
+                      className="w-8 h-8 rounded-full cursor-pointer border border-white/30 transition-all hover:scale-110"
+                      style={{ backgroundColor: "#F9D371" }}
+                      onClick={() => setTempThemeColor("#F9D371")}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-neutral-500 mt-2">
+                    自定义颜色仅在浅色模式下生效，深色模式将使用原有的样式
+                  </p>
+                </div>
+              </div>
+            )}
             
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-neutral-300">其他功能 <span className="text-xs text-neutral-500">(即将推出)</span></h3>
