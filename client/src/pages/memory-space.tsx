@@ -49,6 +49,9 @@ const MemorySpace: React.FC = () => {
   } = useQuery({
     queryKey: ['/api/memory-space', userId],
     enabled: !!userId,
+    select: (data) => {
+      return data || { memories: [] };
+    }
   });
 
   // 获取记忆聚类
@@ -58,6 +61,9 @@ const MemorySpace: React.FC = () => {
   } = useQuery({
     queryKey: ['/api/memory-space', userId, 'clusters'],
     enabled: !!userId,
+    select: (data) => {
+      return data || { topics: [] };
+    }
   });
 
   // 搜索相似记忆
@@ -68,11 +74,12 @@ const MemorySpace: React.FC = () => {
     reset: resetSearch
   } = useMutation({
     mutationFn: async (query: string) => {
-      return apiRequest(
+      const response = await apiRequest(
         'POST',
         `/api/memory-space/${userId}/search`,
         { query, limit: 10 }
       );
+      return response.json();
     }
   });
 
