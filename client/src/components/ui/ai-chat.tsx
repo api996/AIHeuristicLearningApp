@@ -2311,6 +2311,102 @@ export function AIChat({ userData }: AIChatProps) {
               </div>
             )}
             
+            {/* 背景图片设置 */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-neutral-300">背景图片</h3>
+              <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm space-y-3">
+                <p className="text-neutral-400 text-xs">
+                  上传自定义背景图片，支持JPG、PNG和WebP格式
+                </p>
+                <div className="flex justify-between items-center mt-2">
+                  <input
+                    type="file"
+                    ref={backgroundInputRef}
+                    accept="image/jpeg,image/png,image/webp"
+                    style={{ display: 'none' }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        try {
+                          // 检查文件大小，最大10MB
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast({
+                              title: "文件过大",
+                              description: "背景图片不能超过10MB",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          
+                          // 构建FormData
+                          const formData = new FormData();
+                          formData.append('file', file);
+                          formData.append('fileType', 'background');
+                          
+                          const baseUrl = window.location.origin;
+                          const response = await fetch(`${baseUrl}/api/files/upload`, {
+                            method: 'POST',
+                            body: formData,
+                          });
+                          
+                          if (!response.ok) {
+                            throw new Error('上传失败');
+                          }
+                          
+                          const data = await response.json();
+                          
+                          if (data && data.success && data.url) {
+                            toast({
+                              title: "上传成功",
+                              description: "背景图片已成功上传并设置",
+                            });
+                            
+                            // 刷新背景
+                            const bgResponse = await fetch(`${baseUrl}/api/files/background`);
+                            if (bgResponse.ok) {
+                              const bgData = await bgResponse.json();
+                              if (bgData && bgData.url) {
+                                // 刷新页面背景
+                                try {
+                                  // 找到主页背景元素并更新
+                                  const homeBackground = document.querySelector('.bg-cover.bg-center');
+                                  if (homeBackground && homeBackground instanceof HTMLElement) {
+                                    homeBackground.style.backgroundImage = `url('${bgData.url}')`;
+                                  }
+
+                                  // 或者使用广播事件通知页面更新背景
+                                  const event = new CustomEvent('background-updated', { 
+                                    detail: { url: bgData.url } 
+                                  });
+                                  window.dispatchEvent(event);
+                                } catch (e) {
+                                  console.log("无法直接更新背景:", e);
+                                }
+                              }
+                            }
+                          }
+                        } catch (error) {
+                          console.error("上传背景图片失败:", error);
+                          toast({
+                            title: "上传失败",
+                            description: "无法上传背景图片，请重试",
+                            variant: "destructive",
+                          });
+                        }
+                      }
+                    }}
+                  />
+                  <Button 
+                    onClick={() => backgroundInputRef.current?.click()}
+                    className="w-full"
+                  >
+                    <ImageIcon size={16} className="mr-2" />
+                    上传背景图片
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-neutral-300">其他功能 <span className="text-xs text-neutral-500">(即将推出)</span></h3>
               <div className="p-3 bg-neutral-800 rounded-md text-neutral-400 text-sm">
