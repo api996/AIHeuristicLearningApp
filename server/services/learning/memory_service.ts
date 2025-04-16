@@ -70,8 +70,8 @@ export class MemoryService {
   
   constructor(config?: Partial<MemoryServiceConfig>) {
     this.config = {
-      storageMode: StorageMode.HYBRID, // 默认使用混合模式
-      enableMigration: true,
+      storageMode: StorageMode.DATABASE, // 默认使用数据库模式
+      enableMigration: false, // 关闭迁移功能，不再需要
       ...config
     };
     
