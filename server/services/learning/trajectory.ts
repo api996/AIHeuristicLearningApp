@@ -404,80 +404,12 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
  */
 async function getDefaultLearningPath(userId?: number): Promise<LearningPathResult> {
   try {
-    // 首先尝试获取用户的实际记忆来生成轨迹
-    const memories = await getMemoriesByFilter(userId ? { userId } : {});
+    // 返回空结果，不尝试从少量记忆生成主题
+    log(`[trajectory] 不使用默认主题，返回空学习轨迹结果`);
     
-    // 如果确实有一些记忆（即使很少），也尝试根据这些记忆生成主题
-    if (memories && memories.length > 0) {
-      // 获取记忆内容的主要关键词
-      const keywords = memories.flatMap(memory => {
-        // 简单提取记忆内容中的主要词汇
-        const content = memory.content || "";
-        const words = content.split(/\s+/).filter(word => 
-          word.length > 1 && 
-          !["的", "了", "是", "在", "我", "有", "和", "就", "不", "人", "都", "一", "一个", "上", "也", "很", "到", "说"].includes(word)
-        );
-        return words.slice(0, 5); // 每个记忆取前5个关键词
-      });
-      
-      // 计算关键词频率
-      const keywordFreq: Record<string, number> = {};
-      keywords.forEach(keyword => {
-        keywordFreq[keyword] = (keywordFreq[keyword] || 0) + 1;
-      });
-      
-      // 按频率排序
-      const sortedKeywords = Object.entries(keywordFreq)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3); // 取前3个关键词作为主题
-      
-      // 如果能够提取到有意义的关键词
-      if (sortedKeywords.length > 0) {
-        const topics = sortedKeywords.map(([keyword, count], index) => {
-          const topicName = keyword.length > 1 ? `${keyword}相关` : "对话主题";
-          return {
-            topic: topicName,
-            id: `topic_${index}`,
-            count: count,
-            percentage: Math.min(95, 30 + index * 10 + Math.floor(Math.random() * 10))
-          };
-        });
-        
-        // 确保至少有一个主题
-        if (topics.length === 0) {
-          topics.push({
-            topic: "对话主题",
-            id: "topic_general",
-            count: 1,
-            percentage: 45
-          });
-        }
-        
-        // 构建基于实际关键词的学习路径
-        return {
-          topics,
-          progress: topics.map(t => ({
-            category: t.topic,
-            score: t.percentage,
-            change: 0
-          })),
-          suggestions: [
-            "继续提问感兴趣的学习话题",
-            "探索更多相关内容",
-            "尝试提出更具体的问题以获取深入解答"
-          ],
-          nodes: topics.map(t => ({
-            id: t.id,
-            label: t.topic,
-            size: t.percentage * 0.6,
-            category: "对话主题"
-          })),
-          links: topics.length > 1 ? [
-            {source: topics[0].id, target: topics.length > 1 ? topics[1].id : topics[0].id, value: 3}
-          ] : []
-        };
-      }
-    }
+    // 我们不再尝试从少量记忆或关键词中推断主题
+    // 只有当有足够数据进行有效聚类时才返回结果
+    // 这种方式更准确反映了数据状态，避免误导用户
     
     // 不使用默认模板，而是直接反映实际状态
     return {
@@ -493,27 +425,18 @@ async function getDefaultLearningPath(userId?: number): Promise<LearningPathResu
   } catch (error) {
     log(`[trajectory] 生成默认学习轨迹时遇到错误: ${error}`);
     
-    // 出错时返回最基本的默认值
+    // 即使出错时也不返回默认值，而是返回空结果
+    // 这样前端将显示数据不足的提示，而不是错误的默认数据
     return {
-      topics: [
-        {topic: "对话主题", id: "topic_conversation", count: 1, percentage: 40},
-        {topic: "问答交流", id: "topic_qa", count: 1, percentage: 30}
-      ],
-      progress: [
-        {category: "对话主题", score: 40, change: 0},
-        {category: "问答交流", score: 30, change: 0}
-      ],
+      topics: [],
+      progress: [],
       suggestions: [
-        "继续提问感兴趣的学习话题",
-        "尝试与AI进行更深入的对话"
+        "尚未收集到足够的学习数据",
+        "请继续探索感兴趣的主题",
+        "随着对话的增加，我们将能更好地理解您的学习偏好"
       ],
-      nodes: [
-        {id: "topic_conversation", label: "对话主题", size: 30, category: "交流"},
-        {id: "topic_qa", label: "问答交流", size: 20, category: "交流"}
-      ],
-      links: [
-        {source: "topic_conversation", target: "topic_qa", value: 3}
-      ]
+      nodes: [],
+      links: []
     };
   }
 }
