@@ -80,27 +80,7 @@ export default function Home() {
       {/* 半透明遮罩，提高文字对比度 */}
       <div className="absolute inset-0 bg-black/30"></div>
       
-      {/* 顶部工具栏 */}
-      <div className="relative z-10 p-4 flex justify-between items-center">
-        {/* 左侧用户信息 */}
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="rounded-full bg-white/10 backdrop-blur-sm">
-            <User className="text-white" size={20} />
-          </Button>
-          <span className="text-white font-medium">{userData.username || '用户'}</span>
-        </div>
-        
-        {/* 右侧操作按钮 */}
-        <div className="flex items-center gap-2">
-          <BackgroundUploader 
-            userId={userData.userId} 
-            onBackgroundChange={(url) => setBackgroundUrl(url)}
-          />
-          <Button variant="ghost" size="icon" className="rounded-full bg-white/10 backdrop-blur-sm" onClick={handleLogout}>
-            <Settings className="text-white" size={20} />
-          </Button>
-        </div>
-      </div>
+      {/* 已移除顶部工具栏，使用AI聊天组件中的导航栏 */}
       
       {/* 主要内容 */}
       <div className="relative z-10">
