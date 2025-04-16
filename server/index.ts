@@ -134,8 +134,8 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    // 直接使用5001端口，避免工作流超时问题
-    const startPort = 5001;
+    // 使用端口5000以确保与工作流兼容
+    const startPort = 5000;
     let port = startPort;
 
     const startServer = (portToUse: number) => {

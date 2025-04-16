@@ -51,7 +51,10 @@ export function ContentModerationSettings() {
       try {
         setIsLoading(true);
         const user = JSON.parse(localStorage.getItem("user") || "{}");
-        const response = await fetch(`/api/admin/content-moderation/settings?userId=${user.userId}`);
+        const baseUrl = window.location.origin;
+        const apiUrl = `${baseUrl}/api/admin/content-moderation/settings?userId=${user.userId}`;
+        console.log("[ContentModerationSettings] 获取设置URL:", apiUrl);
+        const response = await fetch(apiUrl);
         
         if (!response.ok) {
           throw new Error("获取设置失败");
@@ -81,18 +84,22 @@ export function ContentModerationSettings() {
       setIsSaving(true);
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       
+      // apiRequest函数现在会自动处理URL转换为完整路径
+      console.log("[ContentModerationSettings] 保存设置");
       const response = await apiRequest("/api/admin/content-moderation/settings", "POST", {
         userId: user.userId,
         ...settings,
       });
 
-      if (response.success) {
+      const data = await response.json();
+      
+      if (data.success) {
         toast({
           title: "成功",
           description: "内容审查设置已保存",
         });
       } else {
-        throw new Error(response.message || "保存失败");
+        throw new Error(data.message || "保存失败");
       }
     } catch (error) {
       toast({
@@ -126,11 +133,13 @@ export function ContentModerationSettings() {
         userId: user.userId,
         text: testText,
       });
+      
+      const data = await response.json();
 
-      if (response.success && response.result) {
-        setTestResult(response.result);
+      if (data.success && data.result) {
+        setTestResult(data.result);
       } else {
-        throw new Error(response.message || "测试失败");
+        throw new Error(data.message || "测试失败");
       }
     } catch (error) {
       toast({

@@ -103,7 +103,10 @@ export function AIChat({ userData }: AIChatProps) {
     if (currentChatId) {
       try {
         // 发送请求更新聊天模型
-        const response = await fetch(`/api/chats/${currentChatId}/model`, {
+        const baseUrl = window.location.origin;
+        const apiUrl = `${baseUrl}/api/chats/${currentChatId}/model`;
+        console.log("切换模型请求URL:", apiUrl);
+        const response = await fetch(apiUrl, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -186,7 +189,10 @@ export function AIChat({ userData }: AIChatProps) {
   const { data: currentChat } = useQuery({
     queryKey: [`/api/chats/${currentChatId}/messages`, user.userId, user.role],
     queryFn: async () => {
-      const response = await fetch(`/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`);
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`;
+      console.log("获取消息列表请求URL:", apiUrl);
+      const response = await fetch(apiUrl);
       if (!response.ok) throw new Error('Failed to fetch messages');
       return response.json();
     },
@@ -312,7 +318,8 @@ export function AIChat({ userData }: AIChatProps) {
 
         try {
           // 使用直接fetch而非API请求工具，确保最大兼容性
-          const url = `/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
+          const baseUrl = window.location.origin;
+          const url = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
           console.log("API请求URL:", url);
           
           const messagesResponse = await fetch(url);
@@ -365,8 +372,12 @@ export function AIChat({ userData }: AIChatProps) {
         return prev;
       });
 
-      // 使用直接fetch发送请求
-      const response = await fetch(`/api/messages/${finalMessageId}/regenerate`, {
+      // 使用直接fetch发送请求，确保URL是完整的
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/messages/${finalMessageId}/regenerate`;
+      console.log("发送重新生成请求:", apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -434,7 +445,10 @@ export function AIChat({ userData }: AIChatProps) {
           queryClient.cancelQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
           
           // 使用直接fetch获取最新数据
-          const refreshResponse = await fetch(`/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`);
+          const baseUrl = window.location.origin;
+          const refreshUrl = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
+          console.log("刷新消息列表URL:", refreshUrl);
+          const refreshResponse = await fetch(refreshUrl);
           if (refreshResponse.ok) {
             const latestMessages = await refreshResponse.json();
             if (Array.isArray(latestMessages) && latestMessages.length > 0) {
@@ -897,9 +911,10 @@ export function AIChat({ userData }: AIChatProps) {
     const fetchMessages = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(
-          `/api/chats/${chatId}/messages?userId=${user.userId}&role=${user.role}`
-        );
+        const baseUrl = window.location.origin;
+        const apiUrl = `${baseUrl}/api/chats/${chatId}/messages?userId=${user.userId}&role=${user.role}`;
+        console.log("加载聊天消息URL:", apiUrl);
+        const response = await fetch(apiUrl);
         if (!response.ok) {
           throw new Error("Failed to fetch messages");
         }
@@ -1178,7 +1193,10 @@ export function AIChat({ userData }: AIChatProps) {
   const { data: apiChats, isLoading: apiChatsLoading } = useQuery({
     queryKey: ['/api/chats', user.userId, user.role],
     queryFn: async () => {
-      const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/chats?userId=${user.userId}&role=${user.role}`;
+      console.log("获取聊天列表URL:", apiUrl);
+      const response = await fetch(apiUrl);
       if (!response.ok) throw new Error('Failed to fetch chats');
       return response.json();
     },
@@ -1946,7 +1964,10 @@ export function AIChat({ userData }: AIChatProps) {
             const { isLoading, error, data } = useQuery<LearningPathData>({
               queryKey: ["/api/learning-path", user.userId, user.role],
               queryFn: async () => {
-                const response = await fetch(`/api/learning-path?userId=${user.userId}&role=${user.role}`);
+                const baseUrl = window.location.origin;
+                const apiUrl = `${baseUrl}/api/learning-path?userId=${user.userId}&role=${user.role}`;
+                console.log("获取学习路径URL:", apiUrl);
+                const response = await fetch(apiUrl);
                 if (!response.ok) {
                   throw new Error("获取学习轨迹数据失败");
                 }
