@@ -88,7 +88,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   
   return (
-    <div className="min-h-screen bg-black admin-dashboard-container">
+    <div className="min-h-screen bg-black">
       {/* Header */}
       <header className="border-b border-neutral-800 bg-neutral-900">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -195,7 +195,7 @@ export default function AdminDashboard() {
                     <CardDescription>查看所有用户的使用情况</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="h-[clamp(300px,40vh,80vh)] overflow-y-auto">
+                    <ScrollArea className="h-[400px]">
                       <div className="space-y-4">
                         {users?.map((user: User) => (
                           <div
@@ -226,7 +226,7 @@ export default function AdminDashboard() {
             
             {/* Prompts Templates Tab */}
             <TabsContent value="prompts">
-              <div className="py-8 admin-content">
+              <div className="py-8">
                 <div className="container mx-auto px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
@@ -244,15 +244,13 @@ export default function AdminDashboard() {
                     </CardHeader>
                   </Card>
                 </div>
-                <div className="scroll-container">
-                  <PromptTemplateManager />
-                </div>
+                <PromptTemplateManager />
               </div>
             </TabsContent>
             
             {/* Content Moderation Tab */}
             <TabsContent value="moderation">
-              <div className="py-8 admin-content">
+              <div className="py-8">
                 <div className="container mx-auto px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
@@ -263,9 +261,7 @@ export default function AdminDashboard() {
                     </CardHeader>
                   </Card>
                 </div>
-                <div className="scroll-container">
-                  <ContentModerationSettings />
-                </div>
+                <ContentModerationSettings />
               </div>
             </TabsContent>
           </Tabs>
