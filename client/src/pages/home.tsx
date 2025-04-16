@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { AIChat } from "@/components/ui/ai-chat";
+import { Navbar } from "@/components/ui/navbar"; // 导入导航栏组件
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -44,8 +45,11 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen">
-      <AIChat userData={userData} />
+    <div className="min-h-screen flex flex-col">
+      <Navbar /> {/* 添加导航栏组件，显示个人中心 */}
+      <div className="flex-1">
+        <AIChat userData={userData} />
+      </div>
     </div>
   );
 }
