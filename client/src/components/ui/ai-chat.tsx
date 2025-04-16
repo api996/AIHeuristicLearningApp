@@ -2120,11 +2120,6 @@ export function AIChat({ userData }: AIChatProps) {
           <DialogHeader>
             <DialogTitle>偏好设置</DialogTitle>
           </DialogHeader>
-          {/* 自定义关闭按钮，确保始终可见 */}
-          <DialogPrimitive.Close className="DialogClose absolute right-4 top-4 rounded-full opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-            <X className="h-5 w-5" />
-            <span className="sr-only">关闭</span>
-          </DialogPrimitive.Close>
           <div className="space-y-6 py-3">
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-neutral-300">外观</h3>

@@ -134,8 +134,8 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    // Try to find an available port starting with 5000
-    const startPort = 5000;
+    // 直接使用5001端口，避免工作流超时问题
+    const startPort = 5001;
     let port = startPort;
 
     const startServer = (portToUse: number) => {
