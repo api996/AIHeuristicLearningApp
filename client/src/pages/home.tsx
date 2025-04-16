@@ -51,9 +51,12 @@ export default function Home() {
     try {
       const userId = JSON.parse(localStorage.getItem("user") || "{}").userId;
       const baseUrl = window.location.origin;
-      const apiUrl = `${baseUrl}/api/files/background?userId=${userId}`;
       
-      console.log('[Home] 获取用户背景图片，请求:', apiUrl);
+      // 检测当前屏幕方向
+      const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+      const apiUrl = `${baseUrl}/api/files/background?userId=${userId}&orientation=${isPortrait ? 'portrait' : 'landscape'}`;
+      
+      console.log(`[Home] 获取用户背景图片，请求: ${apiUrl}，屏幕方向: ${isPortrait ? '竖屏' : '横屏'}`);
       const response = await axios.get(apiUrl);
       
       if (response.data && response.data.url) {
@@ -65,10 +68,13 @@ export default function Home() {
       }
     } catch (error) {
       console.error('获取背景图片失败:', error);
-      // 使用默认背景
+      // 使用默认背景，根据屏幕方向选择
       const baseUrl = window.location.origin;
-      const defaultBackground = `${baseUrl}/backgrounds/default-background.jpg`;
-      console.log('[Home] 使用默认背景:', defaultBackground);
+      const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+      const defaultBackground = isPortrait
+        ? `${baseUrl}/backgrounds/portrait-background.jpg`
+        : `${baseUrl}/backgrounds/landscape-background.jpg`;
+      console.log(`[Home] 使用默认${isPortrait ? '竖屏' : '横屏'}背景:`, defaultBackground);
       setBackgroundUrl(defaultBackground);
     }
   };

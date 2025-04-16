@@ -96,27 +96,24 @@ router.get('/background', async (req: Request, res: Response) => {
     // 从请求参数或会话中获取用户ID
     const userId = Number(req.query.userId) || req.session.userId;
     
-    // 检测是否为移动设备 - 从User-Agent进行简单判断
+    // 根据设备方向选择背景图片，而不是设备类型
     const userAgent = req.headers['user-agent'] || '';
-    const isMobile = Boolean(
-      userAgent.match(/Android/i) ||
-      userAgent.match(/iPhone/i) ||
-      userAgent.match(/iPad/i) ||
-      userAgent.match(/iPod/i) ||
-      userAgent.match(/BlackBerry/i) ||
-      userAgent.match(/Windows Phone/i) ||
-      (req.query.deviceType === 'mobile') // 支持通过查询参数明确指定设备类型
+    
+    // 从查询参数中获取屏幕方向，如果没有则尝试通过User-Agent推断
+    const isPortrait = Boolean(
+      req.query.orientation === 'portrait' || // 通过查询参数明确指定方向
+      (userAgent.match(/iPhone/i) && !req.query.orientation) // iPhone默认假设为竖屏，除非明确指定
     );
     
-    console.log(`设备类型: ${isMobile ? '移动设备' : '桌面设备'}`);
+    console.log(`屏幕方向: ${isPortrait ? '竖屏' : '横屏'}, User-Agent: ${userAgent.substring(0, 50)}...`);
     
     // 如果无法获取用户ID，返回默认背景
     if (!userId) {
-      const defaultUrl = getDefaultBackgroundUrl(isMobile);
+      const defaultUrl = getDefaultBackgroundUrl(isPortrait);
       return res.json({ url: defaultUrl });
     }
 
-    const backgroundUrl = await getUserBackground(userId, isMobile);
+    const backgroundUrl = await getUserBackground(userId, isPortrait);
     res.json({ url: backgroundUrl });
   } catch (error) {
     console.error('获取背景图片失败:', error);
@@ -144,21 +141,17 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
     const realFileId = path.parse(fileId).name;
     const fileData = await getFileFromBucket(userIdNum, realFileId);
     
-    // 检测是否为移动设备，用于返回适合的默认背景
+    // 根据屏幕方向而非设备类型选择背景图片
     const userAgent = req.headers['user-agent'] || '';
-    const isMobile = Boolean(
-      userAgent.match(/Android/i) ||
-      userAgent.match(/iPhone/i) ||
-      userAgent.match(/iPod/i) ||
-      userAgent.match(/BlackBerry/i) ||
-      userAgent.match(/Windows Phone/i) ||
-      (req.query.deviceType === 'mobile')
+    const isPortrait = Boolean(
+      req.query.orientation === 'portrait' || 
+      (userAgent.match(/iPhone/i) && !req.query.orientation) // iPhone默认假设为竖屏，除非明确指定
     );
     
     if (!fileData) {
       // 如果是背景请求且找不到文件，返回默认背景
       if (fileType === 'background') {
-        const defaultBgPath = getDefaultBackgroundPath(isMobile);
+        const defaultBgPath = getDefaultBackgroundPath(isPortrait);
         if (fs.existsSync(defaultBgPath)) {
           const defaultData = fs.readFileSync(defaultBgPath);
           const ext = path.extname(defaultBgPath).substring(1);
