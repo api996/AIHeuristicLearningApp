@@ -39,6 +39,23 @@
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
   border-radius: 16px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+}
+
+/* 确保对话框中的关闭按钮总是可见 */
+.frosted-dialog .DialogClose {
+  position: fixed !important;
+  z-index: 100 !important;
+  background-color: rgba(30, 30, 35, 0.9) !important;
+  border-radius: 50% !important;
+  width: 30px !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  top: 20px !important;
+  right: 20px !important;
 }
 
 /* 对话框磨砂玻璃样式 - 浅色模式 */
