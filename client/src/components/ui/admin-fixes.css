@@ -6,19 +6,25 @@
   overflow-y: auto;
 }
 
-/* 提高下拉菜单的层级，但仅在管理页面 */
-.admin-dashboard-container [data-radix-popper-content-wrapper] {
-  z-index: 9999 !important; 
-}
-
-/* 仅针对管理界面的滚动区域 */
-.admin-content {
-  overflow-y: auto;
-  max-height: calc(100vh - 150px);
-}
-
 /* 滚动容器 - 仅针对管理界面 */
 .scroll-container {
   max-height: calc(100vh - 200px);
   overflow-y: auto;
+}
+
+/* ==== iPad/平板专用布局 - 仅对管理员界面生效 ==== */
+@media (min-width: 768px) and (max-width: 1366px) {
+  .admin-dashboard-container {
+    overflow-y: auto !important;
+  }
+  
+  .admin-dashboard-container main {
+    overflow-y: auto !important;
+  }
+}
+
+/* 提高管理员界面下拉菜单的层级 */
+.admin-dashboard-container [data-radix-popper-content-wrapper] {
+  z-index: 9999 !important; 
+  position: relative !important;
 }

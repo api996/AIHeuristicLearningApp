@@ -117,7 +117,7 @@ export default function AdminDashboard() {
             </TabsList>
             
             {/* Dashboard Tab */}
-            <TabsContent value="dashboard" style={{maxHeight: 'calc(100vh - 150px)', overflowY: 'auto'}}>
+            <TabsContent value="dashboard" style={{maxHeight: 'calc(100vh - 120px)', overflowY: 'auto'}}>
               {/* Main Content */}
               <main className="py-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -225,7 +225,7 @@ export default function AdminDashboard() {
             </TabsContent>
             
             {/* Prompts Templates Tab */}
-            <TabsContent value="prompts" style={{maxHeight: 'calc(100vh - 150px)', overflowY: 'auto'}}>
+            <TabsContent value="prompts" style={{maxHeight: 'calc(100vh - 120px)', overflowY: 'auto'}}>
               <div className="py-8">
                 <div className="container mx-auto px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
@@ -251,7 +251,7 @@ export default function AdminDashboard() {
             </TabsContent>
             
             {/* Content Moderation Tab */}
-            <TabsContent value="moderation" style={{maxHeight: 'calc(100vh - 150px)', overflowY: 'auto'}}>
+            <TabsContent value="moderation" style={{maxHeight: 'calc(100vh - 120px)', overflowY: 'auto'}}>
               <div className="py-8">
                 <div className="container mx-auto px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
