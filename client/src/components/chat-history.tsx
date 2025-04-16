@@ -126,27 +126,23 @@ export function ChatHistory({
   // 确定使用哪个chats数据
   const chatsToRender = propsChats || apiChats;
 
+  // 准备聊天列表内容
+  let chatListContent;
+  
   if (isLoading && !propsChats) {
-    return (
+    chatListContent = (
       <div className="p-4 text-sm text-neutral-400">
         加载中...
       </div>
     );
-  }
-
-  if (!chatsToRender || chatsToRender.length === 0) {
-    return (
+  } else if (!chatsToRender || chatsToRender.length === 0) {
+    chatListContent = (
       <div className="p-4 text-sm text-neutral-400">
         暂无记录
       </div>
     );
-  }
-
-  return (
-    <div className="w-full flex flex-col h-full">
-      {/* 新对话按钮（不在顶部显示） - 已从ChatGPT风格移动到ai-chat.tsx组件 */}
-      
-      {/* 聊天记录列表 */}
+  } else {
+    chatListContent = (
       <ScrollArea className="flex-1">
         <div className="px-2 py-3 space-y-1">
           {chatsToRender.map((chat: any) => (
@@ -186,6 +182,15 @@ export function ChatHistory({
           ))}
         </div>
       </ScrollArea>
+    );
+  }
+
+  return (
+    <div className="w-full flex flex-col h-full">
+      {/* 新对话按钮（不在顶部显示） - 已从ChatGPT风格移动到ai-chat.tsx组件 */}
+      
+      {/* 聊天记录列表 */}
+      {chatListContent}
       
       {/* 删除确认对话框 */}
       <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
