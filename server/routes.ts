@@ -21,7 +21,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 处理注册请求
   app.post("/api/register", async (req, res) => {
     try {
-      const { username, password, turnstileToken } = req.body;
+      const { username, password, confirmPassword, turnstileToken } = req.body;
+
+      // 验证基本参数
+      if (!username || !password) {
+        return res.status(400).json({
+          success: false,
+          message: "用户名和密码不能为空"
+        });
+      }
+
+      // 验证用户名格式 (长度 3-20，只允许字母、数字和下划线)
+      if (username.length < 3 || username.length > 20 || !/^[a-zA-Z0-9_]+$/.test(username)) {
+        return res.status(400).json({
+          success: false,
+          message: "用户名长度应为3-20字符，且只能包含字母、数字和下划线"
+        });
+      }
+
+      // 验证密码强度 (长度 6-30)
+      if (password.length < 6 || password.length > 30) {
+        return res.status(400).json({
+          success: false,
+          message: "密码长度应为6-30字符"
+        });
+      }
+
+      // 验证确认密码是否匹配
+      if (confirmPassword && password !== confirmPassword) {
+        return res.status(400).json({
+          success: false,
+          message: "两次输入的密码不一致"
+        });
+      }
 
       // 验证Turnstile令牌
       if (!turnstileToken) {

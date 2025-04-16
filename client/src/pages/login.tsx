@@ -199,16 +199,18 @@ export default function Login() {
     try {
       console.log('[Login] Starting authentication process');
       const endpoint = isRegistering ? '/api/register' : '/api/login';
+      
+      // 构建请求体，注册时包含确认密码
+      const requestBody = isRegistering 
+        ? { username, password, confirmPassword, turnstileToken }
+        : { username, password, turnstileToken };
+      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          username, 
-          password, 
-          turnstileToken 
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
