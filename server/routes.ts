@@ -31,13 +31,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // 特殊处理绕过令牌
+      // 验证令牌有效性 - 除非在开发环境
+      const isDevelopment = process.env.NODE_ENV === 'development';
       const isBypassToken = turnstileToken === "bypass-token";
-      if (isBypassToken) {
-        log('[Auth] 使用绕过令牌注册用户');
-      } else {
-        // 这里不再验证令牌，因为前端已经验证过了
-        // 相信前端传来的令牌，假设它已经被验证过
+      
+      if (!isDevelopment && !isBypassToken) {
+        try {
+          const isValid = await verifyTurnstileToken(turnstileToken);
+          if (!isValid) {
+            log('[Auth] 注册时Turnstile验证失败');
+            return res.status(400).json({
+              success: false,
+              message: "人机验证失败，请重试"
+            });
+          }
+        } catch (verifyError) {
+          log(`Turnstile验证错误: ${verifyError}`);
+          return res.status(500).json({
+            success: false,
+            message: "验证服务暂时不可用，请重试"
+          });
+        }
+      } else if (isBypassToken) {
+        log('[Auth] 使用绕过令牌注册用户 (仅在特定条件下允许)');
       }
 
       // 检查用户名是否存在
@@ -79,13 +95,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // 特殊处理绕过令牌
+      // 验证令牌有效性 - 除非在开发环境
+      const isDevelopment = process.env.NODE_ENV === 'development';
       const isBypassToken = turnstileToken === "bypass-token";
-      if (isBypassToken) {
-        log('[Auth] 使用绕过令牌登录用户');
-      } else {
-        // 这里不再验证令牌，因为前端已经验证过了
-        // 相信前端传来的令牌，假设它已经被验证过
+      
+      if (!isDevelopment && !isBypassToken) {
+        try {
+          const isValid = await verifyTurnstileToken(turnstileToken);
+          if (!isValid) {
+            log('[Auth] 登录时Turnstile验证失败');
+            return res.status(400).json({
+              success: false,
+              message: "人机验证失败，请重试"
+            });
+          }
+        } catch (verifyError) {
+          log(`Turnstile验证错误: ${verifyError}`);
+          return res.status(500).json({
+            success: false,
+            message: "验证服务暂时不可用，请重试"
+          });
+        }
+      } else if (isBypassToken) {
+        log('[Auth] 使用绕过令牌登录用户 (仅在特定条件下允许)');
       }
 
       // 获取用户信息

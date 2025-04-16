@@ -48,6 +48,13 @@ export default function Login() {
   // Turnstile验证失败的计数器
   const turnstileErrorCount = useRef(0);
   const [turnstileBypass, setTurnstileBypass] = useState(false);
+  
+  // 检查是否为开发环境
+  const isDevelopmentEnv = () => {
+    return window.location.hostname === 'localhost' || 
+           window.location.hostname === '127.0.0.1' ||
+           window.location.hostname.includes('.repl.co');
+  };
 
   // 验证Turnstile令牌
   const verifyTurnstileToken = async (token: string) => {
@@ -75,10 +82,11 @@ export default function Login() {
         // 增加错误计数
         turnstileErrorCount.current += 1;
         
-        // 如果连续三次失败，允许跳过验证
-        if (turnstileErrorCount.current >= 3) {
+        // 如果连续三次失败且在开发环境中，允许跳过验证
+        if (turnstileErrorCount.current >= 3 && isDevelopmentEnv()) {
+          console.log('[Login] 开发环境下允许跳过验证');
           setTurnstileBypass(true);
-          // 生成一个假的令牌用于绕过前端验证
+          // 生成一个假的令牌用于绕过前端验证，但后端仍会校验
           setTurnstileToken("bypass-token");
           setError("");
           return true;
@@ -92,10 +100,10 @@ export default function Login() {
       // 增加错误计数
       turnstileErrorCount.current += 1;
       
-      // 如果连续三次失败，允许跳过验证
-      if (turnstileErrorCount.current >= 3) {
+      // 如果连续三次失败且在开发环境中，允许跳过验证
+      if (turnstileErrorCount.current >= 3 && isDevelopmentEnv()) {
+        console.log('[Login] 开发环境下允许跳过验证（连接错误）');
         setTurnstileBypass(true);
-        // 生成一个假的令牌用于绕过前端验证
         setTurnstileToken("bypass-token");
         setError("");
         return true;
@@ -143,9 +151,15 @@ export default function Login() {
           }),
         });
         
+        if (!response.ok) {
+          console.error('[Login] 开发者验证HTTP错误:', response.status);
+          throw new Error(`HTTP错误 ${response.status}`);
+        }
+        
         const data = await response.json();
         
         if (data.success) {
+          console.log('[Login] 开发者验证成功，用户ID:', data.userId);
           const userData = {
             userId: data.userId,
             role: data.role,
@@ -153,12 +167,16 @@ export default function Login() {
           };
           localStorage.setItem("user", JSON.stringify(userData));
           
+          // 添加会话标记，用于后续API请求
+          sessionStorage.setItem("developer_mode_verified", "true");
+          
           if (data.role === 'admin') {
             setLocation("/admin");
           } else {
             setLocation("/");
           }
         } else {
+          console.error('[Login] 开发者验证失败:', data.message);
           setError(data.message || "开发者验证失败");
         }
       } catch (err) {
