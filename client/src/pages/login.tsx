@@ -204,6 +204,8 @@ export default function Login() {
         ? { username, password, confirmPassword, turnstileToken }
         : { username, password, turnstileToken };
 
+      console.log(`[Login] 发送${isRegistering ? '注册' : '登录'}请求到 ${endpoint}`, requestBody);
+      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -212,7 +214,9 @@ export default function Login() {
         body: JSON.stringify(requestBody),
       });
 
+      console.log(`[Login] 收到响应状态: ${response.status}`);
       const data = await response.json();
+      console.log(`[Login] 响应数据:`, data);
 
       if (data.success) {
         // 设置用户会话数据
