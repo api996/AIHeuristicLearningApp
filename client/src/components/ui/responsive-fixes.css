@@ -56,6 +56,36 @@
   min-height: 200px !important;
 }
 
+/* 确保下拉菜单和对话框始终位于顶层 */
+.DropdownMenuContent,
+[class*="DropdownMenuContent"],
+[data-state="open"].DropdownMenuContent,
+[data-radix-popper-content-wrapper],
+[role="dialog"],
+.DialogContent,
+.AlertDialogContent {
+  z-index: 9999 !important;
+  position: relative !important;
+}
+
+/* 特别针对iPad设备上的下拉菜单和对话框 */
+.ipad-device [data-radix-popper-content-wrapper],
+.tablet-device [data-radix-popper-content-wrapper],
+.ipad-device [role="dialog"],
+.tablet-device [role="dialog"],
+.ipad-device .DialogContent,
+.tablet-device .DialogContent,
+.ipad-device .AlertDialogContent,
+.tablet-device .AlertDialogContent {
+  z-index: 9999 !important;
+  position: fixed !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+}
+
 /* 确保页面视图永远不会被截断 */
 .min-h-screen {
   min-height: 100vh !important;
