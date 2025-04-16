@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { TurnstileWidget } from "@/components/ui/turnstile";
@@ -48,7 +47,7 @@ export default function Login() {
   // Turnstile验证失败的计数器
   const turnstileErrorCount = useRef(0);
   const [turnstileBypass, setTurnstileBypass] = useState(false);
-  
+
   // 检查是否为开发环境
   const isDevelopmentEnv = () => {
     return window.location.hostname === 'localhost' || 
@@ -60,7 +59,7 @@ export default function Login() {
   const verifyTurnstileToken = async (token: string) => {
     try {
       console.log('[Login] 正在验证Turnstile令牌');
-      
+
       // 先验证令牌
       const response = await fetch('/api/verify-turnstile', {
         method: 'POST',
@@ -69,7 +68,7 @@ export default function Login() {
         },
         body: JSON.stringify({ token }),
       });
-      
+
       const data = await response.json();
       if (data.success) {
         console.log('[Login] Turnstile验证成功');
@@ -81,7 +80,7 @@ export default function Login() {
         console.error('[Login] Turnstile验证失败:', data.message);
         // 增加错误计数
         turnstileErrorCount.current += 1;
-        
+
         // 如果连续三次失败且在开发环境中，允许跳过验证
         if (turnstileErrorCount.current >= 3 && isDevelopmentEnv()) {
           console.log('[Login] 开发环境下允许跳过验证');
@@ -91,7 +90,7 @@ export default function Login() {
           setError("");
           return true;
         }
-        
+
         setError(data.message || "人机验证失败，请重试");
         return false;
       }
@@ -99,7 +98,7 @@ export default function Login() {
       console.error('[Login] Turnstile验证错误:', err);
       // 增加错误计数
       turnstileErrorCount.current += 1;
-      
+
       // 如果连续三次失败且在开发环境中，允许跳过验证
       if (turnstileErrorCount.current >= 3 && isDevelopmentEnv()) {
         console.log('[Login] 开发环境下允许跳过验证（连接错误）');
@@ -108,7 +107,7 @@ export default function Login() {
         setError("");
         return true;
       }
-      
+
       setError("验证服务暂时不可用，请重试");
       return false;
     }
@@ -136,7 +135,7 @@ export default function Login() {
       }
 
       setIsVerifying(true);
-      
+
       try {
         console.log('[Login] Starting developer authentication process');
         const response = await fetch('/api/developer-login', {
@@ -150,14 +149,14 @@ export default function Login() {
             developerPassword 
           }),
         });
-        
+
         if (!response.ok) {
           console.error('[Login] 开发者验证HTTP错误:', response.status);
           throw new Error(`HTTP错误 ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
           console.log('[Login] 开发者验证成功，用户ID:', data.userId);
           const userData = {
@@ -166,10 +165,10 @@ export default function Login() {
             username: username
           };
           localStorage.setItem("user", JSON.stringify(userData));
-          
+
           // 添加会话标记，用于后续API请求
           sessionStorage.setItem("developer_mode_verified", "true");
-          
+
           if (data.role === 'admin') {
             setLocation("/admin");
           } else {
@@ -199,12 +198,12 @@ export default function Login() {
     try {
       console.log('[Login] Starting authentication process');
       const endpoint = isRegistering ? '/api/register' : '/api/login';
-      
+
       // 构建请求体，注册时包含确认密码
       const requestBody = isRegistering 
         ? { username, password, confirmPassword, turnstileToken }
         : { username, password, turnstileToken };
-      
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -214,7 +213,7 @@ export default function Login() {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         // 设置用户会话数据
         const userData = {
@@ -223,7 +222,7 @@ export default function Login() {
           username: username
         };
         localStorage.setItem("user", JSON.stringify(userData));
-        
+
         // 根据角色导航到相应页面
         if (data.role === 'admin') {
           setLocation("/admin");
@@ -247,7 +246,7 @@ export default function Login() {
         <h1 className="text-2xl font-bold text-white mb-4">
           {isRegistering ? "注册" : "登录"}
         </h1>
-        
+
         <form onSubmit={handleSubmit} className="w-full">
           <div className="input-box relative w-full my-[30px] border-b-2 border-white">
             <i className="fas fa-user icon absolute right-2 text-white text-lg top-1/2 -translate-y-1/2"></i>
@@ -262,7 +261,7 @@ export default function Login() {
               用户名
             </label>
           </div>
-          
+
           <div className="input-box relative w-full my-[30px] border-b-2 border-white">
             <i className="fas fa-lock icon absolute right-2 text-white text-lg top-1/2 -translate-y-1/2"></i>
             <input
@@ -276,7 +275,7 @@ export default function Login() {
               密码
             </label>
           </div>
-          
+
           {isRegistering && (
             <div className="input-box relative w-full my-[30px] border-b-2 border-white">
               <i className="fas fa-lock icon absolute right-2 text-white text-lg top-1/2 -translate-y-1/2"></i>
@@ -321,7 +320,7 @@ export default function Login() {
               </label>
             </div>
           )}
-          
+
           {/* 开发者模式说明 */}
           {isDeveloperMode && (
             <div className="text-xs text-blue-300 mt-1 italic">
