@@ -320,8 +320,12 @@ const MemorySpace: React.FC = () => {
                 )}
                 
                 {filteredMemories.length === 0 ? (
-                  <div className="md:col-span-2 lg:col-span-3 flex justify-center items-center h-64">
+                  <div className="md:col-span-2 lg:col-span-3 flex flex-col justify-center items-center h-64 gap-4">
                     <p className="text-muted-foreground">没有找到记忆数据</p>
+                    <p className="text-sm text-muted-foreground max-w-md text-center">
+                      您可以通过与系统交互来创建记忆，记忆会自动保存下来并进行分析。当积累5条或更多记忆后，系统将能够进行主题聚类分析。
+                    </p>
+                    <Button variant="outline" onClick={() => setLocation('/')}>开始新对话</Button>
                   </div>
                 ) : (
                   filteredMemories.map((memory) => (
@@ -369,10 +373,17 @@ const MemorySpace: React.FC = () => {
             ) : (clustersData?.topics?.length || 0) === 0 ? (
               <div className="flex justify-center items-center h-64 flex-col gap-4">
                 <p className="text-muted-foreground">没有足够的记忆数据进行聚类分析</p>
-                <Button onClick={handleRepairMemories} disabled={isRepairing}>
-                  {isRepairing ? <Spinner className="mr-2 h-4 w-4" /> : null}
-                  整理记忆数据
-                </Button>
+                <p className="text-sm text-muted-foreground max-w-md text-center">
+                  需要至少5条记忆数据才能形成有意义的主题聚类。目前已有 {memoriesData?.memories?.length || 0} 条记忆，
+                  再创建 {Math.max(0, 5 - (memoriesData?.memories?.length || 0))} 条即可启用此功能。
+                </p>
+                <div className="flex gap-2">
+                  <Button onClick={handleRepairMemories} disabled={isRepairing}>
+                    {isRepairing ? <Spinner className="mr-2 h-4 w-4" /> : null}
+                    整理记忆数据
+                  </Button>
+                  <Button variant="outline" onClick={() => setLocation('/')}>开始新对话</Button>
+                </div>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

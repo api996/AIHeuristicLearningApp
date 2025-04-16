@@ -479,33 +479,16 @@ async function getDefaultLearningPath(userId?: number): Promise<LearningPathResu
       }
     }
     
-    // 如果上面的方法没有生成有效的主题，则使用一个非常通用的默认模板
+    // 不使用默认模板，而是直接反映实际状态
     return {
-      topics: [
-        {topic: "对话主题", id: "topic_conversation", count: 1, percentage: 40},
-        {topic: "问答交流", id: "topic_qa", count: 1, percentage: 30},
-        {topic: "知识探索", id: "topic_knowledge", count: 1, percentage: 25}
-      ],
-      progress: [
-        {category: "对话主题", score: 40, change: 0},
-        {category: "问答交流", score: 30, change: 0},
-        {category: "知识探索", score: 25, change: 0}
-      ],
+      topics: [],
+      progress: [],
       suggestions: [
-        "继续提问感兴趣的学习话题",
-        "探索您感兴趣的不同知识领域",
-        "尝试与AI进行更深入的对话"
+        "继续添加更多学习内容以生成个性化学习轨迹",
+        "需要至少5条记忆数据才能进行有效的主题聚类分析"
       ],
-      nodes: [
-        {id: "topic_conversation", label: "对话主题", size: 30, category: "交流"},
-        {id: "topic_qa", label: "问答交流", size: 20, category: "交流"},
-        {id: "topic_knowledge", label: "知识探索", size: 15, category: "学习"}
-      ],
-      links: [
-        {source: "topic_conversation", target: "topic_qa", value: 3},
-        {source: "topic_conversation", target: "topic_knowledge", value: 2},
-        {source: "topic_qa", target: "topic_knowledge", value: 3}
-      ]
+      nodes: [],
+      links: []
     };
   } catch (error) {
     log(`[trajectory] 生成默认学习轨迹时遇到错误: ${error}`);

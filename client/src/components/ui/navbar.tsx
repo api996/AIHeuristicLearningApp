@@ -5,20 +5,24 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 
 export const Navbar: React.FC = () => {
-  const { userId, logout } = useAuth();
+  const { userId, role, logout } = useAuth();
   const [location] = useLocation();
 
   // 定义导航项
-  const navItems = [
-    { href: "/", label: "聊天", icon: Home },
-    { href: "/learning-path", label: "学习轨迹", icon: BookOpen },
-    { href: "/memory-space", label: "记忆空间", icon: Library },
-  ];
-
-  // 如果是管理员，添加管理页面
-  if (userId && useAuth().role === "admin") {
-    navItems.push({ href: "/admin", label: "管理", icon: Settings });
-  }
+  const navItems = React.useMemo(() => {
+    const items = [
+      { href: "/", label: "聊天", icon: Home },
+      { href: "/learning-path", label: "学习轨迹", icon: BookOpen },
+      { href: "/memory-space", label: "记忆空间", icon: Library },
+    ];
+    
+    // 如果是管理员，添加管理页面
+    if (userId && role === "admin") {
+      items.push({ href: "/admin", label: "管理", icon: Settings });
+    }
+    
+    return items;
+  }, [userId, role]);
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

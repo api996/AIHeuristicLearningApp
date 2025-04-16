@@ -69,7 +69,7 @@ export class MemoryService {
    * @param content 内容
    * @returns 关键词数组
    */
-  private async extractKeywords(content: string): Promise<string[] | null> {
+  async extractKeywords(content: string): Promise<string[] | null> {
     return memorySummarizer.extractKeywords(content);
   }
 
