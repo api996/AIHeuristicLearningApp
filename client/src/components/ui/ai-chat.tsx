@@ -2382,9 +2382,22 @@ export function AIChat({ userData }: AIChatProps) {
                               if (bgResponse.ok) {
                                 const bgData = await bgResponse.json();
                                 if (bgData && bgData.url) {
+                                  // 构建完整的URL
+                                  const fullUrl = bgData.url.startsWith('http') 
+                                    ? bgData.url 
+                                    : `${baseUrl}${bgData.url}`;
+                                  
+                                  console.log('背景上传成功，新背景URL:', fullUrl);
+                                  
+                                  // 直接更新页面背景（立即生效）
+                                  const homeElement = document.querySelector('.min-h-screen');
+                                  if (homeElement instanceof HTMLElement) {
+                                    homeElement.style.backgroundImage = `url('${fullUrl}')`;
+                                  }
+                                  
                                   // 触发应用重新加载背景图片 - 通过广播事件
                                   const event = new CustomEvent('background-updated', { 
-                                    detail: { url: bgData.url } 
+                                    detail: { url: fullUrl }
                                   });
                                   window.dispatchEvent(event);
                                   

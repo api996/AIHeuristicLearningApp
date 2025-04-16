@@ -192,8 +192,10 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
  */
 router.delete('/:fileId', async (req: Request, res: Response) => {
   try {
-    const userId = req.session.userId;
+    // 从会话或请求参数中获取用户ID
+    const userId = req.session.userId || Number(req.query.userId);
     if (!userId) {
+      console.error('删除文件失败: 未提供有效的用户ID');
       return res.status(401).json({ error: '未授权' });
     }
 
