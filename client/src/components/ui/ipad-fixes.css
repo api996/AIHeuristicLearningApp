@@ -8,6 +8,35 @@
  * 4. 完全避免任何绝对定位
  */
 
+/* 管理员界面全局滚动修复，适用于所有设备 */
+.admin-dashboard {
+  min-height: 100vh !important;
+  overflow-y: auto !important;
+  max-height: 100vh !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.admin-dashboard > div {
+  height: auto !important;
+  min-height: 100vh !important;
+  overflow: visible !important;
+  width: 100% !important;
+}
+
+/* 修复所有容器式卡片的滚动问题 */
+.admin-dashboard .card {
+  overflow: auto !important;
+  max-height: calc(100vh - 100px) !important;
+}
+
+/* 确保表格可滚动 */
+.admin-dashboard table {
+  width: 100% !important;
+  overflow-x: auto !important;
+  display: block !important;
+}
+
 /* ===== iPad/平板专用布局(768px-1366px) ===== */
 @media screen and (min-width: 768px) and (max-width: 1366px) {
   /* ===== 基础容器结构 ===== */

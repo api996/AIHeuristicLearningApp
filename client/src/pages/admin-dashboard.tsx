@@ -88,7 +88,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black admin-dashboard">
       {/* Header */}
       <header className="border-b border-neutral-800 bg-neutral-900">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">

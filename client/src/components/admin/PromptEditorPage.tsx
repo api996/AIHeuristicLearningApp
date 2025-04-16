@@ -463,7 +463,7 @@ export function PromptEditorPage() {
         <div className="mb-6 flex items-center">
           <Button 
             variant="default" 
-            onClick={() => navigate('/admin-dashboard')}
+            onClick={() => navigate('/admin')}
             className="mr-3 bg-blue-600 hover:bg-blue-700"
           >
             <ChevronLeft className="h-4 w-4 mr-1" /> 返回
@@ -639,7 +639,7 @@ export function PromptEditorPage() {
                 <div className="flex space-x-2">
                   <Button
                     variant="outline"
-                    onClick={() => navigate('/admin-dashboard')}
+                    onClick={() => navigate('/admin')}
                     className="bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
                   >
                     <ChevronLeft className="h-4 w-4 mr-1" />
