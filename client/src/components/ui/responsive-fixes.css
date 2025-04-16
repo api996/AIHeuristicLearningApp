@@ -10,7 +10,7 @@
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
   height: auto !important;
-  max-height: calc(100vh - 120px) !important; /* 更精确的高度计算 */
+  max-height: 80vh !important;
 }
 
 /* 管理员界面滚动修复 */

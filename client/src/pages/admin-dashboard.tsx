@@ -88,7 +88,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   
   return (
-    <div className="min-h-screen bg-black admin-dashboard-container" style={{overflowY: 'auto', maxHeight: '100vh'}}>
+    <div className="min-h-screen bg-black admin-dashboard-container">
       {/* Header */}
       <header className="border-b border-neutral-800 bg-neutral-900">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -117,7 +117,7 @@ export default function AdminDashboard() {
             </TabsList>
             
             {/* Dashboard Tab */}
-            <TabsContent value="dashboard" style={{maxHeight: 'calc(100vh - 120px)', overflowY: 'auto'}}>
+            <TabsContent value="dashboard">
               {/* Main Content */}
               <main className="py-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -225,8 +225,8 @@ export default function AdminDashboard() {
             </TabsContent>
             
             {/* Prompts Templates Tab */}
-            <TabsContent value="prompts" style={{maxHeight: 'calc(100vh - 120px)', overflowY: 'auto'}}>
-              <div className="py-8">
+            <TabsContent value="prompts">
+              <div className="py-8 admin-content">
                 <div className="container mx-auto px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
@@ -251,8 +251,8 @@ export default function AdminDashboard() {
             </TabsContent>
             
             {/* Content Moderation Tab */}
-            <TabsContent value="moderation" style={{maxHeight: 'calc(100vh - 120px)', overflowY: 'auto'}}>
-              <div className="py-8">
+            <TabsContent value="moderation">
+              <div className="py-8 admin-content">
                 <div className="container mx-auto px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
