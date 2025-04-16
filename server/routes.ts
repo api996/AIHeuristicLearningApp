@@ -322,18 +322,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5); // 只取前5个主题
           
-          // 如果没有找到任何主题，添加默认主题
+          // 现在不再添加默认主题，让UI处理零主题的情况
+          // 如果没有找到任何主题，返回空数组
           if (sortedTopics.length === 0) {
-            sortedTopics.push(['知识探索', 3]);
-            sortedTopics.push(['学习方法', 2]);
-            sortedTopics.push(['个人成长', 1]);
-          } else if (sortedTopics.length === 1) {
-            // 如果只找到一个主题，再添加两个相关主题
-            sortedTopics.push(['学习方法', Math.ceil(sortedTopics[0][1] * 0.7)]);
-            sortedTopics.push(['知识探索', Math.ceil(sortedTopics[0][1] * 0.4)]);
-          } else if (sortedTopics.length === 2) {
-            // 如果只找到两个主题，再添加一个相关主题
-            sortedTopics.push(['知识探索', Math.ceil((sortedTopics[0][1] + sortedTopics[1][1]) * 0.3)]);
+            // 不添加默认主题
+            log(`未检测到任何主题，将返回空数组`);
           }
           
           // 计算总权重，用于后续百分比计算
