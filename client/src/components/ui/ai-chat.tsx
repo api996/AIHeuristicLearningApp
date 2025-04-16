@@ -1280,7 +1280,7 @@ export function AIChat({ userData }: AIChatProps) {
   }, []);
   
   return (
-    <div className="flex h-screen text-white relative" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
+    <div className="flex h-screen text-white relative overflow-auto" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
       {/* 背景图片容器 */}
       {backgroundImage && (
         <div className="bg-container">
