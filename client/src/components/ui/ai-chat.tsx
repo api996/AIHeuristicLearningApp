@@ -26,6 +26,7 @@ import {
   X
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1363,84 +1364,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* Main Content - 添加iPad优化类 */}
       <div className="flex-1 flex flex-col relative chat-content-area w-full ipad-chat-content">
-        {/* Header - 主题样式根据模式切换 */}
-        <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${
-          theme === 'dark' 
-            ? 'frosted-glass-dark border-neutral-800' 
-            : 'bg-black/30 backdrop-blur-md border-[#0deae4]/20'
-        }`}>
-          <div className="flex items-center">
-            {/* 左侧菜单按钮 - 显示历史记录 */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`mr-4 rounded-lg h-12 w-12 ${
-                theme === 'dark'
-                  ? 'hover:bg-neutral-800'
-                  : 'hover:bg-[#0deae4]/10'
-              }`}
-              onClick={toggleSidebar}
-              aria-label="显示侧边栏"
-            >
-              <Menu className={`h-7 w-7 ${theme === 'dark' ? 'text-neutral-300' : 'text-[#0deae4]'}`} />
-            </Button>
-
-            {/* 当前对话标题 */}
-            {currentChatId ? (
-              <div className="flex items-center">
-                <h1 className={`text-lg font-medium mr-2 truncate max-w-[180px] sm:max-w-[320px] md:max-w-[400px] ${
-                  theme === 'dark' ? 'text-neutral-200' : 'text-white'
-                }`}>{currentChat?.title}</h1>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => setShowTitleDialog(true)}
-                  className={`h-8 w-8 rounded-full ${
-                    theme === 'dark' ? 'hover:bg-neutral-800' : 'hover:bg-[#0deae4]/10'
-                  }`}
-                >
-                  <Edit className={`h-4 w-4 ${
-                    theme === 'dark' ? 'text-neutral-400' : 'text-[#0deae4]'
-                  }`} />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center">
-                <div className={`p-1.5 rounded-lg mr-2.5 ${
-                  theme === 'dark' 
-                    ? 'bg-gradient-to-br from-blue-500 to-purple-600' 
-                    : 'bg-gradient-to-br from-[#0deae4] to-[#0d8ae4]'
-                }`}>
-                  <Brain className="h-5 w-5 text-white" />
-                </div>
-                <h1 className="text-lg font-bold text-white">启发式对话导师</h1>
-              </div>
-            )}
-          </div>
-
-          {/* 右侧功能区 - 只保留新对话按钮，改为ChatGPT风格 */}
-          <div className="flex items-center">
-            {/* 新对话按钮 - 更可爱的青色主题样式 */}
-            <Button 
-              variant="outline" 
-              onClick={handleNewChat}
-              className={`h-12 px-6 rounded-full bg-white/10 backdrop-blur-md hover:bg-opacity-20 text-white border-2 flex items-center transition-all shadow-md hover:scale-105 ${
-                theme === 'dark' ? 'border-[#0deae4] hover:bg-[#0deae4]/20 hover:shadow-[#0deae4]/30' : ''
-              }`}
-              style={theme === 'light' ? {
-                borderColor: 'var(--custom-theme-color)',
-                '--tw-bg-opacity': 0.2,
-                '--tw-hover-bg-opacity': 0.3,
-                boxShadow: '0 0 10px rgba(var(--custom-theme-color-rgb, 13, 234, 228), 0.2)',
-                '--tw-hover-shadow': '0 0 15px rgba(var(--custom-theme-color-rgb, 13, 234, 228), 0.3)',
-              } as React.CSSProperties : {}}
-              title="新对话"
-            >
-              <Plus className={`h-5 w-5 mr-2 ${theme === 'dark' ? 'text-[#0deae4]' : ''}`} style={theme === 'light' ? {color: 'var(--custom-theme-color)'} : {}} />
-              <span className="font-medium">新对话</span>
-            </Button>
-          </div>
-        </header>
+        {/* 移除多余的顶部导航栏，由主页的工具栏替代 */}
 
         {/* 聊天消息容器 - 优化的响应式居中布局 */}
         <div className={`
@@ -2119,6 +2043,11 @@ export function AIChat({ userData }: AIChatProps) {
           <DialogHeader>
             <DialogTitle>偏好设置</DialogTitle>
           </DialogHeader>
+          {/* 自定义关闭按钮，确保始终可见 */}
+          <DialogPrimitive.Close className="DialogClose absolute right-4 top-4 rounded-full opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+            <X className="h-5 w-5" />
+            <span className="sr-only">关闭</span>
+          </DialogPrimitive.Close>
           <div className="space-y-6 py-3">
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-neutral-300">外观</h3>
