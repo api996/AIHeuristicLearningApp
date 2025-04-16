@@ -33,7 +33,15 @@ router.get('/:userId', async (req, res) => {
     
     log(`[API] 获取用户 ${userId} 的学习轨迹分析`);
     
+    // 设置响应头，禁用缓存
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    // 添加时间戳版本以确保每次返回的数据不一样，避免浏览器缓存
     const result = await analyzeLearningPath(userId);
+    result.version = new Date().getTime(); // 添加时间戳作为版本号
+    
     res.json(result);
   } catch (error) {
     log(`[API] 获取学习轨迹分析出错: ${error}`);
