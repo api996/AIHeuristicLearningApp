@@ -717,6 +717,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const chat of userChats) {
         await storage.deleteChat(chat.id, userIdToDelete, true);
       }
+      
+      // Delete all user's memories
+      const userMemories = await storage.getMemoriesByUserId(userIdToDelete);
+      for (const memory of userMemories) {
+        // 先删除记忆相关的关键词和嵌入向量
+        await storage.deleteKeywordsByMemoryId(memory.id);
+        
+        // 获取嵌入并删除
+        const embedding = await storage.getEmbeddingByMemoryId(memory.id);
+        if (embedding) {
+          // 这里没有专门的deleteEmbedding方法，但嵌入表有memoryId唯一约束，会随记忆自动删除
+        }
+        
+        // 删除记忆本身
+        await storage.deleteMemory(memory.id);
+      }
 
       // Delete the user
       await storage.deleteUser(userIdToDelete);
