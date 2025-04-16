@@ -222,6 +222,14 @@ export default function Login() {
           username: username
         };
         localStorage.setItem("user", JSON.stringify(userData));
+        
+        // 触发用户注册事件，通知其他组件更新状态
+        if (window.document) {
+          console.log('[Login] 触发用户注册事件');
+          // 导入并使用authEvents
+          const { authEvents } = require("@/hooks/use-auth");
+          authEvents.dispatchUserRegistered();
+        }
 
         // 根据角色导航到相应页面
         if (data.role === 'admin') {
