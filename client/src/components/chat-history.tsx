@@ -307,12 +307,12 @@ export function ChatHistory({
       </AlertDialog>
       
       {/* 用户中心下拉菜单 - 使用ChatGPT风格固定在底部 */}
-      <div className="mt-auto p-2 border-t border-neutral-800">
+      <div className="mt-auto p-2 border-t border-neutral-800 profile-menu-container">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="w-full justify-start p-3 text-neutral-300 hover:bg-neutral-800 rounded-lg transition-colors"
+              className="w-full justify-start p-3 text-neutral-300 hover:bg-neutral-800 rounded-lg transition-colors profile-trigger-button"
             >
               <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full mr-3">
                 <User className="h-5 w-5 text-white" />
