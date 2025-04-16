@@ -325,7 +325,8 @@ export default function Login() {
           {/* 开发者模式说明 */}
           {isDeveloperMode && (
             <div className="text-xs text-blue-300 mt-1 italic">
-              使用管理员密码验证后，将在此会话中跳过后续的人机验证
+              使用开发者密码验证后，将在此会话中跳过后续的人机验证。<br/>
+              注意：使用此模式登录时，若用户不存在将自动创建普通用户账户。
             </div>
           )}
 

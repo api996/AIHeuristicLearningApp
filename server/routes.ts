@@ -202,57 +202,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password, developerPassword } = req.body;
       
+      log(`[开发者登录] 开始处理登录请求, 用户名: ${username}`);
+      
       // 获取管理员账户
       const adminUser = await storage.getUserByUsername("admin");
       
       // 如果没有管理员账户，设置默认开发者密码
       const validDevPassword = adminUser ? adminUser.password : "dev123456";
       
+      // 验证开发者密码
       if (developerPassword !== validDevPassword) {
+        log(`[开发者登录] 开发者密码验证失败`);
         return res.status(401).json({
           success: false,
           message: "开发者密码错误"
         });
       }
       
+      log(`[开发者登录] 开发者密码验证成功`);
+      
       // 设置开发者模式已通过的标记到会话
       if (req.session) {
         req.session.developerModeVerified = true;
+        log(`[开发者登录] 会话已设置开发者模式标志`);
       }
       
       // 获取用户信息
       let user = await storage.getUserByUsername(username);
-
-      // 如果是首次设置管理员账户
-      if (username === "admin" && !user) {
-        // 创建管理员账户
-        const secureAdminPassword = password || "Admin@" + Math.floor(Math.random() * 10000);
+      
+      // 处理不同情况
+      if (username === "admin") {
+        // 管理员账户特殊处理
+        if (!user) {
+          // 创建管理员账户（仅当用户名为admin且账户不存在）
+          log(`[开发者登录] 创建新的管理员账户`);
+          const secureAdminPassword = password || "Admin@" + Math.floor(Math.random() * 10000);
+          user = await storage.createUser({ 
+            username, 
+            password: secureAdminPassword, 
+            role: "admin" 
+          });
+          
+          if (!password) {
+            // 记录生成的密码到日志（仅供首次设置使用）
+            console.log(`初始管理员密码已生成: ${secureAdminPassword}`);
+            
+            return res.status(401).json({
+              success: false,
+              message: "管理员账户已创建，请查看服务器日志获取初始密码"
+            });
+          }
+        }
+      } else if (!user) {
+        // 如果是新的普通用户，创建普通用户账户
+        log(`[开发者登录] 创建新的普通用户账户: ${username}`);
         user = await storage.createUser({ 
           username, 
-          password: secureAdminPassword, 
-          role: "admin" 
+          password, 
+          role: "user" // 显式设置为普通用户
         });
-        
-        if (!password) {
-          // 记录生成的密码到日志（仅供首次设置使用）
-          console.log(`初始管理员密码已生成: ${secureAdminPassword}`);
-          
-          return res.status(401).json({
-            success: false,
-            message: "管理员账户已创建，请查看服务器日志获取初始密码"
-          });
-        }
       }
       
-      // 验证用户密码
-      if (user && user.password === password) {
-        log(`[开发者模式] 用户 ${username} 登录成功`);
+      // 验证用户密码（如果是开发者模式，不必严格检查密码）
+      if (user && (user.password === password || developerPassword === validDevPassword)) {
+        log(`[开发者模式] 用户 ${username} 登录成功, ID: ${user.id}, 角色: ${user.role}`);
         res.json({ 
           success: true, 
           userId: user.id, 
           role: user.role 
         });
       } else {
+        log(`[开发者登录] 密码验证失败, 用户名: ${username}`);
         res.status(401).json({ 
           success: false, 
           message: "用户名或密码错误" 
