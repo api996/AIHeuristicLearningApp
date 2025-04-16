@@ -43,6 +43,7 @@
   .scroll-container {
     max-height: calc(100vh - 180px) !important;
     overflow-y: auto !important;
-    padding-bottom: 50px !important;
+    padding-bottom: 60px !important; /* 增加底部padding防止内容被遮挡 */
+    -webkit-overflow-scrolling: touch !important; /* 确保iOS滚动流畅 */
   }
 }
