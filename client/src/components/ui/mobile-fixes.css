@@ -17,12 +17,11 @@
   
   /* 侧边栏可见时 - 完全重置侧边栏定位，避免被遮挡 */
   .sidebar-container.translate-x-0 {
-    transform: none !important; /* 完全移除transform，防止渲染问题 */
+    transform: translateX(0) !important; /* 不再使用transform平移 */
     left: 0 !important; /* 直接从左侧开始显示 */
-    width: 85% !important; /* 保持合适宽度 */
+    width: 90% !important; /* 稍微增加宽度以确保内容完全可见 */
     max-width: 300px !important;
-    z-index: 99999 !important; /* 极高层级，确保在所有元素之上 */
-    transition: none !important; /* 修复某些设备上的过渡问题 */
+    z-index: 9999 !important; /* 绝对最高层级，确保在所有元素之上 */
   }
   
   /* 聊天内容区域 */
