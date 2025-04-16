@@ -1,8 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 @import url('./components/ui/button-styles.css');
-@import url('./components/ui/responsive-fixes.css');
-@import url('./components/ui/mobile-fixes.css');
-@import url('./components/ui/ipad-fixes.css');
 
 @tailwind base;
 @tailwind components;

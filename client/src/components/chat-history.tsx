@@ -327,7 +327,7 @@ export function ChatHistory({
             align="center" 
             side="top"
             sideOffset={10} 
-            className="w-[260px] bg-neutral-800 border border-neutral-700 text-white rounded-xl shadow-lg animate-in slide-in-from-bottom-5 fade-in-80 z-[9999]"
+            className="w-[260px] bg-neutral-800 border border-neutral-700 text-white rounded-xl shadow-lg animate-in slide-in-from-bottom-5 fade-in-80"
           >
             <DropdownMenuGroup className="py-1">
               <DropdownMenuItem 
