@@ -1456,16 +1456,16 @@ export function AIChat({ userData }: AIChatProps) {
           <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8">
             {/* 模型选择和网络搜索开关 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
-              {/* 网络搜索按钮 - 作为一个可以切换的辅助功能 */}
+              {/* 网络搜索按钮 - 使用统一青色主题 */}
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
-                  (useWebSearch ? "border-blue-500" : theme === 'dark' ? "border-neutral-700" : "border-blue-300")
+                className={`h-8 text-xs bg-black/40 hover:bg-[#0deae4]/10 ` + 
+                  (useWebSearch ? "border-[#0deae4] text-[#0deae4]" : "border-[#0deae4]/40 text-white")
                 }
                 onClick={() => setUseWebSearch(!useWebSearch)}
               >
-                <Search className={`w-3.5 h-3.5 mr-1.5 ${theme !== 'dark' && 'text-blue-600'}`} />
+                <Search className={`w-3.5 h-3.5 mr-1.5 ${useWebSearch ? 'text-[#0deae4]' : 'text-[#0deae4]/70'}`} />
                 网络搜索
               </Button>
               
@@ -1473,8 +1473,8 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
-                  (currentModel === "deep" ? "border-[#0deae4]" : "border-[#0deae4]/40")
+                className={`h-8 text-xs bg-black/40 hover:bg-[#0deae4]/10 ` + 
+                  (currentModel === "deep" ? "border-[#0deae4] text-[#0deae4]" : "border-[#0deae4]/40 text-white")
                 }
                 onClick={() => handleModelChange("deep")}
               >
@@ -1484,8 +1484,8 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
-                  (currentModel === "gemini" ? "border-[#0deae4]" : "border-[#0deae4]/40")
+                className={`h-8 text-xs bg-black/40 hover:bg-[#0deae4]/10 ` + 
+                  (currentModel === "gemini" ? "border-[#0deae4] text-[#0deae4]" : "border-[#0deae4]/40 text-white")
                 }
                 onClick={() => handleModelChange("gemini")}
               >
@@ -1495,8 +1495,8 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
-                  (currentModel === "deepseek" ? "border-[#0deae4]" : "border-[#0deae4]/40")
+                className={`h-8 text-xs bg-black/40 hover:bg-[#0deae4]/10 ` + 
+                  (currentModel === "deepseek" ? "border-[#0deae4] text-[#0deae4]" : "border-[#0deae4]/40 text-white")
                 }
                 onClick={() => handleModelChange("deepseek")}
               >
@@ -1506,8 +1506,8 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
-                  (currentModel === "grok" ? "border-[#0deae4]" : "border-[#0deae4]/40")
+                className={`h-8 text-xs bg-black/40 hover:bg-[#0deae4]/10 ` + 
+                  (currentModel === "grok" ? "border-[#0deae4] text-[#0deae4]" : "border-[#0deae4]/40 text-white")
                 }
                 onClick={() => handleModelChange("grok")}
               >
@@ -1535,12 +1535,10 @@ export function AIChat({ userData }: AIChatProps) {
               </div>
             )}
 
-            {/* 输入框区域 - 苹果风格磨砂玻璃效果 */}
+            {/* 输入框区域 - 青色主题磨砂玻璃效果 */}
             <div className={`
               relative rounded-xl border shadow-lg overflow-hidden
-              ${theme === 'dark' 
-                ? 'border-blue-700/20 bg-neutral-900/70 backdrop-blur-lg' 
-                : 'border-blue-300/20 bg-white/70 backdrop-blur-lg'}
+              border-[#0deae4]/30 bg-black/40 backdrop-blur-lg
             `}>
               <div className="flex items-end">
                 <div className="flex-1 relative">
@@ -1552,14 +1550,14 @@ export function AIChat({ userData }: AIChatProps) {
                     onBlur={handleInputBlur}
                     placeholder="输入消息..."
                     disabled={isLoading}
-                    className="w-full h-[54px] min-h-[54px] max-h-[150px] py-4 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-[16px]"
+                    className="w-full h-[54px] min-h-[54px] max-h-[150px] py-4 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-[16px] text-white"
                     style={{
                       WebkitAppearance: 'none',
                       MozAppearance: 'none',
                       appearance: 'none',
                       WebkitUserSelect: 'text',
                       userSelect: 'text',
-                      caretColor: theme === 'dark' ? 'white' : '#1c1e24'
+                      caretColor: '#0deae4'
                     }}
                   />
                   <input
@@ -1572,12 +1570,7 @@ export function AIChat({ userData }: AIChatProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className={`
-                      absolute bottom-[13px] left-2 h-8 w-8 rounded-full 
-                      ${theme === 'dark' 
-                        ? 'hover:bg-neutral-700/70 text-neutral-400' 
-                        : 'hover:bg-blue-100/60 text-blue-600'}
-                    `}
+                    className="absolute bottom-[13px] left-2 h-8 w-8 rounded-full hover:bg-[#0deae4]/20 text-[#0deae4]"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <ImageIcon className="h-5 w-5" />
@@ -1587,13 +1580,13 @@ export function AIChat({ userData }: AIChatProps) {
                   onClick={handleSend}
                   disabled={isLoading}
                   className={`
-                    h-10 w-10 mr-3 mb-2 rounded-full shadow-lg
+                    h-10 w-10 mr-3 mb-2 rounded-full shadow-lg transition-all
                     ${isLoading 
-                      ? 'opacity-50 cursor-not-allowed' 
-                      : 'bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600'}
+                      ? 'opacity-50 cursor-not-allowed bg-black/60 border border-[#0deae4]/40' 
+                      : 'bg-[#0deae4] hover:bg-[#0deae4]/80 hover:scale-105 text-black'}
                   `}
                   style={{
-                    boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
+                    boxShadow: isLoading ? '0 0 10px rgba(13, 234, 228, 0.2)' : '0 0 20px rgba(13, 234, 228, 0.5)'
                   }}
                 >
                   <Send className="h-5 w-5" />
