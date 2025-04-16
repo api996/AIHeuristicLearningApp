@@ -360,6 +360,7 @@ div[role="dialog"] {
   --selected-background: #2c2e35;
   --hover-background: #25272e;
   --vh: 1vh; /* 默认viewport height变量，将通过JS动态更新 */
+  --custom-theme-color: #0deae4; /* 默认青色主题颜色 */
   font-size: 16px; /* 默认字体大小 */
 }
 
