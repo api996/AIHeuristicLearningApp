@@ -1382,7 +1382,7 @@ export function AIChat({ userData }: AIChatProps) {
       {/* Main Content - 添加iPad优化类 */}
       <div className="flex-1 flex flex-col relative chat-content-area w-full ipad-chat-content">
         {/* Header - 主题样式根据模式切换 */}
-        <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${
+        <header className={`flex items-center justify-between border-b sm:h-16 sm:px-6 sm:py-4 h-14 px-3 py-2 ${
           theme === 'dark' 
             ? 'frosted-glass-dark border-neutral-800' 
             : 'bg-black/30 backdrop-blur-md border-[#0deae4]/20'
@@ -1406,7 +1406,7 @@ export function AIChat({ userData }: AIChatProps) {
             {/* 当前对话标题 */}
             {currentChatId ? (
               <div className="flex items-center">
-                <h1 className={`text-lg font-medium mr-2 truncate max-w-[180px] sm:max-w-[320px] md:max-w-[400px] ${
+                <h1 className={`text-base font-medium mr-2 truncate max-w-[160px] sm:max-w-[280px] md:max-w-[350px] ${
                   theme === 'dark' ? 'text-neutral-200' : 'text-white'
                 }`}>{currentChat?.title}</h1>
                 <Button 
@@ -1431,7 +1431,7 @@ export function AIChat({ userData }: AIChatProps) {
                 }`}>
                   <Brain className="h-5 w-5 text-white" />
                 </div>
-                <h1 className="text-lg font-bold text-white whitespace-nowrap">启发式对话导师</h1>
+                <h1 className="text-sm font-bold text-white whitespace-nowrap">启发式对话导师</h1>
               </div>
             )}
           </div>
@@ -1442,7 +1442,7 @@ export function AIChat({ userData }: AIChatProps) {
             <Button 
               variant="outline" 
               onClick={handleNewChat}
-              className={`h-12 px-6 rounded-full bg-white/10 backdrop-blur-md hover:bg-opacity-20 text-white border-2 flex items-center transition-all shadow-md hover:scale-105 ${
+              className={`h-9 px-4 rounded-full bg-white/10 backdrop-blur-md hover:bg-opacity-20 text-white border text-xs flex items-center transition-all shadow-sm hover:scale-105 ${
                 theme === 'dark' ? 'border-[#0deae4] hover:bg-[#0deae4]/20 hover:shadow-[#0deae4]/30' : ''
               }`}
               style={theme === 'light' ? {
@@ -1454,8 +1454,8 @@ export function AIChat({ userData }: AIChatProps) {
               } as React.CSSProperties : {}}
               title="新对话"
             >
-              <Plus className={`h-5 w-5 mr-2 ${theme === 'dark' ? 'text-[#0deae4]' : ''}`} style={theme === 'light' ? {color: 'var(--custom-theme-color)'} : {}} />
-              <span className="font-medium">新对话</span>
+              <Plus className={`h-3.5 w-3.5 mr-1.5 ${theme === 'dark' ? 'text-[#0deae4]' : ''}`} style={theme === 'light' ? {color: 'var(--custom-theme-color)'} : {}} />
+              <span className="font-medium whitespace-nowrap">新对话</span>
             </Button>
           </div>
         </header>
