@@ -1460,12 +1460,12 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
-                  (useWebSearch ? "border-blue-500" : "border-neutral-700")
+                className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
+                  (useWebSearch ? "border-blue-500" : theme === 'dark' ? "border-neutral-700" : "border-blue-300")
                 }
                 onClick={() => setUseWebSearch(!useWebSearch)}
               >
-                <Search className="w-3.5 h-3.5 mr-1.5" />
+                <Search className={`w-3.5 h-3.5 mr-1.5 ${theme !== 'dark' && 'text-blue-600'}`} />
                 网络搜索
               </Button>
               
@@ -1473,45 +1473,45 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
-                  (currentModel === "deep" ? "border-blue-500" : "border-neutral-700")
+                className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
+                  (currentModel === "deep" ? "border-blue-500" : theme === 'dark' ? "border-neutral-700" : "border-blue-300")
                 }
                 onClick={() => handleModelChange("deep")}
               >
-                <Brain className="w-3.5 h-3.5 mr-1.5" />
+                <Brain className={`w-3.5 h-3.5 mr-1.5 ${theme !== 'dark' && 'text-blue-600'}`} />
                 深度推理
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
-                  (currentModel === "gemini" ? "border-blue-500" : "border-neutral-700")
+                className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
+                  (currentModel === "gemini" ? "border-blue-500" : theme === 'dark' ? "border-neutral-700" : "border-blue-300")
                 }
                 onClick={() => handleModelChange("gemini")}
               >
-                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                <Sparkles className={`w-3.5 h-3.5 mr-1.5 ${theme !== 'dark' && 'text-blue-600'}`} />
                 Gemini
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
-                  (currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700")
+                className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
+                  (currentModel === "deepseek" ? "border-blue-500" : theme === 'dark' ? "border-neutral-700" : "border-blue-300")
                 }
                 onClick={() => handleModelChange("deepseek")}
               >
-                <Code className="w-3.5 h-3.5 mr-1.5" />
+                <Code className={`w-3.5 h-3.5 mr-1.5 ${theme !== 'dark' && 'text-blue-600'}`} />
                 Deepseek
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
-                  (currentModel === "grok" ? "border-blue-500" : "border-neutral-700")
+                className={`h-8 text-xs ${theme === 'dark' ? 'bg-neutral-900 hover:bg-neutral-800' : 'bg-blue-50 hover:bg-blue-100'} ` + 
+                  (currentModel === "grok" ? "border-blue-500" : theme === 'dark' ? "border-neutral-700" : "border-blue-300")
                 }
                 onClick={() => handleModelChange("grok")}
               >
-                <Rocket className="w-3.5 h-3.5 mr-1.5" />
+                <Rocket className={`w-3.5 h-3.5 mr-1.5 ${theme !== 'dark' && 'text-blue-600'}`} />
                 Grok
               </Button>
             </div>
@@ -1576,7 +1576,7 @@ export function AIChat({ userData }: AIChatProps) {
                       absolute bottom-[13px] left-2 h-8 w-8 rounded-full 
                       ${theme === 'dark' 
                         ? 'hover:bg-neutral-700/70 text-neutral-400' 
-                        : 'hover:bg-neutral-200/60 text-neutral-600'}
+                        : 'hover:bg-blue-100/60 text-blue-600'}
                     `}
                     onClick={() => fileInputRef.current?.click()}
                   >
