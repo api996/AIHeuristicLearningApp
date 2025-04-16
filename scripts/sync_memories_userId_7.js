@@ -53,8 +53,10 @@ async function readUserMemoryFiles(userId) {
 async function importMemoryToDatabase(userId, memoryData) {
   try {
     // 导入记忆基本数据
+    console.log(`导入记忆数据，用户ID: ${userId}, 内容类型: ${memoryData.type || 'text'}`);
+    
     const insertedMemory = await db.insert(memories).values({
-      user_id: userId,
+      user_id: 7, // 直接硬编码用户ID为7
       content: memoryData.content || '',
       type: memoryData.type || 'text',
       timestamp: memoryData.timestamp ? new Date(memoryData.timestamp) : new Date(),
