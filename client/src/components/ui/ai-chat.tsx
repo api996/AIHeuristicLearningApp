@@ -170,7 +170,6 @@ export function AIChat({ userData }: AIChatProps) {
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [showLearningPathDialog, setShowLearningPathDialog] = useState(false);
   const [showPreferencesDialog, setShowPreferencesDialog] = useState(false);
-  const [showBackgroundDialog, setShowBackgroundDialog] = useState(false);
 
   // 偏好设置状态
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light"); // 默认设置为浅色主题以展示苹果风格效果
@@ -2220,58 +2219,7 @@ export function AIChat({ userData }: AIChatProps) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">背景设置</h3>
-              <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
-                <div className="flex flex-col gap-3">
-                  <div className="flex justify-between items-center">
-                    <span>自定义背景图片</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => document.getElementById('background-upload')?.click()}
-                      className="h-8 px-3 bg-neutral-700 hover:bg-neutral-600 border-neutral-600"
-                    >
-                      <ImageIcon className="h-4 w-4 mr-2" />
-                      上传图片
-                    </Button>
-                  </div>
-                  
-                  {backgroundImage && (
-                    <div className="mt-2">
-                      <div className="relative overflow-hidden rounded-md h-20 bg-neutral-900">
-                        <img src={backgroundImage} alt="当前背景" className="w-full h-full object-cover" />
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => {
-                            localStorage.removeItem('background-image');
-                            setBackgroundImage(null);
-                            toast({
-                              title: "背景已移除",
-                              description: "已恢复默认背景设置",
-                            });
-                          }}
-                          className="absolute top-1 right-1 h-7 w-7 p-0 bg-black/50 hover:bg-black/70 border-0"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-neutral-500 mt-1">
-                        提示：上传图片后会立即应用为背景
-                      </p>
-                    </div>
-                  )}
-                  
-                  {!backgroundImage && (
-                    <p className="text-xs text-neutral-500">
-                      上传图片作为聊天背景，支持JPG、PNG、GIF等常见图片格式，大小不超过5MB
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-            
+
             {/* 自定义主题颜色 - 仅在浅色模式下显示 */}
             {theme === 'light' && (
               <div className="space-y-2">
