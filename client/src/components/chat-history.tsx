@@ -186,7 +186,7 @@ export function ChatHistory({
   }
 
   return (
-    <div className="w-full flex flex-col h-full">
+    <div className="w-full flex flex-col h-full bg-black/50 backdrop-blur-md">
       {/* 新对话按钮（不在顶部显示） - 已从ChatGPT风格移动到ai-chat.tsx组件 */}
       
       {/* 聊天记录列表 */}
@@ -194,7 +194,7 @@ export function ChatHistory({
       
       {/* 删除确认对话框 */}
       <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
-        <AlertDialogContent className="bg-neutral-800 border border-neutral-700 text-white">
+        <AlertDialogContent className="bg-black/70 backdrop-blur-md border border-[#0deae4]/30 text-white">
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除对话</AlertDialogTitle>
             <AlertDialogDescription className="text-neutral-300">
@@ -207,13 +207,13 @@ export function ChatHistory({
                 setShowDeleteAlert(false);
                 setChatToDelete(null);
               }}
-              className="bg-neutral-700 hover:bg-neutral-600 text-white border-none"
+              className="bg-black/60 hover:bg-black/80 text-white border border-neutral-700"
             >
               取消
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600/80 hover:bg-red-700/90 text-white border border-red-500"
             >
               删除
             </AlertDialogAction>
