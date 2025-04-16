@@ -2,13 +2,13 @@
 
 /* 只在iPad和平板设备上应用这些样式 */
 @media (min-width: 768px) and (max-width: 1366px) {
-  /* 管理界面滚动修复 */
+  /* ===== 管理界面滚动修复 ===== */
   .admin-dashboard-container {
     max-height: 100vh;
     overflow-y: auto !important;
   }
   
-  /* 确保管理界面内容可滚动 */
+  /* 确保管理界面主内容区域可滚动 */
   .admin-dashboard-container main {
     overflow-y: auto !important;
     max-height: calc(100vh - 100px) !important;
@@ -17,13 +17,28 @@
   /* 提高管理界面下拉菜单显示优先级 */
   .admin-dashboard-container [data-radix-popper-content-wrapper] {
     z-index: 9999 !important;
+    position: absolute !important; /* 强制绝对定位，避免布局问题 */
+  }
+  
+  /* ===== 聊天和菜单界面修复 ===== */
+  /* 确保聊天界面可滚动 */
+  .chat-container {
+    max-height: 100vh;
+    overflow: hidden !important;
   }
   
   /* 确保个人中心菜单在iPad上可见 */
   .personal-menu-content {
     z-index: 9999 !important;
+    position: fixed !important; /* 保证固定位置 */
   }
   
+  /* 优化聊天侧边栏宽度 */
+  .sidebar-container {
+    width: 260px !important;
+  }
+  
+  /* ===== 通用滚动区域优化 ===== */
   /* 优化iPad上的滚动区域，避免被底部导航栏遮挡 */
   .scroll-container {
     max-height: calc(100vh - 180px) !important;
