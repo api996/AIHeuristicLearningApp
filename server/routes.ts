@@ -231,44 +231,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "无效的用户ID" });
       }
       
-      // 检查记忆目录状态
+      // 检查记忆目录状态 (仅用于日志)
       const memoryDir = "memory_space";
       const userDir = path.join(memoryDir, String(userId));
       log(`检查学习记忆目录: ${memoryDir} 存在=${fs.existsSync(memoryDir)}`);
       log(`检查用户记忆目录: ${userDir} 存在=${fs.existsSync(userDir)}`);
       
-      // 如果用户目录存在，查看其中的文件数量
-      if (fs.existsSync(userDir)) {
-        const files = fs.readdirSync(userDir);
-        log(`用户${userId}的记忆文件数量: ${files.length}`);
-        if (files.length > 0) {
-          log(`示例记忆文件: ${files[0]}`);
-          try {
-            const filePath = path.join(userDir, files[0]);
-            const fileContent = fs.readFileSync(filePath, 'utf8');
-            
-            // 使用工具函数安全记录包含向量的对象
-            try {
-              const memoryData = JSON.parse(fileContent);
-              utils.logWithEmbeddings("记忆文件内容示例", memoryData);
-            } catch (parseError) {
-              // 如果解析失败，退回到原始方式
-              log(`记忆文件内容示例: ${fileContent.substring(0, 100)}...`);
+      // 从数据库获取该用户的记忆数据
+      try {
+        const memories = await storage.getMemoriesByUserId(Number(userId));
+        
+        // 检查是否有足够的记忆进行分析
+        if (!memories || memories.length < 5) {
+          log(`用户 ${userId} 的记忆数据不足 (${memories?.length || 0} 条)，返回空结果`);
+          return res.json({
+            topics: [],
+            progress: [],
+            suggestions: [
+              "尚未收集到足够的学习数据",
+              "请继续探索感兴趣的主题",
+              "随着对话的增加，我们将能更好地理解您的学习偏好"
+            ],
+            knowledge_graph: {
+              nodes: [],
+              links: []
             }
-          } catch (e) {
-            log(`读取记忆文件失败: ${e}`);
-          }
+          });
         }
         
-        // 如果文件数量充足，直接从文件内容提取主题
-        if (files.length >= 5) {
-          // 从文件内容中提取主题及其频率
-          const topicsMap = new Map(); // 存储主题及其出现次数
-          const processed = new Set();
-          let totalProcessed = 0;
+        // 使用更新版的服务处理数据
+        try {
+          // 导入并使用trajectory服务中的analyzeLearningPath函数
+          const { analyzeLearningPath } = require('./services/learning/trajectory');
+          const result = await analyzeLearningPath(Number(userId));
+          
+          // 添加时间戳版本以确保每次返回的数据不一样，避免浏览器缓存
+          result.version = new Date().getTime();
+          
+          return res.json(result);
+        } catch (trajectoryError) {
+          log(`调用轨迹分析服务失败: ${trajectoryError}`);
+          
+          // 备用：如果无法使用trajectory服务，使用简单的内存提取方式
+          // 从记忆内容中提取关键词
+          const allContents = memories.map(memory => memory.content || "").filter(content => content.trim().length > 0);
+          
+          // 如果没有有效内容，返回空结果
+          if (allContents.length === 0) {
+            return res.json({
+              topics: [],
+              progress: [],
+              suggestions: [
+                "尚未收集到足够有效的学习数据",
+                "请继续探索感兴趣的主题",
+                "随着对话质量的提高，我们将能更好地分析您的学习偏好"
+              ],
+              knowledge_graph: {
+                nodes: [],
+                links: []
+              }
+            });
+          }
+          
+          // 简单的主题分析：把内容合并并分析出现频率最高的词语作为话题
+          const combinedText = allContents.join(" ");
+          
+          // 定义一些常见的停用词（不应作为主题词的常见词）
+          const stopWords = new Set([
+            "的", "了", "是", "在", "我", "有", "和", "就", "不", "人", "都", "一", "一个", "你", "我们", "这个",
+            "the", "to", "and", "a", "of", "is", "in", "that", "for", "with", "as", "an"
+          ]);
+          
+          // 分词并计数（简易实现）
+          const words = combinedText.split(/\s+|[,.?!;:，。？！；：]/);
+          const wordCount: Record<string, number> = {};
+          
+          for (const word of words) {
+            const trimmed = word.trim().toLowerCase();
+            if (trimmed && trimmed.length > 1 && !stopWords.has(trimmed)) {
+              wordCount[trimmed] = (wordCount[trimmed] || 0) + 1;
+            }
+          }
+          
+          // 排序并获取频率最高的词汇
+          const topicCandidates = Object.entries(wordCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
+            
+          // 如果找不到足够的主题词，返回空结果
+          if (topicCandidates.length < 3) {
+            return res.json({
+              topics: [],
+              progress: [],
+              suggestions: [
+                "您的对话内容尚未形成清晰的学习主题",
+                "尝试更多地讨论特定学习领域的内容",
+                "随着对话的深入，系统将能识别您的学习方向"
+              ],
+              knowledge_graph: {
+                nodes: [],
+                links: []
+              }
+            });
+          }
+          
+          // 分组相似的主题词并合并计数
+          const groupedTopics: Record<string, number> = {};
+          let totalWeight = 0;
           
           // 定义主题关键词映射
-          const topicKeywords = {
+          const topicKeywords: Record<string, string[]> = {
             '英语学习': ['english', '英语', 'language learning', '语言学习', 'grammar', '语法'],
             '化学': ['chemistry', '化学', '分子', 'molecule', '元素', 'element', '化合物', '反应'],
             '物理学': ['physics', '物理', '力学', '热力学', '电磁', '量子', 'quantum', 'mechanics'],
@@ -286,52 +358,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
             '知识探索': ['knowledge', '知识', 'explore', '探索', 'discovery', '发现', 'curiosity', '好奇心']
           };
           
-          // 遍历文件，提取主题关键词
-          for (const file of files) {
-            if (!file.endsWith('.json')) continue;
+          for (const [word, count] of topicCandidates) {
+            let matched = false;
             
-            try {
-              const content = fs.readFileSync(path.join(userDir, file), 'utf8');
-              const memory = JSON.parse(content);
-              const memContent = memory.content || '';
-              const lowerContent = memContent.toLowerCase();
-              
-              // 更智能的主题识别，基于关键词匹配和权重计算
-              for (const [topic, keywords] of Object.entries(topicKeywords)) {
-                for (const keyword of keywords) {
-                  if (lowerContent.includes(keyword.toLowerCase())) {
-                    // 如果找到了关键词，增加主题计数
-                    topicsMap.set(topic, (topicsMap.get(topic) || 0) + 1);
-                    break; // 找到一个关键词就足够了，避免重复计数
-                  }
+            // 检查是否匹配预定义主题
+            for (const [key, keywords] of Object.entries(topicKeywords)) {
+              for (const keyword of keywords) {
+                if (word.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(word)) {
+                  groupedTopics[key] = (groupedTopics[key] || 0) + count;
+                  totalWeight += count;
+                  matched = true;
+                  break;
                 }
               }
-              
-              processed.add(file);
-              totalProcessed++;
-              // 处理一定数量后停止，避免处理过多
-              if (totalProcessed >= 30) break;
-            } catch (error) {
-              // 忽略无法解析的文件
-              continue;
+              if (matched) break;
+            }
+            
+            // 如果没有匹配预定义主题，创建新主题
+            if (!matched) {
+              let newTopic = word.length > 1 ? `${word}相关` : "其他主题";
+              groupedTopics[newTopic] = (groupedTopics[newTopic] || 0) + count;
+              totalWeight += count;
             }
           }
           
-          // 按出现频率排序主题
-          const sortedTopics = Array.from(topicsMap.entries())
+          // 排序并选择最多5个主题
+          const sortedTopics = Object.entries(groupedTopics)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 5); // 只取前5个主题
-          
-          // 现在不再添加默认主题，让UI处理零主题的情况
-          // 如果没有找到任何主题，返回空数组
-          if (sortedTopics.length === 0) {
-            // 不添加默认主题
-            log(`未检测到任何主题，将返回空数组`);
-          }
-          
-          // 计算总权重，用于后续百分比计算
-          const totalWeight = sortedTopics.reduce((sum, [_, count]) => sum + count, 0);
-          
+            .slice(0, 5);
+            
           // 添加一些随机波动使结果更自然
           const addNaturalVariation = (basePercentage: number): number => {
             // 在基础百分比的基础上添加 -5% 到 +5% 的随机波动
@@ -356,7 +411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           // 记录分析结果
-          log(`从文件内容中检测到的主题: ${topicData.map(t => t.topic).join(', ')}`);
+          log(`从数据库记忆中检测到的主题: ${topicData.map(t => t.topic).join(', ')}`);
           
           return res.json({
             topics: topicData,
@@ -403,100 +458,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           });
         }
-      }
-
-      const pythonProcess = spawn('python3', ['-c', `
-import asyncio
-import json
-import sys
-import os
-# 切换到项目根目录，确保正确的路径
-os.chdir('/home/runner/workspace')
-sys.path.append('server')
-import logging
-# 重定向所有print输出到stderr，保留stdout只用于JSON输出
-sys.stdout = sys.stderr
-from services.learning_memory import learning_memory_service
-
-async def analyze():
-    result = await learning_memory_service.analyze_learning_path(${userId})
-    # 恢复stdout并只输出JSON结果
-    sys.stdout = sys.__stdout__
-    print(json.dumps(result, ensure_ascii=False))
-
-asyncio.run(analyze())
-      `]);
-
-      let output = '';
-      pythonProcess.stdout.on('data', (data) => {
-        output += data.toString();
-      });
-
-      let errorOutput = '';
-      pythonProcess.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-
-      pythonProcess.on('close', (code) => {
-        if (code !== 0) {
-          log(`学习轨迹分析进程退出，错误码 ${code}: ${errorOutput}`);
-          // 返回空结果而不是默认的错误状态，这样前端仍能正常显示
-          return res.json({
-            topics: [],
-            progress: [],
-            suggestions: [
-              "尚未收集到足够的学习数据",
-              "请继续探索感兴趣的主题",
-              "随着对话的增加，我们将能更好地理解您的学习偏好"
-            ],
-            knowledge_graph: {
-              nodes: [],
-              links: []
-            }
-          });
-        }
-
-        try {
-          const result = JSON.parse(output);
-          
-          // 确保结果中的topics是从实际数据中分析得出的
-          if (result.topics && Array.isArray(result.topics) && result.topics.length > 0) {
-            return res.json(result);
-          } else {
-            // 如果没有实际的topics数据，返回空结果
-            log(`学习轨迹分析没有返回有效的topics数据，返回空结果`);
-            return res.json({
-              topics: [],
-              progress: [],
-              suggestions: [
-                "尚未收集到足够的学习数据",
-                "请继续探索感兴趣的主题",
-                "随着对话的增加，我们将能更好地理解您的学习偏好"
-              ],
-              knowledge_graph: {
-                nodes: [],
-                links: []
-              }
-            });
+      } catch (dbError) {
+        log(`获取用户记忆数据库存储失败: ${dbError}`);
+        // 返回空结果
+        return res.json({
+          topics: [],
+          progress: [],
+          suggestions: [
+            "获取学习数据时出现错误",
+            "请稍后再试", 
+            "如果问题持续存在，请联系系统管理员"
+          ],
+          knowledge_graph: {
+            nodes: [],
+            links: []
           }
-        } catch (e) {
-          log(`解析学习轨迹分析结果失败: ${e}`);
-          // 返回空结果，不使用默认数据
-          return res.json({
-            topics: [],
-            progress: [],
-            suggestions: [
-              "系统正在处理您的学习数据",
-              "请继续探索感兴趣的主题",
-              "稍后查看将展示您的学习轨迹分析"
-            ],
-            knowledge_graph: {
-              nodes: [],
-              links: []
-            }
-          });
-        }
-      });
+        });
+      }
     } catch (error) {
       log(`学习轨迹分析API错误: ${error}`);
       return res.status(500).json({ error: "学习轨迹分析服务错误" });
