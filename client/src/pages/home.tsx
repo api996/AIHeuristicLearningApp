@@ -49,13 +49,15 @@ export default function Home() {
   // 获取用户背景图片
   const fetchUserBackground = async () => {
     try {
-      const response = await axios.get('/api/files/background');
+      const userId = JSON.parse(localStorage.getItem("user") || "{}").userId;
+      const response = await axios.get(`/api/files/background?userId=${userId}`);
       if (response.data && response.data.url) {
         setBackgroundUrl(response.data.url);
       }
     } catch (error) {
       console.error('获取背景图片失败:', error);
       // 使用默认背景
+      setBackgroundUrl('/backgrounds/default-background.png');
     }
   };
   

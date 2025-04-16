@@ -92,16 +92,20 @@ router.get('/list', async (req: Request, res: Response) => {
  */
 router.get('/background', async (req: Request, res: Response) => {
   try {
-    const userId = req.session.userId;
+    // 从请求参数或会话中获取用户ID
+    const userId = Number(req.query.userId) || req.session.userId;
+    
+    // 如果无法获取用户ID，返回默认背景
     if (!userId) {
-      return res.status(401).json({ error: '未授权' });
+      return res.json({ url: '/backgrounds/default-background.png' });
     }
 
     const backgroundUrl = await getUserBackground(userId);
     res.json({ url: backgroundUrl });
   } catch (error) {
     console.error('获取背景图片失败:', error);
-    res.status(500).json({ error: '获取背景图片失败' });
+    // 出错时也返回默认背景，确保前端始终有图片可用
+    res.json({ url: '/backgrounds/default-background.png' });
   }
 });
 
