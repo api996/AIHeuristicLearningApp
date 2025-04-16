@@ -3,7 +3,7 @@
 /* ==== 管理员界面菜单修复 ==== */
 /* 仅在管理员界面提高下拉菜单层级 */
 .admin-dashboard-container [data-radix-popper-content-wrapper] {
-  z-index: 9999 !important;
+  z-index: 99999 !important; /* 提高层级确保不被其他元素遮挡 */
 }
 
 /* 仅针对管理员界面的菜单样式优化 */
