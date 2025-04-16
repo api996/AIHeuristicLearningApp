@@ -162,9 +162,52 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUser(userId: number): Promise<void> {
     try {
-      await db.delete(users).where(eq(users.id, userId));
+      // 使用事务确保所有删除操作要么全部成功，要么全部失败
+      await db.transaction(async (tx) => {
+        // 1. 先找到所有相关的聊天记录
+        const userChats = await tx.select().from(chats).where(eq(chats.userId, userId));
+        log(`为用户 ${userId} 找到 ${userChats.length} 条聊天记录`);
+        
+        // 2. 删除所有聊天中的消息
+        for (const chat of userChats) {
+          log(`删除聊天 ${chat.id} 的所有消息`);
+          await tx.delete(messages).where(eq(messages.chatId, chat.id));
+        }
+        
+        // 3. 删除所有聊天记录
+        if (userChats.length > 0) {
+          log(`删除用户 ${userId} 的所有聊天记录`);
+          await tx.delete(chats).where(eq(chats.userId, userId));
+        }
+        
+        // 4. 找到所有相关的记忆
+        const userMemories = await tx.select().from(memories).where(eq(memories.userId, userId));
+        log(`为用户 ${userId} 找到 ${userMemories.length} 条记忆`);
+        
+        // 5. 删除所有记忆关键词
+        for (const memory of userMemories) {
+          log(`删除记忆 ${memory.id} 的关键词`);
+          await tx.delete(memoryKeywords).where(eq(memoryKeywords.memoryId, memory.id));
+          
+          // 6. 删除所有记忆嵌入
+          log(`删除记忆 ${memory.id} 的嵌入向量`);
+          await tx.delete(memoryEmbeddings).where(eq(memoryEmbeddings.memoryId, memory.id));
+        }
+        
+        // 7. 删除所有记忆
+        if (userMemories.length > 0) {
+          log(`删除用户 ${userId} 的所有记忆`);
+          await tx.delete(memories).where(eq(memories.userId, userId));
+        }
+        
+        // 8. 最后删除用户本身
+        log(`删除用户 ${userId}`);
+        await tx.delete(users).where(eq(users.id, userId));
+      });
+      
+      log(`用户 ${userId} 及其所有关联数据已成功删除`);
     } catch (error) {
-      log(`Error deleting user: ${error}`);
+      log(`删除用户错误: ${error}`);
       throw error;
     }
   }
