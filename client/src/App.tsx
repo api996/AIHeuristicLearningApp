@@ -13,6 +13,7 @@ import PromptEditor from "@/pages/prompt-editor";
 import NotFound from "@/pages/not-found";
 
 function Router() {
+  // 使用简单的路由配置，让各个组件内部自己处理授权逻辑
   return (
     <Switch>
       <Route path="/login" component={Login} />

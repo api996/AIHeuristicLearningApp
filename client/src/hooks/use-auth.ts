@@ -13,18 +13,33 @@ export const useAuth = () => {
 
   // 初始化时从本地存储加载用户
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        if (parsedUser && parsedUser.userId) {
-          setUser(parsedUser);
+    // 同步获取用户信息函数
+    const getUserFromStorage = () => {
+      console.log('[useAuth] 开始从localStorage获取用户数据');
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          if (parsedUser && parsedUser.userId) {
+            console.log('[useAuth] 解析到有效用户数据:', parsedUser.userId, parsedUser.role);
+            return parsedUser;
+          } else {
+            console.log('[useAuth] 用户数据格式无效');
+          }
+        } catch (error) {
+          console.error("[useAuth] 解析用户数据失败:", error);
+          localStorage.removeItem("user");
         }
-      } catch (error) {
-        console.error("Failed to parse user data:", error);
-        localStorage.removeItem("user");
+      } else {
+        console.log('[useAuth] localStorage中没有找到用户数据');
       }
-    }
+      return null;
+    };
+
+    // 设置用户状态
+    const userData = getUserFromStorage();
+    setUser(userData);
+    
   }, []);
 
   // 登录

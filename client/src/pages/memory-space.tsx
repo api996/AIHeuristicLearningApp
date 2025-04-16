@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useLocation } from 'wouter';
@@ -41,17 +41,43 @@ const MemorySpace: React.FC = () => {
   const [selectedCluster, setSelectedCluster] = useState<string | null>(null);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
   
-  // 用于调试导航状态
-  useEffect(() => {
-    console.log('Memory Space Component Mounted');
-    console.log('Current location:', location);
-    console.log('User ID:', userId);
+  // 直接从localStorage加载用户信息
+  const [localUserId, setLocalUserId] = useState<number | null>(null);
+  
+  // 这个函数会直接从localStorage获取用户ID，不依赖useAuth
+  const getUserFromLocalStorage = useCallback(() => {
+    const storedUser = localStorage.getItem("user");
+    console.log('直接获取localStorage中的用户数据:', storedUser ? '存在' : '不存在');
     
-    // 修复：使用useEffect处理未登录的重定向
-    if (!userId) {
-      setLocation("/login");
+    if (!storedUser) return null;
+    
+    try {
+      const parsed = JSON.parse(storedUser);
+      if (parsed && parsed.userId) {
+        console.log('已从localStorage加载用户ID:', parsed.userId);
+        return parsed.userId;
+      }
+    } catch (e) {
+      console.error('解析localStorage用户数据失败:', e);
     }
-  }, [location, userId, setLocation]);
+    return null;
+  }, []);
+  
+  // 初始化时加载用户信息
+  useEffect(() => {
+    console.log('Memory Space 组件加载');
+    console.log('Current location:', location);
+    console.log('useAuth 提供的用户ID:', userId);
+    
+    const localId = getUserFromLocalStorage();
+    setLocalUserId(localId);
+    
+    // 如果localStorage中没有用户信息，跳转到登录页
+    if (!localId) {
+      console.log('Memory Space: 本地存储中没有用户信息，跳转到登录页面');
+      setLocation('/login');
+    }
+  }, [location, userId, setLocation, getUserFromLocalStorage]);
 
   // 获取用户记忆列表
   const { 
@@ -59,8 +85,9 @@ const MemorySpace: React.FC = () => {
     isLoading: isLoadingMemories,
     refetch: refetchMemories
   } = useQuery({
-    queryKey: ['/api/memory-space', userId],
-    enabled: !!userId,
+    queryKey: ['/api/memory-space', localUserId || userId],
+    // 使用localUserId或userId中任一有效值
+    enabled: !!(localUserId || userId),
     select: (data) => {
       return data || { memories: [] };
     }
@@ -71,8 +98,9 @@ const MemorySpace: React.FC = () => {
     data: clustersData, 
     isLoading: isLoadingClusters 
   } = useQuery({
-    queryKey: ['/api/memory-space', userId, 'clusters'],
-    enabled: !!userId,
+    queryKey: ['/api/memory-space', localUserId || userId, 'clusters'],
+    // 使用localUserId或userId中任一有效值
+    enabled: !!(localUserId || userId),
     select: (data) => {
       return data || { topics: [] };
     }
@@ -86,9 +114,13 @@ const MemorySpace: React.FC = () => {
     reset: resetSearch
   } = useMutation({
     mutationFn: async (query: string) => {
+      // 使用localUserId或userId中任一有效值
+      const effectiveUserId = localUserId || userId;
+      console.log('搜索记忆使用的用户ID:', effectiveUserId);
+      
       const response = await apiRequest(
         'POST',
-        `/api/memory-space/${userId}/search`,
+        `/api/memory-space/${effectiveUserId}/search`,
         { query, limit: 10 }
       );
       return response.json();
@@ -101,9 +133,13 @@ const MemorySpace: React.FC = () => {
     isPending: isRepairing
   } = useMutation({
     mutationFn: async () => {
+      // 使用localUserId或userId中任一有效值
+      const effectiveUserId = localUserId || userId;
+      console.log('修复记忆使用的用户ID:', effectiveUserId);
+      
       return apiRequest(
         'POST',
-        `/api/memory-space/${userId}/repair`
+        `/api/memory-space/${effectiveUserId}/repair`
       );
     },
     onSuccess: (data) => {
@@ -170,7 +206,10 @@ const MemorySpace: React.FC = () => {
   };
 
   // 提前返回，不调用setState（已在useEffect中处理）
-  if (!userId) {
+  // 只要任一用户ID存在就渲染内容
+  const effectiveUserId = localUserId || userId;
+  if (!effectiveUserId) {
+    console.log('没有有效的用户ID，不渲染内容');
     return null;
   }
 
