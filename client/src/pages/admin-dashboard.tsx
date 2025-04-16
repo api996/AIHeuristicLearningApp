@@ -195,7 +195,7 @@ export default function AdminDashboard() {
                     <CardDescription>查看所有用户的使用情况</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="h-[400px]">
+                    <ScrollArea className="h-[clamp(300px,40vh,80vh)] overflow-y-auto">
                       <div className="space-y-4">
                         {users?.map((user: User) => (
                           <div
