@@ -1,0 +1,90 @@
+/* 
+ * 全局响应式UI修复
+ * 用于解决所有设备(桌面、iPad、移动设备)上的UI问题
+ * 注意：此文件的优先级高于设备特定的CSS文件
+ */
+
+/* ===== 通用滚动问题修复 ===== */
+/* 确保所有容器都能正常滚动 */
+.scroll-container {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  height: auto !important;
+  max-height: 80vh !important;
+}
+
+/* 管理员界面滚动修复 */
+.admin-scroll-container {
+  height: auto !important;
+  max-height: clamp(300px, 60vh, 80vh) !important;
+  overflow-y: auto !important;
+}
+
+/* ===== iPad特定修复 ===== */
+@media screen and (min-width: 768px) and (max-width: 1366px) {
+  /* 修复iPad上的管理员界面 */
+  .ipad-device .admin-dashboard-container,
+  .tablet-device .admin-dashboard-container {
+    height: 100vh !important;
+    overflow-y: auto !important;
+    padding-bottom: 100px !important;
+  }
+  
+  /* 修复管理员页面内容区高度 */
+  .ipad-device .admin-content,
+  .tablet-device .admin-content {
+    min-height: 70vh !important;
+    overflow-y: auto !important;
+  }
+  
+  /* 修复个人中心区域 */
+  .ipad-device .user-profile-container,
+  .tablet-device .user-profile-container {
+    height: auto !important;
+    min-height: 70vh !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ===== 个人中心修复 ===== */
+.profile-section {
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 1rem !important;
+  gap: 1rem !important;
+  height: auto !important;
+  min-height: 200px !important;
+}
+
+/* 确保页面视图永远不会被截断 */
+.min-h-screen {
+  min-height: 100vh !important;
+  height: auto !important;
+  overflow-y: auto !important;
+}
+
+/* 内容卡片确保可以滚动 */
+.card-content {
+  max-height: none !important;
+  overflow-y: visible !important;
+}
+
+/* 修复输入框在iPad上的问题 */
+@media screen and (min-width: 768px) and (max-width: 1366px) {
+  .ipad-device input,
+  .ipad-device textarea,
+  .tablet-device input,
+  .tablet-device textarea {
+    font-size: 16px !important; /* 确保不会自动缩放 */
+  }
+  
+  /* 修复个人中心头像区域 */
+  .ipad-device .user-avatar-section,
+  .tablet-device .user-avatar-section {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 1rem !important;
+  }
+}

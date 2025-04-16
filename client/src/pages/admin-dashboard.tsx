@@ -88,7 +88,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black admin-dashboard-container">
       {/* Header */}
       <header className="border-b border-neutral-800 bg-neutral-900">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -226,7 +226,7 @@ export default function AdminDashboard() {
             
             {/* Prompts Templates Tab */}
             <TabsContent value="prompts">
-              <div className="py-8">
+              <div className="py-8 admin-content">
                 <div className="container mx-auto px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
@@ -244,13 +244,15 @@ export default function AdminDashboard() {
                     </CardHeader>
                   </Card>
                 </div>
-                <PromptTemplateManager />
+                <div className="scroll-container">
+                  <PromptTemplateManager />
+                </div>
               </div>
             </TabsContent>
             
             {/* Content Moderation Tab */}
             <TabsContent value="moderation">
-              <div className="py-8">
+              <div className="py-8 admin-content">
                 <div className="container mx-auto px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
@@ -261,7 +263,9 @@ export default function AdminDashboard() {
                     </CardHeader>
                   </Card>
                 </div>
-                <ContentModerationSettings />
+                <div className="scroll-container">
+                  <ContentModerationSettings />
+                </div>
               </div>
             </TabsContent>
           </Tabs>
