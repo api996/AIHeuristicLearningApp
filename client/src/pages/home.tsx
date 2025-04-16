@@ -98,18 +98,7 @@ export default function Home() {
       {/* 半透明遮罩，提高文字对比度 */}
       <div className="absolute inset-0 bg-black/30"></div>
       
-      {/* 右上角的背景设置按钮 */}
-      <div className="absolute top-2 right-2 z-20 flex items-center gap-2">
-        <BackgroundUploader 
-          userId={userData.userId} 
-          onBackgroundChange={(url) => {
-            // 构建完整URL
-            const fullUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`;
-            console.log('[Home] 背景已更改为:', fullUrl);
-            setBackgroundUrl(fullUrl);
-          }} 
-        />
-      </div>
+      {/* 已移除顶部工具栏，使用AI聊天组件中的导航栏 */}
       
       {/* 主要内容 */}
       <div className="relative z-10">
