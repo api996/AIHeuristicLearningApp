@@ -149,7 +149,7 @@ export function ChatHistory({
             <div
               key={chat.id}
               className={`group flex items-center rounded-lg ${
-                currentChatId === chat.id ? 'bg-neutral-800' : 'hover:bg-neutral-800/50'
+                currentChatId === chat.id ? 'bg-[#0deae4]/10' : 'hover:bg-black/40'
               }`}
             >
               <Button
@@ -160,11 +160,11 @@ export function ChatHistory({
                   if (setCurrentChatId) setCurrentChatId(chat.id);
                 }}
               >
-                <MessageSquare className="mr-3 h-4 w-4 shrink-0 text-neutral-400" />
+                <MessageSquare className={`mr-3 h-4 w-4 shrink-0 ${currentChatId === chat.id ? 'text-[#0deae4]' : 'text-[#0deae4]/60'}`} />
                 <div className="flex flex-col items-start truncate">
-                  <span className="truncate w-[180px]">{chat.title}</span>
+                  <span className={`truncate w-[180px] ${currentChatId === chat.id ? 'text-white' : 'text-white/80'}`}>{chat.title}</span>
                   {user.role === "admin" && chat.username && (
-                    <span className="text-xs text-neutral-500">
+                    <span className="text-xs text-[#0deae4]/50">
                       by {chat.username}
                     </span>
                   )}
@@ -173,7 +173,7 @@ export function ChatHistory({
               <Button
                 variant="ghost"
                 size="icon"
-                className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 mr-1"
+                className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 mr-1 hover:bg-red-500/10"
                 onClick={(e) => handleDeleteChat(chat.id, e)}
               >
                 <Trash2 className="h-4 w-4 text-red-400" />
@@ -222,19 +222,19 @@ export function ChatHistory({
       </AlertDialog>
       
       {/* 用户中心下拉菜单 - 使用ChatGPT风格固定在底部 */}
-      <div className="mt-auto p-2 border-t border-neutral-800">
+      <div className="mt-auto p-2 border-t border-[#0deae4]/20">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="w-full justify-start p-3 text-neutral-300 hover:bg-neutral-800 rounded-lg transition-colors"
+              className="w-full justify-start p-3 text-white hover:bg-[#0deae4]/10 rounded-lg transition-colors"
             >
-              <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full mr-3">
+              <div className="bg-gradient-to-br from-[#0deae4] to-[#0d8ae4] p-1.5 rounded-full mr-3 shadow-lg shadow-[#0deae4]/20">
                 <User className="h-5 w-5 text-white" />
               </div>
               <div className="flex flex-col items-start">
                 <span className="text-sm font-medium truncate max-w-[140px]">{user.username || '用户'}</span>
-                <span className="text-xs text-neutral-500">{user.role === 'admin' ? '管理员' : '用户'}</span>
+                <span className="text-xs text-[#0deae4]/70">{user.role === 'admin' ? '管理员' : '用户'}</span>
               </div>
             </Button>
           </DropdownMenuTrigger>
@@ -242,41 +242,41 @@ export function ChatHistory({
             align="center" 
             side="top"
             sideOffset={10} 
-            className="w-[260px] bg-neutral-800 border border-neutral-700 text-white rounded-xl shadow-lg animate-in slide-in-from-bottom-5 fade-in-80"
+            className="w-[260px] bg-black/80 backdrop-blur-lg border border-[#0deae4]/30 text-white rounded-xl shadow-lg shadow-[#0deae4]/20 animate-in slide-in-from-bottom-5 fade-in-80"
           >
             <DropdownMenuGroup className="py-1">
               <DropdownMenuItem 
-                className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                className="cursor-pointer flex items-center hover:bg-[#0deae4]/10 py-2.5 px-3 focus:bg-[#0deae4]/20"
                 onClick={onShowProfile}
               >
-                <User className="mr-2.5 h-4 w-4 text-blue-400" />
+                <User className="mr-2.5 h-4 w-4 text-[#0deae4]" />
                 <span>个人资料</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
-                className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                className="cursor-pointer flex items-center hover:bg-[#0deae4]/10 py-2.5 px-3 focus:bg-[#0deae4]/20"
                 onClick={onChangePassword}
               >
-                <Settings className="mr-2.5 h-4 w-4 text-green-400" />
+                <Settings className="mr-2.5 h-4 w-4 text-[#0deae4]" />
                 <span>修改密码</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
-                className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                className="cursor-pointer flex items-center hover:bg-[#0deae4]/10 py-2.5 px-3 focus:bg-[#0deae4]/20"
                 onClick={onShowLearningPath}
               >
-                <Brain className="mr-2.5 h-4 w-4 text-purple-400" />
+                <Brain className="mr-2.5 h-4 w-4 text-[#0deae4]" />
                 <span>学习轨迹</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
-                className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                className="cursor-pointer flex items-center hover:bg-[#0deae4]/10 py-2.5 px-3 focus:bg-[#0deae4]/20"
                 onClick={onShowPreferences}
               >
-                <Sparkles className="mr-2.5 h-4 w-4 text-yellow-400" />
+                <Sparkles className="mr-2.5 h-4 w-4 text-[#0deae4]" />
                 <span>偏好设置</span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator className="bg-neutral-700" />
+            <DropdownMenuSeparator className="bg-[#0deae4]/20" />
             <DropdownMenuItem 
-              className="cursor-pointer flex items-center text-red-400 hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+              className="cursor-pointer flex items-center text-red-400 hover:bg-red-500/10 py-2.5 px-3 focus:bg-red-500/20"
               onClick={onLogout}
             >
               <LogOut className="mr-2.5 h-4 w-4" />

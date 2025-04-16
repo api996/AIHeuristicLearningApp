@@ -128,8 +128,8 @@ export async function getUserFiles(userId: number, fileType?: string): Promise<a
   const result = await db.query.userFiles.findMany(query);
   
   if (fileType) {
-    const fileTypeEnum = fileType as "background" | "avatar" | "attachment";
-    return result.filter(file => file.fileType === fileTypeEnum);
+    // 使用JavaScript filter而不是SQL过滤
+    return result.filter(file => file.fileType === fileType);
   } else {
     return result;
   }
