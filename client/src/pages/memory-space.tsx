@@ -46,7 +46,12 @@ const MemorySpace: React.FC = () => {
     console.log('Memory Space Component Mounted');
     console.log('Current location:', location);
     console.log('User ID:', userId);
-  }, [location, userId]);
+    
+    // 修复：使用useEffect处理未登录的重定向
+    if (!userId) {
+      setLocation("/login");
+    }
+  }, [location, userId, setLocation]);
 
   // 获取用户记忆列表
   const { 
@@ -164,9 +169,8 @@ const MemorySpace: React.FC = () => {
     });
   };
 
-  // 如果未登录，跳转到登录页
+  // 提前返回，不调用setState（已在useEffect中处理）
   if (!userId) {
-    setLocation("/login");
     return null;
   }
 
