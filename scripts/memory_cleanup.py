@@ -93,8 +93,13 @@ def create_minimal_memory(file_path: str) -> Dict[str, Any]:
         "id": file_id
     }
 
-def scan_and_fix_memory_files(memory_dir: str) -> Dict[str, int]:
-    """扫描并修复记忆文件"""
+def scan_and_fix_memory_files(memory_dir: str, specific_user_id: Optional[str] = None) -> Dict[str, int]:
+    """扫描并修复记忆文件
+    
+    Args:
+        memory_dir: 记忆目录路径
+        specific_user_id: 可选的特定用户ID，如果提供则只扫描该用户的记忆
+    """
     stats = {
         "scanned": 0,
         "valid": 0,
@@ -107,46 +112,39 @@ def scan_and_fix_memory_files(memory_dir: str) -> Dict[str, int]:
         logger.warning(f"记忆目录不存在: {memory_dir}")
         return stats
     
-    # 遍历所有用户目录
-    for user_dir in os.listdir(memory_dir):
-        user_path = os.path.join(memory_dir, user_dir)
-        
-        # 跳过非目录文件
-        if not os.path.isdir(user_path):
-            continue
-            
+    # 确定要处理的用户目录列表
+    user_dirs = []
+    if specific_user_id:
+        # 如果指定了用户ID，只处理该用户
+        user_path = os.path.join(memory_dir, str(specific_user_id))
+        if os.path.isdir(user_path):
+            user_dirs = [(str(specific_user_id), user_path)]
+        else:
+            logger.warning(f"指定的用户目录不存在: {user_path}")
+            return stats
+    else:
+        # 否则遍历所有用户目录
+        for user_dir in os.listdir(memory_dir):
+            user_path = os.path.join(memory_dir, user_dir)
+            if os.path.isdir(user_path):
+                user_dirs.append((user_dir, user_path))
+    
+    logger.info(f"将处理 {len(user_dirs)} 个用户目录")
+    
+    # 处理每个用户目录
+    for user_id, user_path in user_dirs:
         # 确保用户目录存在
         os.makedirs(user_path, exist_ok=True)
         
-        # 创建一个示例记忆文件（如果用户目录为空）
-        user_files = [f for f in os.listdir(user_path) if f.endswith('.json')]
-        if not user_files:
-            example_file = os.path.join(user_path, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_example.json")
-            
-            example_memory = {
-                "content": "这是一个自动创建的示例记忆文件，用于确保记忆功能正常工作。",
-                "type": "chat",
-                "timestamp": datetime.now().isoformat(),
-                "embedding": [-0.01, -0.007, 0.019, 0.0009, -0.0006, 0.001, -0.012, 0.003, -0.0007, -0.0002],
-                "summary": "自动创建的示例记忆，确保记忆功能可以正常工作。",
-                "keywords": ["示例", "记忆", "自动创建"],
-                "id": os.path.splitext(os.path.basename(example_file))[0]
-            }
-            
-            try:
-                with open(example_file, 'w', encoding='utf-8') as f:
-                    json.dump(example_memory, f, ensure_ascii=False, indent=2)
-                logger.info(f"为用户 {user_dir} 创建了示例记忆文件")
-                stats["created"] += 1
-            except Exception as e:
-                logger.error(f"创建示例记忆文件失败: {str(e)}")
-        
         # 处理用户目录中的所有文件
-        for filename in os.listdir(user_path):
+        user_files = [f for f in os.listdir(user_path) if f.endswith('.json')]
+        logger.info(f"用户 {user_id} 有 {len(user_files)} 个记忆文件")
+        
+        for filename in user_files:
             file_path = os.path.join(user_path, filename)
             
-            # 跳过目录和非JSON文件
-            if os.path.isdir(file_path) or not filename.endswith('.json'):
+            # 跳过目录
+            if os.path.isdir(file_path):
                 continue
                 
             stats["scanned"] += 1
@@ -207,12 +205,24 @@ def scan_and_fix_memory_files(memory_dir: str) -> Dict[str, int]:
 
 def main():
     """主函数"""
-    memory_dir = "memory_space"
+    import argparse
     
-    logger.info(f"开始扫描记忆目录: {memory_dir}")
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description='记忆文件修复工具')
+    parser.add_argument('--memory-dir', default="memory_space", help='记忆文件目录路径')
+    parser.add_argument('--user-id', help='指定要处理的用户ID')
+    args = parser.parse_args()
+    
+    memory_dir = args.memory_dir
+    user_id = args.user_id
+    
+    if user_id:
+        logger.info(f"开始扫描用户 {user_id} 的记忆目录: {memory_dir}")
+    else:
+        logger.info(f"开始扫描所有用户的记忆目录: {memory_dir}")
     
     try:
-        stats = scan_and_fix_memory_files(memory_dir)
+        stats = scan_and_fix_memory_files(memory_dir, user_id)
         
         logger.info(f"记忆文件扫描完成:")
         logger.info(f"  扫描文件: {stats['scanned']}")

@@ -1,22 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Trash, Info } from 'lucide-react';
+
+// 提示词模板接口
+interface PromptTemplate {
+  id: number;
+  modelId: string;
+  promptTemplate: string;
+  baseTemplate?: string;
+  kTemplate?: string;
+  wTemplate?: string;
+  lTemplate?: string;
+  qTemplate?: string;
+  styleTemplate?: string;
+  policyTemplate?: string;
+  sensitiveWords?: string;
+  updatedAt: string;
+  createdBy: number;
+}
 
 // 提示词模板管理组件
 export function PromptTemplateManager() {
   const { toast } = useToast();
-  const [templates, setTemplates] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedModel, setSelectedModel] = useState('gemini');
   const [promptTemplate, setPromptTemplate] = useState('');
+  const [baseTemplate, setBaseTemplate] = useState('');
+  const [kTemplate, setKTemplate] = useState('');
+  const [wTemplate, setWTemplate] = useState('');
+  const [lTemplate, setLTemplate] = useState('');
+  const [qTemplate, setQTemplate] = useState('');
+  const [styleTemplate, setStyleTemplate] = useState('');
+  const [policyTemplate, setPolicyTemplate] = useState('');
+  const [sensitiveWords, setSensitiveWords] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -27,7 +50,6 @@ export function PromptTemplateManager() {
     { id: 'deep', name: 'Deep' },
     { id: 'deepseek', name: 'DeepSeek' },
     { id: 'grok', name: 'Grok' },
-    { id: 'search', name: 'Search' },
   ];
 
   // 获取当前登录的管理员用户ID
@@ -93,11 +115,29 @@ export function PromptTemplateManager() {
     // 查找是否已有此模型的模板
     const existingTemplate = templates.find(t => t.modelId === modelId);
     if (existingTemplate) {
-      setPromptTemplate(existingTemplate.promptTemplate);
+      // 加载所有模板字段
+      setPromptTemplate(existingTemplate.promptTemplate || '');
+      setBaseTemplate(existingTemplate.baseTemplate || '');
+      setKTemplate(existingTemplate.kTemplate || '');
+      setWTemplate(existingTemplate.wTemplate || '');
+      setLTemplate(existingTemplate.lTemplate || '');
+      setQTemplate(existingTemplate.qTemplate || '');
+      setStyleTemplate(existingTemplate.styleTemplate || '');
+      setPolicyTemplate(existingTemplate.policyTemplate || '');
+      setSensitiveWords(existingTemplate.sensitiveWords || '');
       setIsEditing(true);
     } else {
-      // 设置空模板或默认模板
-      setPromptTemplate(getDefaultTemplate(modelId));
+      // 设置默认模板
+      const defaultPrompt = getDefaultTemplate(modelId);
+      setPromptTemplate(defaultPrompt);
+      setBaseTemplate(defaultPrompt);
+      setKTemplate('');
+      setWTemplate('');
+      setLTemplate('');
+      setQTemplate('');
+      setStyleTemplate('');
+      setPolicyTemplate('');
+      setSensitiveWords('');
       setIsEditing(false);
     }
   };
@@ -187,12 +227,74 @@ export function PromptTemplateManager() {
     return defaultTemplates[modelId] || '';
   };
 
-  // 保存提示词模板
-  const saveTemplate = async () => {
-    if (!promptTemplate || !selectedModel) {
+  // 保存单个模型的提示词模板
+  const saveTemplateForModel = async (modelId: string, userId: number) => {
+    if (!baseTemplate) {
       toast({
         title: "无法保存",
-        description: "请提供完整的模板内容和模型ID",
+        description: "基础提示词模板不能为空",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    try {
+      const response = await fetch('/api/admin/prompts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          modelId: modelId,
+          promptTemplate: promptTemplate || baseTemplate, // 兼容旧版
+          baseTemplate: baseTemplate,
+          kTemplate: kTemplate,
+          wTemplate: wTemplate,
+          lTemplate: lTemplate,
+          qTemplate: qTemplate,
+          styleTemplate: styleTemplate,
+          policyTemplate: policyTemplate,
+          sensitiveWords: sensitiveWords,
+          userId: userId
+        })
+      });
+
+      if (response.ok) {
+        return true;
+      } else {
+        const error = await response.text();
+        toast({
+          title: `保存 ${modelId} 失败`,
+          description: error || "无法保存提示词模板",
+          variant: "destructive"
+        });
+        return false;
+      }
+    } catch (error) {
+      toast({
+        title: `保存 ${modelId} 错误`,
+        description: String(error),
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  // 保存提示词模板
+  const saveTemplate = async () => {
+    if (!selectedModel) {
+      toast({
+        title: "无法保存",
+        description: "请选择一个模型",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!baseTemplate) {
+      toast({
+        title: "无法保存",
+        description: "基础提示词模板不能为空",
         variant: "destructive"
       });
       return;
@@ -210,35 +312,73 @@ export function PromptTemplateManager() {
         return;
       }
 
-      const response = await fetch('/api/admin/prompts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          modelId: selectedModel,
-          promptTemplate: promptTemplate,
-          userId: userId
-        })
-      });
-
-      if (response.ok) {
+      const success = await saveTemplateForModel(selectedModel, userId);
+      
+      if (success) {
         toast({
           title: "保存成功",
           description: `${selectedModel} 模型的提示词模板已更新`
         });
         await fetchTemplates(); // 重新加载所有模板
-      } else {
-        const error = await response.text();
+      }
+    } catch (error) {
+      toast({
+        title: "保存错误",
+        description: String(error),
+        variant: "destructive"
+      });
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+  
+  // 一键配置所有模型
+  const configureAllModels = async () => {
+    if (!baseTemplate) {
+      toast({
+        title: "无法配置",
+        description: "基础提示词模板不能为空",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setSaveLoading(true);
+      const userId = getCurrentUserId();
+      if (!userId) {
         toast({
-          title: "保存失败",
-          description: error || "无法保存提示词模板",
+          title: "认证错误",
+          description: "未找到用户信息，请重新登录",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      let successCount = 0;
+      for (const model of availableModels) {
+        const success = await saveTemplateForModel(model.id, userId);
+        if (success) {
+          successCount++;
+        }
+      }
+      
+      if (successCount > 0) {
+        toast({
+          title: "批量配置成功",
+          description: `已成功配置 ${successCount}/${availableModels.length} 个模型的提示词模板`
+        });
+        await fetchTemplates(); // 重新加载所有模板
+      } else {
+        toast({
+          title: "批量配置失败",
+          description: "所有模型配置均失败，请检查网络或权限",
           variant: "destructive"
         });
       }
     } catch (error) {
       toast({
-        title: "保存错误",
+        title: "批量配置错误",
         description: String(error),
         variant: "destructive"
       });
@@ -272,7 +412,16 @@ export function PromptTemplateManager() {
           title: "删除成功",
           description: `${selectedModel} 模型的提示词模板已删除`
         });
+        // 清空所有模板字段
         setPromptTemplate('');
+        setBaseTemplate('');
+        setKTemplate('');
+        setWTemplate('');
+        setLTemplate('');
+        setQTemplate('');
+        setStyleTemplate('');
+        setPolicyTemplate('');
+        setSensitiveWords('');
         setIsEditing(false);
         await fetchTemplates(); // 重新加载所有模板
       } else {
@@ -313,13 +462,18 @@ export function PromptTemplateManager() {
       <CardHeader>
         <CardTitle>提示词模板管理</CardTitle>
         <CardDescription>
-          设置各个模型使用的提示词模板，支持变量插值和条件逻辑
+          设置各个模型使用的提示词模板
         </CardDescription>
+        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-md text-sm">
+          <h4 className="font-semibold mb-1">基础提示词管理</h4>
+          <p className="mb-2">在这里可以快速设置各个模型的基础提示词模板。</p>
+          <p className="text-blue-600 dark:text-blue-400">如需使用多阶段动态提示词系统，请点击上方的"高级提示词编辑器"按钮。</p>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <div className="flex items-center space-x-4">
-            <div className="w-1/4">
+            <div className="w-1/3">
               <Label htmlFor="model-select">选择模型</Label>
               <Select
                 value={selectedModel}
@@ -364,29 +518,44 @@ export function PromptTemplateManager() {
           </div>
 
           <div>
-            <Label htmlFor="prompt-template">
-              提示词模板
-              {isEditing && <span className="ml-2 text-green-600 text-sm">(已存在)</span>}
+            <Label htmlFor="base-template" className="mb-2 block">
+              基础提示词模板 {isEditing && <span className="text-green-600">(已配置)</span>}
             </Label>
+            
+            <div className="mb-2 text-sm text-blue-600 dark:text-blue-400 flex items-center">
+              <Info className="h-4 w-4 mr-2" />
+              <span>如需编辑高级提示词设置，请使用高级提示词编辑器</span>
+            </div>
+
             <Textarea
-              id="prompt-template"
-              value={promptTemplate}
-              onChange={(e) => setPromptTemplate(e.target.value)}
-              placeholder="输入提示词模板..."
-              className="min-h-[300px] font-mono text-sm mt-2"
+              id="base-template"
+              value={baseTemplate}
+              onChange={(e) => setBaseTemplate(e.target.value)}
+              placeholder="输入基础提示词模板..."
+              className="min-h-[300px] font-mono text-sm"
               disabled={loading}
             />
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={() => loadModelTemplate(selectedModel)}
-          disabled={loading}
-        >
-          重置
-        </Button>
+      <CardFooter className="flex justify-between flex-wrap gap-y-2">
+        <div className="space-x-2">
+          <Button
+            variant="outline"
+            onClick={() => loadModelTemplate(selectedModel)}
+            disabled={loading}
+          >
+            重置
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={configureAllModels}
+            disabled={loading || saveLoading || !baseTemplate}
+            className="bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+          >
+            一键配置全部模型
+          </Button>
+        </div>
         <div className="space-x-2">
           {isEditing && (
             <Button
@@ -400,7 +569,7 @@ export function PromptTemplateManager() {
           )}
           <Button
             onClick={saveTemplate}
-            disabled={loading || saveLoading || !promptTemplate}
+            disabled={loading || saveLoading || !baseTemplate}
           >
             {saveLoading ? "保存中..." : (isEditing ? "更新模板" : "创建模板")}
           </Button>

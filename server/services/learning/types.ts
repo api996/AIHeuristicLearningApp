@@ -117,4 +117,5 @@ export interface LearningPathResult {
     count: number;
     percentage: number;
   }>;
+  version?: number;          // 版本号，用于防止客户端缓存
 }

@@ -2,10 +2,10 @@ import {
   users, type User, type InsertUser, 
   chats, messages, type Chat, type Message,
   memories, memoryKeywords, memoryEmbeddings,
-  promptTemplates, searchResults,
+  promptTemplates, searchResults, conversationAnalytics,
   type Memory, type MemoryKeyword, type MemoryEmbedding,
   type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding,
-  type PromptTemplate, type SearchResult
+  type PromptTemplate, type SearchResult, type ConversationAnalytic
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, ne, and, asc, desc, sql, inArray } from "drizzle-orm";
@@ -58,7 +58,19 @@ export interface IStorage {
   
   // Prompt template methods
   getPromptTemplate(modelId: string): Promise<PromptTemplate | undefined>;
-  createOrUpdatePromptTemplate(modelId: string, template: string, userId: number): Promise<PromptTemplate>;
+  createOrUpdatePromptTemplate(
+    modelId: string, 
+    template: string, 
+    userId: number,
+    baseTemplate?: string,
+    kTemplate?: string,
+    wTemplate?: string,
+    lTemplate?: string,
+    qTemplate?: string,
+    styleTemplate?: string,
+    policyTemplate?: string,
+    sensitiveWords?: string
+  ): Promise<PromptTemplate>;
   getAllPromptTemplates(): Promise<PromptTemplate[]>;
   deletePromptTemplate(modelId: string): Promise<void>;
   
@@ -66,6 +78,15 @@ export interface IStorage {
   saveSearchResult(query: string, results: any, expiryMinutes?: number): Promise<SearchResult>;
   getSearchResult(query: string): Promise<SearchResult | undefined>;
   deleteExpiredSearchResults(): Promise<number>; // Returns number of deleted records
+  
+  // Conversation analytics methods
+  saveConversationAnalytic(
+    chatId: number, 
+    currentPhase: "K" | "W" | "L" | "Q", 
+    summary: string
+  ): Promise<ConversationAnalytic>;
+  getLatestConversationAnalytic(chatId: number): Promise<ConversationAnalytic | undefined>;
+  getConversationAnalyticHistory(chatId: number): Promise<ConversationAnalytic[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -758,7 +779,19 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createOrUpdatePromptTemplate(modelId: string, template: string, userId: number): Promise<PromptTemplate> {
+  async createOrUpdatePromptTemplate(
+    modelId: string, 
+    template: string, 
+    userId: number,
+    baseTemplate?: string,
+    kTemplate?: string,
+    wTemplate?: string,
+    lTemplate?: string,
+    qTemplate?: string,
+    styleTemplate?: string,
+    policyTemplate?: string,
+    sensitiveWords?: string
+  ): Promise<PromptTemplate> {
     try {
       if (!modelId || typeof modelId !== 'string') {
         throw new Error("Invalid model ID");
@@ -771,34 +804,56 @@ export class DatabaseStorage implements IStorage {
       // 检查是否存在现有模板
       const existingTemplate = await this.getPromptTemplate(modelId);
       
+      // 新的模板信息（用于更新或创建）
+      const templateInfo: any = {
+        promptTemplate: template,
+        updatedAt: new Date(),
+        createdBy: userId
+      };
+      
+      // 只添加有值的字段
+      if (baseTemplate !== undefined) templateInfo.baseTemplate = baseTemplate;
+      if (kTemplate !== undefined) templateInfo.kTemplate = kTemplate;
+      if (wTemplate !== undefined) templateInfo.wTemplate = wTemplate;
+      if (lTemplate !== undefined) templateInfo.lTemplate = lTemplate;
+      if (qTemplate !== undefined) templateInfo.qTemplate = qTemplate;
+      if (styleTemplate !== undefined) templateInfo.styleTemplate = styleTemplate;
+      if (policyTemplate !== undefined) templateInfo.policyTemplate = policyTemplate;
+      if (sensitiveWords !== undefined) templateInfo.sensitiveWords = sensitiveWords;
+      
       if (existingTemplate) {
         // 更新现有模板
         const [updatedTemplate] = await db.update(promptTemplates)
-          .set({ 
-            promptTemplate: template,
-            updatedAt: new Date(),
-            createdBy: userId 
-          })
+          .set(templateInfo)
           .where(eq(promptTemplates.modelId, modelId))
           .returning();
         
-        log(`Prompt template updated for model ${modelId}`);
+        log(`更新了模型 ${modelId} 的提示词模板`);
         return updatedTemplate;
       } else {
-        // 创建新模板
+        // 创建新模板 - 设置默认值
+        if (!templateInfo.baseTemplate) templateInfo.baseTemplate = "";
+        if (!templateInfo.kTemplate) templateInfo.kTemplate = "";
+        if (!templateInfo.wTemplate) templateInfo.wTemplate = "";
+        if (!templateInfo.lTemplate) templateInfo.lTemplate = "";
+        if (!templateInfo.qTemplate) templateInfo.qTemplate = "";
+        if (!templateInfo.styleTemplate) templateInfo.styleTemplate = "";
+        if (!templateInfo.policyTemplate) templateInfo.policyTemplate = "";
+        if (!templateInfo.sensitiveWords) templateInfo.sensitiveWords = "";
+        
+        // 插入记录
         const [newTemplate] = await db.insert(promptTemplates)
           .values({
             modelId,
-            promptTemplate: template,
-            createdBy: userId
+            ...templateInfo
           })
           .returning();
         
-        log(`New prompt template created for model ${modelId}`);
+        log(`创建了模型 ${modelId} 的新提示词模板`);
         return newTemplate;
       }
     } catch (error) {
-      log(`Error creating/updating prompt template for model ${modelId}: ${error}`);
+      log(`创建/更新提示词模板错误 (${modelId}): ${error}`);
       throw error;
     }
   }
@@ -914,6 +969,82 @@ export class DatabaseStorage implements IStorage {
       return count;
     } catch (error) {
       log(`Error deleting expired search results: ${error}`);
+      throw error;
+    }
+  }
+
+  // 会话分析方法
+  async saveConversationAnalytic(
+    chatId: number, 
+    currentPhase: "K" | "W" | "L" | "Q", 
+    summary: string
+  ): Promise<ConversationAnalytic> {
+    try {
+      if (!chatId || isNaN(chatId)) {
+        throw new Error("无效的聊天ID");
+      }
+      
+      if (!currentPhase || !["K", "W", "L", "Q"].includes(currentPhase)) {
+        throw new Error("无效的对话阶段");
+      }
+      
+      if (!summary || typeof summary !== 'string') {
+        throw new Error("无效的对话摘要");
+      }
+      
+      // 创建新的对话分析记录
+      const [analytic] = await db.insert(conversationAnalytics)
+        .values({
+          chatId,
+          currentPhase,
+          summary,
+          timestamp: new Date()
+        })
+        .returning();
+      
+      log(`为聊天 ${chatId} 创建了新的对话阶段分析: ${currentPhase}`);
+      return analytic;
+    } catch (error) {
+      log(`创建对话阶段分析错误: ${error}`);
+      throw error;
+    }
+  }
+  
+  async getLatestConversationAnalytic(chatId: number): Promise<ConversationAnalytic | undefined> {
+    try {
+      if (!chatId || isNaN(chatId)) {
+        throw new Error("无效的聊天ID");
+      }
+      
+      // 获取最新的对话分析
+      const [analytic] = await db.select()
+        .from(conversationAnalytics)
+        .where(eq(conversationAnalytics.chatId, chatId))
+        .orderBy(desc(conversationAnalytics.timestamp))
+        .limit(1);
+      
+      return analytic;
+    } catch (error) {
+      log(`获取最新对话阶段分析错误: ${error}`);
+      throw error;
+    }
+  }
+  
+  async getConversationAnalyticHistory(chatId: number): Promise<ConversationAnalytic[]> {
+    try {
+      if (!chatId || isNaN(chatId)) {
+        throw new Error("无效的聊天ID");
+      }
+      
+      // 获取对话分析历史
+      const analytics = await db.select()
+        .from(conversationAnalytics)
+        .where(eq(conversationAnalytics.chatId, chatId))
+        .orderBy(desc(conversationAnalytics.timestamp));
+      
+      return analytics;
+    } catch (error) {
+      log(`获取对话阶段分析历史错误: ${error}`);
       throw error;
     }
   }

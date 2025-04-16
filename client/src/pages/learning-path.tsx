@@ -101,14 +101,24 @@ export default function LearningPath() {
           </div>
           <h1 className="text-3xl font-bold">我的学习轨迹</h1>
         </div>
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700"
-          onClick={navigateBack}
-        >
-          <ArrowLeftCircle size={18} />
-          <span>返回聊天</span>
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="default" 
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={() => setLocation(`/memory-space`)}
+          >
+            <BookOpen size={18} />
+            <span>打开记忆空间</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700"
+            onClick={navigateBack}
+          >
+            <ArrowLeftCircle size={18} />
+            <span>返回聊天</span>
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="overview">

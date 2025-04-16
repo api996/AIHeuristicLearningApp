@@ -7,15 +7,22 @@ import path from "path";
 import fs from "fs";
 
 // 自动修复记忆文件
-const runMemoryCleanup = () => {
+const runMemoryCleanup = (userId?: number) => {
   try {
     const scriptPath = path.join(process.cwd(), "scripts", "memory_cleanup.py");
 
     // 检查脚本是否存在
     if (fs.existsSync(scriptPath)) {
-      log("正在执行记忆文件修复脚本...");
+      // 构建命令行参数，如果提供了用户ID，则只处理该用户的记忆文件
+      const args = [scriptPath];
+      if (userId !== undefined) {
+        args.push('--user-id', userId.toString());
+        log(`正在执行记忆文件修复脚本，仅处理用户ID: ${userId}...`);
+      } else {
+        log("正在执行记忆文件修复脚本（所有用户）...");
+      }
 
-      const cleanupProcess = spawn("python3", [scriptPath], {
+      const cleanupProcess = spawn("python3", args, {
         stdio: ["ignore", "pipe", "pipe"],
         env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
       });
@@ -40,7 +47,8 @@ const runMemoryCleanup = () => {
 
       cleanupProcess.on("close", (code) => {
         if (code === 0) {
-          log(`记忆文件修复脚本执行成功，退出码: ${code}`);
+          const userMsg = userId !== undefined ? `用户${userId}的` : '所有用户的';
+          log(`记忆文件修复脚本执行成功，${userMsg}记忆文件已处理，退出码: ${code}`);
         } else {
           log(`记忆文件修复脚本执行失败，退出码: ${code}`);
           if (errorOutput) {
@@ -105,7 +113,7 @@ app.use((req, res, next) => {
   log("Starting server...");
 
   try {
-    // 先运行记忆文件修复
+    // 先运行记忆文件修复，但不指定用户ID，只是进行初始检查
     runMemoryCleanup();
 
     const server = await registerRoutes(app);

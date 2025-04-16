@@ -2,6 +2,10 @@ import fetch from "node-fetch";
 import { log } from "../vite";
 import { storage } from "../storage";
 import { webSearchService, type SearchSnippet } from "./web-search";
+import { promptManagerService } from "./prompt-manager";
+import { conversationAnalyticsService } from "./conversation-analytics";
+import { contentModerationService } from "./content-moderation";
+import { type Message } from "../../shared/schema";
 
 interface ModelConfig {
   endpoint?: string;
@@ -57,44 +61,76 @@ export class ChatService {
           "Content-Type": "application/json",
         },
         isSimulated: !geminiApiKey,
-        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
-          // 构建基础提示词
-          let basePrompt = `你是一个先进的AI学习助手，能够提供个性化学习体验。`;
+        transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
+          // 获取Gemini的提示词模板（如果有）
+          let basePrompt = '';
+          try {
+            const templateRecord = await storage.getPromptTemplate('gemini');
+            if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
+              log('Using custom template for Gemini model');
+              basePrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
+              
+              // 执行模板变量替换
+              basePrompt = basePrompt
+                .replace(/{{user_input}}/g, message)
+                .replace(/{{date}}/g, new Date().toLocaleString())
+                .replace(/{{memory}}/g, contextMemories || "")
+                .replace(/{{search}}/g, searchResults || "");
+              
+              // 处理条件部分
+              basePrompt = basePrompt.replace(
+                /{{#if\s+memory}}([\s\S]*?){{\/if}}/g,
+                contextMemories ? "$1" : ""
+              );
+              
+              basePrompt = basePrompt.replace(
+                /{{#if\s+search}}([\s\S]*?){{\/if}}/g,
+                searchResults ? "$1" : ""
+              );
+            }
+          } catch (error) {
+            log(`Error getting Gemini template: ${error}`);
+          }
           
-          // 添加记忆上下文（如果有）
-          if (contextMemories) {
-            basePrompt += `
+          // 如果没有自定义提示词模板，使用默认模板
+          if (!basePrompt) {
+            basePrompt = `你是一个先进的AI学习助手，能够提供个性化学习体验。`;
             
+            // 添加记忆上下文（如果有）
+            if (contextMemories) {
+              basePrompt += `
+              
 以下是用户的历史学习记忆和对话上下文。请在回答用户当前问题时，自然地融入这些上下文信息，使回答更加连贯和个性化。
 不要明确提及"根据你的历史记忆"或"根据你之前提到的"等字眼，而是像熟悉用户的导师一样自然地利用这些信息提供帮助。
 
 为用户构建知识图谱:
 ${contextMemories}`;
-          }
-          
-          // 添加搜索结果（如果有）
-          if (searchResults) {
-            basePrompt += `
+            }
             
+            // 添加搜索结果（如果有）
+            if (searchResults) {
+              basePrompt += `
+              
 ${searchResults}`;
-          }
-          
-          // 添加用户问题
-          basePrompt += `
-
+            }
+            
+            // 添加用户问题
+            basePrompt += `
+  
 用户当前问题: ${message}
-
+  
 请提供详细、有帮助的回答，体现出你了解用户的学习历程。回答应当清晰、准确、富有教育意义`;
-          
-          if (contextMemories) {
-            basePrompt += `，同时与用户之前的学习轨迹保持连贯性`;
+            
+            if (contextMemories) {
+              basePrompt += `，同时与用户之前的学习轨迹保持连贯性`;
+            }
+            
+            if (searchResults) {
+              basePrompt += `。引用网络搜索结果时，可以标注来源编号`;
+            }
+            
+            basePrompt += `。`;
           }
-          
-          if (searchResults) {
-            basePrompt += `。引用网络搜索结果时，可以标注来源编号`;
-          }
-          
-          basePrompt += `。`;
             
           return {
             contents: [
@@ -135,7 +171,7 @@ ${searchResults}`;
           }
           
           try {
-            const transformedMessage = this.modelConfigs.gemini.transformRequest!(message, contextMemories, searchResults);
+            const transformedMessage = await this.modelConfigs.gemini.transformRequest!(message, contextMemories, searchResults);
             log(`Calling Gemini API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
             
             const url = `${this.modelConfigs.gemini.endpoint}?key=${geminiApiKey}`;
@@ -175,46 +211,78 @@ ${searchResults}`;
           "Content-Type": "application/json",
         },
         isSimulated: !deepseekApiKey,
-        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
-          // 构建基础提示词
-          let basePrompt = `你是一个先进的AI学习助手DeepSeek，专注于深度分析和详细解释。`;
+        transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
+          // 获取DeepSeek的提示词模板（如果有）
+          let basePrompt = '';
+          try {
+            const templateRecord = await storage.getPromptTemplate('deepseek');
+            if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
+              log('Using custom template for DeepSeek model');
+              basePrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
+              
+              // 执行模板变量替换
+              basePrompt = basePrompt
+                .replace(/{{user_input}}/g, message)
+                .replace(/{{date}}/g, new Date().toLocaleString())
+                .replace(/{{memory}}/g, contextMemories || "")
+                .replace(/{{search}}/g, searchResults || "");
+              
+              // 处理条件部分
+              basePrompt = basePrompt.replace(
+                /{{#if\s+memory}}([\s\S]*?){{\/if}}/g,
+                contextMemories ? "$1" : ""
+              );
+              
+              basePrompt = basePrompt.replace(
+                /{{#if\s+search}}([\s\S]*?){{\/if}}/g,
+                searchResults ? "$1" : ""
+              );
+            }
+          } catch (error) {
+            log(`Error getting DeepSeek template: ${error}`);
+          }
           
-          // 添加记忆上下文（如果有）
-          if (contextMemories) {
-            basePrompt += `
+          // 如果没有自定义提示词模板，使用默认模板
+          if (!basePrompt) {
+            basePrompt = `你是一个先进的AI学习助手DeepSeek，专注于深度分析和详细解释。`;
             
+            // 添加记忆上下文（如果有）
+            if (contextMemories) {
+              basePrompt += `
+              
 以下是用户的历史学习记忆和对话上下文:
 ${contextMemories}
 
 请在回答时自然地融入这些上下文信息，使回答更加深入和个性化。`;
-          }
-          
-          // 添加搜索结果（如果有）
-          if (searchResults) {
-            basePrompt += `
+            }
             
+            // 添加搜索结果（如果有）
+            if (searchResults) {
+              basePrompt += `
+              
 以下是与用户问题相关的网络搜索结果:
 ${searchResults}
 
 请根据这些搜索结果为用户提供准确的信息。`;
-          }
-          
-          // 添加用户问题
-          basePrompt += `
+            }
+            
+            // 添加用户问题
+            basePrompt += `
 
 用户当前问题: ${message}
 
 请提供详细、有深度的回答，体现出专业的洞察力。回答应当结构清晰、内容全面、分析深入`;
-          
-          if (contextMemories) {
-            basePrompt += `，同时与用户之前的学习轨迹保持连贯性`;
+            
+            if (contextMemories) {
+              basePrompt += `，同时与用户之前的学习轨迹保持连贯性`;
+            }
+            
+            if (searchResults) {
+              basePrompt += `。引用网络搜索结果时，可以标注来源编号`;
+            }
+            
+            basePrompt += `。`;
           }
-          
-          if (searchResults) {
-            basePrompt += `。引用网络搜索结果时，可以标注来源编号`;
-          }
-          
-          basePrompt += `。`;
             
           // 适配NVIDIA NIM平台的API格式
           return {
@@ -251,7 +319,7 @@ ${searchResults}
           }
           
           try {
-            const transformedMessage = this.modelConfigs.deepseek.transformRequest!(message, contextMemories, searchResults);
+            const transformedMessage = await this.modelConfigs.deepseek.transformRequest!(message, contextMemories, searchResults);
             log(`Calling DeepSeek API (NVIDIA NIM平台) with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
             
             const response = await fetchWithRetry(this.modelConfigs.deepseek.endpoint!, {
@@ -290,9 +358,23 @@ ${searchResults}
           "Content-Type": "application/json",
         },
         isSimulated: !grokApiKey,
-        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
-          // 构建系统提示
-          let systemPrompt = `你是Grok-3，一个先进的AI助手，来自XAI公司，具有幽默感和独特见解。你的回答应该既有信息量又有趣味性。`;
+        transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
+          // 获取Grok的提示词模板（如果有）
+          let systemPrompt = '';
+          try {
+            const templateRecord = await storage.getPromptTemplate('grok');
+            if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
+              log('Using custom template for Grok model');
+              systemPrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
+            }
+          } catch (error) {
+            log(`Error getting Grok template: ${error}`);
+          }
+          
+          // 如果没有自定义提示词模板，使用默认模板
+          if (!systemPrompt) {
+            systemPrompt = `你是Grok-3，一个先进的AI助手，来自XAI公司，具有幽默感和独特见解。你的回答应该既有信息量又有趣味性。`;
+          }
           
           // 构建用户提示
           let userPrompt = message;
@@ -345,7 +427,7 @@ ${searchResults}
           }
           
           try {
-            const transformedMessage = this.modelConfigs.grok.transformRequest!(message, contextMemories, searchResults);
+            const transformedMessage = await this.modelConfigs.grok.transformRequest!(message, contextMemories, searchResults);
             log(`Calling Grok API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
             
             const response = await fetchWithRetry(this.modelConfigs.grok.endpoint!, {
@@ -386,46 +468,78 @@ ${searchResults}
           "Content-Type": "application/json",
         },
         isSimulated: !difyApiKey,
-        transformRequest: (message: string, contextMemories?: string, searchResults?: string) => {
-          // 构建基础提示词
-          let basePrompt = `你是一个多语言AI学习助手，专注于提供深入的学习体验和知识分析。`;
+        transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
+          // 获取Deep的提示词模板（如果有）
+          let basePrompt = '';
+          try {
+            const templateRecord = await storage.getPromptTemplate('deep');
+            if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
+              log('Using custom template for Deep model');
+              basePrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
+              
+              // 执行模板变量替换
+              basePrompt = basePrompt
+                .replace(/{{user_input}}/g, message)
+                .replace(/{{date}}/g, new Date().toLocaleString())
+                .replace(/{{memory}}/g, contextMemories || "")
+                .replace(/{{search}}/g, searchResults || "");
+              
+              // 处理条件部分
+              basePrompt = basePrompt.replace(
+                /{{#if\s+memory}}([\s\S]*?){{\/if}}/g,
+                contextMemories ? "$1" : ""
+              );
+              
+              basePrompt = basePrompt.replace(
+                /{{#if\s+search}}([\s\S]*?){{\/if}}/g,
+                searchResults ? "$1" : ""
+              );
+            }
+          } catch (error) {
+            log(`Error getting Deep template: ${error}`);
+          }
           
-          // 添加记忆上下文（如果有）
-          if (contextMemories) {
-            basePrompt += `
+          // 如果没有自定义提示词模板，使用默认模板
+          if (!basePrompt) {
+            basePrompt = `你是一个多语言AI学习助手，专注于提供深入的学习体验和知识分析。`;
             
+            // 添加记忆上下文（如果有）
+            if (contextMemories) {
+              basePrompt += `
+              
 以下是用户的历史学习记忆和对话上下文:
 ${contextMemories}
 
 请在回答时自然地融入这些上下文信息，使回答更加连贯和个性化。避免明确提及这些记忆，而是像熟悉用户的专业导师一样利用这些信息提供帮助。`;
-          }
-          
-          // 添加搜索结果（如果有）
-          if (searchResults) {
-            basePrompt += `
+            }
             
+            // 添加搜索结果（如果有）
+            if (searchResults) {
+              basePrompt += `
+              
 以下是与用户问题相关的网络搜索结果:
 ${searchResults}
 
 请根据这些搜索结果为用户提供最新、最准确的信息。`;
-          }
-          
-          // 添加用户问题和回答指导
-          basePrompt += `
+            }
+            
+            // 添加用户问题和回答指导
+            basePrompt += `
 
 用户当前问题: ${message}
 
 请提供详细、有深度的回答，体现出专业的分析和洞察。回答应当逻辑清晰、内容准确、分析深入`;
-          
-          if (contextMemories) {
-            basePrompt += `，同时与用户之前的学习内容保持连贯性`;
+            
+            if (contextMemories) {
+              basePrompt += `，同时与用户之前的学习内容保持连贯性`;
+            }
+            
+            if (searchResults) {
+              basePrompt += `。引用网络搜索结果时，可以标注来源编号[1],[2]等`;
+            }
+            
+            basePrompt += `。`;
           }
-          
-          if (searchResults) {
-            basePrompt += `。引用网络搜索结果时，可以标注来源编号[1],[2]等`;
-          }
-          
-          basePrompt += `。`;
             
           return {
             query: basePrompt,
@@ -456,7 +570,7 @@ ${searchResults}
           }
           
           try {
-            const transformedMessage = this.modelConfigs.deep.transformRequest!(message, contextMemories, searchResults);
+            const transformedMessage = await this.modelConfigs.deep.transformRequest!(message, contextMemories, searchResults);
             log(`Calling Dify API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
             
             const response = await fetchWithRetry(this.modelConfigs.deep.endpoint!, {
@@ -515,7 +629,8 @@ ${searchResults}
       const templateRecord = await storage.getPromptTemplate(modelId);
       if (templateRecord) {
         log(`Using prompt template for model ${modelId}`);
-        return templateRecord.promptTemplate;
+        // 优先使用baseTemplate，如果不存在则回退到promptTemplate
+        return templateRecord.baseTemplate || templateRecord.promptTemplate;
       }
       return undefined;
     } catch (error) {
@@ -651,7 +766,7 @@ ${searchResults}
     return processedPrompt;
   }
 
-  async sendMessage(message: string, userId?: number, useWebSearch?: boolean) {
+  async sendMessage(message: string, userId?: number, chatId?: number, useWebSearch?: boolean) {
     try {
       // 如果提供了参数，则更新搜索设置
       if (useWebSearch !== undefined) {
@@ -660,6 +775,16 @@ ${searchResults}
       
       log(`Processing message with ${this.currentModel} model: ${message}, web search: ${this.useWebSearch}`);
       const config = this.modelConfigs[this.currentModel];
+      
+      // 对用户输入进行内容审查 - 前置审查
+      const userInputModerationResult = await contentModerationService.moderateUserInput(message);
+      if (userInputModerationResult) {
+        log(`用户输入被内容审查系统拦截，提示: ${userInputModerationResult}`);
+        return {
+          text: userInputModerationResult,
+          model: this.currentModel
+        };
+      }
       
       // 如果有用户ID，尝试获取相似记忆
       let contextMemories: string | undefined = undefined;
@@ -673,10 +798,70 @@ ${searchResults}
         searchResults = await this.getWebSearchResults(message);
       }
       
+      // 如果有chatId，尝试分析当前对话阶段并获取动态提示词
+      if (chatId && userId) {
+        try {
+          // 如果有聊天历史，获取最近的消息进行分析
+          const messages = await storage.getChatMessages(chatId, userId, false);
+          
+          if (messages && messages.length > 0) {
+            // 添加当前用户消息到分析列表（因为它还未保存到数据库）
+            const currentMessage: Message = {
+              content: message,
+              role: "user", 
+              chatId,
+              id: 0, 
+              createdAt: new Date(),
+              model: null,
+              feedback: null,
+              isEdited: null
+            };
+            
+            const messagesWithCurrent: Message[] = [
+              ...messages,
+              currentMessage
+            ];
+            
+            // 分析对话阶段
+            await conversationAnalyticsService.analyzeConversationPhase(chatId, messagesWithCurrent);
+            
+            // 使用提示词管理服务获取动态提示词
+            const dynamicPrompt = await promptManagerService.getDynamicPrompt(
+              this.currentModel,
+              chatId,
+              message,
+              contextMemories,
+              searchResults
+            );
+            
+            log(`使用动态提示词模板处理消息`);
+            
+            // 使用动态提示词而不是原始消息
+            const response = await config.getResponse(dynamicPrompt, userId, contextMemories, searchResults, this.useWebSearch);
+            
+            // 对模型输出进行内容审查 - 后置审查
+            const modelOutputModerationResult = await contentModerationService.moderateModelOutput(response.text);
+            if (modelOutputModerationResult) {
+              log(`模型输出被内容审查系统拦截，提示: ${modelOutputModerationResult}`);
+              return {
+                text: modelOutputModerationResult,
+                model: response.model
+              };
+            }
+            
+            return response;
+          }
+        } catch (error) {
+          log(`动态提示词生成错误，回退到默认提示词: ${error}`);
+          // 出错时继续使用默认提示词
+        }
+      }
+      
       // 尝试获取模型的提示词模板
       const promptTemplate = await this.getModelPromptTemplate(this.currentModel);
       
       // 如果有提示词模板，应用模板
+      let response;
       if (promptTemplate) {
         const processedPrompt = this.applyPromptTemplate(
           promptTemplate,
@@ -688,11 +873,23 @@ ${searchResults}
         log(`Applied prompt template for model ${this.currentModel}`);
         
         // 使用处理后的提示词
-        return await config.getResponse(processedPrompt, userId, contextMemories, searchResults, this.useWebSearch);
+        response = await config.getResponse(processedPrompt, userId, contextMemories, searchResults, this.useWebSearch);
+      } else {
+        // 使用默认处理（无模板）
+        response = await config.getResponse(message, userId, contextMemories, searchResults, this.useWebSearch);
       }
       
-      // 使用默认处理（无模板）
-      return await config.getResponse(message, userId, contextMemories, searchResults, this.useWebSearch);
+      // 对模型输出进行内容审查 - 后置审查
+      const modelOutputModerationResult = await contentModerationService.moderateModelOutput(response.text);
+      if (modelOutputModerationResult) {
+        log(`模型输出被内容审查系统拦截，提示: ${modelOutputModerationResult}`);
+        return {
+          text: modelOutputModerationResult,
+          model: response.model
+        };
+      }
+      
+      return response;
     } catch (error) {
       log(`Error in ${this.currentModel} chat: ${error instanceof Error ? error.message : String(error)}`);
       throw error;

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { PromptTemplateManager } from "@/components/admin/PromptTemplateManager";
+import { ContentModerationSettings } from "@/components/admin/ContentModerationSettings";
 
 interface ChatStats {
   total: number;
@@ -112,6 +113,7 @@ export default function AdminDashboard() {
             <TabsList className="bg-neutral-800 mt-2">
               <TabsTrigger value="dashboard">控制面板</TabsTrigger>
               <TabsTrigger value="prompts">提示词模板</TabsTrigger>
+              <TabsTrigger value="moderation">内容审查</TabsTrigger>
             </TabsList>
             
             {/* Dashboard Tab */}
@@ -166,6 +168,26 @@ export default function AdminDashboard() {
                   </Card>
                 </div>
 
+                {/* Quick Navigation Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                  {/* Prompt Editor Card */}
+                  <Card className="bg-neutral-900 border-neutral-800 hover:border-blue-500 transition-colors cursor-pointer" onClick={() => setLocation('/admin/prompts')}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-white">提示词编辑器</CardTitle>
+                        <Settings className="h-6 w-6 text-blue-500" />
+                      </div>
+                      <CardDescription>使用高级编辑器管理多阶段动态提示词系统</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-neutral-400">通过KWLQ教育模型框架优化AI模型输出，实现更精确的对话控制</p>
+                      <Button variant="link" className="text-blue-500 p-0 mt-2 flex items-center">
+                        进入编辑器 <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+
                 {/* User List */}
                 <Card className="mt-8 bg-neutral-900 border-neutral-800">
                   <CardHeader>
@@ -205,7 +227,41 @@ export default function AdminDashboard() {
             {/* Prompts Templates Tab */}
             <TabsContent value="prompts">
               <div className="py-8">
+                <div className="container mx-auto px-4 mb-6">
+                  <Card className="bg-neutral-900 border-neutral-800">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-white">提示词模板管理</CardTitle>
+                        <Button 
+                          onClick={() => setLocation('/admin/prompts')} 
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Settings className="h-4 w-4 mr-2" /> 
+                          高级提示词编辑器
+                        </Button>
+                      </div>
+                      <CardDescription>在这里可以管理不同AI模型的提示词模板，或使用高级编辑器进行更精细的控制</CardDescription>
+                    </CardHeader>
+                  </Card>
+                </div>
                 <PromptTemplateManager />
+              </div>
+            </TabsContent>
+            
+            {/* Content Moderation Tab */}
+            <TabsContent value="moderation">
+              <div className="py-8">
+                <div className="container mx-auto px-4 mb-6">
+                  <Card className="bg-neutral-900 border-neutral-800">
+                    <CardHeader>
+                      <CardTitle className="text-white">内容审查设置</CardTitle>
+                      <CardDescription>
+                        配置OpenAI Moderation API用于过滤不当内容，保护用户体验和平台安全
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </div>
+                <ContentModerationSettings />
               </div>
             </TabsContent>
           </Tabs>
