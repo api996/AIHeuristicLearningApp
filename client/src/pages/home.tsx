@@ -51,9 +51,12 @@ export default function Home() {
     try {
       const userId = JSON.parse(localStorage.getItem("user") || "{}").userId;
       const baseUrl = window.location.origin;
-      const apiUrl = `${baseUrl}/api/files/background?userId=${userId}`;
       
-      console.log('[Home] 获取用户背景图片，请求:', apiUrl);
+      // 检测当前屏幕方向
+      const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+      const apiUrl = `${baseUrl}/api/files/background?userId=${userId}&orientation=${isPortrait ? 'portrait' : 'landscape'}`;
+      
+      console.log(`[Home] 获取用户背景图片，请求: ${apiUrl}，屏幕方向: ${isPortrait ? '竖屏' : '横屏'}`);
       const response = await axios.get(apiUrl);
       
       if (response.data && response.data.url) {
@@ -65,10 +68,13 @@ export default function Home() {
       }
     } catch (error) {
       console.error('获取背景图片失败:', error);
-      // 使用默认背景
+      // 使用默认背景，根据屏幕方向选择
       const baseUrl = window.location.origin;
-      const defaultBackground = `${baseUrl}/backgrounds/default-background.jpg`;
-      console.log('[Home] 使用默认背景:', defaultBackground);
+      const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+      const defaultBackground = isPortrait
+        ? `${baseUrl}/backgrounds/portrait-background.jpg`
+        : `${baseUrl}/backgrounds/landscape-background.jpg`;
+      console.log(`[Home] 使用默认${isPortrait ? '竖屏' : '横屏'}背景:`, defaultBackground);
       setBackgroundUrl(defaultBackground);
     }
   };
@@ -92,7 +98,18 @@ export default function Home() {
       {/* 半透明遮罩，提高文字对比度 */}
       <div className="absolute inset-0 bg-black/30"></div>
       
-      {/* 已移除顶部工具栏，使用AI聊天组件中的导航栏 */}
+      {/* 右上角的背景设置按钮 */}
+      <div className="absolute top-2 right-2 z-20 flex items-center gap-2">
+        <BackgroundUploader 
+          userId={userData.userId} 
+          onBackgroundChange={(url) => {
+            // 构建完整URL
+            const fullUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`;
+            console.log('[Home] 背景已更改为:', fullUrl);
+            setBackgroundUrl(fullUrl);
+          }} 
+        />
+      </div>
       
       {/* 主要内容 */}
       <div className="relative z-10">

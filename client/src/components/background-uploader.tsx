@@ -245,16 +245,24 @@ export function BackgroundUploader({ userId, onBackgroundChange }: BackgroundUpl
             </div>
             
             <div className="grid grid-cols-2 gap-3">
-              {/* 默认背景 */}
+              {/* 默认背景 - 根据当前屏幕方向显示 */}
               <Card 
                 className={`relative cursor-pointer overflow-hidden ${
-                  currentBackground.includes('default-background') ? 'ring-2 ring-[#0deae4]' : ''
+                  currentBackground.includes('landscape-background') || currentBackground.includes('default-background') 
+                    ? 'ring-2 ring-[#0deae4]' : ''
                 }`}
-                onClick={() => selectBackground('/backgrounds/default-background.jpg')}
+                onClick={() => {
+                  const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+                  selectBackground(isPortrait 
+                    ? '/backgrounds/portrait-background.jpg' 
+                    : '/backgrounds/landscape-background.jpg');
+                }}
               >
                 <div className="aspect-video relative">
                   <img 
-                    src="/backgrounds/default-background.jpg" 
+                    src={window.matchMedia("(orientation: portrait)").matches 
+                      ? "/backgrounds/portrait-background.jpg" 
+                      : "/backgrounds/landscape-background.jpg"} 
                     alt="默认背景" 
                     className="w-full h-full object-cover" 
                   />
