@@ -97,7 +97,7 @@ router.get('/background', async (req: Request, res: Response) => {
     
     // 如果无法获取用户ID，返回默认背景
     if (!userId) {
-      return res.json({ url: '/backgrounds/default-background.png' });
+      return res.json({ url: '/backgrounds/default-background.jpg' });
     }
 
     const backgroundUrl = await getUserBackground(userId);
@@ -105,7 +105,7 @@ router.get('/background', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('获取背景图片失败:', error);
     // 出错时也返回默认背景，确保前端始终有图片可用
-    res.json({ url: '/backgrounds/default-background.png' });
+    res.json({ url: '/backgrounds/default-background.jpg' });
   }
 });
 
