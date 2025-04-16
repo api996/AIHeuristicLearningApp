@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useLocation } from 'wouter';
@@ -35,11 +35,18 @@ interface MemoryCluster {
 const MemorySpace: React.FC = () => {
   const { toast } = useToast();
   const { userId } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState('all');
   const [selectedCluster, setSelectedCluster] = useState<string | null>(null);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
+  
+  // 用于调试导航状态
+  useEffect(() => {
+    console.log('Memory Space Component Mounted');
+    console.log('Current location:', location);
+    console.log('User ID:', userId);
+  }, [location, userId]);
 
   // 获取用户记忆列表
   const { 
