@@ -1111,7 +1111,30 @@ export function AIChat({ userData }: AIChatProps) {
       applyFontSize(savedFontSize);
     }
 
-    // 2.3 加载背景图片
+    // 2.3 加载自定义主题颜色
+    const savedThemeColor = localStorage.getItem("custom-theme-color") ?? "#0deae4";
+    setCustomThemeColor(savedThemeColor);
+    setTempThemeColor(savedThemeColor);
+    
+    // 应用自定义主题颜色到CSS变量
+    document.documentElement.style.setProperty('--custom-theme-color', savedThemeColor);
+    
+    // 将颜色转换为RGB格式并保存到CSS变量中，用于透明度效果
+    const hexToRgb = (hex: string) => {
+      // 将#0deae4格式转换为rgb(13, 234, 228)格式
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      if (!result) {
+        return '13, 234, 228'; // 默认青色的RGB值
+      }
+      const r = parseInt(result[1], 16);
+      const g = parseInt(result[2], 16);
+      const b = parseInt(result[3], 16);
+      return `${r}, ${g}, ${b}`;
+    };
+    
+    document.documentElement.style.setProperty('--custom-theme-color-rgb', hexToRgb(savedThemeColor));
+    
+    // 2.4 加载背景图片
     const savedBackgroundImage = localStorage.getItem("background-image");
     if (savedBackgroundImage) {
       setBackgroundImage(savedBackgroundImage);
@@ -1401,10 +1424,19 @@ export function AIChat({ userData }: AIChatProps) {
             <Button 
               variant="outline" 
               onClick={handleNewChat}
-              className="h-12 px-6 rounded-full bg-white/10 backdrop-blur-md hover:bg-[#0deae4]/20 text-white border-[#0deae4] border-2 flex items-center transition-all shadow-md hover:shadow-[#0deae4]/30 hover:scale-105"
+              className={`h-12 px-6 rounded-full bg-white/10 backdrop-blur-md hover:bg-opacity-20 text-white border-2 flex items-center transition-all shadow-md hover:scale-105 ${
+                theme === 'dark' ? 'border-[#0deae4] hover:bg-[#0deae4]/20 hover:shadow-[#0deae4]/30' : ''
+              }`}
+              style={theme === 'light' ? {
+                borderColor: 'var(--custom-theme-color)',
+                '--tw-bg-opacity': 0.2,
+                '--tw-hover-bg-opacity': 0.3,
+                boxShadow: '0 0 10px rgba(var(--custom-theme-color-rgb, 13, 234, 228), 0.2)',
+                '--tw-hover-shadow': '0 0 15px rgba(var(--custom-theme-color-rgb, 13, 234, 228), 0.3)',
+              } as React.CSSProperties : {}}
               title="新对话"
             >
-              <Plus className="h-5 w-5 mr-2 text-[#0deae4]" />
+              <Plus className={`h-5 w-5 mr-2 ${theme === 'dark' ? 'text-[#0deae4]' : ''}`} style={theme === 'light' ? {color: 'var(--custom-theme-color)'} : {}} />
               <span className="font-medium">新对话</span>
             </Button>
           </div>
@@ -1480,12 +1512,36 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-black/40 hover:bg-[#0deae4]/10 ` + 
-                  (useWebSearch ? "border-[#0deae4] text-[#0deae4]" : "border-[#0deae4]/40 text-white")
+                className={`h-8 text-xs bg-black/40 hover:bg-opacity-10 ` + 
+                  (useWebSearch 
+                    ? (theme === 'dark' 
+                        ? "border-[#0deae4] text-[#0deae4]" 
+                        : "border-custom-theme text-custom-theme") 
+                    : (theme === 'dark'
+                        ? "border-[#0deae4]/40 text-white"
+                        : "border-custom-theme/40 text-white"))
                 }
+                style={theme === 'light' && useWebSearch ? {
+                  borderColor: 'var(--custom-theme-color)',
+                  color: 'var(--custom-theme-color)'
+                } : theme === 'light' ? {
+                  borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
+                  '--tw-hover-bg-opacity': 0.1
+                } as React.CSSProperties : {}}
                 onClick={() => setUseWebSearch(!useWebSearch)}
               >
-                <Search className={`w-3.5 h-3.5 mr-1.5 ${useWebSearch ? 'text-[#0deae4]' : 'text-[#0deae4]/70'}`} />
+                <Search 
+                  className={`w-3.5 h-3.5 mr-1.5 ${
+                    theme === 'dark' 
+                      ? (useWebSearch ? 'text-[#0deae4]' : 'text-[#0deae4]/70')
+                      : ''
+                  }`} 
+                  style={theme === 'light' ? {
+                    color: useWebSearch 
+                      ? 'var(--custom-theme-color)' 
+                      : 'rgba(var(--custom-theme-color-rgb), 0.7)'
+                  } : {}}
+                />
                 网络搜索
               </Button>
               
@@ -1493,23 +1549,71 @@ export function AIChat({ userData }: AIChatProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-black/40 hover:bg-[#0deae4]/10 ` + 
-                  (currentModel === "deep" ? "border-[#0deae4] text-[#0deae4]" : "border-[#0deae4]/40 text-white")
+                className={`h-8 text-xs bg-black/40 hover:bg-opacity-10 ` + 
+                  (currentModel === "deep" 
+                    ? (theme === 'dark' 
+                        ? "border-[#0deae4] text-[#0deae4]" 
+                        : "border-custom-theme text-custom-theme") 
+                    : (theme === 'dark'
+                        ? "border-[#0deae4]/40 text-white"
+                        : "border-custom-theme/40 text-white"))
                 }
+                style={theme === 'light' && currentModel === "deep" ? {
+                  borderColor: 'var(--custom-theme-color)',
+                  color: 'var(--custom-theme-color)'
+                } : theme === 'light' ? {
+                  borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
+                  '--tw-hover-bg-opacity': 0.1
+                } as React.CSSProperties : {}}
                 onClick={() => handleModelChange("deep")}
               >
-                <Brain className={`w-3.5 h-3.5 mr-1.5 ${currentModel === "deep" ? "text-[#0deae4]" : "text-[#0deae4]/70"}`} />
+                <Brain 
+                  className={`w-3.5 h-3.5 mr-1.5 ${
+                    theme === 'dark' 
+                      ? (currentModel === "deep" ? 'text-[#0deae4]' : 'text-[#0deae4]/70')
+                      : ''
+                  }`} 
+                  style={theme === 'light' ? {
+                    color: currentModel === "deep" 
+                      ? 'var(--custom-theme-color)' 
+                      : 'rgba(var(--custom-theme-color-rgb), 0.7)'
+                  } : {}}
+                />
                 深度推理
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-black/40 hover:bg-[#0deae4]/10 ` + 
-                  (currentModel === "gemini" ? "border-[#0deae4] text-[#0deae4]" : "border-[#0deae4]/40 text-white")
+                className={`h-8 text-xs bg-black/40 hover:bg-opacity-10 ` + 
+                  (currentModel === "gemini" 
+                    ? (theme === 'dark' 
+                        ? "border-[#0deae4] text-[#0deae4]" 
+                        : "border-custom-theme text-custom-theme") 
+                    : (theme === 'dark'
+                        ? "border-[#0deae4]/40 text-white"
+                        : "border-custom-theme/40 text-white"))
                 }
+                style={theme === 'light' && currentModel === "gemini" ? {
+                  borderColor: 'var(--custom-theme-color)',
+                  color: 'var(--custom-theme-color)'
+                } : theme === 'light' ? {
+                  borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
+                  '--tw-hover-bg-opacity': 0.1
+                } as React.CSSProperties : {}}
                 onClick={() => handleModelChange("gemini")}
               >
-                <Sparkles className={`w-3.5 h-3.5 mr-1.5 ${currentModel === "gemini" ? "text-[#0deae4]" : "text-[#0deae4]/70"}`} />
+                <Sparkles 
+                  className={`w-3.5 h-3.5 mr-1.5 ${
+                    theme === 'dark' 
+                      ? (currentModel === "gemini" ? 'text-[#0deae4]' : 'text-[#0deae4]/70')
+                      : ''
+                  }`} 
+                  style={theme === 'light' ? {
+                    color: currentModel === "gemini" 
+                      ? 'var(--custom-theme-color)' 
+                      : 'rgba(var(--custom-theme-color-rgb), 0.7)'
+                  } : {}}
+                />
                 Gemini
               </Button>
               <Button
