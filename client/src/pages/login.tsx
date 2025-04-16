@@ -127,8 +127,8 @@ export default function Login() {
       return;
     }
 
-    // 开发者模式特殊处理 - 仅在注册时启用
-    if (isRegistering && isDeveloperMode) {
+    // 开发者模式特殊处理 - 登录和注册都启用
+    if (isDeveloperMode) {
       if (!developerPassword) {
         setError("请输入开发者密码");
         return;
@@ -304,45 +304,43 @@ export default function Login() {
             </div>
           )}
 
-          {/* 开发者模式切换 - 仅在注册时显示 */}
-          {isRegistering && (
-            <>
-              <div className="flex items-center justify-end space-x-2 my-4">
-                <Label htmlFor="developer-mode" className="text-white cursor-pointer">
-                  开发者模式
-                </Label>
-                <Switch
-                  id="developer-mode"
-                  checked={isDeveloperMode}
-                  onCheckedChange={setIsDeveloperMode}
-                />
-              </div>
+          {/* 开发者模式切换 - 在登录和注册时都显示 */}
+          <div className="flex items-center justify-end space-x-2 my-4">
+            <Label htmlFor="developer-mode" className="text-white cursor-pointer">
+              开发者模式
+            </Label>
+            <Switch
+              id="developer-mode"
+              checked={isDeveloperMode}
+              onCheckedChange={setIsDeveloperMode}
+            />
+          </div>
 
-              {/* 开发者密码输入框 */}
-              {isDeveloperMode && (
-                <div className="input-box relative w-full my-[30px] border-b-2 border-white">
-                  <i className="fas fa-code icon absolute right-2 text-white text-lg top-1/2 -translate-y-1/2"></i>
-                  <input
-                    type="password"
-                    value={developerPassword}
-                    onChange={(e) => setDeveloperPassword(e.target.value)}
-                    className="w-full h-[50px] bg-transparent outline-none border-none text-base text-white px-[5px] pr-[40px]"
-                    required={isDeveloperMode}
-                  />
-                  <label className="absolute top-1/2 left-[5px] -translate-y-1/2 text-base text-white pointer-events-none transition-all duration-500 peer-focus:-top-[5px] peer-valid:-top-[5px]">
-                    管理员密码
-                  </label>
-                </div>
-              )}
+          {/* 开发者密码输入框 */}
+          {isDeveloperMode && (
+            <div className="input-box relative w-full my-[30px] border-b-2 border-white">
+              <i className="fas fa-code icon absolute right-2 text-white text-lg top-1/2 -translate-y-1/2"></i>
+              <input
+                type="password"
+                value={developerPassword}
+                onChange={(e) => setDeveloperPassword(e.target.value)}
+                className="w-full h-[50px] bg-transparent outline-none border-none text-base text-white px-[5px] pr-[40px]"
+                required={isDeveloperMode}
+              />
+              <label className="absolute top-1/2 left-[5px] -translate-y-1/2 text-base text-white pointer-events-none transition-all duration-500 peer-focus:-top-[5px] peer-valid:-top-[5px]">
+                管理员密码
+              </label>
+            </div>
+          )}
 
-              {/* 开发者模式说明 */}
-              {isDeveloperMode && (
-                <div className="text-xs text-blue-300 mt-1 italic">
-                  使用开发者密码验证后，将在此会话中跳过后续的人机验证。<br/>
-                  注意：使用此模式注册时，若用户不存在将自动创建普通用户账户。
-                </div>
-              )}
-            </>
+          {/* 开发者模式说明 */}
+          {isDeveloperMode && (
+            <div className="text-xs text-blue-300 mt-1 italic">
+              使用开发者密码验证后，将在此会话中跳过后续的人机验证。<br/>
+              {isRegistering ? 
+                "注意：使用此模式注册时，若用户不存在将自动创建普通用户账户。" : 
+                "提示：开发者模式下仅跳过人机验证，仍需正确的用户名和密码。"}
+            </div>
           )}
 
           {/* 在非开发者模式下显示人机验证 */}

@@ -197,7 +197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // 开发者模式登录请求 - 跳过人机验证
+  // 开发者模式登录请求 - 仅跳过人机验证，仍需正确用户密码
   app.post("/api/developer-login", async (req, res) => {
     try {
       const { username, password, developerPassword } = req.body;
@@ -210,7 +210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 如果没有管理员账户，设置默认开发者密码
       const validDevPassword = adminUser ? adminUser.password : "dev123456";
       
-      // 验证开发者密码
+      // 验证开发者密码 - 这是安全性验证，用于判断是否有权绕过人机验证
       if (developerPassword !== validDevPassword) {
         log(`[开发者登录] 开发者密码验证失败`);
         return res.status(401).json({
@@ -231,52 +231,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 获取用户信息
       let user = await storage.getUserByUsername(username);
       
-      // 处理不同情况
-      if (username === "admin") {
-        // 管理员账户特殊处理
-        if (!user) {
-          // 创建管理员账户（仅当用户名为admin且账户不存在）
-          log(`[开发者登录] 创建新的管理员账户`);
-          const secureAdminPassword = password || "Admin@" + Math.floor(Math.random() * 10000);
-          user = await storage.createUser({ 
-            username, 
-            password: secureAdminPassword, 
-            role: "admin" 
+      // 验证用户和密码逻辑
+      if (user) {
+        // 现有用户登录 - 必须验证密码
+        if (user.password === password) {
+          log(`[开发者模式] 用户 ${username} 登录成功, ID: ${user.id}, 角色: ${user.role}`);
+          res.json({ 
+            success: true, 
+            userId: user.id, 
+            role: user.role 
           });
-          
-          if (!password) {
-            // 记录生成的密码到日志（仅供首次设置使用）
-            console.log(`初始管理员密码已生成: ${secureAdminPassword}`);
-            
-            return res.status(401).json({
-              success: false,
-              message: "管理员账户已创建，请查看服务器日志获取初始密码"
-            });
-          }
+        } else {
+          log(`[开发者登录] 用户密码错误`);
+          res.status(401).json({ 
+            success: false, 
+            message: "用户名或密码错误" 
+          });
         }
-      } else if (!user) {
-        // 如果是新的普通用户，创建普通用户账户
-        log(`[开发者登录] 创建新的普通用户账户: ${username}`);
+      } else if (username === "admin") {
+        // 创建管理员账户特殊处理
+        log(`[开发者登录] 创建新的管理员账户`);
+        const secureAdminPassword = password || "Admin@" + Math.floor(Math.random() * 10000);
         user = await storage.createUser({ 
           username, 
-          password, 
-          role: "user" // 显式设置为普通用户
+          password: secureAdminPassword, 
+          role: "admin" 
         });
-      }
-      
-      // 验证用户密码（如果是开发者模式，不必严格检查密码）
-      if (user && (user.password === password || developerPassword === validDevPassword)) {
-        log(`[开发者模式] 用户 ${username} 登录成功, ID: ${user.id}, 角色: ${user.role}`);
+        
+        if (!password) {
+          // 记录生成的密码到日志（仅供首次设置使用）
+          console.log(`初始管理员密码已生成: ${secureAdminPassword}`);
+          
+          return res.status(401).json({
+            success: false,
+            message: "管理员账户已创建，请查看服务器日志获取初始密码"
+          });
+        }
+        
+        // 如果提供了密码，则注册并登录
+        log(`[开发者模式] 管理员用户 ${username} 创建并登录成功, ID: ${user.id}`);
         res.json({ 
           success: true, 
           userId: user.id, 
           role: user.role 
         });
       } else {
-        log(`[开发者登录] 密码验证失败, 用户名: ${username}`);
-        res.status(401).json({ 
-          success: false, 
-          message: "用户名或密码错误" 
+        // 新的普通用户注册
+        log(`[开发者登录] 创建新的普通用户账户: ${username}`);
+        user = await storage.createUser({ 
+          username, 
+          password, 
+          role: "user" 
+        });
+        
+        log(`[开发者模式] 新用户 ${username} 创建并登录成功, ID: ${user.id}`);
+        res.json({ 
+          success: true, 
+          userId: user.id, 
+          role: user.role 
         });
       }
     } catch (error) {
