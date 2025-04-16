@@ -1392,7 +1392,7 @@ export function AIChat({ userData }: AIChatProps) {
             <Button
               variant="ghost"
               size="icon"
-              className={`mr-4 rounded-lg h-12 w-12 ${
+              className={`mr-3 sm:mr-4 rounded-lg sm:h-12 sm:w-12 h-10 w-10 ${
                 theme === 'dark'
                   ? 'hover:bg-neutral-800'
                   : 'hover:bg-[#0deae4]/10'
@@ -1400,7 +1400,7 @@ export function AIChat({ userData }: AIChatProps) {
               onClick={toggleSidebar}
               aria-label="显示侧边栏"
             >
-              <Menu className={`h-7 w-7 ${theme === 'dark' ? 'text-neutral-300' : 'text-[#0deae4]'}`} />
+              <Menu className={`sm:h-7 sm:w-7 h-5 w-5 ${theme === 'dark' ? 'text-neutral-300' : 'text-[#0deae4]'}`} />
             </Button>
 
             {/* 当前对话标题 */}
@@ -1424,12 +1424,12 @@ export function AIChat({ userData }: AIChatProps) {
               </div>
             ) : (
               <div className="flex items-center">
-                <div className={`p-1.5 rounded-lg mr-2.5 ${
+                <div className={`p-1 sm:p-1.5 rounded-lg mr-2 sm:mr-2.5 ${
                   theme === 'dark' 
                     ? 'bg-gradient-to-br from-blue-500 to-purple-600' 
                     : 'bg-gradient-to-br from-[#0deae4] to-[#0d8ae4]'
                 }`}>
-                  <Brain className="h-5 w-5 text-white" />
+                  <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
                 <h1 className="text-sm font-bold text-white whitespace-nowrap">启发式对话导师</h1>
               </div>
