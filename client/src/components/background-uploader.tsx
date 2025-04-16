@@ -248,13 +248,13 @@ export function BackgroundUploader({ userId, onBackgroundChange }: BackgroundUpl
               {/* 默认背景 */}
               <Card 
                 className={`relative cursor-pointer overflow-hidden ${
-                  currentBackground.includes('default-background') ? 'ring-2 ring-primary' : ''
+                  currentBackground.includes('default-background') ? 'ring-2 ring-[#0deae4]' : ''
                 }`}
-                onClick={() => selectBackground('/backgrounds/default-background.png')}
+                onClick={() => selectBackground('/backgrounds/default-background.jpg')}
               >
                 <div className="aspect-video relative">
                   <img 
-                    src="/backgrounds/default-background.png" 
+                    src="/backgrounds/default-background.jpg" 
                     alt="默认背景" 
                     className="w-full h-full object-cover" 
                   />
@@ -269,7 +269,7 @@ export function BackgroundUploader({ userId, onBackgroundChange }: BackgroundUpl
                 <Card 
                   key={bg.fileId} 
                   className={`relative cursor-pointer overflow-hidden ${
-                    currentBackground === bg.publicUrl ? 'ring-2 ring-primary' : ''
+                    currentBackground === bg.publicUrl ? 'ring-2 ring-[#0deae4]' : ''
                   }`}
                   onClick={() => selectBackground(bg.publicUrl)}
                 >
