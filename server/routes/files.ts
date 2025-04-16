@@ -37,8 +37,10 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
       return res.status(400).json({ error: '未提供文件' });
     }
 
-    const userId = req.session.userId;
+    // 从会话或请求体中获取用户ID
+    const userId = req.session.userId || Number(req.body.userId);
     if (!userId) {
+      console.error('文件上传失败: 未提供有效的用户ID');
       return res.status(401).json({ error: '未授权' });
     }
 
@@ -73,8 +75,10 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
  */
 router.get('/list', async (req: Request, res: Response) => {
   try {
-    const userId = req.session.userId;
+    // 从会话或查询参数中获取用户ID
+    const userId = req.session.userId || Number(req.query.userId);
     if (!userId) {
+      console.error('获取文件列表失败: 未提供有效的用户ID');
       return res.status(401).json({ error: '未授权' });
     }
 
