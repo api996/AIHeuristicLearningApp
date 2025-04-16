@@ -380,3 +380,6 @@ args = "python3 scripts/memory_cleanup.py"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "NODE_ENV=development npm run dev"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-76aba1fc-7331-4791-9f6b-ac448480a3dd"
