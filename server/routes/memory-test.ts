@@ -16,6 +16,8 @@ const router = express.Router();
  * 测试读取文件系统中的记忆数据
  */
 router.get('/file-system/:userId', async (req, res) => {
+  // 设置响应类型为JSON
+  res.setHeader('Content-Type', 'application/json');
   try {
     const { userId } = req.params;
     if (!userId || isNaN(Number(userId))) {
@@ -72,6 +74,8 @@ router.get('/file-system/:userId', async (req, res) => {
  * 将文件系统中的记忆导入到数据库
  */
 router.post('/import-to-db/:userId', async (req, res) => {
+  // 设置响应类型为JSON
+  res.setHeader('Content-Type', 'application/json');
   try {
     const { userId } = req.params;
     if (!userId || isNaN(Number(userId))) {
@@ -160,6 +164,8 @@ router.post('/import-to-db/:userId', async (req, res) => {
  * 分析记忆集群
  */
 router.get('/analyze-clusters/:userId', async (req, res) => {
+  // 设置响应类型为JSON
+  res.setHeader('Content-Type', 'application/json');
   try {
     const { userId } = req.params;
     if (!userId || isNaN(Number(userId))) {
@@ -263,6 +269,8 @@ asyncio.run(analyze())
  * 修复记忆数据，确保具有摘要和关键词
  */
 router.post('/repair/:userId', async (req, res) => {
+  // 设置响应类型为JSON
+  res.setHeader('Content-Type', 'application/json');
   try {
     const { userId } = req.params;
     if (!userId || isNaN(Number(userId))) {
