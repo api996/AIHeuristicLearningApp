@@ -17,10 +17,12 @@ import {
   LogOut,
   ChevronRight,
   Settings,
+  Shield,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { PromptTemplateManager } from "@/components/admin/PromptTemplateManager";
 import { ContentModerationSettings } from "@/components/admin/ContentModerationSettings";
+import { SystemSettings } from "@/components/admin/SystemSettings";
 
 interface ChatStats {
   total: number;
@@ -112,6 +114,7 @@ export default function AdminDashboard() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="bg-neutral-800 mt-2">
               <TabsTrigger value="dashboard">控制面板</TabsTrigger>
+              <TabsTrigger value="security">安全设置</TabsTrigger>
               <TabsTrigger value="prompts">提示词模板</TabsTrigger>
               <TabsTrigger value="moderation">内容审查</TabsTrigger>
             </TabsList>

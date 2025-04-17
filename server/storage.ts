@@ -3,10 +3,11 @@ import {
   chats, messages, type Chat, type Message,
   memories, memoryKeywords, memoryEmbeddings,
   promptTemplates, searchResults, conversationAnalytics,
-  userFiles, userSettings,
+  userFiles, userSettings, systemConfig,
   type Memory, type MemoryKeyword, type MemoryEmbedding,
   type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding,
-  type PromptTemplate, type SearchResult, type ConversationAnalytic
+  type PromptTemplate, type SearchResult, type ConversationAnalytic,
+  type SystemConfig
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, ne, and, asc, desc, sql, inArray } from "drizzle-orm";
