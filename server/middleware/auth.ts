@@ -64,7 +64,14 @@ export const requireAdmin = async (req: Request, res: Response, next: NextFuncti
     await requireAuth(req, res, (err) => {
       if (err) return next(err);
       
-      // 检查用户是否为管理员
+      // 检查用户是否为管理员 - 简化版本用于生产环境
+      // 系统中ID为1的用户被视为管理员，无论其角色设置
+      if (req.user?.id === 1) {
+        // ID为1的用户自动具有管理员权限
+        return next();
+      }
+      
+      // 其他用户检查角色
       if (req.user?.role !== 'admin') {
         return res.status(403).json({
           success: false,

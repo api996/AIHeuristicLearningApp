@@ -25,17 +25,8 @@ import {
 } from '../services/hybrid-storage.service';
 import { requireAuth, requireAdmin } from '../middleware/auth';
 
-// 检查用户是否为管理员
-const isAdmin = (req: Request, res: Response, next: NextFunction) => {
-  if (req.session?.userId) {
-    // 管理员检查 (简化版)
-    // 实际项目中应该从数据库检查用户角色
-    if (req.user?.role === 'admin') {
-      return next();
-    }
-  }
-  return res.status(403).json({ error: '需要管理员权限' });
-};
+// 使用统一的管理员认证中间件
+// 简化管理员检查 - 直接使用requireAdmin中间件
 
 const router = Router();
 
@@ -410,17 +401,9 @@ router.delete('/:fileId', async (req: Request, res: Response) => {
  * 迁移文件到对象存储
  * 管理员功能
  */
-router.post('/migrate', async (req: Request, res: Response) => {
+router.post('/migrate', requireAdmin, async (req: Request, res: Response) => {
   try {
-    // 从会话或请求参数中获取用户ID
-    const userId = req.session.userId;
-    
-    // 安全检查：此操作仅限管理员
-    // 这里简化验证，假设只有用户ID为1的是管理员
-    if (!userId || userId !== 1) {
-      console.error('迁移文件失败: 未授权执行迁移操作');
-      return res.status(401).json({ error: '未授权执行迁移操作，需要管理员权限' });
-    }
+    // 管理员验证由requireAdmin中间件完成
     
     // 获取要迁移的特定用户ID (可选)
     const targetUserId = req.body.userId ? Number(req.body.userId) : undefined;
@@ -445,7 +428,7 @@ router.post('/migrate', async (req: Request, res: Response) => {
  * 迁移文件到对象存储 (GET版本，更易于直接调用)
  * 开发环境使用
  */
-router.get('/migrate-to-object-storage', async (req: Request, res: Response) => {
+router.get('/migrate-to-object-storage', requireAdmin, async (req: Request, res: Response) => {
   try {
     console.log(`开始文件迁移，请求来自: ${req.ip}`);
     
@@ -477,7 +460,7 @@ router.get('/migrate-to-object-storage', async (req: Request, res: Response) => 
 /**
  * 测试文件存储模式 (仅用于开发环境)
  */
-router.get('/storage-test', async (req: Request, res: Response) => {
+router.get('/storage-test', requireAdmin, async (req: Request, res: Response) => {
   try {
     // 获取查询参数
     const fileType = (req.query.type as string) || 'background';
