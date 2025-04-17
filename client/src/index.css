@@ -500,78 +500,74 @@ div[role="dialog"] {
   background-color: rgba(0, 140, 175, 0.75); /* 更强烈的蓝绿色悬停效果 */
 }
 
-/* 底部导航按钮样式 - 最接近iOS原生风格 */
+/* 底部导航按钮样式 - iOS原生风格 */
 .bottom-nav-button {
   color: rgba(180, 180, 180, 0.85) !important;
-  transition: color 0.15s ease !important;
-  background-color: transparent !important;
-  border-radius: 10px !important;
-  border: none !important;
-  box-shadow: none !important;
-  outline: none !important;
+  transition: all 0.2s ease !important;
+  border-radius: 12px !important;
+  padding: 8px !important;
+  background-color: rgba(50, 50, 50, 0.3) !important; /* 恢复半透明背景 */
 }
 
-/* 防止底部导航被高亮 - 所有状态 */
+/* 底部导航容器样式 */
 .mobile-nav-container, 
 .bottom-nav,
 .bottom-tab-bar,
-.bottom-navigation,
-div[class*="bottom-nav"],
-div[class*="fixed bottom-0"] {
-  background-color: transparent !important;
+.bottom-navigation {
+  padding: 8px !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
-  border: none !important;
-  outline: none !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background-color: rgba(30, 30, 30, 0.5) !important; /* 添加暗色半透明背景 */
+}
+
+/* 防止聚焦状态下的导航栏蓝色高亮 */
+:root.light .chat-input-area:focus-within ~ div[class*="fixed bottom-0"],
+:root.light .chat-input-area:focus-within + div[class*="fixed bottom-0"],
+:root.light .keyboard-open div[class*="fixed bottom-0"],
+:root.light .keyboard-focused div[class*="fixed bottom-0"] {
+  background-color: rgba(220, 235, 250, 0.6) !important; /* 非蓝色的浅色背景 */
+  border-top: 1px solid rgba(200, 200, 210, 0.4) !important;
+}
+
+/* 浅色模式下底部导航 */
+:root.light .mobile-nav-container, 
+:root.light .bottom-nav,
+:root.light .bottom-tab-bar,
+:root.light .bottom-navigation {
+  background-color: rgba(240, 240, 250, 0.6) !important; /* 更浅的背景 */
+  border-top: 1px solid rgba(200, 200, 210, 0.4) !important;
 }
 
 /* 浅色模式下底部导航按钮样式 */
 :root.light .bottom-nav-button {
-  color: rgba(120, 120, 120, 0.75) !important;
+  color: rgba(100, 100, 100, 0.8) !important;
+  background-color: rgba(200, 210, 230, 0.3) !important; /* 浅色模式下的按钮背景 */
 }
 
 :root.light .bottom-nav-button:hover,
 :root.light .bottom-nav-button:focus {
-  color: rgba(0, 140, 175, 0.85) !important;
-  background-color: transparent !important;
-  outline: none !important;
+  color: rgba(0, 140, 175, 0.9) !important;
+  background-color: rgba(180, 210, 235, 0.4) !important; /* 悬停时稍微高亮 */
 }
 
 :root.light .bottom-nav-button.active {
-  color: rgba(0, 140, 175, 0.95) !important;
-  background-color: transparent !important;
-}
-
-/* 浅色模式下键盘打开时防止导航蓝色高亮 */
-:root.light.keyboard-open .bottom-nav-container,
-:root.light.keyboard-focused .bottom-nav-container,
-:root.light .keyboard-open .bottom-nav-container,
-:root.light .keyboard-focused .bottom-nav-container,
-:root.light.keyboard-open .mobile-nav-container,
-:root.light.keyboard-focused .mobile-nav-container,
-:root.light .keyboard-open .mobile-nav-container,
-:root.light .keyboard-focused .mobile-nav-container,
-:root.light.keyboard-open div[class*="fixed bottom-0"],
-:root.light.keyboard-focused div[class*="fixed bottom-0"] {
-  background-color: transparent !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-  border-top: 1px solid rgba(var(--custom-theme-color-rgb, 0, 122, 255), 0.1) !important;
-  box-shadow: none !important;
-  outline: none !important;
+  color: rgba(0, 140, 175, 1) !important;
+  background-color: rgba(180, 210, 235, 0.6) !important; /* 选中时更明显的高亮 */
+  font-weight: 600 !important;
 }
 
 /* 深色模式下底部导航按钮样式 */
 :root.dark .bottom-nav-button:hover,
 :root.dark .bottom-nav-button:focus {
-  color: rgba(13, 234, 228, 0.85) !important;
-  background-color: transparent !important;
-  outline: none !important;
+  color: rgba(13, 234, 228, 0.9) !important;
+  background-color: rgba(13, 234, 228, 0.15) !important; /* 深色模式下悬停效果 */
 }
 
 :root.dark .bottom-nav-button.active {
-  color: rgba(13, 234, 228, 0.95) !important;
-  background-color: transparent !important;
+  color: rgba(13, 234, 228, 1) !important;
+  background-color: rgba(13, 234, 228, 0.2) !important; /* 深色模式下选中效果 */
+  font-weight: 600 !important;
 }
 
 /* 隐藏空内容区域的滚动条 */

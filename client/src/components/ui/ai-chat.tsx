@@ -26,7 +26,7 @@ import {
   X,
   Upload
 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
@@ -2141,12 +2141,15 @@ export function AIChat({ userData }: AIChatProps) {
       <Dialog open={showPreferencesDialog} onOpenChange={setShowPreferencesDialog}>
         <DialogContent className="sm:max-w-md frosted-dialog">
           <DialogHeader>
-            <DialogTitle>偏好设置</DialogTitle>
+            <DialogTitle className="text-lg font-semibold">偏好设置</DialogTitle>
+            <DialogDescription className="text-neutral-300 dark:text-neutral-400">
+              自定义您的学习体验
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-3">
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">外观</h3>
-              <div className="flex flex-wrap gap-2">
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-neutral-200 dark:text-neutral-200">外观模式</h3>
+              <div className="flex flex-wrap gap-3">
                 <Button
                   variant={theme === "light" ? "default" : "outline"}
                   size="sm"
@@ -2154,9 +2157,14 @@ export function AIChat({ userData }: AIChatProps) {
                     setTheme("light");
                     applyTheme("light");
                   }}
-                  className="flex-1"
+                  className={`flex-1 transition-all ${theme === "light" 
+                    ? "bg-gradient-to-br from-blue-100 to-blue-300 text-blue-900 border-blue-400 shadow-md" 
+                    : "bg-opacity-20 hover:bg-opacity-30 hover:border-blue-400"}`}
                 >
-                  浅色
+                  <span className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>
+                    浅色
+                  </span>
                 </Button>
                 <Button
                   variant={theme === "dark" ? "default" : "outline"}
@@ -2165,9 +2173,14 @@ export function AIChat({ userData }: AIChatProps) {
                     setTheme("dark");
                     applyTheme("dark");
                   }}
-                  className="flex-1"
+                  className={`flex-1 transition-all ${theme === "dark" 
+                    ? "bg-gradient-to-br from-cyan-900 to-teal-900 text-cyan-100 border-cyan-700 shadow-md" 
+                    : "bg-opacity-20 hover:bg-opacity-30 hover:border-cyan-700"}`}
                 >
-                  深色
+                  <span className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
+                    深色
+                  </span>
                 </Button>
                 <Button
                   variant={theme === "system" ? "default" : "outline"}
@@ -2176,16 +2189,21 @@ export function AIChat({ userData }: AIChatProps) {
                     setTheme("system");
                     applyTheme("system");
                   }}
-                  className="flex-1"
+                  className={`flex-1 transition-all ${theme === "system" 
+                    ? "bg-gradient-to-br from-purple-100 to-purple-300 text-purple-900 dark:from-purple-900 dark:to-indigo-900 dark:text-purple-100 border-purple-400 dark:border-purple-700 shadow-md" 
+                    : "bg-opacity-20 hover:bg-opacity-30 hover:border-purple-400 dark:hover:border-purple-700"}`}
                 >
-                  跟随系统
+                  <span className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line></svg>
+                    跟随系统
+                  </span>
                 </Button>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">字体大小</h3>
-              <div className="flex flex-wrap gap-2">
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-neutral-200 dark:text-neutral-200">字体大小</h3>
+              <div className="flex flex-wrap gap-3">
                 <Button
                   variant={fontSize === "small" ? "default" : "outline"}
                   size="sm"
@@ -2193,9 +2211,14 @@ export function AIChat({ userData }: AIChatProps) {
                     setFontSize("small");
                     applyFontSize("small");
                   }}
-                  className="flex-1"
+                  className={`flex-1 transition-all ${fontSize === "small" 
+                    ? "bg-gradient-to-br from-green-100 to-green-300 text-green-900 dark:from-green-900 dark:to-teal-800 dark:text-green-100 border-green-400 dark:border-green-700 shadow-md" 
+                    : "bg-opacity-20 hover:bg-opacity-30 hover:border-green-400 dark:hover:border-green-700"}`}
                 >
-                  小
+                  <span className="flex items-center gap-2 justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><text x="50%" y="50%" fontSize="11" textAnchor="middle" dominantBaseline="middle" fill="currentColor" stroke-width="0">A</text></svg>
+                    小
+                  </span>
                 </Button>
                 <Button
                   variant={fontSize === "medium" ? "default" : "outline"}
@@ -2204,9 +2227,14 @@ export function AIChat({ userData }: AIChatProps) {
                     setFontSize("medium");
                     applyFontSize("medium");
                   }}
-                  className="flex-1"
+                  className={`flex-1 transition-all ${fontSize === "medium" 
+                    ? "bg-gradient-to-br from-amber-100 to-amber-300 text-amber-900 dark:from-amber-900 dark:to-yellow-800 dark:text-amber-100 border-amber-400 dark:border-amber-700 shadow-md" 
+                    : "bg-opacity-20 hover:bg-opacity-30 hover:border-amber-400 dark:hover:border-amber-700"}`}
                 >
-                  中
+                  <span className="flex items-center gap-2 justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><text x="50%" y="50%" fontSize="14" textAnchor="middle" dominantBaseline="middle" fill="currentColor" stroke-width="0">A</text></svg>
+                    中
+                  </span>
                 </Button>
                 <Button
                   variant={fontSize === "large" ? "default" : "outline"}
@@ -2215,9 +2243,14 @@ export function AIChat({ userData }: AIChatProps) {
                     setFontSize("large");
                     applyFontSize("large");
                   }}
-                  className="flex-1"
+                  className={`flex-1 transition-all ${fontSize === "large" 
+                    ? "bg-gradient-to-br from-rose-100 to-rose-300 text-rose-900 dark:from-rose-900 dark:to-red-800 dark:text-rose-100 border-rose-400 dark:border-rose-700 shadow-md" 
+                    : "bg-opacity-20 hover:bg-opacity-30 hover:border-rose-400 dark:hover:border-rose-700"}`}
                 >
-                  大
+                  <span className="flex items-center gap-2 justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><text x="50%" y="50%" fontSize="16" textAnchor="middle" dominantBaseline="middle" fill="currentColor" stroke-width="0">A</text></svg>
+                    大
+                  </span>
                 </Button>
               </div>
             </div>
