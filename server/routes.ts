@@ -19,7 +19,8 @@ import filesRoutes from './routes/files';
 import { initializeBucket } from './services/file-bucket.service';
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // 简化的开发者认证API
+  // 简化的开发者认证API - 暂时注释
+  /*
   app.post("/api/auth/dev", (req, res) => {
     try {
       const { devKey } = req.body;
@@ -56,6 +57,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  */
   // User authentication routes
   // 处理注册请求
   app.post("/api/register", async (req, res) => {
@@ -251,7 +253,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // 开发者模式登录请求 - 仅跳过人机验证，仍需正确用户密码
+  // 开发者模式登录请求 - 暂时注释
+  /*
   app.post("/api/developer-login", async (req, res) => {
     try {
       const { username, password, developerPassword } = req.body;
@@ -365,6 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  */
 
   // Chat routes
   app.get("/api/chats", async (req, res) => {
