@@ -14,8 +14,8 @@ export class MemoryService {
   private storageMode: "database" | "hybrid" | "file" = "database";
 
   constructor() {
-    // 设置存储模式，默认使用数据库
-    this.storageMode = (process.env.MEMORY_STORAGE_MODE || "database") as "database" | "hybrid" | "file";
+    // 强制使用数据库存储模式，忽略环境变量设置
+    this.storageMode = "database";
     log(`[MemoryService] 初始化，存储模式: ${this.storageMode}`, "info");
   }
 
