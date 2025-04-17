@@ -55,7 +55,18 @@ export default function AdminDashboard() {
     const user = JSON.parse(userStr);
     if (user.role !== "admin") {
       setLocation("/login");
+      return;
     }
+
+    // 为管理员会话标记特殊属性，避免触发记忆系统
+    localStorage.setItem("isAdminSession", "true");
+
+    // 在组件卸载时清理
+    return () => {
+      if (user.role === "admin") {
+        localStorage.removeItem("isAdminSession");
+      }
+    };
   }, [setLocation]);
 
   const { data: users } = useQuery({
@@ -88,7 +99,7 @@ export default function AdminDashboard() {
   };
 
   const [activeTab, setActiveTab] = useState("dashboard");
-  
+
   return (
     <div className="min-h-screen bg-black admin-dashboard">
       {/* Header */}
@@ -118,7 +129,7 @@ export default function AdminDashboard() {
               <TabsTrigger value="prompts">提示词模板</TabsTrigger>
               <TabsTrigger value="moderation">内容审查</TabsTrigger>
             </TabsList>
-            
+
             {/* Dashboard Tab */}
             <TabsContent value="dashboard">
               {/* Main Content */}
@@ -226,7 +237,7 @@ export default function AdminDashboard() {
                 </Card>
               </main>
             </TabsContent>
-            
+
             {/* Prompts Templates Tab */}
             <TabsContent value="prompts">
               <div className="py-8">
@@ -250,7 +261,7 @@ export default function AdminDashboard() {
                 <PromptTemplateManager />
               </div>
             </TabsContent>
-            
+
             {/* Content Moderation Tab */}
             {/* Security Settings Tab */}
             <TabsContent value="security">
@@ -271,7 +282,7 @@ export default function AdminDashboard() {
                 <SystemSettings />
               </div>
             </TabsContent>
-            
+
             <TabsContent value="moderation">
               <div className="py-8">
                 <div className="container mx-auto px-4 mb-6">

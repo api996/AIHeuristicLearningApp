@@ -5,7 +5,7 @@ import { Request, Response, NextFunction } from 'express';
 import { log } from '../vite';
 import { storage } from '../storage';
 
-// 扩展Request接口以包含用户信息
+// 扩展Request接口以包含用户信息和路由类型标记
 declare global {
   namespace Express {
     interface Request {
@@ -14,6 +14,8 @@ declare global {
         username: string;
         role: string;
       };
+      // 标记是否为管理员路由，用于条件性跳过某些服务
+      isAdminRoute?: boolean;
     }
   }
 }
@@ -70,7 +72,7 @@ export const requireAdmin = async (req: Request, res: Response, next: NextFuncti
       });
     }
     
-    // 获取用户信息
+    // 获取用户信息 - 只获取最基本的字段
     const user = await storage.getUser(userId);
     if (!user) {
       return res.status(401).json({
@@ -85,6 +87,9 @@ export const requireAdmin = async (req: Request, res: Response, next: NextFuncti
       username: user.username,
       role: user.role || 'user'
     };
+    
+    // 标记此请求为管理员路由，避免触发其他非必要服务
+    req.isAdminRoute = true;
     
     // 系统中ID为1的用户被视为管理员，无论其角色设置
     if (user.id === 1 || user.role === 'admin') {
