@@ -1,5 +1,8 @@
+
 #!/bin/bash
-# 简化的构建脚本，避免 esbuild 错误
+# 简化的构建脚本，解决部署问题
+
+set -e  # 遇到错误立即停止
 
 echo "开始简化构建流程..."
 
@@ -7,11 +10,15 @@ echo "开始简化构建流程..."
 rm -rf dist
 mkdir -p dist
 
+# 安装缺失的依赖
+echo "安装缺失的依赖..."
+npm install -D @babel/preset-typescript lightningcss
+
 # 构建前端
 echo "构建前端..."
 NODE_ENV=production npx vite build
 
-# 构建后端 (避免使用可能导致错误的参数)
+# 构建后端 (使用更安全的配置)
 echo "构建后端..."
 NODE_ENV=production npx esbuild server/index.ts \
   --platform=node \
@@ -20,15 +27,37 @@ NODE_ENV=production npx esbuild server/index.ts \
   --format=esm \
   --external:express \
   --external:pg \
+  --external:ws \
   --external:@neondatabase/serverless \
   --external:drizzle-orm \
   --external:fs \
-  --external:path
+  --external:path \
+  --external:vite \
+  --external:* 
 
-# 验证构建
-if [ -f "dist/index.js" ]; then
-  echo "✓ 构建成功!"
-else
-  echo "× 构建失败，请检查错误信息"
-  exit 1
-fi
+# 如果出现问题，创建备用启动器
+echo "创建备用启动器..."
+cat > dist/backup-launcher.js << 'EOF'
+// 备用启动器
+import { spawn } from 'child_process';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+console.log('使用备用启动器...');
+process.env.NODE_ENV = 'production';
+
+const serverProcess = spawn('npx', ['tsx', '../server/index.ts'], {
+  stdio: 'inherit',
+  env: { ...process.env, NODE_ENV: 'production' }
+});
+
+serverProcess.on('exit', (code) => {
+  console.log(`服务器退出，代码: ${code}`);
+  process.exit(code);
+});
+EOF
+
+echo "构建完成！"

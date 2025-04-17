@@ -1,3 +1,4 @@
+
 /**
  * 生产环境启动脚本
  * 
@@ -21,12 +22,15 @@ const __dirname = dirname(__filename);
 // 检查编译后的文件是否存在
 const compiledPath = join(__dirname, 'dist', 'index.js');
 const serverTsPath = join(__dirname, 'server', 'index.ts');
+const backupLauncherPath = join(__dirname, 'dist', 'backup-launcher.js');
 
 console.log('生产环境启动中...');
 console.log(`Node.js版本: ${process.version}`);
+console.log(`环境: ${process.env.NODE_ENV}`);
 
 let serverProcess;
 
+// 尝试不同的启动方式
 if (fs.existsSync(compiledPath)) {
   console.log('使用编译后的文件启动服务器...');
   serverProcess = spawn('node', [compiledPath], {
@@ -36,9 +40,18 @@ if (fs.existsSync(compiledPath)) {
       NODE_ENV: 'production'
     }
   });
+} else if (fs.existsSync(backupLauncherPath)) {
+  console.log('使用备用启动器启动服务器...');
+  serverProcess = spawn('node', [backupLauncherPath], {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      NODE_ENV: 'production'
+    }
+  });
 } else {
   // 如果编译后文件不存在，使用tsx
-  console.log('编译后文件不存在，使用tsx直接运行TypeScript...');
+  console.log('使用tsx直接运行TypeScript...');
   serverProcess = spawn('npx', ['tsx', serverTsPath], {
     stdio: 'inherit',
     env: {
@@ -59,32 +72,22 @@ serverProcess.on('exit', (code) => {
     
     if (useCompiled) {
       console.log('尝试使用tsx作为备用方法...');
-      const backupProcess = spawn('npx', ['tsx', serverTsPath], {
+      spawn('npx', ['tsx', serverTsPath], {
         stdio: 'inherit',
         env: {
           ...process.env,
           NODE_ENV: 'production'
         }
       });
-      
-      backupProcess.on('exit', (backupCode) => {
-        process.exit(backupCode);
-      });
     } else {
-      process.exit(code);
+      console.log('尝试使用Node.js作为备用方法...');
+      spawn('node', [compiledPath], {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          NODE_ENV: 'production'
+        }
+      });
     }
-  } else {
-    process.exit(0);
   }
-});
-
-// 处理进程信号
-process.on('SIGINT', () => {
-  console.log('收到终止信号，正在关闭服务器...');
-  serverProcess.kill('SIGINT');
-});
-
-process.on('SIGTERM', () => {
-  console.log('收到SIGTERM信号，正在关闭服务器...');
-  serverProcess.kill('SIGTERM');
 });
