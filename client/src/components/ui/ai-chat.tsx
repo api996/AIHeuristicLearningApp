@@ -2215,7 +2215,7 @@ export function AIChat({ userData }: AIChatProps) {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">字体大小</h3>
+              <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">字体大小</h3>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={fontSize === "small" ? "default" : "outline"}
@@ -2257,8 +2257,8 @@ export function AIChat({ userData }: AIChatProps) {
             {/* 自定义主题颜色 - 仅在浅色模式下显示 */}
             {theme === 'light' && (
               <div className="space-y-2">
-                <h3 className="text-sm font-medium text-neutral-300">主题颜色 <span className="text-xs text-[#0deae4]">(浅色模式)</span></h3>
-                <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm space-y-3">
+                <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">主题颜色 <span className="text-xs text-blue-600 dark:text-[#0deae4]">(浅色模式)</span></h3>
+                <div className="p-4 bg-neutral-800 dark:bg-neutral-800 bg-blue-50/90 rounded-md text-neutral-700 dark:text-neutral-300 text-sm space-y-3">
                   <div className="flex justify-between items-center">
                     <span>自定义颜色</span>
                     <div className="flex items-center space-x-2">
@@ -2347,22 +2347,22 @@ export function AIChat({ userData }: AIChatProps) {
             
             {/* 背景图片设置 */}
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">背景图片</h3>
-              <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm space-y-3">
-                <p className="text-neutral-400 text-xs">
+              <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">背景图片</h3>
+              <div className="p-4 bg-neutral-800 dark:bg-neutral-800 bg-blue-50/90 rounded-md text-neutral-700 dark:text-neutral-300 text-sm space-y-3">
+                <p className="text-neutral-500 dark:text-neutral-400 text-xs">
                   上传自定义背景图片，支持JPG、PNG和WebP格式
                 </p>
                 <div className="flex flex-col gap-2">
                   <div 
-                    className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-gray-800 transition-colors"
+                    className="border-2 border-dashed border-gray-600 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:bg-blue-100/50 dark:hover:bg-gray-800 transition-colors"
                     onClick={() => backgroundInputRef.current?.click()}
                   >
                     <div className="py-4 flex flex-col items-center">
-                      <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-400">
+                      <Upload className="h-8 w-8 text-blue-500 dark:text-gray-400 mb-2" />
+                      <p className="text-sm text-neutral-700 dark:text-gray-400">
                         点击选择图片或拖拽图片到此处
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-neutral-500 dark:text-gray-500 mt-1">
                         支持JPG、PNG、WebP格式，最大10MB
                       </p>
                     </div>
@@ -2434,8 +2434,8 @@ export function AIChat({ userData }: AIChatProps) {
             </div>
             
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">其他功能 <span className="text-xs text-neutral-500">(即将推出)</span></h3>
-              <div className="p-3 bg-neutral-800 rounded-md text-neutral-400 text-sm">
+              <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">其他功能 <span className="text-xs text-neutral-500 dark:text-neutral-500">(即将推出)</span></h3>
+              <div className="p-3 bg-neutral-800 dark:bg-neutral-800 bg-blue-50/90 rounded-md text-neutral-600 dark:text-neutral-400 text-sm">
                 更多自定义功能将在后续版本推出，敬请期待！
               </div>
             </div>
