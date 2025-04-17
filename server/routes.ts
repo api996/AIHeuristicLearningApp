@@ -25,7 +25,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/dev", (req, res) => {
     try {
       const { devKey } = req.body;
-      
+
       // 验证开发者密钥
       // 此密钥仅供开发和测试使用
       if (devKey === "dev_secret_2025") {
@@ -35,7 +35,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.session.developerModeVerified = true;
           console.log(`开发者模式认证成功，设置会话用户ID: ${req.session.userId}`);
         }
-        
+
         // 返回成功响应
         return res.json({
           success: true,
@@ -44,7 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "开发者模式认证成功"
         });
       }
-      
+
       // 密钥不匹配
       res.status(401).json({
         success: false,
@@ -108,7 +108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 验证令牌有效性 - 除非在开发环境
       const isDevelopment = process.env.NODE_ENV === 'development';
       const isBypassToken = turnstileToken === "bypass-token";
-      
+
       if (!isDevelopment && !isBypassToken) {
         try {
           const isValid = await verifyTurnstileToken(turnstileToken);
@@ -172,7 +172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 验证令牌有效性 - 除非在开发环境
       const isDevelopment = process.env.NODE_ENV === 'development';
       const isBypassToken = turnstileToken === "bypass-token";
-      
+
       if (!isDevelopment && !isBypassToken) {
         try {
           const isValid = await verifyTurnstileToken(turnstileToken);
@@ -220,15 +220,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 详细日志记录
       log(`[Login] 尝试验证用户: ${username}`);
       log(`[Login] 用户数据库查询结果: ${JSON.stringify(user ? {id: user.id, role: user.role, username: user.username} : "未找到用户")}`);
-      
+
       // 验证用户密码 - 确保密码比较时对空值进行安全处理
       const dbPassword = user?.password || '';
       const inputPassword = password || '';
-      
+
       log(`[Login] 密码比较: 数据库="${dbPassword}", 输入="${inputPassword}"`);
-      
+
       if (user && dbPassword === inputPassword) {
         log(`[Login] 密码验证成功，用户ID: ${user.id}, 角色: ${user.role}`);
+
+        // 在会话中保存用户ID和角色
+        if (req.session) {
+          req.session.userId = user.id;
+          req.session.userRole = user.role;
+          log(`[Login] 已将用户ID ${user.id} 保存到会话中`);
+        } else {
+          log(`[Login] 警告：无法将用户ID保存到会话，session对象不存在`);
+        }
+
         res.json({ 
           success: true, 
           userId: user.id, 
@@ -239,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (user) {
           log(`[Login] 密码不匹配: 数据库="${dbPassword}", 输入="${inputPassword}"`);
         }
-        
+
         res.status(401).json({ 
           success: false, 
           message: "用户名或密码错误" 
@@ -253,21 +263,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // 开发者模式登录请求 - 暂时注释
   /*
   app.post("/api/developer-login", async (req, res) => {
     try {
       const { username, password, developerPassword } = req.body;
-      
+
       log(`[开发者登录] 开始处理登录请求, 用户名: ${username}`);
-      
+
       // 获取管理员账户
       const adminUser = await storage.getUserByUsername("admin");
-      
+
       // 如果没有管理员账户，设置默认开发者密码
       const validDevPassword = adminUser ? adminUser.password : "dev123456";
-      
+
       // 验证开发者密码 - 这是安全性验证，用于判断是否有权绕过人机验证
       if (developerPassword !== validDevPassword) {
         log(`[开发者登录] 开发者密码验证失败`);
@@ -276,34 +286,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "开发者密码错误"
         });
       }
-      
+
       log(`[开发者登录] 开发者密码验证成功`);
-      
+
       // 设置开发者模式已通过的标记到会话
       if (req.session) {
         // @ts-ignore - 我们知道这个属性存在
         req.session.developerModeVerified = true;
         log(`[开发者登录] 会话已设置开发者模式标志`);
       }
-      
+
       // 获取用户信息
       let user = await storage.getUserByUsername(username);
-      
+
       // 详细日志记录
       log(`[开发者登录] 验证用户: ${username}`);
       log(`[开发者登录] 用户数据库查询结果: ${JSON.stringify(user ? {id: user.id, role: user.role, username: user.username} : "未找到用户")}`);
-      
+
       // 验证用户和密码逻辑
       if (user) {
         // 现有用户登录 - 必须验证密码
         log(`[开发者登录] 检查密码匹配: 数据库密码长度=${user.password?.length || 0}, 输入密码长度=${password?.length || 0}`);
-        
+
         // 安全地比较密码
         const dbPassword = user.password || '';
         const inputPassword = password || '';
-        
+
         log(`[开发者登录] 密码比较: 数据库="${dbPassword}", 输入="${inputPassword}"`);
-        
+
         if (dbPassword === inputPassword) {
           log(`[开发者模式] 用户 ${username} 登录成功, ID: ${user.id}, 角色: ${user.role}`);
           res.json({ 
@@ -327,17 +337,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           password: secureAdminPassword, 
           role: "admin" 
         });
-        
+
         if (!password) {
           // 记录生成的密码到日志（仅供首次设置使用）
           console.log(`初始管理员密码已生成: ${secureAdminPassword}`);
-          
+
           return res.status(401).json({
             success: false,
             message: "管理员账户已创建，请查看服务器日志获取初始密码"
           });
         }
-        
+
         // 如果提供了密码，则注册并登录
         log(`[开发者模式] 管理员用户 ${username} 创建并登录成功, ID: ${user.id}`);
         res.json({ 
@@ -353,7 +363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           password, 
           role: "user" 
         });
-        
+
         log(`[开发者模式] 新用户 ${username} 创建并登录成功, ID: ${user.id}`);
         res.json({ 
           success: true, 
@@ -398,17 +408,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId || isNaN(Number(userId))) {
         return res.status(400).json({ error: "无效的用户ID" });
       }
-      
+
       // 检查记忆目录状态 (仅用于日志)
       const memoryDir = "memory_space";
       const userDir = path.join(memoryDir, String(userId));
       log(`检查学习记忆目录: ${memoryDir} 存在=${fs.existsSync(memoryDir)}`);
       log(`检查用户记忆目录: ${userDir} 存在=${fs.existsSync(userDir)}`);
-      
+
       // 从数据库获取该用户的记忆数据
       try {
         const memories = await storage.getMemoriesByUserId(Number(userId));
-        
+
         // 检查是否有足够的记忆进行分析
         if (!memories || memories.length < 5) {
           log(`用户 ${userId} 的记忆数据不足 (${memories?.length || 0} 条)，返回空结果`);
@@ -426,24 +436,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           });
         }
-        
+
         // 使用更新版的服务处理数据
         try {
           // 导入并使用trajectory服务中的analyzeLearningPath函数
           const { analyzeLearningPath } = require('./services/learning/trajectory');
           const result = await analyzeLearningPath(Number(userId));
-          
+
           // 添加时间戳版本以确保每次返回的数据不一样，避免浏览器缓存
           result.version = new Date().getTime();
-          
+
           return res.json(result);
         } catch (trajectoryError) {
           log(`调用轨迹分析服务失败: ${trajectoryError}`);
-          
+
           // 备用：如果无法使用trajectory服务，使用简单的内存提取方式
           // 从记忆内容中提取关键词
           const allContents = memories.map(memory => memory.content || "").filter(content => content.trim().length > 0);
-          
+
           // 如果没有有效内容，返回空结果
           if (allContents.length === 0) {
             return res.json({
@@ -460,32 +470,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             });
           }
-          
+
           // 简单的主题分析：把内容合并并分析出现频率最高的词语作为话题
           const combinedText = allContents.join(" ");
-          
+
           // 定义一些常见的停用词（不应作为主题词的常见词）
           const stopWords = new Set([
             "的", "了", "是", "在", "我", "有", "和", "就", "不", "人", "都", "一", "一个", "你", "我们", "这个",
             "the", "to", "and", "a", "of", "is", "in", "that", "for", "with", "as", "an"
           ]);
-          
+
           // 分词并计数（简易实现）
           const words = combinedText.split(/\s+|[,.?!;:，。？！；：]/);
           const wordCount: Record<string, number> = {};
-          
+
           for (const word of words) {
             const trimmed = word.trim().toLowerCase();
             if (trimmed && trimmed.length > 1 && !stopWords.has(trimmed)) {
               wordCount[trimmed] = (wordCount[trimmed] || 0) + 1;
             }
           }
-          
+
           // 排序并获取频率最高的词汇
           const topicCandidates = Object.entries(wordCount)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10);
-            
+
           // 如果找不到足够的主题词，返回空结果
           if (topicCandidates.length < 3) {
             return res.json({
@@ -502,11 +512,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             });
           }
-          
+
           // 分组相似的主题词并合并计数
           const groupedTopics: Record<string, number> = {};
           let totalWeight = 0;
-          
+
           // 定义主题关键词映射
           const topicKeywords: Record<string, string[]> = {
             '英语学习': ['english', '英语', 'language learning', '语言学习', 'grammar', '语法'],
@@ -525,10 +535,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             '学习方法': ['learning', 'study', '学习', '方法', 'method', '技巧', 'technique', '记忆', 'memory'],
             '知识探索': ['knowledge', '知识', 'explore', '探索', 'discovery', '发现', 'curiosity', '好奇心']
           };
-          
+
           for (const [word, count] of topicCandidates) {
             let matched = false;
-            
+
             // 检查是否匹配预定义主题
             for (const [key, keywords] of Object.entries(topicKeywords)) {
               for (const keyword of keywords) {
@@ -541,7 +551,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               if (matched) break;
             }
-            
+
             // 如果没有匹配预定义主题，创建新主题
             if (!matched) {
               let newTopic = word.length > 1 ? `${word}相关` : "其他主题";
@@ -549,12 +559,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               totalWeight += count;
             }
           }
-          
+
           // 排序并选择最多5个主题
           const sortedTopics = Object.entries(groupedTopics)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5);
-            
+
           // 添加一些随机波动使结果更自然
           const addNaturalVariation = (basePercentage: number): number => {
             // 在基础百分比的基础上添加 -5% 到 +5% 的随机波动
@@ -562,14 +572,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // 确保结果在合理范围内
             return Math.min(98, Math.max(10, Math.round(basePercentage + variation)));
           };
-          
+
           // 将主题转换为期望格式
           const topicData = sortedTopics.map(([topic, count], index) => {
             // 计算出基于实际频率的百分比
             const basePercentage = Math.min(95, Math.round((count / totalWeight) * 100) + 20);
             // 添加自然变化
             const percentage = addNaturalVariation(basePercentage);
-            
+
             return {
               topic,
               id: `topic_${topic.replace(/\s+/g, '_')}`,
@@ -577,10 +587,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               percentage
             };
           });
-          
+
           // 记录分析结果
           log(`从数据库记忆中检测到的主题: ${topicData.map(t => t.topic).join(', ')}`);
-          
+
           return res.json({
             topics: topicData,
             progress: topicData.map(item => ({
@@ -715,25 +725,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const username = req.query.username as string;
       const password = req.query.password as string;
-      
+
       if (!username || !password) {
         return res.status(400).json({ message: "用户名和密码是必须的" });
       }
-      
+
       // 详细日志记录
       log(`[TEST] 测试登录: 用户名=${username}, 密码长度=${password.length}`);
-      
+
       // 获取用户信息
       let user = await storage.getUserByUsername(username);
-      
+
       log(`[TEST] 用户数据库查询结果: ${JSON.stringify(user ? {id: user.id, role: user.role, username: user.username, passwordLength: user.password?.length} : "未找到用户")}`);
-      
+
       // 验证用户密码 - 确保使用安全的密码比较方式
       const dbPassword = user?.password || '';
       const inputPassword = password || '';
-      
+
       log(`[TEST] 密码比较: 数据库="${dbPassword}", 输入="${inputPassword}"`);
-      
+
       if (user && dbPassword === inputPassword) {
         log(`[TEST] 密码验证成功，用户ID: ${user.id}, 角色: ${user.role}`);
         res.json({ 
@@ -747,7 +757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (user) {
           log(`[TEST] 密码不匹配: 数据库="${dbPassword}", 输入="${inputPassword}"`);
         }
-        
+
         res.status(401).json({ 
           success: false, 
           message: "用户名或密码错误",
@@ -763,7 +773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // 添加修改聊天标题的端点
   app.put("/api/chats/:chatId/title", async (req, res) => {
     try {
@@ -796,7 +806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to update chat title" });
     }
   });
-  
+
 
 
   // User management routes
@@ -855,19 +865,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const chat of userChats) {
         await storage.deleteChat(chat.id, userIdToDelete, true);
       }
-      
+
       // Delete all user's memories
       const userMemories = await storage.getMemoriesByUserId(userIdToDelete);
       for (const memory of userMemories) {
         // 先删除记忆相关的关键词和嵌入向量
         await storage.deleteKeywordsByMemoryId(memory.id);
-        
+
         // 获取嵌入并删除
         const embedding = await storage.getEmbeddingByMemoryId(memory.id);
         if (embedding) {
           // 这里没有专门的deleteEmbedding方法，但嵌入表有memoryId唯一约束，会随记忆自动删除
         }
-        
+
         // 删除记忆本身
         await storage.deleteMemory(memory.id);
       }
@@ -891,9 +901,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       const dbPassword = user?.password || '';
       const inputPassword = currentPassword || '';
-      
+
       log(`[修改密码] 密码比较: 数据库="${dbPassword}", 输入="${inputPassword}"`);
-      
+
       if (!user || dbPassword !== inputPassword) {
         return res.status(401).json({
           success: false,
@@ -1033,22 +1043,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 初始化聊天服务使用对应模型
       chatService.setModel(chat.model || "deep");
-      
+
       try {
         // 尝试直接获取消息
         log(`尝试直接通过ID获取消息: ${messageId}`);
         const message = await storage.getMessageById(messageId);
-        
+
         if (message) {
           log(`找到消息(ID ${messageId}), 开始查找相关用户提问`);
           // 获取触发此AI回复的用户消息
           const chatMessages = await storage.getChatMessages(chatId, userId, isAdmin);
           const messageIndex = chatMessages.findIndex(m => m.id === messageId);
-          
+
           // 找到最近的用户消息作为提示
           let promptMessage = "请重新回答之前的问题";
           let foundUserMessage = false;
-          
+
           if (messageIndex !== -1) {
             for (let i = messageIndex - 1; i >= 0; i--) {
               if (chatMessages[i].role === "user") {
@@ -1069,18 +1079,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
           }
-          
+
           if (!foundUserMessage) {
             log(`未找到相关用户提问，使用默认提示`);
           }
-          
+
           // 重新生成回复，传入userId用于记忆检索
           log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."`);
           const response = await chatService.sendMessage(promptMessage, userId, Number(chatId));
-          
+
           // 更新数据库中的消息
           const updatedMessage = await storage.updateMessage(messageId, response.text, false);
-          
+
           log(`回复重新生成成功，更新消息ID ${messageId}`);
           return res.json({
             ...updatedMessage,
@@ -1092,28 +1102,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (messageError) {
         log(`获取特定消息失败，尝试备选方法: ${messageError}`);
       }
-      
+
       // 备选方法：找最后一条AI消息
       log(`执行备选方法：获取最后一条AI消息`);
       const chatMessages = await storage.getChatMessages(chatId, userId, isAdmin);
-      
+
       // 确保有至少一条AI回复
       const aiMessages = chatMessages.filter(m => m.role === "assistant");
       if (aiMessages.length === 0) {
         log(`没有找到任何AI消息可以重新生成`);
         return res.status(404).json({ message: "No AI messages found to regenerate" });
       }
-      
+
       // 使用最后一条AI消息
       const lastAiMessage = aiMessages[aiMessages.length - 1];
       log(`找到最后一条AI消息，ID: ${lastAiMessage.id}`);
-      
+
       const messageIndex = chatMessages.findIndex(m => m.id === lastAiMessage.id);
-      
+
       // 找到触发该AI回复的用户消息
       let promptMessage = "请重新回答";
       let foundUserPrompt = false;
-      
+
       if (messageIndex !== -1) {
         for (let i = messageIndex - 1; i >= 0; i--) {
           if (chatMessages[i].role === "user") {
@@ -1124,7 +1134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
+
       if (!foundUserPrompt) {
         // 如果找不到具体的提问，使用最后一条用户消息
         const userMessages = chatMessages.filter(m => m.role === "user");
@@ -1135,14 +1145,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           log(`没有找到任何用户消息，使用默认提示`);
         }
       }
-      
+
       // 重新生成回复
       log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."`);
       const response = await chatService.sendMessage(promptMessage, userId, Number(chatId));
-      
+
       // 更新数据库中的消息
       const updatedMessage = await storage.updateMessage(lastAiMessage.id, response.text, false);
-      
+
       log(`回复重新生成成功，更新消息ID ${lastAiMessage.id}`);
       res.json({
         ...updatedMessage,
@@ -1194,7 +1204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: "INVALID_PARAMETERS" 
         });
       }
-      
+
       // 验证模型格式
       const validModels = ["deep", "gemini", "deepseek", "grok"];
       if (!validModels.includes(model)) {
@@ -1226,9 +1236,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 更新聊天模型
       await storage.updateChatModel(chatId, model);
-      
+
       log(`已更新聊天 ${chatId} 的模型从 ${chat.model} 变更为 ${model}，用户ID: ${userId}`);
-      
+
       res.json({ 
         success: true, 
         message: "Chat model updated successfully",
@@ -1286,12 +1296,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Access denied or chat not found" 
         });
       }
-      
+
       // 如果提供了模型参数，设置聊天服务的模型
       if (model) {
         try {
           chatService.setModel(model);
-          
+
           // 如果模型与聊天记录中的不同，更新聊天记录模型
           if (chat.model !== model) {
             await storage.updateChatModel(chatId, model);
@@ -1312,14 +1322,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // 使用默认模型，不返回错误
         }
       }
-      
+
       // 判断是否使用网络搜索
       // 网络搜索现在是一个辅助功能，不再是独立模型
       const shouldUseSearch = (useWebSearch === true);
-        
+
       // 获取AI响应，传入userId用于记忆检索，以及网络搜索参数
       log(`处理来自用户 ${userId} 的聊天消息，聊天ID: ${chatId}，模型: ${chat.model}，搜索: ${shouldUseSearch}`);
-      
+
       // 如果需要搜索API key但未设置
       if (shouldUseSearch && !process.env.SERPER_API_KEY) {
         log('请求网络搜索，但SERPER_API_KEY未设置');
@@ -1328,7 +1338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: "MISSING_SEARCH_API_KEY"
         });
       }
-      
+
       const response = await chatService.sendMessage(message, Number(userId), Number(chatId), shouldUseSearch);
 
       // 存储消息到数据库
@@ -1340,7 +1350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // 再存储AI响应，包含模型信息
         const aiMsg = await storage.createMessage(chatId, response.text, "assistant", response.model);
         log(`已存储AI响应，ID: ${aiMsg.id}，模型: ${response.model || "未知"}`);
-        
+
         // 保存到记忆系统
         try {
           // 调用Python记忆服务保存用户消息
@@ -1356,15 +1366,15 @@ async def save_memory():
 
 asyncio.run(save_memory())
           `]);
-          
+
           saveUserMemoryProcess.stdout.on('data', (data) => {
             log(`记忆保存结果(用户): ${data.toString().trim()}`);
           });
-          
+
           saveUserMemoryProcess.stderr.on('data', (data) => {
             log(`记忆保存错误(用户): ${data.toString().trim()}`);
           });
-          
+
           // 也保存AI回复到记忆系统
           const saveAIMemoryProcess = spawn('python3', ['-c', `
 import asyncio
@@ -1378,15 +1388,15 @@ async def save_memory():
 
 asyncio.run(save_memory())
           `]);
-          
+
           saveAIMemoryProcess.stdout.on('data', (data) => {
             log(`记忆保存结果(AI): ${data.toString().trim()}`);
           });
-          
+
           saveAIMemoryProcess.stderr.on('data', (data) => {
             log(`记忆保存错误(AI): ${data.toString().trim()}`);
           });
-          
+
           log(`已尝试将消息保存到记忆系统，用户ID: ${userId}`);
         } catch (memoryError) {
           log(`保存消息到记忆系统失败: ${memoryError instanceof Error ? memoryError.message : String(memoryError)}`);
@@ -1477,9 +1487,9 @@ asyncio.run(save_memory())
         log('[Turnstile] 开发者模式已验证，跳过Turnstile验证');
         return res.json({ success: true });
       }
-      
+
       const { token } = req.body;
-      
+
       // 接受绕过令牌 - 在任何环境中使用特定令牌都允许自动通过
       if (token && 
           (token === "bypass-token" || 
@@ -1488,7 +1498,7 @@ asyncio.run(save_memory())
         log('[Turnstile] 检测到绕过令牌，自动通过验证');
         return res.json({ success: true });
       }
-      
+
       // 开发环境或测试环境中自动跳过验证
       const isDevelopment = process.env.NODE_ENV === 'development';
       if (isDevelopment) {
@@ -1533,7 +1543,7 @@ asyncio.run(save_memory())
       if (!userId || !content || isNaN(Number(userId))) {
         return res.status(400).json({ error: "无效的请求参数" });
       }
-      
+
       log(`尝试保存记忆: 用户=${userId}, 内容长度=${content.length}, 类型=${type || 'chat'}`);
 
       // 调用Python服务保存记忆
@@ -1567,7 +1577,7 @@ asyncio.run(save())
           log(`保存记忆进程退出，错误码 ${code}: ${errorOutput}`);
           return res.status(500).json({ error: "保存记忆失败" });
         }
-        
+
         log(`记忆保存成功，用户ID: ${userId}`);
         return res.json({ success: true });
       });
@@ -1576,18 +1586,18 @@ asyncio.run(save())
       return res.status(500).json({ error: "保存记忆服务错误" });
     }
   });
-  
+
   // 添加检索相似记忆API
   app.post('/api/similar-memories', async (req, res) => {
     try {
       const { userId, query, limit = 5 } = req.body;
-      
+
       if (!userId || !query || isNaN(Number(userId))) {
         return res.status(400).json({ error: "无效的请求参数" });
       }
-      
+
       log(`尝试检索相似记忆: 用户=${userId}, 查询=${query.substring(0, 50)}...`);
-      
+
       // 调用Python服务检索相似记忆
       const pythonProcess = spawn('python3', ['-c', `
 import asyncio
@@ -1611,25 +1621,25 @@ async def retrieve_memories():
 
 asyncio.run(retrieve_memories())
       `]);
-      
+
       let output = '';
       pythonProcess.stdout.on('data', (data) => {
         output += data.toString();
         log(`记忆检索输出: ${data.toString().trim()}`);
       });
-      
+
       let errorOutput = '';
       pythonProcess.stderr.on('data', (data) => {
         errorOutput += data.toString();
         log(`检索记忆错误: ${data.toString().trim()}`);
       });
-      
+
       pythonProcess.on('close', (code) => {
         if (code !== 0) {
           log(`检索记忆进程退出，错误码 ${code}: ${errorOutput}`);
           return res.status(500).json({ error: "检索记忆失败" });
         }
-        
+
         try {
           // 解析输出为JSON
           const memories = output.trim() ? JSON.parse(output) : [];
@@ -1645,34 +1655,34 @@ asyncio.run(retrieve_memories())
       return res.status(500).json({ error: "检索记忆服务错误" });
     }
   });
-  
+
   // 添加记忆系统测试API
   app.get('/api/memory-test', async (req, res) => {
     try {
       const { userId } = req.query;
-      
+
       if (!userId || isNaN(Number(userId))) {
         return res.status(400).json({ error: "无效的用户ID" });
       }
-      
+
       // 检查记忆目录状态
       const memoryDir = "memory_space";
       const userDir = path.join(memoryDir, String(userId));
-      
+
       // 确保目录存在
       if (!fs.existsSync(memoryDir)) {
         fs.mkdirSync(memoryDir);
         log(`创建记忆目录: ${memoryDir}`);
       }
-      
+
       if (!fs.existsSync(userDir)) {
         fs.mkdirSync(userDir);
         log(`创建用户记忆目录: ${userDir}`);
       }
-      
+
       // 尝试写入一条测试记忆
       const testContent = "这是一条测试记忆，用于验证记忆系统是否正常工作";
-      
+
       const pythonProcess = spawn('python3', ['-c', `
 import asyncio
 import sys
@@ -1685,14 +1695,14 @@ async def test_memory():
     print(f"当前工作目录: {os.getcwd()}")
     print(f"memory_space目录是否存在: {os.path.exists('memory_space')}")
     print(f"用户目录是否存在: {os.path.exists('memory_space/${userId}')}")
-    
+
     # 尝试保存一条测试记忆
     await learning_memory_service.save_memory(${userId}, "${testContent}", "test")
     print("测试记忆已保存")
-    
+
     # 尝试检索这条测试记忆
     memories = await learning_memory_service.retrieve_similar_memories(${userId}, "${testContent}", 1)
-    
+
     # 打印检索结果
     print(f"找到 {len(memories)} 条相似记忆")
     for memory in memories:
@@ -1702,7 +1712,7 @@ async def test_memory():
 
 asyncio.run(test_memory())
       `]);
-      
+
       let output = '';
       pythonProcess.stdout.on('data', (data) => {
         output += data.toString();
@@ -1733,7 +1743,7 @@ asyncio.run(test_memory())
             userDir: fs.existsSync(userDir)
           }
         };
-        
+
         if (fs.existsSync(userDir)) {
           try {
             const files = fs.readdirSync(userDir);
@@ -1745,7 +1755,7 @@ asyncio.run(test_memory())
             result.userFiles = { error: String(e) };
           }
         }
-        
+
         return res.json(result);
       });
     } catch (error) {
@@ -1760,10 +1770,10 @@ asyncio.run(test_memory())
   // 注册学习轨迹路由
   // 初始化文件存储桶
   await initializeBucket();
-  
+
   // 静态文件服务
   app.use('/backgrounds', express.static(path.join(process.cwd(), 'public/backgrounds')));
-  
+
   // API路由
   app.use('/api/files', filesRoutes);
   app.use('/api/learning-path', learningPathRoutes);
@@ -1772,6 +1782,42 @@ asyncio.run(test_memory())
   app.use('/api/memory-test', memoryTestRoutes);
   app.use('/api/admin/prompts', adminPromptsRoutes);
   app.use('/api/admin/content-moderation', contentModerationRoutes);
+
+  // 调试端点：检查当前会话状态
+  app.get("/api/debug/session", (req, res) => {
+    try {
+      const sessionInfo = {
+        hasSession: !!req.session,
+        userId: req.session?.userId,
+        userRole: req.session?.userRole,
+        sessionID: req.sessionID,
+        cookie: req.session?.cookie
+      };
+
+      log(`[Debug] 当前会话状态: ${JSON.stringify(sessionInfo)}`);
+      res.json({
+        success: true,
+        session: sessionInfo
+      });
+    } catch (error) {
+      log(`Session debug error: ${error}`);
+      res.status(500).json({
+        success: false,
+        message: "会话调试失败"
+      });
+    }
+  });
+
+  // 获取系统当前设置和配置
+  app.get("/api/system-info", async (req, res) => {
+    try {
+      const systemInfo = await storage.getSystemConfig();
+      res.json(systemInfo);
+    } catch (error) {
+      log(`Error fetching system info: ${error}`);
+      res.status(500).json({ message: "Failed to fetch system info" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
