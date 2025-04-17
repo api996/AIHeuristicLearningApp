@@ -49,7 +49,13 @@ export default function Home() {
   // 获取用户背景图片
   const fetchUserBackground = async () => {
     try {
-      const userId = JSON.parse(localStorage.getItem("user") || "{}").userId;
+      // 确保使用当前登录用户的ID
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+      if (!currentUser.userId) {
+        throw new Error("未登录用户");
+      }
+      
+      const userId = currentUser.userId;
       const baseUrl = window.location.origin;
       
       // 检测当前屏幕方向
@@ -57,14 +63,26 @@ export default function Home() {
       const apiUrl = `${baseUrl}/api/files/background?userId=${userId}&orientation=${isPortrait ? 'portrait' : 'landscape'}`;
       
       console.log(`[Home] 获取用户背景图片，请求: ${apiUrl}，屏幕方向: ${isPortrait ? '竖屏' : '横屏'}`);
-      const response = await axios.get(apiUrl);
+      
+      // 添加认证信息确保请求中包含会话信息
+      const response = await axios.get(apiUrl, {
+        withCredentials: true,
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      });
       
       if (response.data && response.data.url) {
         const fullImageUrl = response.data.url.startsWith('http') 
           ? response.data.url 
           : `${baseUrl}${response.data.url}`;
         console.log('[Home] 设置背景图片:', fullImageUrl);
-        setBackgroundUrl(fullImageUrl);
+        
+        // 添加时间戳或随机参数防止缓存
+        const cacheBuster = `?t=${new Date().getTime()}`;
+        setBackgroundUrl(fullImageUrl + cacheBuster);
       }
     } catch (error) {
       console.error('获取背景图片失败:', error);

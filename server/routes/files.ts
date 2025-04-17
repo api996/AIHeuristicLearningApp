@@ -134,10 +134,19 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
     const { userId, fileType, fileId } = req.params;
     const userIdNum = parseInt(userId);
     
-    // 安全检查：仅允许获取当前用户或公共文件
-    if (!req.session.userId && req.session.userId !== userIdNum) {
-      if (fileType !== 'public') {
-        return res.status(401).json({ error: '未授权' });
+    // 安全检查：验证用户访问权限
+    const isAuthenticated = !!req.session.userId; // 用户是否已登录
+    const isOwner = req.session.userId === userIdNum; // 是否是文件所有者
+    const isAdmin = req.session.user?.role === 'admin'; // 是否是管理员
+    
+    // 访问控制逻辑:
+    // 1. 公共文件(public): 所有人可访问
+    // 2. 背景图片(background): 只有所有者和管理员可以访问
+    // 3. 其他文件: 只有所有者和管理员可以访问
+    if (fileType !== 'public') {
+      if (!isAuthenticated || (!isOwner && !isAdmin)) {
+        console.log(`文件访问权限拒绝: 用户 ${req.session.userId || '未登录'} 尝试访问用户 ${userIdNum} 的 ${fileType} 文件`);
+        return res.status(401).json({ error: '未授权访问' });
       }
     }
 
