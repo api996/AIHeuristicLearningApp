@@ -19,6 +19,7 @@ export const userFiles = pgTable("user_files", {
   filePath: text("file_path").notNull(),
   fileType: text("file_type", { enum: ["background", "avatar", "attachment"] }).notNull().default("attachment"),
   publicUrl: text("public_url").notNull(),
+  storageType: text("storage_type", { enum: ["file-system", "object-storage"] }).notNull().default("file-system"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
