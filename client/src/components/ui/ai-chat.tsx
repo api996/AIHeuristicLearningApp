@@ -2258,12 +2258,12 @@ export function AIChat({ userData }: AIChatProps) {
             {theme === 'light' && (
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">主题颜色 <span className="text-xs text-blue-600 dark:text-[#0deae4]">(浅色模式)</span></h3>
-                <div className="p-4 bg-neutral-800 dark:bg-neutral-800 bg-blue-50/90 rounded-md text-neutral-700 dark:text-neutral-300 text-sm space-y-3">
+                <div className="p-4 bg-blue-50/90 dark:bg-neutral-800 rounded-md text-neutral-700 dark:text-neutral-300 text-sm space-y-3">
                   <div className="flex justify-between items-center">
                     <span>自定义颜色</span>
                     <div className="flex items-center space-x-2">
                       <div 
-                        className="w-6 h-6 rounded-full border border-white/30"
+                        className="w-6 h-6 rounded-full border border-gray-500 dark:border-white/30"
                         style={{ backgroundColor: tempThemeColor }}
                       ></div>
                       <input
@@ -2271,7 +2271,7 @@ export function AIChat({ userData }: AIChatProps) {
                         value={tempThemeColor}
                         onChange={(e) => setTempThemeColor(e.target.value)}
                         placeholder="#0deae4"
-                        className="w-24 h-8 px-2 bg-neutral-700 border border-neutral-600 rounded text-xs text-white"
+                        className="w-24 h-8 px-2 bg-blue-100 dark:bg-neutral-700 border border-blue-300 dark:border-neutral-600 rounded text-xs text-blue-900 dark:text-white"
                       />
                       <Button
                         variant="outline"
@@ -2300,7 +2300,7 @@ export function AIChat({ userData }: AIChatProps) {
                             });
                           }
                         }}
-                        className="h-8 bg-neutral-700 hover:bg-neutral-600 border-neutral-600"
+                        className="h-8 bg-blue-200 hover:bg-blue-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 border-blue-300 dark:border-neutral-600 text-blue-800 dark:text-white"
                       >
                         应用
                       </Button>
@@ -2308,32 +2308,32 @@ export function AIChat({ userData }: AIChatProps) {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
                     <div 
-                      className="w-8 h-8 rounded-full cursor-pointer border border-white/30 transition-all hover:scale-110"
+                      className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
                       style={{ backgroundColor: "#0deae4" }}
                       onClick={() => setTempThemeColor("#0deae4")}
                     ></div>
                     <div 
-                      className="w-8 h-8 rounded-full cursor-pointer border border-white/30 transition-all hover:scale-110"
+                      className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
                       style={{ backgroundColor: "#FF5E5B" }}
                       onClick={() => setTempThemeColor("#FF5E5B")}
                     ></div>
                     <div 
-                      className="w-8 h-8 rounded-full cursor-pointer border border-white/30 transition-all hover:scale-110"
+                      className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
                       style={{ backgroundColor: "#9d65ff" }}
                       onClick={() => setTempThemeColor("#9d65ff")}
                     ></div>
                     <div 
-                      className="w-8 h-8 rounded-full cursor-pointer border border-white/30 transition-all hover:scale-110"
+                      className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
                       style={{ backgroundColor: "#5e17eb" }}
                       onClick={() => setTempThemeColor("#5e17eb")}
                     ></div>
                     <div 
-                      className="w-8 h-8 rounded-full cursor-pointer border border-white/30 transition-all hover:scale-110"
+                      className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
                       style={{ backgroundColor: "#00C6FF" }}
                       onClick={() => setTempThemeColor("#00C6FF")}
                     ></div>
                     <div 
-                      className="w-8 h-8 rounded-full cursor-pointer border border-white/30 transition-all hover:scale-110"
+                      className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
                       style={{ backgroundColor: "#F9D371" }}
                       onClick={() => setTempThemeColor("#F9D371")}
                     ></div>
@@ -2348,13 +2348,13 @@ export function AIChat({ userData }: AIChatProps) {
             {/* 背景图片设置 */}
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">背景图片</h3>
-              <div className="p-4 bg-neutral-800 dark:bg-neutral-800 bg-blue-50/90 rounded-md text-neutral-700 dark:text-neutral-300 text-sm space-y-3">
+              <div className="p-4 bg-blue-50/90 dark:bg-neutral-800 rounded-md text-neutral-700 dark:text-neutral-300 text-sm space-y-3">
                 <p className="text-neutral-500 dark:text-neutral-400 text-xs">
                   上传自定义背景图片，支持JPG、PNG和WebP格式
                 </p>
                 <div className="flex flex-col gap-2">
                   <div 
-                    className="border-2 border-dashed border-gray-600 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:bg-blue-100/50 dark:hover:bg-gray-800 transition-colors"
+                    className="border-2 border-dashed border-blue-300 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:bg-blue-100/50 dark:hover:bg-gray-800 transition-colors"
                     onClick={() => backgroundInputRef.current?.click()}
                   >
                     <div className="py-4 flex flex-col items-center">
@@ -2411,16 +2411,16 @@ export function AIChat({ userData }: AIChatProps) {
                   
                   {/* 图片预览区域 */}
                   {previewImage && (
-                    <div className="mt-4 border rounded-md p-2 bg-black/30">
-                      <p className="text-xs text-neutral-300 mb-2">预览图片:</p>
-                      <div className="relative w-full h-32 rounded-md overflow-hidden">
+                    <div className="mt-4 border rounded-md p-2 bg-blue-100/50 dark:bg-black/30">
+                      <p className="text-xs text-blue-800 dark:text-neutral-300 mb-2">预览图片:</p>
+                      <div className="relative w-full h-32 rounded-md overflow-hidden border border-blue-200 dark:border-neutral-600">
                         <img 
                           src={previewImage} 
                           alt="背景预览" 
                           className="w-full h-full object-cover rounded-md"
                         />
                       </div>
-                      <p className="text-xs text-cyan-400 mt-2">
+                      <p className="text-xs text-blue-600 dark:text-cyan-400 mt-2">
                         点击&quot;保存设置&quot;按钮应用此背景
                       </p>
                     </div>
@@ -2435,7 +2435,7 @@ export function AIChat({ userData }: AIChatProps) {
             
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">其他功能 <span className="text-xs text-neutral-500 dark:text-neutral-500">(即将推出)</span></h3>
-              <div className="p-3 bg-neutral-800 dark:bg-neutral-800 bg-blue-50/90 rounded-md text-neutral-600 dark:text-neutral-400 text-sm">
+              <div className="p-3 bg-blue-50/90 dark:bg-neutral-800 rounded-md text-neutral-600 dark:text-neutral-400 text-sm">
                 更多自定义功能将在后续版本推出，敬请期待！
               </div>
             </div>
