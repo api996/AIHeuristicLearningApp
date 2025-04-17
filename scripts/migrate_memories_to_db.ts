@@ -34,25 +34,15 @@ async function migrateMemoriesToDatabase() {
       // 可以添加交互确认逻辑
     }
     
-    // 基础路径 - 尝试几种可能的路径
-    let memoryBasePath = path.resolve(process.cwd(), '../memory_space');
-    log(`尝试访问记忆路径: ${memoryBasePath}`);
+    // 使用项目根目录的memory_space
+    // 由于我们已经确认memory_space位于项目根目录，直接使用
+    const memoryBasePath = path.resolve(process.cwd(), '..', 'memory_space');
+    log(`使用记忆路径: ${memoryBasePath}`);
+    
+    // 验证路径是否存在
     if (!fs.existsSync(memoryBasePath)) {
-      // 尝试备选路径
-      const altPath = path.resolve(process.cwd(), 'memory_space');
-      log(`主路径不存在，尝试备选路径: ${altPath}`);
-      if (!fs.existsSync(altPath)) {
-        // 尝试项目根目录
-        const rootPath = path.resolve(process.cwd(), '../../memory_space');
-        log(`备选路径不存在，尝试根目录路径: ${rootPath}`);
-        if (!fs.existsSync(rootPath)) {
-          log(`记忆目录不存在，尝试过: ${memoryBasePath}, ${altPath}, ${rootPath}`);
-          return;
-        }
-        memoryBasePath = rootPath;
-      } else {
-        memoryBasePath = altPath;
-      }
+      log(`记忆目录不存在: ${memoryBasePath}`);
+      return;
     }
     
     // 获取所有用户目录
@@ -70,6 +60,13 @@ async function migrateMemoriesToDatabase() {
     // 处理每个用户目录
     for (const userDir of userDirs) {
       const userId = parseInt(userDir, 10);
+      
+      // 跳过用户ID为1的管理员账号数据
+      if (userId === 1) {
+        log(`跳过管理员账号 (ID=${userId}) 的记忆数据`);
+        continue;
+      }
+      
       const userPath = path.join(memoryBasePath, userDir);
       const memoryFiles = fs.readdirSync(userPath).filter(file => file.endsWith('.json'));
       
