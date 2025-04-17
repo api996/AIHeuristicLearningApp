@@ -10,7 +10,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
-import { Upload, Image as ImageIcon, RefreshCw, X } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Upload, Image as ImageIcon, RefreshCw, X, CheckCircle } from "lucide-react";
 
 interface BackgroundUploaderProps {
   userId: number;
@@ -22,6 +23,8 @@ export function BackgroundUploader({ userId, onBackgroundChange }: BackgroundUpl
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [currentBackground, setCurrentBackground] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadComplete, setUploadComplete] = useState(false);
   const [userBackgrounds, setUserBackgrounds] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
@@ -86,33 +89,69 @@ export function BackgroundUploader({ userId, onBackgroundChange }: BackgroundUpl
     if (!selectedFile) return;
 
     setIsUploading(true);
+    setUploadProgress(0);
+    setUploadComplete(false);
+    
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('fileType', 'background');
+    formData.append('userId', userId.toString()); // 确保服务器知道是哪个用户
 
     try {
       const response = await axios.post('/api/files/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          // 计算上传进度百分比
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / (progressEvent.total || 100)
+          );
+          setUploadProgress(percentCompleted);
+          
+          // 如果上传完成，设置完成标志
+          if (percentCompleted === 100) {
+            // 短暂延迟显示完成状态
+            setTimeout(() => {
+              setUploadComplete(true);
+            }, 500);
+          }
         }
       });
 
       if (response.data && response.data.url) {
+        // 设置当前背景
         setCurrentBackground(response.data.url);
+        
+        // 使用父组件的回调函数
         if (onBackgroundChange) {
           onBackgroundChange(response.data.url);
         }
+        
+        // 触发自定义事件通知应用背景已更新
+        const bgUpdateEvent = new CustomEvent('background-updated', {
+          detail: { 
+            url: response.data.url,
+            timestamp: response.data.timestamp || Date.now()
+          }
+        });
+        window.dispatchEvent(bgUpdateEvent);
+        
         toast({
           title: "背景上传成功",
           description: "您的新背景已设置",
         });
         
         // 清除预览和选择
-        setSelectedFile(null);
-        setPreviewUrl(null);
-        
-        // 刷新背景列表
-        fetchUserBackgrounds();
+        setTimeout(() => {
+          setSelectedFile(null);
+          setPreviewUrl(null);
+          setUploadProgress(0);
+          setUploadComplete(false);
+          
+          // 刷新背景列表
+          fetchUserBackgrounds();
+        }, 1000);
       }
     } catch (error) {
       console.error('上传背景失败:', error);
@@ -122,7 +161,10 @@ export function BackgroundUploader({ userId, onBackgroundChange }: BackgroundUpl
         variant: "destructive",
       });
     } finally {
-      setIsUploading(false);
+      // 延迟关闭上传状态，让用户看到完成动画
+      setTimeout(() => {
+        setIsUploading(false);
+      }, 1000);
     }
   };
 
@@ -219,15 +261,30 @@ export function BackgroundUploader({ userId, onBackgroundChange }: BackgroundUpl
                 />
               </div>
               
+              {isUploading && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>上传进度</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <Progress value={uploadProgress} className="h-2" />
+                </div>
+              )}
+              
               <Button 
                 onClick={uploadBackground} 
                 disabled={!selectedFile || isUploading}
                 className="w-full"
+                variant={uploadComplete ? "outline" : "default"}
               >
                 {isUploading ? (
                   <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    上传中...
+                    {uploadComplete ? (
+                      <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    {uploadComplete ? '上传完成' : '上传中...'}
                   </>
                 ) : '上传背景'}
               </Button>
