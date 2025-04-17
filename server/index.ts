@@ -1,7 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
-// Use explicit file extension for ESM compatibility in production
-import { registerRoutes } from "./routes.js";
+import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { spawn } from "child_process";
 import path from "path";
@@ -70,14 +69,6 @@ const runMemoryCleanup = (userId?: number) => {
 const app = express();
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
-
-// 添加健康检查路由
-app.get('/', (req, res) => {
-  res.status(200).send('Health check OK');
-});
-app.get('/health', (req, res) => {
-  res.status(200).send('Health check OK');
-});
 
 // 添加会话支持
 app.use(session({
@@ -199,8 +190,7 @@ app.use((req, res, next) => {
         host: "0.0.0.0",
         reusePort: true,
       }, () => {
-        log(`Server is now listening on http://0.0.0.0:${portToUse}`);
-        log(`健康检查URL: http://localhost:${portToUse}/`);
+        log(`Server is now listening on port ${portToUse}`);
       }).on('error', (err: any) => {
         if (err.code === 'EADDRINUSE' && !process.env.PORT) {
           // 仅在开发环境中尝试其他端口（不是在部署环境）
