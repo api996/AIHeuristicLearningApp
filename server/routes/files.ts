@@ -132,16 +132,6 @@ router.get('/background', async (req: Request, res: Response) => {
     const sessionUserId = req.session.userId;
     const queryUserId = Number(req.query.userId);
     
-    // 验证权限：用户只能访问自己的背景图片或默认背景
-    if (queryUserId && queryUserId !== sessionUserId && sessionUserId) {
-      console.log(`用户 ${sessionUserId} 尝试查看用户 ${queryUserId} 的背景图片 - 拒绝访问，返回默认背景`);
-      const defaultUrl = getDefaultBackgroundUrl(isPortrait);
-      return res.json({ url: defaultUrl });
-    }
-    
-    // 使用会话ID或查询ID（如果与会话ID匹配）
-    const userId = sessionUserId || (queryUserId === sessionUserId ? queryUserId : null);
-    
     // 获取客户端请求的ETag (如果有)
     const ifNoneMatch = req.headers['if-none-match'];
     
@@ -153,6 +143,16 @@ router.get('/background', async (req: Request, res: Response) => {
       req.query.orientation === 'portrait' || // 通过查询参数明确指定方向
       (userAgent.match(/iPhone/i) && !req.query.orientation) // iPhone默认假设为竖屏，除非明确指定
     );
+    
+    // 验证权限：用户只能访问自己的背景图片或默认背景
+    if (queryUserId && queryUserId !== sessionUserId && sessionUserId) {
+      console.log(`用户 ${sessionUserId} 尝试查看用户 ${queryUserId} 的背景图片 - 拒绝访问，返回默认背景`);
+      const defaultUrl = getDefaultBackgroundUrl(isPortrait);
+      return res.json({ url: defaultUrl });
+    }
+    
+    // 使用会话ID或查询ID（如果与会话ID匹配）
+    const userId = sessionUserId || (queryUserId === sessionUserId ? queryUserId : null);
     
     console.log(`屏幕方向: ${isPortrait ? '竖屏' : '横屏'}, User-Agent: ${userAgent.substring(0, 50)}...`);
     
