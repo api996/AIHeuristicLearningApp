@@ -27,7 +27,9 @@ const OLD_UPLOADS_DIR = path.join(process.cwd(), 'uploads');
  * 检查Replit数据API是否已配置
  */
 function isReplitDataConfigured(): boolean {
-  return !!process.env.REPLIT_DATA_TOKEN;
+  const token = process.env.REPLIT_DATA_TOKEN;
+  console.log(`检查Replit数据API配置: REPLIT_DATA_TOKEN=${token ? '已设置' : '未设置'}`);
+  return !!token;
 }
 
 /**
