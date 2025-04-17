@@ -490,7 +490,6 @@ div[role="dialog"] {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent !important; /* 禁用移动设备上的点击高亮效果 */
 }
 
 .wrapper .input-box input:focus ~ label,
