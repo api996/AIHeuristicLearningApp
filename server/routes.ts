@@ -19,6 +19,43 @@ import filesRoutes from './routes/files';
 import { initializeBucket } from './services/file-bucket.service';
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // 简化的开发者认证API
+  app.post("/api/auth/dev", (req, res) => {
+    try {
+      const { devKey } = req.body;
+      
+      // 验证开发者密钥
+      // 此密钥仅供开发和测试使用
+      if (devKey === "dev_secret_2025") {
+        // 设置会话用户ID和开发者模式
+        if (req.session) {
+          req.session.userId = 3; // 使用ID为3的用户
+          req.session.developerModeVerified = true;
+          console.log(`开发者模式认证成功，设置会话用户ID: ${req.session.userId}`);
+        }
+        
+        // 返回成功响应
+        return res.json({
+          success: true,
+          userId: 3,
+          role: "user",
+          message: "开发者模式认证成功"
+        });
+      }
+      
+      // 密钥不匹配
+      res.status(401).json({
+        success: false,
+        message: "开发者密钥无效"
+      });
+    } catch (error) {
+      console.error(`开发者认证错误: ${error}`);
+      res.status(500).json({
+        success: false,
+        message: "开发者认证处理失败"
+      });
+    }
+  });
   // User authentication routes
   // 处理注册请求
   app.post("/api/register", async (req, res) => {
