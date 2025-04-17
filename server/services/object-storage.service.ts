@@ -13,9 +13,10 @@ import fs from 'fs';
 // Replit对象存储API
 // 使用多个备用URL，以应对DNS解析问题
 const REPLIT_DATA_API_URLS = [
-  'https://data.replit.app',     // 备用域名1
-  'https://data.replit.com',     // 原始域名
-  'https://data-api.replit.com'  // 备用域名2
+  'https://api.replit.com',           // Replit内部API端点
+  'https://replitbucket.com',         // Replit桶域名格式
+  'https://replitusercontent.com',    // Replit用户内容域名
+  'https://storage.googleapis.com'    // Google Cloud Storage (Replit可能使用的底层存储)
 ];
 const REPLIT_DATA_API_URL = REPLIT_DATA_API_URLS[0]; // 默认使用第一个域名
 const REPLIT_DATA_API_URL_V1 = `${REPLIT_DATA_API_URL}/v1`;
