@@ -15,7 +15,7 @@ const REPLIT_DATA_API_URL = 'https://data.replit.com';
 const REPLIT_DATA_API_URL_V1 = `${REPLIT_DATA_API_URL}/v1`;
 
 // 默认存储桶名称
-const DEFAULT_BUCKET_NAME = 'user-files';
+const DEFAULT_BUCKET_NAME = 'replit-objstore-a2a19666-a799-475c-bd79-068397f30df4';
 
 // 默认背景图片路径（公共目录）
 const DEFAULT_BACKGROUNDS_DIR = path.join(process.cwd(), 'public', 'backgrounds');
