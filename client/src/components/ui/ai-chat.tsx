@@ -2185,7 +2185,7 @@ export function AIChat({ userData }: AIChatProps) {
                     setTheme("light");
                     applyTheme("light");
                   }}
-                  className="flex-1"
+                  className={`flex-1 ${theme === "light" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   浅色
                 </Button>
@@ -2196,7 +2196,7 @@ export function AIChat({ userData }: AIChatProps) {
                     setTheme("dark");
                     applyTheme("dark");
                   }}
-                  className="flex-1"
+                  className={`flex-1 ${theme === "dark" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   深色
                 </Button>
@@ -2207,7 +2207,7 @@ export function AIChat({ userData }: AIChatProps) {
                     setTheme("system");
                     applyTheme("system");
                   }}
-                  className="flex-1"
+                  className={`flex-1 ${theme === "system" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   跟随系统
                 </Button>
