@@ -128,7 +128,19 @@ router.get('/list', async (req: Request, res: Response) => {
 router.get('/background', async (req: Request, res: Response) => {
   try {
     // 从请求参数或会话中获取用户ID
-    const userId = Number(req.query.userId) || req.session.userId;
+    // 重要：用户只能查询自己的背景图片，除非是管理员
+    const sessionUserId = req.session.userId;
+    const queryUserId = Number(req.query.userId);
+    
+    // 验证权限：用户只能访问自己的背景图片或默认背景
+    if (queryUserId && queryUserId !== sessionUserId && sessionUserId) {
+      console.log(`用户 ${sessionUserId} 尝试查看用户 ${queryUserId} 的背景图片 - 拒绝访问，返回默认背景`);
+      const defaultUrl = getDefaultBackgroundUrl(isPortrait);
+      return res.json({ url: defaultUrl });
+    }
+    
+    // 使用会话ID或查询ID（如果与会话ID匹配）
+    const userId = sessionUserId || (queryUserId === sessionUserId ? queryUserId : null);
     
     // 获取客户端请求的ETag (如果有)
     const ifNoneMatch = req.headers['if-none-match'];
@@ -222,12 +234,32 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
     
     // 特殊处理背景图片访问权限
     if (fileType === 'background') {
-      // 背景图片可以通过查询参数或会话ID来授权
-      if (isAuthorizedViaQuery || isOwner || isAdmin) {
+      // 背景图片可以通过查询参数或会话ID来授权，但仅限自己的背景图片
+      if (isOwner || isAdmin || (isAuthenticated && isAuthorizedViaQuery)) {
         // 授权访问
         console.log(`背景图片访问授权通过: ${fileType}/${fileId}`);
       } else {
         console.log(`背景图片访问拒绝: 会话ID=${sessionUserId}, 查询ID=${queryUserId}, 目标ID=${userIdNum}`);
+        
+        // 当无权访问其他用户背景图片时，返回对应方向的默认背景图片，而不是401错误
+        const userAgent = req.headers['user-agent'] || '';
+        const isPortrait = Boolean(
+          req.query.orientation === 'portrait' || 
+          (userAgent.match(/iPhone/i) && !req.query.orientation)
+        );
+        
+        const defaultBgPath = getDefaultBackgroundPath(isPortrait);
+        if (fs.existsSync(defaultBgPath)) {
+          const defaultData = fs.readFileSync(defaultBgPath);
+          const ext = path.extname(defaultBgPath).substring(1);
+          res.contentType(`image/${ext}`);
+          res.setHeader('Cache-Control', 'max-age=86400'); // 24小时
+          res.setHeader('Expires', new Date(Date.now() + 86400000).toUTCString());
+          
+          console.log(`返回默认${isPortrait ? '竖屏' : '横屏'}背景图片`);
+          return res.send(defaultData);
+        }
+        
         return res.status(401).json({ error: '未授权访问背景图片' });
       }
     }
