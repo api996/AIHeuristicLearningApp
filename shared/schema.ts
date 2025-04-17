@@ -155,6 +155,16 @@ export const searchResults = pgTable("search_results", {
   expiresAt: timestamp("expires_at"), // 缓存过期时间
 });
 
+// 系统配置表 - 存储全局系统设置
+export const systemConfig = pgTable("system_config", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(), // 配置键名
+  value: text("value").notNull(), // 配置值
+  description: text("description"), // 配置说明
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: integer("updated_by").references(() => users.id), // 最后更新者
+});
+
 // 对话阶段分析表：存储对话阶段分析结果
 export const conversationAnalytics = pgTable("conversation_analytics", {
   id: serial("id").primaryKey(),
@@ -169,6 +179,7 @@ export const insertMemoryKeywordSchema = createInsertSchema(memoryKeywords);
 export const insertMemoryEmbeddingSchema = createInsertSchema(memoryEmbeddings);
 export const insertPromptTemplateSchema = createInsertSchema(promptTemplates);
 export const insertSearchResultSchema = createInsertSchema(searchResults);
+export const insertSystemConfigSchema = createInsertSchema(systemConfig);
 export const insertConversationAnalyticsSchema = createInsertSchema(conversationAnalytics);
 export const insertUserFileSchema = createInsertSchema(userFiles);
 export const insertUserSettingSchema = createInsertSchema(userSettings);
@@ -186,6 +197,7 @@ export type SearchResult = typeof searchResults.$inferSelect;
 export type ConversationAnalytic = typeof conversationAnalytics.$inferSelect;
 export type UserFile = typeof userFiles.$inferSelect;
 export type UserSetting = typeof userSettings.$inferSelect;
+export type SystemConfig = typeof systemConfig.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertChat = z.infer<typeof insertChatSchema>;
