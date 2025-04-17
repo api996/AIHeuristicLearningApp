@@ -214,6 +214,7 @@ export async function saveFileToObjectStorage(
   fileType: string = 'attachment'
 ): Promise<{ fileId: string; objectPath: string; publicUrl: string; version: string }> {
   if (!isReplitDataConfigured()) {
+    console.warn('Replit数据API未配置，建议配置REPLIT_DATA_TOKEN环境变量');
     throw new Error('Replit数据API未配置，无法使用对象存储');
   }
   
@@ -275,6 +276,7 @@ export async function saveFileToObjectStorage(
  */
 export async function getFileFromObjectStorage(objectPath: string): Promise<Buffer | null> {
   if (!isReplitDataConfigured()) {
+    console.warn('Replit数据API未配置，建议配置REPLIT_DATA_TOKEN环境变量');
     throw new Error('Replit数据API未配置，无法使用对象存储');
   }
   
@@ -311,6 +313,7 @@ export async function getFileFromObjectStorage(objectPath: string): Promise<Buff
  */
 export async function deleteFileFromObjectStorage(objectPath: string): Promise<boolean> {
   if (!isReplitDataConfigured()) {
+    console.warn('Replit数据API未配置，建议配置REPLIT_DATA_TOKEN环境变量');
     throw new Error('Replit数据API未配置，无法使用对象存储');
   }
   
@@ -481,11 +484,17 @@ export async function getUserFiles(userId: number, fileType?: string): Promise<a
 export async function migrateFilesToObjectStorage(userId?: number): Promise<{ 
   total: number; 
   success: number; 
-  failed: number; 
+  failed: number;
   users: number;
 }> {
   if (!isReplitDataConfigured()) {
-    throw new Error('Replit数据API未配置，无法迁移到对象存储');
+    console.warn('Replit数据API未配置，无法执行迁移。请配置REPLIT_DATA_TOKEN环境变量后再试。');
+    return {
+      total: 0,
+      success: 0,
+      failed: 0,
+      users: 0
+    };
   }
   
   // 初始化迁移统计
