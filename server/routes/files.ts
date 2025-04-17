@@ -13,14 +13,15 @@ import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { userFiles } from '../../shared/schema';
 import { 
-  saveFileToBucket, 
-  getFileFromBucket, 
+  saveFileToStorage, 
+  getFileFromStorage, 
   getUserFiles, 
-  deleteFileFromBucket,
+  deleteFileFromStorage,
   getUserBackground,
   getDefaultBackgroundPath,
-  getDefaultBackgroundUrl
-} from '../services/file-bucket.service';
+  getDefaultBackgroundUrl,
+  migrateToObjectStorage
+} from '../services/hybrid-storage.service';
 
 const router = Router();
 
@@ -70,8 +71,8 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
       return res.status(400).json({ error: '背景图片仅支持JPG, JPEG, PNG, WEBP和GIF格式' });
     }
 
-    // 保存文件到存储桶 (增强版，支持图像处理)
-    const result = await saveFileToBucket(
+    // 保存文件到存储
+    const result = await saveFileToStorage(
       userId,
       req.file.buffer,
       req.file.originalname,
