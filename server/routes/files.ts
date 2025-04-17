@@ -245,6 +245,12 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
       where: eq(userFiles.fileId, realFileId)
     });
     
+    // 确保文件记录存在并有创建时间
+    if (fileRecord && !fileRecord.createdAt) {
+      // 如果没有创建时间，设置为当前时间
+      fileRecord.createdAt = new Date();
+    }
+    
     // 获取文件数据
     const fileData = await getFileFromBucket(userIdNum, realFileId);
     
@@ -275,7 +281,8 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
     }
     
     // 生成ETag (基于文件ID和创建时间)
-    const fileETag = etag(`${fileRecord.fileId}-${fileRecord.createdAt.getTime()}`);
+    const createdTime = fileRecord.createdAt ? fileRecord.createdAt.getTime() : Date.now();
+    const fileETag = etag(`${fileRecord.fileId}-${createdTime}`);
     
     // 设置缓存控制头
     if (fileType === 'background') {
@@ -287,12 +294,15 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
     }
     
     res.setHeader('ETag', fileETag);
-    res.setHeader('Last-Modified', fileRecord.createdAt.toUTCString());
+    
+    // 设置最后修改时间
+    const lastModified = fileRecord.createdAt || new Date();
+    res.setHeader('Last-Modified', lastModified.toUTCString());
     
     // 支持条件请求 - 如果文件未修改，返回304
     if (
       (ifNoneMatch && ifNoneMatch === fileETag) || 
-      (ifModifiedSince && new Date(ifModifiedSince) >= fileRecord.createdAt)
+      (ifModifiedSince && new Date(ifModifiedSince) >= lastModified)
     ) {
       return res.status(304).end();
     }
