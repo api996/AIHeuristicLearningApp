@@ -115,8 +115,9 @@ app.use((req, res, next) => {
   log("Starting server...");
 
   try {
-    // 先运行记忆文件修复，但不指定用户ID，只是进行初始检查
-    runMemoryCleanup();
+    // 已迁移到数据库，跳过文件系统记忆检查
+    // runMemoryCleanup();
+    log("记忆系统已迁移到数据库，跳过文件系统检查");
     
     // 初始化对象存储服务
     let useObjectStorage = false;
