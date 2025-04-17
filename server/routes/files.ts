@@ -4,11 +4,12 @@
  * 升级版: 支持图像处理、缓存控制和即时更新
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import etag from 'etag';
+import sharp from 'sharp';
 import { db } from '../db';
 import { eq, and } from 'drizzle-orm';
 import { userFiles } from '../../shared/schema';
@@ -22,6 +23,19 @@ import {
   getDefaultBackgroundUrl,
   migrateToObjectStorage
 } from '../services/hybrid-storage.service';
+import { requireAuth, requireAdmin } from '../middleware/auth';
+
+// 检查用户是否为管理员
+const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (req.session?.userId) {
+    // 管理员检查 (简化版)
+    // 实际项目中应该从数据库检查用户角色
+    if (req.user?.role === 'admin') {
+      return next();
+    }
+  }
+  return res.status(403).json({ error: '需要管理员权限' });
+};
 
 const router = Router();
 
@@ -505,6 +519,148 @@ router.get('/storage-test', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('存储测试失败:', error);
     res.status(500).json({ error: '存储测试失败' });
+  }
+});
+
+/**
+ * 管理默认背景图片 (仅管理员可用)
+ * 增强版: 支持横屏和竖屏背景的单独设置
+ */
+router.post('/admin/default-background', requireAdmin, upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '未提供文件' });
+    }
+
+    // 检查文件类型
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    const allowedImageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+    
+    if (!allowedImageExtensions.includes(fileExtension)) {
+      return res.status(400).json({ error: '背景图片仅支持JPG, JPEG, PNG, WEBP和GIF格式' });
+    }
+
+    // 获取背景类型 (横屏或竖屏)
+    const backgroundType = req.body.type || 'landscape'; // 默认横屏
+    
+    if (backgroundType !== 'landscape' && backgroundType !== 'portrait') {
+      return res.status(400).json({ error: '背景类型必须是 landscape 或 portrait' });
+    }
+
+    // 确保背景目录存在
+    const backgroundsDir = path.join(process.cwd(), 'public', 'backgrounds');
+    if (!fs.existsSync(backgroundsDir)) {
+      fs.mkdirSync(backgroundsDir, { recursive: true });
+    }
+
+    // 根据类型决定文件名
+    const fileName = backgroundType === 'portrait' 
+      ? 'portrait-background.jpg' 
+      : 'landscape-background.jpg';
+
+    // 备份现有文件 (如果存在)
+    const filePath = path.join(backgroundsDir, fileName);
+    const backupPath = path.join(backgroundsDir, `${fileName}.backup-${Date.now()}`);
+    
+    if (fs.existsSync(filePath)) {
+      fs.copyFileSync(filePath, backupPath);
+      console.log(`已备份现有${backgroundType === 'portrait' ? '竖屏' : '横屏'}背景到: ${backupPath}`);
+    }
+
+    // 处理并保存新背景
+    try {
+      // 使用sharp处理图像
+      await sharp(req.file.buffer)
+        .resize({
+          width: backgroundType === 'portrait' ? 1080 : 1920,
+          height: backgroundType === 'portrait' ? 1920 : 1080,
+          fit: 'cover',
+          position: 'center'
+        })
+        .jpeg({ quality: 85 })
+        .toFile(filePath);
+        
+      console.log(`已更新${backgroundType === 'portrait' ? '竖屏' : '横屏'}默认背景图片`);
+      
+      // 创建兼容性链接 (向后兼容原有代码)
+      if (backgroundType === 'portrait') {
+        const compatPath = path.join(backgroundsDir, 'mobile-background.jpg');
+        if (fs.existsSync(compatPath)) {
+          fs.unlinkSync(compatPath);
+        }
+        fs.copyFileSync(filePath, compatPath);
+      } else {
+        const compatPath = path.join(backgroundsDir, 'default-background.jpg');
+        if (fs.existsSync(compatPath)) {
+          fs.unlinkSync(compatPath);
+        }
+        fs.copyFileSync(filePath, compatPath);
+      }
+      
+    } catch (error) {
+      console.error('图像处理失败:', error);
+      // 如果处理失败，直接保存原始文件
+      fs.writeFileSync(filePath, req.file.buffer);
+    }
+
+    // 获取公共URL
+    const publicUrl = backgroundType === 'portrait'
+      ? '/backgrounds/portrait-background.jpg'
+      : '/backgrounds/landscape-background.jpg';
+
+    // 生成缓存破坏参数
+    const timestamp = Date.now();
+    const version = timestamp.toString(36);
+    const urlWithCacheBuster = `${publicUrl}?v=${version}`;
+
+    // 成功上传响应
+    res.json({
+      success: true,
+      type: backgroundType,
+      url: urlWithCacheBuster,
+      originalUrl: publicUrl,
+      timestamp,
+      version
+    });
+  } catch (error) {
+    console.error('更新默认背景图片失败:', error);
+    res.status(500).json({ error: '更新默认背景图片失败' });
+  }
+});
+
+/**
+ * 获取默认背景图片信息 (管理员功能)
+ */
+router.get('/admin/default-background', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const backgroundsDir = path.join(process.cwd(), 'public', 'backgrounds');
+    
+    // 获取横屏背景信息
+    const landscapePath = path.join(backgroundsDir, 'landscape-background.jpg');
+    const landscapeInfo = fs.existsSync(landscapePath) ? {
+      exists: true,
+      url: '/backgrounds/landscape-background.jpg',
+      size: fs.statSync(landscapePath).size,
+      modifiedAt: fs.statSync(landscapePath).mtime
+    } : { exists: false };
+    
+    // 获取竖屏背景信息
+    const portraitPath = path.join(backgroundsDir, 'portrait-background.jpg');
+    const portraitInfo = fs.existsSync(portraitPath) ? {
+      exists: true,
+      url: '/backgrounds/portrait-background.jpg',
+      size: fs.statSync(portraitPath).size,
+      modifiedAt: fs.statSync(portraitPath).mtime
+    } : { exists: false };
+    
+    // 返回背景信息
+    res.json({
+      landscape: landscapeInfo,
+      portrait: portraitInfo
+    });
+  } catch (error) {
+    console.error('获取默认背景图片信息失败:', error);
+    res.status(500).json({ error: '获取默认背景图片信息失败' });
   }
 });
 
