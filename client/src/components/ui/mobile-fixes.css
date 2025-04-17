@@ -60,6 +60,41 @@
     border-top: 1px solid rgba(var(--custom-theme-color-rgb), 0.25) !important; /* 主题色边框 */
   }
   
+  /* 修复浅色模式下输入框聚焦时底部导航栏蓝色高亮问题 */
+  :root.light .keyboard-open .chat-input-area,
+  :root.light .keyboard-focused .chat-input-area {
+    background-color: rgba(230, 242, 255, 0.7) !important; /* 保持一致的背景色 */
+    border-top: 1px solid rgba(var(--custom-theme-color-rgb), 0.25) !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  
+  /* 底部导航按钮样式 - 解决iOS风格纯色问题 */
+  .bottom-nav-button,
+  .mobile-bottom-nav button,
+  div[class*="fixed bottom-0"] button {
+    color: rgba(180, 180, 180, 0.85) !important;
+    transition: color 0.15s ease !important;
+    background-color: transparent !important;
+    border-radius: 10px !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  
+  /* 浅色模式下底部导航区域 - 防止高亮 */
+  :root.light div[class*="fixed bottom-0"],
+  :root.light .mobile-bottom-nav,
+  :root.light .mobile-nav-container,
+  :root.light .bottom-nav,
+  :root.light .bottom-navigation {
+    background-color: transparent !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: none !important;
+    outline: none !important;
+  }
+  
   /* 消息容器 */
   .chat-message-container {
     padding-left: 12px !important;
