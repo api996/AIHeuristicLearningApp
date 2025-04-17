@@ -210,3 +210,4 @@ export type InsertSearchResult = z.infer<typeof insertSearchResultSchema>;
 export type InsertConversationAnalytic = z.infer<typeof insertConversationAnalyticsSchema>;
 export type InsertUserFile = z.infer<typeof insertUserFileSchema>;
 export type InsertUserSetting = z.infer<typeof insertUserSettingSchema>;
+export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;
