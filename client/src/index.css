@@ -68,6 +68,59 @@
   color: #1a1a2e !important;
 }
 
+/* 偏好设置对话框中的按钮样式增强 */
+.frosted-dialog button[variant="default"],
+.frosted-dialog button[class*="bg-primary"] {
+  background-color: rgba(13, 234, 228, 0.25) !important;
+  color: rgba(13, 234, 228, 1) !important;
+  font-weight: 500 !important;
+  border: 1px solid rgba(13, 234, 228, 0.4) !important;
+  box-shadow: 0 0 10px rgba(13, 234, 228, 0.2) !important;
+  transform: scale(1.05) !important;
+}
+
+/* 偏好设置对话框中的未选中按钮 */
+.frosted-dialog button[variant="outline"],
+.frosted-dialog button[class*="border"] {
+  background-color: rgba(50, 50, 60, 0.3) !important;
+  color: rgba(220, 220, 230, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  transition: all 0.2s ease;
+}
+
+.frosted-dialog button[variant="outline"]:hover,
+.frosted-dialog button[class*="border"]:hover {
+  background-color: rgba(60, 60, 70, 0.5) !important;
+  border-color: rgba(13, 234, 228, 0.2) !important;
+  color: rgba(13, 234, 228, 0.8) !important;
+}
+
+/* 浅色模式下对话框中的选中按钮 */
+:root.light .frosted-dialog button[variant="default"],
+:root.light .frosted-dialog button[class*="bg-primary"] {
+  background-color: rgba(0, 122, 255, 0.2) !important;
+  color: rgba(0, 122, 255, 1) !important;
+  font-weight: 500 !important;
+  border: 1px solid rgba(0, 122, 255, 0.4) !important;
+  box-shadow: 0 0 10px rgba(0, 122, 255, 0.15) !important;
+  transform: scale(1.05) !important;
+}
+
+/* 浅色模式下对话框中的未选中按钮 */
+:root.light .frosted-dialog button[variant="outline"],
+:root.light .frosted-dialog button[class*="border"] {
+  background-color: rgba(245, 245, 250, 0.7) !important;
+  color: rgba(60, 60, 80, 0.8) !important;
+  border: 1px solid rgba(200, 200, 220, 0.4) !important;
+}
+
+:root.light .frosted-dialog button[variant="outline"]:hover,
+:root.light .frosted-dialog button[class*="border"]:hover {
+  background-color: rgba(230, 240, 255, 0.8) !important;
+  border-color: rgba(0, 122, 255, 0.3) !important;
+  color: rgba(0, 122, 255, 0.9) !important;
+}
+
 /* 精美磨砂玻璃提示框样式 - 深色模式 */
 .frosted-toast-info {
   background: rgba(59, 130, 246, 0.2) !important;
@@ -437,6 +490,7 @@ div[role="dialog"] {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent !important; /* 禁用移动设备上的点击高亮效果 */
 }
 
 .wrapper .input-box input:focus ~ label,
@@ -504,12 +558,21 @@ div[role="dialog"] {
 :root.light .bottom-nav-button {
   color: rgba(0, 140, 175, 0.9) !important;
   transition: color 0.2s ease, background-color 0.2s ease;
+  -webkit-tap-highlight-color: transparent !important; /* 禁用iOS的默认点击高亮 */
+  outline: none !important; /* 禁用焦点轮廓 */
 }
 
-:root.light .bottom-nav-button:hover,
-:root.light .bottom-nav-button:focus {
+:root.light .bottom-nav-button:hover {
   color: rgba(0, 140, 175, 1) !important;
   background-color: rgba(150, 215, 225, 0.8) !important;
+}
+
+:root.light .bottom-nav-button:focus {
+  color: rgba(0, 140, 175, 1) !important;
+  background-color: transparent !important; /* 焦点状态不改变背景，避免输入时的蓝色高亮 */
+  box-shadow: none !important; /* 移除焦点阴影 */
+  border: none !important; /* 确保没有焦点边框 */
+  outline: none !important; /* 禁用焦点轮廓 */
 }
 
 :root.light .bottom-nav-button.active {
