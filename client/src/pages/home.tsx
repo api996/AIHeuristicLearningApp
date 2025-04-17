@@ -39,6 +39,26 @@ export default function Home() {
       
       // 获取用户背景图片
       fetchUserBackground();
+      
+      // 监听背景图片更新事件
+      const handleBackgroundUpdated = (event: any) => {
+        console.log('[Home] 收到背景图片更新事件:', event.detail);
+        if (event.detail && event.detail.url) {
+          const newBgUrl = event.detail.url;
+          // 添加缓存破坏参数
+          const cacheBuster = newBgUrl.includes('?') ? `&t=${new Date().getTime()}` : `?t=${new Date().getTime()}`;
+          console.log('[Home] 更新背景图片:', newBgUrl);
+          setBackgroundUrl(newBgUrl + cacheBuster);
+        }
+      };
+      
+      // 添加自定义事件监听器
+      window.addEventListener('background-updated', handleBackgroundUpdated);
+      
+      // 组件卸载时移除事件监听
+      return () => {
+        window.removeEventListener('background-updated', handleBackgroundUpdated);
+      };
     } catch (e) {
       console.error('[Home] Error parsing user data:', e);
       localStorage.removeItem("user");
