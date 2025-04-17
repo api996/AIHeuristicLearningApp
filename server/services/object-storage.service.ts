@@ -83,6 +83,7 @@ export function getDefaultBackgroundPath(isPortrait: boolean = false): string {
  * @param isPortrait 是否为竖屏设备/竖屏方向
  */
 export function getDefaultBackgroundUrl(isPortrait: boolean = false): string {
+  // 注意：我们保持URL后缀为.jpg，虽然源文件可能是.png，确保向后兼容
   return isPortrait
     ? '/backgrounds/portrait-background.jpg'  // 竖屏背景
     : '/backgrounds/landscape-background.jpg'; // 横屏背景
@@ -127,7 +128,7 @@ function ensureDefaultBackgrounds(): void {
       const landscapeBgDest = path.join(DEFAULT_BACKGROUNDS_DIR, 'landscape-background.jpg');
       
       // 竖屏默认背景 (原移动端背景)
-      const portraitBgSource = path.join(assetsDir, 'IMG_9918.jpeg');
+      const portraitBgSource = path.join(assetsDir, '67E45037-36DA-48CE-AA14-47D6B85832D2.png');
       const portraitBgDest = path.join(DEFAULT_BACKGROUNDS_DIR, 'portrait-background.jpg');
       
       // 创建兼容性链接 (向后兼容原有代码)
