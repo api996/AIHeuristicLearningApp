@@ -396,6 +396,39 @@ router.post('/migrate', async (req: Request, res: Response) => {
 });
 
 /**
+ * 迁移文件到对象存储 (GET版本，更易于直接调用)
+ * 开发环境使用
+ */
+router.get('/migrate-to-object-storage', async (req: Request, res: Response) => {
+  try {
+    console.log(`开始文件迁移，请求来自: ${req.ip}`);
+    
+    // 获取要迁移的特定用户ID (可选)
+    const targetUserId = req.query.userId ? Number(req.query.userId) : undefined;
+    
+    // 开始迁移
+    const result = await migrateToObjectStorage(targetUserId);
+    
+    // 返回迁移结果
+    res.json({
+      success: true,
+      message: targetUserId 
+        ? `已完成用户${targetUserId}的文件迁移` 
+        : '已完成所有用户的文件迁移',
+      stats: result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('迁移文件失败:', error);
+    res.status(500).json({ 
+      error: '迁移文件失败', 
+      message: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
  * 测试文件存储模式 (仅用于开发环境)
  */
 router.get('/storage-test', async (req: Request, res: Response) => {

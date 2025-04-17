@@ -275,21 +275,45 @@ export async function saveFileToObjectStorage(
     const publicUrl = buildPublicUrl(userId, fileType, fileId, fileExtension);
     
     // 上传文件到Replit对象存储
-    const uploadResponse = await fetch(
-      `${REPLIT_DATA_API_URL_V1}/buckets/${DEFAULT_BUCKET_NAME}/objects/${objectPath}`,
-      {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${process.env.REPLIT_DATA_TOKEN}`,
-          'Content-Type': 'application/octet-stream',
-        },
-        body: fileBuffer,
-      }
-    );
+    // 依次尝试所有备用域名
+    let isUploaded = false;
+    let lastError = null;
     
-    if (!uploadResponse.ok) {
-      const errorData = await uploadResponse.text();
-      throw new Error(`上传文件到对象存储失败: ${errorData}`);
+    // 依次尝试每个API地址
+    for (const apiBaseUrl of REPLIT_DATA_API_URLS) {
+      try {
+        const apiUrl = `${apiBaseUrl}/v1/buckets/${DEFAULT_BUCKET_NAME}/objects/${objectPath}`;
+        console.log(`尝试上传到: ${apiUrl}`);
+        
+        // 上传到对象存储
+        const uploadResponse = await fetch(apiUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${process.env.REPLIT_DATA_TOKEN}`,
+            'Content-Type': 'application/octet-stream',
+          },
+          body: fileBuffer,
+        });
+        
+        if (uploadResponse.ok) {
+          console.log(`文件上传成功: ${apiUrl}`);
+          isUploaded = true;
+          break; // 上传成功，跳出循环
+        } else {
+          const statusText = uploadResponse.statusText;
+          const errorText = await uploadResponse.text();
+          console.log(`上传到 ${apiBaseUrl} 失败: Status ${uploadResponse.status} ${statusText}, 响应: ${errorText}`);
+          lastError = `Status ${uploadResponse.status} ${statusText}: ${errorText}`;
+        }
+      } catch (error) {
+        console.error(`上传时网络错误 (${apiBaseUrl}):`, error);
+        lastError = error instanceof Error ? error.message : String(error);
+      }
+    }
+    
+    // 如果所有尝试都失败了
+    if (!isUploaded) {
+      throw new Error(`上传文件到对象存储失败: ${lastError}`);
     }
     
     // 生成版本标识 (用于缓存控制)
@@ -331,26 +355,56 @@ export async function getFileFromObjectStorage(objectPath: string): Promise<Buff
   }
   
   try {
-    const response = await fetch(
-      `${REPLIT_DATA_API_URL_V1}/buckets/${DEFAULT_BUCKET_NAME}/objects/${objectPath}`,
-      {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${process.env.REPLIT_DATA_TOKEN}`,
-        },
-      }
-    );
+    // 依次尝试所有备用域名
+    let fileBuffer = null;
+    let lastError = null;
     
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null;
+    // 依次尝试每个API地址
+    for (const apiBaseUrl of REPLIT_DATA_API_URLS) {
+      try {
+        const apiUrl = `${apiBaseUrl}/v1/buckets/${DEFAULT_BUCKET_NAME}/objects/${objectPath}`;
+        console.log(`尝试从对象存储获取文件: ${apiUrl}`);
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${process.env.REPLIT_DATA_TOKEN}`,
+          },
+        });
+        
+        if (response.ok) {
+          const buffer = await response.arrayBuffer();
+          fileBuffer = Buffer.from(buffer);
+          console.log(`文件获取成功: ${apiUrl}`);
+          break; // 获取成功，跳出循环
+        } else if (response.status === 404) {
+          // 如果文件不存在，记录并继续尝试其他域名
+          console.log(`文件不存在 (${apiBaseUrl}): ${objectPath}`);
+          lastError = 'File not found';
+        } else {
+          const statusText = response.statusText;
+          const errorText = await response.text();
+          console.log(`从 ${apiBaseUrl} 获取失败: Status ${response.status} ${statusText}, 响应: ${errorText}`);
+          lastError = `Status ${response.status} ${statusText}: ${errorText}`;
+        }
+      } catch (error) {
+        console.error(`获取文件网络错误 (${apiBaseUrl}):`, error);
+        lastError = error instanceof Error ? error.message : String(error);
       }
-      const errorData = await response.text();
-      throw new Error(`从对象存储获取文件失败: ${errorData}`);
     }
     
-    const fileBuffer = await response.arrayBuffer();
-    return Buffer.from(fileBuffer);
+    // 如果成功获取到文件
+    if (fileBuffer) {
+      return fileBuffer;
+    }
+    
+    // 如果是404错误，返回null表示文件不存在
+    if (lastError === 'File not found') {
+      return null;
+    }
+    
+    // 其他错误抛出异常
+    throw new Error(`从对象存储获取文件失败: ${lastError}`);
   } catch (error) {
     console.error('从对象存储获取文件失败:', error);
     return null;
@@ -368,22 +422,45 @@ export async function deleteFileFromObjectStorage(objectPath: string): Promise<b
   }
   
   try {
-    const response = await fetch(
-      `${REPLIT_DATA_API_URL_V1}/buckets/${DEFAULT_BUCKET_NAME}/objects/${objectPath}`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${process.env.REPLIT_DATA_TOKEN}`,
-        },
-      }
-    );
+    // 依次尝试所有备用域名
+    let isDeleted = false;
+    let lastError = null;
     
-    if (!response.ok && response.status !== 404) {
-      const errorData = await response.text();
-      throw new Error(`从对象存储删除文件失败: ${errorData}`);
+    // 依次尝试每个API地址
+    for (const apiBaseUrl of REPLIT_DATA_API_URLS) {
+      try {
+        const apiUrl = `${apiBaseUrl}/v1/buckets/${DEFAULT_BUCKET_NAME}/objects/${objectPath}`;
+        console.log(`尝试从对象存储删除文件: ${apiUrl}`);
+        
+        const response = await fetch(apiUrl, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${process.env.REPLIT_DATA_TOKEN}`,
+          },
+        });
+        
+        // 成功删除或文件不存在都视为成功
+        if (response.ok || response.status === 404) {
+          console.log(`文件删除成功或不存在: ${apiUrl}`);
+          isDeleted = true;
+          break; // 操作成功，跳出循环
+        } else {
+          const statusText = response.statusText;
+          const errorText = await response.text();
+          console.log(`从 ${apiBaseUrl} 删除失败: Status ${response.status} ${statusText}, 响应: ${errorText}`);
+          lastError = `Status ${response.status} ${statusText}: ${errorText}`;
+        }
+      } catch (error) {
+        console.error(`删除文件网络错误 (${apiBaseUrl}):`, error);
+        lastError = error instanceof Error ? error.message : String(error);
+      }
     }
     
-    return true;
+    if (isDeleted) {
+      return true;
+    } else {
+      throw new Error(`从对象存储删除文件失败: ${lastError}`);
+    }
   } catch (error) {
     console.error('从对象存储删除文件失败:', error);
     return false;
@@ -609,22 +686,54 @@ export async function migrateFilesToObjectStorage(userId?: number): Promise<{
         const fileExtension = path.extname(file.originalName);
         const objectPath = buildObjectPath(file.userId, file.fileType, file.fileId, fileExtension);
         
-        // 上传到对象存储
-        const uploadResponse = await fetch(
-          `${REPLIT_DATA_API_URL_V1}/buckets/${DEFAULT_BUCKET_NAME}/objects/${objectPath}`,
-          {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${process.env.REPLIT_DATA_TOKEN}`,
-              'Content-Type': 'application/octet-stream',
-            },
-            body: fileBuffer,
-          }
-        );
+        // 记录详细的迁移信息，帮助诊断
+        console.log(`正在迁移文件 (${file.fileId}): 
+          文件路径: ${file.filePath}
+          对象路径: ${objectPath}
+          文件类型: ${file.fileType}
+          文件大小: ${fs.statSync(filePath).size} 字节
+          目标API: ${REPLIT_DATA_API_URL_V1}/buckets/${DEFAULT_BUCKET_NAME}/objects/${objectPath}
+        `);
         
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.text();
-          throw new Error(`上传文件到对象存储失败: ${errorData}`);
+        // 依次尝试所有备用域名
+        let isUploaded = false;
+        let lastError = null;
+        
+        // 依次尝试每个API地址
+        for (const apiBaseUrl of REPLIT_DATA_API_URLS) {
+          try {
+            const apiUrl = `${apiBaseUrl}/v1/buckets/${DEFAULT_BUCKET_NAME}/objects/${objectPath}`;
+            console.log(`尝试上传到: ${apiUrl}`);
+            
+            // 上传到对象存储
+            const uploadResponse = await fetch(apiUrl, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${process.env.REPLIT_DATA_TOKEN}`,
+                'Content-Type': 'application/octet-stream',
+              },
+              body: fileBuffer,
+            });
+            
+            if (uploadResponse.ok) {
+              console.log(`文件上传成功 (${file.fileId}): ${apiUrl}`);
+              isUploaded = true;
+              break; // 上传成功，跳出循环
+            } else {
+              const statusText = uploadResponse.statusText;
+              const errorText = await uploadResponse.text();
+              console.log(`上传到 ${apiBaseUrl} 失败: Status ${uploadResponse.status} ${statusText}, 响应: ${errorText}`);
+              lastError = `Status ${uploadResponse.status} ${statusText}: ${errorText}`;
+            }
+          } catch (error) {
+            console.error(`上传时网络错误 (${apiBaseUrl}):`, error);
+            lastError = error instanceof Error ? error.message : String(error);
+          }
+        }
+        
+        // 如果所有尝试都失败了
+        if (!isUploaded) {
+          throw new Error(`上传文件到对象存储失败: ${lastError}`);
         }
         
         // 更新数据库记录
