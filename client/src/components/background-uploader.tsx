@@ -54,8 +54,13 @@ export function BackgroundUploader({ userId, onBackgroundChange }: BackgroundUpl
 
   const fetchUserBackgrounds = async () => {
     try {
-      const response = await axios.get(`/api/files/list?type=background`);
+      console.log('正在获取背景列表...');
+      // 确保只获取当前用户的背景
+      const response = await axios.get(`/api/files/list?type=background&userId=${userId}`, {
+        withCredentials: true
+      });
       if (response.data && response.data.files) {
+        console.log('获取到的背景列表:', response.data.files);
         setUserBackgrounds(response.data.files);
       }
     } catch (error) {

@@ -180,6 +180,8 @@ export function AIChat({ userData }: AIChatProps) {
 
   // 背景图片相关状态
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [selectedBackgroundFile, setSelectedBackgroundFile] = useState<File | null>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
 
   // Use the passed in userData
@@ -2352,65 +2354,22 @@ export function AIChat({ userData }: AIChatProps) {
                               return;
                             }
                             
-                            // 构建FormData
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            formData.append('fileType', 'background');
-                            formData.append('userId', String(userData.userId)); // 确保传递用户ID
+                            // 仅保存文件引用，不立即上传
+                            setSelectedBackgroundFile(file);
                             
-                            const baseUrl = window.location.origin;
-                            const response = await fetch(`${baseUrl}/api/files/upload`, {
-                              method: 'POST',
-                              body: formData,
-                              credentials: 'include', // 确保包含凭据（cookies）
-                            });
+                            // 生成本地预览URL
+                            const previewUrl = URL.createObjectURL(file);
+                            setPreviewImage(previewUrl);
                             
-                            if (!response.ok) {
-                              throw new Error('上传失败');
-                            }
-                            
-                            const data = await response.json();
-                            
-                            if (data && data.success && data.url) {
-                              toast({
-                                title: "上传成功",
-                                description: "背景图片已成功上传并设置",
-                              });
-                              
-                              // 刷新背景
-                              const bgResponse = await fetch(`${baseUrl}/api/files/background?userId=${userData.userId}&orientation=portrait`);
-                              if (bgResponse.ok) {
-                                const bgData = await bgResponse.json();
-                                if (bgData && bgData.url) {
-                                  // 构建完整的URL
-                                  const fullUrl = bgData.url.startsWith('http') 
-                                    ? bgData.url 
-                                    : `${baseUrl}${bgData.url}`;
-                                  
-                                  console.log('背景上传成功，新背景URL:', fullUrl);
-                                  
-                                  // 直接更新页面背景（立即生效）
-                                  const homeElement = document.querySelector('.min-h-screen');
-                                  if (homeElement instanceof HTMLElement) {
-                                    homeElement.style.backgroundImage = `url('${fullUrl}')`;
-                                  }
-                                  
-                                  // 触发应用重新加载背景图片 - 通过广播事件
-                                  const event = new CustomEvent('background-updated', { 
-                                    detail: { url: fullUrl }
-                                  });
-                                  window.dispatchEvent(event);
-                                  
-                                  // 直接修改选中颜色，提供视觉反馈
-                                  document.documentElement.style.setProperty('--selected-color', '#0deae4');
-                                }
-                              }
-                            }
-                          } catch (error) {
-                            console.error("上传背景图片失败:", error);
                             toast({
-                              title: "上传失败",
-                              description: "无法上传背景图片，请重试",
+                              title: "图片已选择",
+                              description: "请点击\"保存设置\"按钮应用更改",
+                            });
+                          } catch (error) {
+                            console.error("处理背景图片失败:", error);
+                            toast({
+                              title: "处理失败",
+                              description: "无法处理所选图片，请重试",
                               variant: "destructive",
                             });
                           }
@@ -2418,8 +2377,26 @@ export function AIChat({ userData }: AIChatProps) {
                       }}
                     />
                   </div>
+                  
+                  {/* 图片预览区域 */}
+                  {previewImage && (
+                    <div className="mt-4 border rounded-md p-2 bg-black/30">
+                      <p className="text-xs text-neutral-300 mb-2">预览图片:</p>
+                      <div className="relative w-full h-32 rounded-md overflow-hidden">
+                        <img 
+                          src={previewImage} 
+                          alt="背景预览" 
+                          className="w-full h-full object-cover rounded-md"
+                        />
+                      </div>
+                      <p className="text-xs text-cyan-400 mt-2">
+                        点击&quot;保存设置&quot;按钮应用此背景
+                      </p>
+                    </div>
+                  )}
+                  
                   <p className="text-xs text-neutral-400 mt-1">
-                    点击上方区域选择并上传新的背景图片，上传后将立即应用
+                    点击上方区域选择背景图片，然后点击&quot;保存设置&quot;按钮应用更改
                   </p>
                 </div>
               </div>
@@ -2435,22 +2412,100 @@ export function AIChat({ userData }: AIChatProps) {
           <DialogFooter>
             <Button 
               type="button" 
-              onClick={() => {
-                // 保存所有偏好设置
-                localStorage.setItem('theme', theme);
-                localStorage.setItem('font-size', fontSize);
+              onClick={async () => {
+                try {
+                  // 保存所有偏好设置
+                  localStorage.setItem('theme', theme);
+                  localStorage.setItem('font-size', fontSize);
 
-                // 应用设置
-                applyTheme(theme);
-                applyFontSize(fontSize);
+                  // 应用设置
+                  applyTheme(theme);
+                  applyFontSize(fontSize);
+                  
+                  // 如果选择了新的背景图片，则上传
+                  if (selectedBackgroundFile) {
+                    // 显示上传中提示
+                    toast({
+                      title: "上传背景中",
+                      description: "正在上传您选择的背景图片...",
+                    });
+                    
+                    // 构建FormData
+                    const formData = new FormData();
+                    formData.append('file', selectedBackgroundFile);
+                    formData.append('fileType', 'background');
+                    formData.append('userId', String(userData.userId)); // 确保传递用户ID
+                    
+                    const baseUrl = window.location.origin;
+                    const response = await fetch(`${baseUrl}/api/files/upload`, {
+                      method: 'POST',
+                      body: formData,
+                      credentials: 'include', // 确保包含凭据（cookies）
+                    });
+                    
+                    if (!response.ok) {
+                      throw new Error('上传失败');
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data && data.success && data.url) {
+                      // 刷新背景
+                      const bgResponse = await fetch(`${baseUrl}/api/files/background?userId=${userData.userId}&orientation=portrait`);
+                      if (bgResponse.ok) {
+                        const bgData = await bgResponse.json();
+                        if (bgData && bgData.url) {
+                          // 构建完整的URL
+                          let fullUrl = bgData.url.startsWith('http') 
+                            ? bgData.url 
+                            : `${baseUrl}${bgData.url}`;
+                            
+                          // 确保背景图片URL包含用户ID参数，避免401未授权错误
+                          if (fullUrl.includes('/api/files/') && !fullUrl.includes('userId=')) {
+                            const separator = fullUrl.includes('?') ? '&' : '?';
+                            fullUrl += `${separator}userId=${userData.userId}`;
+                          }
+                          
+                          console.log('背景上传成功，新背景URL:', fullUrl);
+                          
+                          // 直接更新页面背景（立即生效）
+                          const homeElement = document.querySelector('.min-h-screen');
+                          if (homeElement instanceof HTMLElement) {
+                            homeElement.style.backgroundImage = `url('${fullUrl}')`;
+                          }
+                          
+                          // 触发应用重新加载背景图片 - 通过广播事件
+                          const event = new CustomEvent('background-updated', { 
+                            detail: { url: fullUrl }
+                          });
+                          window.dispatchEvent(event);
+                          
+                          // 清理预览状态
+                          setSelectedBackgroundFile(null);
+                          if (previewImage) {
+                            URL.revokeObjectURL(previewImage);
+                            setPreviewImage(null);
+                          }
+                        }
+                      }
+                    }
+                  }
 
-                // 关闭设置对话框
-                setShowPreferencesDialog(false);
+                  // 关闭设置对话框
+                  setShowPreferencesDialog(false);
 
-                toast({
-                  title: "设置已保存",
-                  description: "您的偏好设置已成功更新",
-                });
+                  toast({
+                    title: "设置已保存",
+                    description: selectedBackgroundFile ? "所有设置和背景图片已更新" : "您的偏好设置已成功更新",
+                  });
+                } catch (error) {
+                  console.error("保存设置失败:", error);
+                  toast({
+                    title: "保存失败",
+                    description: "无法应用所有设置，请重试",
+                    variant: "destructive",
+                  });
+                }
               }}
             >
               保存设置
