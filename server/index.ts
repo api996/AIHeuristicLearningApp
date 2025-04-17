@@ -5,6 +5,8 @@ import { setupVite, serveStatic, log } from "./vite";
 import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
+import { initializeObjectStorage } from "./services/object-storage.service";
+import { initializeStorage } from "./services/hybrid-storage.service";
 
 // 自动修复记忆文件
 const runMemoryCleanup = (userId?: number) => {
@@ -115,6 +117,25 @@ app.use((req, res, next) => {
   try {
     // 先运行记忆文件修复，但不指定用户ID，只是进行初始检查
     runMemoryCleanup();
+    
+    // 初始化对象存储服务
+    let useObjectStorage = false;
+    try {
+      await initializeObjectStorage();
+      log("对象存储服务初始化成功");
+      useObjectStorage = true;
+    } catch (error) {
+      log(`对象存储服务初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      log("将继续使用文件系统存储");
+      useObjectStorage = false;
+    }
+    
+    // 初始化混合存储服务
+    initializeStorage(useObjectStorage);
+    log(`已初始化混合存储服务，模式: ${useObjectStorage ? '对象存储' : '文件系统'}`);
+    
+    // 是否执行自动迁移
+    const AUTO_MIGRATE = process.env.AUTO_MIGRATE_FILES === 'true';
 
     const server = await registerRoutes(app);
 
