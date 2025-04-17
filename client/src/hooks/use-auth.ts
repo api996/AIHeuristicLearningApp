@@ -95,21 +95,65 @@ export const useAuth = () => {
   }, [updateUserState, user, getUserFromStorage]);
 
   // 登录
-  const login = useCallback((userData: User) => {
+  const login = useCallback(async (userData: User) => {
     if (!userData || !userData.userId) {
       throw new Error("Invalid user data");
     }
-    localStorage.setItem("user", JSON.stringify(userData));
-    setUser(userData);
-    authEvents.dispatchUserRegistered(); // 触发用户注册事件
-    setLocation("/");
+    
+    try {
+      // 验证用户会话是否有效，确保前端和后端状态一致
+      const response = await fetch(`/api/users/${userData.userId}?userId=${userData.userId}`);
+      
+      if (response.ok) {
+        // 服务器确认用户有效，保存到本地
+        localStorage.setItem("user", JSON.stringify(userData));
+        setUser(userData);
+        
+        // 添加调试日志
+        console.log('[useAuth] 用户登录成功，已保存用户数据:', userData);
+        
+        // 触发用户注册事件
+        authEvents.dispatchUserRegistered(); 
+        
+        // 设置会话Cookie（可选，用于配合服务端session）
+        document.cookie = `userId=${userData.userId}; path=/; max-age=86400`;
+        
+        // 如果是管理员，直接转到管理界面
+        if (userData.role === 'admin') {
+          setLocation("/admin");
+        } else {
+          setLocation("/");
+        }
+      } else {
+        // 服务器无法确认用户，可能会话已过期
+        console.error('[useAuth] 用户会话验证失败, 状态码:', response.status);
+        throw new Error("用户会话验证失败");
+      }
+    } catch (error) {
+      console.error("[useAuth] 登录验证失败:", error);
+      // 清除可能无效的数据
+      localStorage.removeItem("user");
+      setUser(null);
+      // 重定向到登录页
+      setLocation("/login");
+    }
   }, [setLocation]);
 
   // 登出
-  const logout = useCallback(() => {
-    localStorage.removeItem("user");
-    setUser(null);
-    setLocation("/login");
+  const logout = useCallback(async () => {
+    try {
+      // 通知服务器进行登出
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error("服务器登出请求失败:", error);
+    } finally {
+      // 无论服务器响应如何，都清除本地状态
+      localStorage.removeItem("user");
+      setUser(null);
+      setLocation("/login");
+    }
   }, [setLocation]);
 
   return {
