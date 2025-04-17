@@ -145,7 +145,11 @@ export function AIChat({ userData }: AIChatProps) {
       }
     }
   };
-  const [useWebSearch, setUseWebSearch] = useState(false);
+  // 网络搜索状态 - 使用 localStorage 保持状态一致性
+  const [useWebSearch, setUseWebSearch] = useState(() => {
+    const savedState = localStorage.getItem('useWebSearch');
+    return savedState === 'true';
+  });
   const [currentChatId, setCurrentChatId] = useState<number>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1549,7 +1553,12 @@ export function AIChat({ userData }: AIChatProps) {
                   borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
                   '--tw-hover-bg-opacity': 0.1
                 } as React.CSSProperties : {}}
-                onClick={() => setUseWebSearch(!useWebSearch)}
+                onClick={() => {
+                  const newState = !useWebSearch;
+                  setUseWebSearch(newState);
+                  // 保存到localStorage，确保刷新页面后状态不丢失
+                  localStorage.setItem('useWebSearch', String(newState));
+                }}
               >
                 <Search 
                   className={`w-3.5 h-3.5 mr-1.5 ${
