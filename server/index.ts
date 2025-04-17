@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
-// Use relative path with explicit file extension for better ESM compatibility
-import { registerRoutes } from "./routes.js";
+// Use relative path without file extension for better compatibility
+import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { spawn } from "child_process";
 import path from "path";

@@ -20,7 +20,7 @@ NODE_ENV=production npx vite build
 
 # 构建后端 (使用更安全的配置)
 echo "构建后端..."
-NODE_ENV=production npx esbuild server/index.ts \
+NODE_ENV=production npx esbuild server/index.ts server/routes.js \
   --platform=node \
   --bundle \
   --outfile=dist/index.js \
@@ -33,10 +33,12 @@ NODE_ENV=production npx esbuild server/index.ts \
   --external:fs \
   --external:path \
   --external:vite \
-  --external:* 
+  --external:* \
+  --resolve-extensions=.ts,.js,.json 
 
-# 确保routes目录被正确复制到dist
-echo "复制routes目录到dist..."
+# 确保routes.js和routes目录被正确复制到dist
+echo "复制routes.js和routes目录到dist..."
+cp server/routes.js dist/routes.js
 mkdir -p dist/routes
 cp -r server/routes/* dist/routes/
 
