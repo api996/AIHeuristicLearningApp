@@ -8,7 +8,7 @@ channel = "stable-24_05"
 [deployment]
 deploymentTarget = "cloudrun"
 run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
-build = ["sh", "-c", "rm -rf dist && NODE_ENV=production NODE_OPTIONS='--max-old-space-size=3072 --experimental-vm-modules' npm run build"]
+build = ["sh", "-c", "npm ci && esbuild server/index.ts --bundle --platform=node --format=esm --target=node20 --outdir=dist --packages=external && vite build"]
 
 [[ports]]
 localPort = 5000
