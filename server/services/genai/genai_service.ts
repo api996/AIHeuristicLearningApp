@@ -3,6 +3,8 @@
  * 提供向量嵌入生成、文本总结等功能
  */
 
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 // Create a simple logger that doesn't depend on vite.ts
 const log = (message: string, source = "genai_service") => {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -15,7 +17,55 @@ const log = (message: string, source = "genai_service") => {
   console.log(`${formattedTime} [${source}] ${message}`);
 };
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+/**
+ * 移除AI响应中的思考过程
+ * 过滤掉包含在各种思考标签中的内容
+ * @param text AI响应文本
+ * @returns 过滤后的文本
+ */
+export function removeThinkingProcess(text: string): string {
+  if (!text) return text;
+  
+  // 记录原始长度，用于判断是否进行了过滤
+  const originalLength = text.length;
+  
+  // 过滤<think>...</think>标签
+  let filteredText = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+  
+  // 过滤```思考 ... ```代码块
+  filteredText = filteredText.replace(/```思考[\s\S]*?```/g, '');
+  
+  // 过滤【思考】...【/思考】标记
+  filteredText = filteredText.replace(/【思考】[\s\S]*?【\/思考】/g, '');
+  
+  // 过滤[思考: ... ]格式
+  filteredText = filteredText.replace(/\[思考:[\s\S]*?\]/g, '');
+  
+  // 移除"让我思考一下..."这类常见的思考开头句
+  const thinkingPhrases = [
+    /让我思考一下.*?\n/g,
+    /我来分析一下.*?\n/g,
+    /思考过程：.*?\n/g,
+    /分析过程：.*?\n/g
+  ];
+  
+  for (const pattern of thinkingPhrases) {
+    filteredText = filteredText.replace(pattern, '');
+  }
+  
+  // 清理可能出现的连续空行
+  filteredText = filteredText.replace(/\n{3,}/g, '\n\n');
+  
+  // 移除提示词模板中的{{...}}指令
+  filteredText = filteredText.replace(/{{[^}]*}}/g, '');
+  
+  // 如果过滤后文本明显缩短，记录日志
+  if (originalLength - filteredText.length > 50) {
+    log(`从AI响应中移除了思考过程，减少了${originalLength - filteredText.length}个字符`);
+  }
+  
+  return filteredText.trim();
+}
 
 // 导入环境变量配置
 let geminiApiKey = process.env.GEMINI_API_KEY || "";
@@ -198,7 +248,7 @@ class FallbackService implements GenAIService {
   async extractKeywords(text: string): Promise<string[] | null> {
     // 简单提取一些常见词作为关键词
     log("[genai_service] 使用简单分词作为后备关键词提取", "warn");
-    const commonWords = new Set(["的", "是", "在", "了", "和", "有", "与", "又", "也", "the", "is", "a", "an", "of", "to", "in", "for"]);
+    const commonWords = new Set<string>(["的", "是", "在", "了", "和", "有", "与", "又", "也", "the", "is", "a", "an", "of", "to", "in", "for"]);
     
     // 简单分词，取非常见的词作为关键词
     const words = text.split(/[\s,，.。:：;；!！?？、]+/).filter(w => 
@@ -206,7 +256,7 @@ class FallbackService implements GenAIService {
     );
     
     // 去重并限制数量
-    const uniqueWords = [...new Set(words)].slice(0, 8);
+    const uniqueWords = Array.from(new Set(words)).slice(0, 8);
     return uniqueWords.length > 0 ? uniqueWords : ["未知主题"];
   }
 
@@ -218,56 +268,39 @@ class FallbackService implements GenAIService {
   }
 }
 
-// 创建服务实例
-const createGenAIService = (): GenAIService => {
+/**
+ * 创建服务实例的异步函数
+ * 返回Promise以避免TypeScript错误
+ */
+const createGenAIService = async (): Promise<GenAIService> => {
   // 首先尝试使用Gemini服务
   const geminiService = new GeminiService();
   
-  // 测试API是否可用
-  return geminiService.generateEmbedding("测试").then(result => {
+  try {
+    // 测试API是否可用
+    const result = await geminiService.generateEmbedding("测试");
     if (result) {
       log("[genai_service] GenAI 服务已初始化", "info");
       return geminiService;
     } else {
-      log("[genai_service] 使用后备服务", "warn");
+      log("[genai_service] API测试返回空结果，使用后备服务", "warn");
       return new FallbackService();
     }
-  }).catch(() => {
+  } catch (error) {
     log("[genai_service] API测试失败，使用后备服务", "warn");
     return new FallbackService();
-  });
+  }
 };
 
 // 导出服务实例
-/**
- * 移除模型输出中的思考过程和提示词
- * @param text 原始模型输出
- * @returns 过滤后的文本
- */
-export function removeThinkingProcess(text: string): string {
-  if (!text) return text;
-  
-  // 移除<think>...</think>标签之间的内容
-  let filtered = text.replace(/<think>[\s\S]*?<\/think>/g, '');
-  
-  // 移除提示词模板中的{{...}}指令
-  filtered = filtered.replace(/{{[^}]*}}/g, '');
-  
-  // 整理多余的空行（将连续的多个空行替换为两个空行）
-  filtered = filtered.replace(/(\n\s*){3,}/g, '\n\n');
-  
-  // 去除首尾的空白字符
-  filtered = filtered.trim();
-  
-  return filtered;
-}
-
-export let genAiService: GenAIService;
+export let genAiService: GenAIService = new FallbackService();
 
 // 异步初始化
-createGenAIService().then(service => {
-  genAiService = service;
-});
-
-// 默认使用后备服务，直到异步初始化完成
-genAiService = new FallbackService();
+(async () => {
+  try {
+    genAiService = await createGenAIService();
+  } catch (error) {
+    log(`[genai_service] 初始化失败，使用后备服务: ${error}`, "error");
+    // 保持使用默认的后备服务
+  }
+})();
