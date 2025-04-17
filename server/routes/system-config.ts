@@ -9,27 +9,8 @@ import { log } from '../vite';
 
 const router = Router();
 
-// 检查用户是否为管理员的中间件
-const isAdmin = async (req: Request, res: Response, next: Function) => {
-  try {
-    const userId = req.session.userId || Number(req.query.userId);
-    
-    if (!userId) {
-      return res.status(401).json({ error: '未授权' });
-    }
-    
-    const user = await storage.getUser(Number(userId));
-    
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ error: '权限不足' });
-    }
-    
-    next();
-  } catch (error) {
-    log(`管理员权限检查错误: ${error}`);
-    res.status(500).json({ error: '服务器错误' });
-  }
-};
+// 导入统一的管理员中间件
+import { requireAdmin } from '../middleware/auth';
 
 /**
  * 初始化默认系统配置
@@ -105,7 +86,7 @@ router.get('/:key', async (req: Request, res: Response) => {
  * 更新或创建系统配置
  * 仅限管理员使用
  */
-router.post('/', isAdmin, async (req: Request, res: Response) => {
+router.post('/', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { key, value, description } = req.body;
     

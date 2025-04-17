@@ -60,26 +60,42 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 // 要求用户具有管理员权限
 export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // 首先确保用户已登录
-    await requireAuth(req, res, (err) => {
-      if (err) return next(err);
-      
-      // 检查用户是否为管理员 - 简化版本用于生产环境
-      // 系统中ID为1的用户被视为管理员，无论其角色设置
-      if (req.user?.id === 1) {
-        // ID为1的用户自动具有管理员权限
-        return next();
-      }
-      
-      // 其他用户检查角色
-      if (req.user?.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          message: '需要管理员权限'
-        });
-      }
-      
-      next();
+    // 从session或query参数获取用户ID
+    const userId = req.session?.userId || (req.query.userId ? Number(req.query.userId) : undefined);
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: '请先登录'
+      });
+    }
+    
+    // 获取用户信息
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+    
+    // 将用户信息附加到请求对象
+    req.user = {
+      id: user.id,
+      username: user.username,
+      role: user.role || 'user'
+    };
+    
+    // 系统中ID为1的用户被视为管理员，无论其角色设置
+    if (user.id === 1 || user.role === 'admin') {
+      // 用户具有管理员权限
+      return next();
+    }
+    
+    // 其他用户没有管理员权限
+    return res.status(403).json({
+      success: false,
+      message: '需要管理员权限'
     });
   } catch (error) {
     log(`管理员权限验证错误: ${error}`);
