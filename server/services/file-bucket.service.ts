@@ -1,6 +1,7 @@
 /**
  * 文件存储桶服务
  * 用于管理用户上传的文件，如背景图片等
+ * 增强版: 支持图片处理、压缩和缓存优化
  */
 
 import fs from 'fs';
@@ -9,11 +10,26 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { userFiles } from '../../shared/schema';
+import sharp from 'sharp';
+import etag from 'etag';
 
 // 存储桶根目录
 const BUCKET_ROOT = path.join(process.cwd(), 'uploads');
 // 默认背景图片目录
 const DEFAULT_BACKGROUNDS_DIR = path.join(process.cwd(), 'public', 'backgrounds');
+// 图像处理配置
+const IMAGE_PROCESS_CONFIG = {
+  background: {
+    quality: 85,
+    maxWidth: 1920,
+    maxHeight: 1080
+  },
+  avatar: {
+    quality: 90,
+    maxWidth: 500,
+    maxHeight: 500
+  }
+};
 
 /**
  * 确保存储目录存在
@@ -115,6 +131,78 @@ export async function cleanupOldBackgrounds(userId: number): Promise<number> {
 }
 
 /**
+ * 处理和优化图像文件
+ * @param fileBuffer 原始文件缓冲区
+ * @param filePath 保存路径
+ * @param fileType 文件类型，用于应用不同的优化配置
+ * @param fileExtension 文件扩展名
+ */
+async function processImageFile(
+  fileBuffer: Buffer, 
+  filePath: string, 
+  fileType: string,
+  fileExtension: string
+): Promise<void> {
+  try {
+    // 检查文件是否为支持的图像格式
+    const supportedImageExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+    const isImage = supportedImageExts.includes(fileExtension.toLowerCase());
+    
+    if (!isImage) {
+      // 不是图像，直接保存
+      fs.writeFileSync(filePath, fileBuffer);
+      return;
+    }
+    
+    // 选择合适的处理配置
+    const config = IMAGE_PROCESS_CONFIG[fileType as keyof typeof IMAGE_PROCESS_CONFIG] || {
+      quality: 80,
+      maxWidth: 1200,
+      maxHeight: 1200
+    };
+    
+    // 创建图像处理器
+    let imageProcessor = sharp(fileBuffer);
+    
+    // 确保图像方向正确
+    imageProcessor = imageProcessor.rotate();
+    
+    // 调整图像大小，保持宽高比
+    if (config.maxWidth || config.maxHeight) {
+      imageProcessor = imageProcessor.resize({
+        width: config.maxWidth,
+        height: config.maxHeight,
+        fit: 'inside',
+        withoutEnlargement: true
+      });
+    }
+    
+    // 根据文件类型设置输出格式和质量
+    const ext = fileExtension.toLowerCase();
+    
+    if (ext === '.jpg' || ext === '.jpeg') {
+      await imageProcessor.jpeg({ quality: config.quality }).toFile(filePath);
+    } else if (ext === '.png') {
+      await imageProcessor.png({ compressionLevel: 9 }).toFile(filePath);
+    } else if (ext === '.webp') {
+      await imageProcessor.webp({ quality: config.quality }).toFile(filePath);
+    } else if (ext === '.gif') {
+      // GIF文件直接保存，保留动画
+      fs.writeFileSync(filePath, fileBuffer);
+    } else {
+      // 未知格式，直接保存
+      fs.writeFileSync(filePath, fileBuffer);
+    }
+    
+    console.log(`图片 ${path.basename(filePath)} 已处理并优化`);
+  } catch (error) {
+    console.error(`图片处理失败: ${error}`);
+    // 处理失败时，回退到直接保存原始文件
+    fs.writeFileSync(filePath, fileBuffer);
+  }
+}
+
+/**
  * 保存文件到存储桶
  * @param userId 用户ID
  * @param fileBuffer 文件数据
@@ -126,44 +214,55 @@ export async function saveFileToBucket(
   fileBuffer: Buffer, 
   originalName: string,
   fileType: string = 'attachment'
-): Promise<{ fileId: string; filePath: string; publicUrl: string }> {
-  // 为用户创建目录
-  const userDir = path.join(BUCKET_ROOT, userId.toString());
-  ensureDirectoryExists(userDir);
-  
-  // 创建文件类型子目录
-  const typeDir = path.join(userDir, fileType);
-  ensureDirectoryExists(typeDir);
-  
-  // 生成唯一文件名
-  const fileExtension = path.extname(originalName);
-  const fileId = uuidv4();
-  const fileName = `${fileId}${fileExtension}`;
-  const filePath = path.join(typeDir, fileName);
-  
-  // 保存文件
-  fs.writeFileSync(filePath, fileBuffer);
-  
-  // 计算公共URL
-  const relativePath = path.relative(process.cwd(), filePath);
-  const publicUrl = `/api/files/${userId}/${fileType}/${fileName}`;
-  
-  // 添加到数据库
-  await db.insert(userFiles).values({
-    userId, // 这里使用userId，因为schema.ts中定义的是userId，但数据库列名是user_id
-    fileId,
-    originalName,
-    filePath: relativePath,
-    fileType: fileType as "background" | "avatar" | "attachment",
-    publicUrl,
-  });
-  
-  // 如果是背景图片，清理旧的背景图片
-  if (fileType === 'background') {
-    await cleanupOldBackgrounds(userId);
+): Promise<{ fileId: string; filePath: string; publicUrl: string; fileVersion: string }> {
+  try {
+    // 为用户创建目录
+    const userDir = path.join(BUCKET_ROOT, userId.toString());
+    ensureDirectoryExists(userDir);
+    
+    // 创建文件类型子目录
+    const typeDir = path.join(userDir, fileType);
+    ensureDirectoryExists(typeDir);
+    
+    // 生成唯一文件名
+    const fileExtension = path.extname(originalName);
+    const fileId = uuidv4();
+    const fileName = `${fileId}${fileExtension}`;
+    const filePath = path.join(typeDir, fileName);
+    
+    // 为文件生成版本标识符（用于缓存控制）
+    const fileVersion = Date.now().toString(36);
+    
+    // 处理并保存文件
+    await processImageFile(fileBuffer, filePath, fileType, fileExtension);
+    
+    // 计算公共URL
+    const relativePath = path.relative(process.cwd(), filePath);
+    const publicUrl = `/api/files/${userId}/${fileType}/${fileName}`;
+    
+    // 添加到数据库
+    await db.insert(userFiles).values({
+      userId,
+      fileId,
+      originalName,
+      filePath: relativePath,
+      fileType: fileType as "background" | "avatar" | "attachment",
+      publicUrl,
+    });
+    
+    // 如果是背景图片，清理旧的背景图片
+    if (fileType === 'background') {
+      await cleanupOldBackgrounds(userId);
+      
+      // 记录日志
+      console.log(`用户 ${userId} 上传了新背景图片: ${fileId}`);
+    }
+    
+    return { fileId, filePath, publicUrl, fileVersion };
+  } catch (error) {
+    console.error(`保存文件到存储桶失败: ${error}`);
+    throw error;
   }
-  
-  return { fileId, filePath, publicUrl };
 }
 
 /**
