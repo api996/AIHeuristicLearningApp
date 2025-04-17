@@ -60,6 +60,21 @@
     border-top: 1px solid rgba(var(--custom-theme-color-rgb), 0.25) !important; /* 主题色边框 */
   }
   
+  /* 修复输入框获得焦点时底部导航栏的蓝色高亮问题 */
+  .chat-input-area input:focus,
+  .chat-input-area textarea:focus,
+  .chat-input-area [contenteditable]:focus {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    box-shadow: none !important;
+  }
+  
+  /* 防止底部导航按钮在触摸时显示蓝色高亮 */
+  .bottom-nav-button {
+    -webkit-tap-highlight-color: transparent !important;
+    outline: none !important;
+  }
+  
   /* 消息容器 */
   .chat-message-container {
     padding-left: 12px !important;
@@ -183,6 +198,28 @@
       font-size: 16px !important;
     }
     
+    /* 修复iPhone输入框获得焦点时底部导航高亮的问题 */
+    .iphone-device input:focus,
+    .iphone-device textarea:focus,
+    .iphone-device [contenteditable]:focus,
+    .iphone-device button:focus,
+    .iphone-device a:focus,
+    .iphone-device *:focus {
+      -webkit-tap-highlight-color: transparent !important;
+      outline: none !important;
+      box-shadow: none !important;
+      outline-width: 0 !important;
+    }
+    
+    /* 键盘打开时彻底禁用底部导航的任何高亮 */
+    .iphone-device.keyboard-open .bottom-nav-button {
+      -webkit-tap-highlight-color: transparent !important;
+      outline: none !important;
+      background-color: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    
     /* iPhone设备键盘打开时消息列表底部空间 */
     .iphone-device.keyboard-open .chat-message-container {
       padding-bottom: 90px !important;
@@ -220,6 +257,28 @@
       background-color: rgba(230, 242, 255, 0.75) !important; /* 浅蓝色半透明背景 */
       border-top: 1px solid rgba(var(--custom-theme-color-rgb), 0.3) !important; /* 主题色边框 */
       box-shadow: 0 -3px 10px rgba(0, 122, 255, 0.05) !important; /* 蓝色阴影 */
+    }
+    
+    /* 修复安卓输入框获得焦点时底部导航高亮的问题 */
+    .android-device input:focus,
+    .android-device textarea:focus,
+    .android-device [contenteditable]:focus,
+    .android-device button:focus,
+    .android-device a:focus,
+    .android-device *:focus {
+      -webkit-tap-highlight-color: transparent !important;
+      outline: none !important;
+      box-shadow: none !important;
+      outline-width: 0 !important;
+    }
+    
+    /* 键盘打开时彻底禁用底部导航的任何高亮 */
+    .android-device.keyboard-open .bottom-nav-button {
+      -webkit-tap-highlight-color: transparent !important;
+      outline: none !important;
+      background-color: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
     }
     
     /* 安卓手机键盘弹出时的内容调整 */
