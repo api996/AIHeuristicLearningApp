@@ -595,8 +595,8 @@ export function PromptEditorPage() {
 
           {/* 右侧编辑区 */}
           <div className="lg:col-span-3">
-            <Card className="h-full bg-neutral-900 border-neutral-800">
-              <CardHeader>
+            <Card className="h-full bg-neutral-900 border-neutral-800 flex flex-col">
+              <CardHeader className="flex-shrink-0">
                 <div className="flex items-center">
                   <div className="text-blue-500 mr-2">
                     {currentTab.icon}
@@ -612,7 +612,7 @@ export function PromptEditorPage() {
                   </div>
                 )}
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-grow overflow-y-auto" style={{ maxHeight: "calc(100vh - 300px)" }}>
                 <div className="bg-neutral-800 border border-neutral-700 p-3 rounded-md mb-3 text-sm text-white">
                   <p className="text-gray-200">提示词支持以下变量：</p>
                   <div className="grid grid-cols-2 gap-2 mt-1">
@@ -631,7 +631,7 @@ export function PromptEditorPage() {
                   value={templateContent.value}
                   onChange={(e) => templateContent.setter(e.target.value)}
                   placeholder={templateContent.placeholder}
-                  className="min-h-[400px] font-mono text-sm bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500"
+                  className="min-h-[400px] max-h-[70vh] font-mono text-sm bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 overflow-y-auto"
                   disabled={loading}
                 />
               </CardContent>
