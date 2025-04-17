@@ -60,12 +60,12 @@
 
 /* 对话框磨砂玻璃样式 - 浅色模式 */
 :root.light .frosted-dialog {
-  background: rgba(250, 250, 255, 0.85) !important; 
+  background: rgba(255, 255, 255, 0.95) !important; 
   backdrop-filter: blur(20px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid rgba(230, 230, 250, 0.5) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
-  color: #1a1a2e !important;
+  border: 1px solid rgba(160, 195, 235, 0.5) !important;
+  box-shadow: 0 10px 30px rgba(65, 105, 225, 0.12) !important;
+  color: #283452 !important;
 }
 
 /* 偏好设置对话框中的按钮样式增强 */
@@ -98,27 +98,30 @@
 /* 浅色模式下对话框中的选中按钮 */
 :root.light .frosted-dialog button[variant="default"],
 :root.light .frosted-dialog button[class*="bg-primary"] {
-  background-color: rgba(0, 122, 255, 0.2) !important;
-  color: rgba(0, 122, 255, 1) !important;
-  font-weight: 500 !important;
-  border: 1px solid rgba(0, 122, 255, 0.4) !important;
-  box-shadow: 0 0 10px rgba(0, 122, 255, 0.15) !important;
+  background-color: rgba(0, 122, 255, 0.25) !important;
+  color: rgba(0, 80, 170, 1) !important;
+  font-weight: 600 !important;
+  border: 2px solid rgba(0, 122, 255, 0.6) !important;
+  box-shadow: 0 0 12px rgba(0, 122, 255, 0.2) !important;
   transform: scale(1.05) !important;
+  transition: all 0.2s ease !important;
 }
 
 /* 浅色模式下对话框中的未选中按钮 */
 :root.light .frosted-dialog button[variant="outline"],
 :root.light .frosted-dialog button[class*="border"] {
-  background-color: rgba(245, 245, 250, 0.7) !important;
-  color: rgba(60, 60, 80, 0.8) !important;
-  border: 1px solid rgba(200, 200, 220, 0.4) !important;
+  background-color: rgba(240, 245, 250, 0.85) !important;
+  color: rgba(50, 70, 100, 0.9) !important;
+  border: 1px solid rgba(200, 220, 240, 0.5) !important;
+  transition: all 0.2s ease !important;
 }
 
 :root.light .frosted-dialog button[variant="outline"]:hover,
 :root.light .frosted-dialog button[class*="border"]:hover {
-  background-color: rgba(230, 240, 255, 0.8) !important;
-  border-color: rgba(0, 122, 255, 0.3) !important;
+  background-color: rgba(220, 235, 255, 0.9) !important;
+  border-color: rgba(0, 122, 255, 0.4) !important;
   color: rgba(0, 122, 255, 0.9) !important;
+  transform: scale(1.02) !important;
 }
 
 /* 精美磨砂玻璃提示框样式 - 深色模式 */
