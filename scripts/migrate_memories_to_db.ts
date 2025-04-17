@@ -34,11 +34,25 @@ async function migrateMemoriesToDatabase() {
       // 可以添加交互确认逻辑
     }
     
-    // 基础路径
-    const memoryBasePath = path.resolve(process.cwd(), 'memory_space');
+    // 基础路径 - 尝试几种可能的路径
+    let memoryBasePath = path.resolve(process.cwd(), '../memory_space');
+    log(`尝试访问记忆路径: ${memoryBasePath}`);
     if (!fs.existsSync(memoryBasePath)) {
-      log(`记忆目录不存在: ${memoryBasePath}`);
-      return;
+      // 尝试备选路径
+      const altPath = path.resolve(process.cwd(), 'memory_space');
+      log(`主路径不存在，尝试备选路径: ${altPath}`);
+      if (!fs.existsSync(altPath)) {
+        // 尝试项目根目录
+        const rootPath = path.resolve(process.cwd(), '../../memory_space');
+        log(`备选路径不存在，尝试根目录路径: ${rootPath}`);
+        if (!fs.existsSync(rootPath)) {
+          log(`记忆目录不存在，尝试过: ${memoryBasePath}, ${altPath}, ${rootPath}`);
+          return;
+        }
+        memoryBasePath = rootPath;
+      } else {
+        memoryBasePath = altPath;
+      }
     }
     
     // 获取所有用户目录
