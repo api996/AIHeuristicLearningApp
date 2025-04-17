@@ -19,6 +19,40 @@ export default function Login() {
   const [isDeveloperMode, setIsDeveloperMode] = useState(false);
   const [developerPassword, setDeveloperPassword] = useState("");
 
+  // 系统设置状态
+  const [isRegistrationEnabled, setIsRegistrationEnabled] = useState(true);
+  const [isLoginEnabled, setIsLoginEnabled] = useState(true);
+  const [systemConfigLoaded, setSystemConfigLoaded] = useState(false);
+  
+  // 加载系统配置
+  useEffect(() => {
+    const loadSystemConfig = async () => {
+      try {
+        const response = await fetch('/api/system-config');
+        if (response.ok) {
+          const configs = await response.json();
+          
+          // 检查注册和登录配置
+          const registrationConfig = configs.find((config: any) => config.key === 'registration_enabled');
+          const loginConfig = configs.find((config: any) => config.key === 'login_enabled');
+          
+          // 设置状态
+          setIsRegistrationEnabled(registrationConfig ? registrationConfig.value === 'true' : true);
+          setIsLoginEnabled(loginConfig ? loginConfig.value === 'true' : true);
+        }
+      } catch (error) {
+        console.error('无法加载系统配置', error);
+        // 默认情况下允许注册和登录
+        setIsRegistrationEnabled(true);
+        setIsLoginEnabled(true);
+      } finally {
+        setSystemConfigLoaded(true);
+      }
+    };
+    
+    loadSystemConfig();
+  }, []);
+
   // 检查是否已登录
   useEffect(() => {
     console.log('[Login] Checking existing user session');
@@ -131,6 +165,17 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
+    // 检查系统配置
+    if (isRegistering && !isRegistrationEnabled) {
+      setError("系统当前不允许新用户注册，请联系管理员");
+      return;
+    }
+
+    if (!isRegistering && !isLoginEnabled) {
+      setError("系统当前处于维护状态，暂时禁止登录");
+      return;
+    }
+
     if (!username || !password) {
       setError("请填写用户名和密码");
       return;
@@ -231,6 +276,29 @@ export default function Login() {
         <h1 className="text-2xl font-bold text-white mb-4">
           {isRegistering ? "注册" : "登录"}
         </h1>
+        
+        {/* 系统状态通知 */}
+        {systemConfigLoaded && (
+          <>
+            {!isLoginEnabled && (
+              <Alert className="bg-red-900 border-red-700 text-white mb-4">
+                <AlertCircle className="h-4 w-4 text-red-300" />
+                <AlertDescription className="text-sm">
+                  系统当前处于维护状态，暂时禁止登录。
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {isRegistering && !isRegistrationEnabled && (
+              <Alert className="bg-yellow-900 border-yellow-700 text-white mb-4">
+                <AlertCircle className="h-4 w-4 text-yellow-300" />
+                <AlertDescription className="text-sm">
+                  系统当前不允许新用户注册，请联系管理员。
+                </AlertDescription>
+              </Alert>
+            )}
+          </>
+        )}
 
         <form onSubmit={handleSubmit} className="w-full">
           <div className="input-box relative w-full my-[30px] border-b-2 border-white">

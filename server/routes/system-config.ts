@@ -32,6 +32,42 @@ const isAdmin = async (req: Request, res: Response, next: Function) => {
 };
 
 /**
+ * 初始化默认系统配置
+ * 这个函数会在模块加载时运行，确保系统配置始终存在
+ */
+async function initDefaultConfigs() {
+  try {
+    // 检查配置是否已存在
+    const registrationConfig = await storage.getSystemConfig('registration_enabled');
+    if (!registrationConfig) {
+      // 创建默认配置
+      await storage.upsertSystemConfig(
+        'registration_enabled',
+        'true',
+        '是否允许新用户注册'
+      );
+      log('已创建默认注册配置');
+    }
+
+    const loginConfig = await storage.getSystemConfig('login_enabled');
+    if (!loginConfig) {
+      // 创建默认配置
+      await storage.upsertSystemConfig(
+        'login_enabled',
+        'true',
+        '是否允许用户登录'
+      );
+      log('已创建默认登录配置');
+    }
+  } catch (error) {
+    log(`初始化默认系统配置错误: ${error}`);
+  }
+}
+
+// 调用初始化函数
+initDefaultConfigs();
+
+/**
  * 获取所有系统配置
  */
 router.get('/', async (req: Request, res: Response) => {
