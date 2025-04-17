@@ -73,6 +73,48 @@ export async function initializeBucket(): Promise<void> {
 }
 
 /**
+ * 清理用户旧的背景图片
+ * @param userId 用户ID
+ */
+export async function cleanupOldBackgrounds(userId: number): Promise<number> {
+  try {
+    // 查询用户的所有背景图片，按创建时间降序排序
+    const backgrounds = await db.query.userFiles.findMany({
+      where: (userFiles) => {
+        return eq(userFiles.userId, userId) && eq(userFiles.fileType, 'background');
+      },
+      orderBy: (userFiles, { desc }) => [desc(userFiles.createdAt)],
+    });
+    
+    // 如果只有一张或没有背景图片，不需要清理
+    if (backgrounds.length <= 1) {
+      return 0;
+    }
+    
+    // 保留最新的背景图片，删除其余的
+    let deletedCount = 0;
+    for (let i = 1; i < backgrounds.length; i++) {
+      const oldBg = backgrounds[i];
+      // 删除文件
+      const filePath = path.join(process.cwd(), oldBg.filePath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      
+      // 从数据库中删除记录
+      await db.delete(userFiles).where(eq(userFiles.id, oldBg.id));
+      deletedCount++;
+    }
+    
+    console.log(`已清理用户 ${userId} 的 ${deletedCount} 张旧背景图片`);
+    return deletedCount;
+  } catch (error) {
+    console.error(`清理用户 ${userId} 旧背景图片时出错:`, error);
+    return 0;
+  }
+}
+
+/**
  * 保存文件到存储桶
  * @param userId 用户ID
  * @param fileBuffer 文件数据
@@ -115,6 +157,11 @@ export async function saveFileToBucket(
     fileType: fileType as "background" | "avatar" | "attachment",
     publicUrl,
   });
+  
+  // 如果是背景图片，清理旧的背景图片
+  if (fileType === 'background') {
+    await cleanupOldBackgrounds(userId);
+  }
   
   return { fileId, filePath, publicUrl };
 }
@@ -209,13 +256,24 @@ export function getDefaultBackgroundUrl(isPortrait: boolean = false): string {
  * @param isPortrait 是否为竖屏方向
  */
 export async function getUserBackground(userId: number, isPortrait: boolean = false): Promise<string> {
-  const backgrounds = await getUserFiles(userId, 'background');
-  
-  if (backgrounds && backgrounds.length > 0) {
-    // 返回最新的背景图片
-    return backgrounds[0].publicUrl;
+  try {
+    // 直接从数据库查询最新的背景图片
+    const result = await db.query.userFiles.findMany({
+      where: (userFiles) => {
+        return eq(userFiles.userId, userId) && eq(userFiles.fileType, 'background');
+      },
+      orderBy: (userFiles, { desc }) => [desc(userFiles.createdAt)],
+      limit: 1
+    });
+    
+    if (result && result.length > 0) {
+      console.log(`用户 ${userId} 的最新背景图片: ${result[0].fileId}, 创建时间: ${result[0].createdAt}`);
+      return result[0].publicUrl;
+    }
+  } catch (error) {
+    console.error(`获取用户 ${userId} 背景图片时出错:`, error);
   }
   
-  // 默认背景
+  // 如果没有找到背景或出错，返回默认背景
   return getDefaultBackgroundUrl(isPortrait);
 }
