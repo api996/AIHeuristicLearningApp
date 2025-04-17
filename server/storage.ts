@@ -22,6 +22,11 @@ export interface IStorage {
   updateUserPassword(userId: number, newPassword: string): Promise<void>;
   updateUserRole(userId: number, role: "admin" | "user"): Promise<void>;
   deleteUser(userId: number): Promise<void>;
+  
+  // System config methods
+  getSystemConfig(key: string): Promise<SystemConfig | undefined>;
+  getAllSystemConfigs(): Promise<SystemConfig[]>;
+  upsertSystemConfig(key: string, value: string, description?: string, updatedBy?: number): Promise<SystemConfig>;
 
   // Chat methods
   createChat(userId: number, title: string, model: string): Promise<Chat>;
@@ -1112,6 +1117,66 @@ export class DatabaseStorage implements IStorage {
       return analytics;
     } catch (error) {
       log(`获取对话阶段分析历史错误: ${error}`);
+      throw error;
+    }
+  }
+
+  // System config methods
+  async getSystemConfig(key: string): Promise<SystemConfig | undefined> {
+    try {
+      const [config] = await db.select()
+        .from(systemConfig)
+        .where(eq(systemConfig.key, key));
+      return config;
+    } catch (error) {
+      log(`Error getting system config: ${error}`);
+      throw error;
+    }
+  }
+
+  async getAllSystemConfigs(): Promise<SystemConfig[]> {
+    try {
+      return await db.select()
+        .from(systemConfig)
+        .orderBy(asc(systemConfig.key));
+    } catch (error) {
+      log(`Error getting all system configs: ${error}`);
+      throw error;
+    }
+  }
+
+  async upsertSystemConfig(key: string, value: string, description?: string, updatedBy?: number): Promise<SystemConfig> {
+    try {
+      // 尝试获取现有配置
+      const existingConfig = await this.getSystemConfig(key);
+      
+      if (existingConfig) {
+        // 更新现有配置
+        const [updatedConfig] = await db.update(systemConfig)
+          .set({ 
+            value, 
+            description: description || existingConfig.description,
+            updatedAt: new Date(),
+            updatedBy: updatedBy || existingConfig.updatedBy
+          })
+          .where(eq(systemConfig.key, key))
+          .returning();
+        return updatedConfig;
+      } else {
+        // 创建新配置
+        const [newConfig] = await db.insert(systemConfig)
+          .values({ 
+            key, 
+            value, 
+            description,
+            updatedAt: new Date(),
+            updatedBy 
+          })
+          .returning();
+        return newConfig;
+      }
+    } catch (error) {
+      log(`Error upserting system config: ${error}`);
       throw error;
     }
   }
