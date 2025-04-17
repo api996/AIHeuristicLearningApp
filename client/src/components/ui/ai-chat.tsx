@@ -88,16 +88,19 @@ export function AIChat({ userData }: AIChatProps) {
     // 如果已经是当前模型，不执行任何操作
     if (newModel === currentModel) return;
     
-    // 设置新的模型
+    // 设置新的模型（不影响网络搜索状态）
     setCurrentModel(newModel);
     
-    // 显示模型切换提示
+    // 显示模型切换提示，包含网络搜索状态信息
     toast({
       title: `已切换到${newModel === "deep" ? "深度推理" : 
              newModel === "gemini" ? "Gemini" :
              newModel === "deepseek" ? "Deepseek" : "Grok"}模型`,
-      description: "对话上下文已保留，继续您的对话",
+      description: useWebSearch 
+        ? "网络搜索功能仍然启用中，对话上下文已保留" 
+        : "对话上下文已保留，继续您的对话",
       variant: "default",
+      className: "frosted-toast",
     });
     
     // 如果有当前聊天ID，则更新聊天的模型设置
@@ -106,7 +109,7 @@ export function AIChat({ userData }: AIChatProps) {
         // 发送请求更新聊天模型
         const baseUrl = window.location.origin;
         const apiUrl = `${baseUrl}/api/chats/${currentChatId}/model`;
-        console.log("切换模型请求URL:", apiUrl);
+        console.log("切换模型请求URL:", apiUrl, "网络搜索状态保持为:", useWebSearch);
         const response = await fetch(apiUrl, {
           method: "PATCH",
           headers: {
@@ -115,7 +118,8 @@ export function AIChat({ userData }: AIChatProps) {
           body: JSON.stringify({ 
             model: newModel,
             userId: user.userId,
-            userRole: user.role // 添加用户角色参数
+            userRole: user.role, // 添加用户角色参数
+            useWebSearch: useWebSearch // 保持网络搜索状态不变
           }),
         });
         
@@ -131,9 +135,9 @@ export function AIChat({ userData }: AIChatProps) {
         if (responseData.changed) {
           // 更新查询缓存
           queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
-          console.log(`聊天ID ${currentChatId} 的模型已更新从 ${responseData.previousModel} 变更为 ${responseData.newModel}`);
+          console.log(`聊天ID ${currentChatId} 的模型已更新从 ${responseData.previousModel} 变更为 ${responseData.newModel}，网络搜索状态：${useWebSearch}`);
         } else {
-          console.log(`聊天ID ${currentChatId} 的模型未变更，保持为 ${newModel}`);
+          console.log(`聊天ID ${currentChatId} 的模型未变更，保持为 ${newModel}，网络搜索状态：${useWebSearch}`);
         }
       } catch (error) {
         console.error("更新聊天模型时出错:", error);
@@ -141,6 +145,7 @@ export function AIChat({ userData }: AIChatProps) {
           title: "更新模型设置失败",
           description: "无法更新聊天模型，但您仍可继续使用当前模型",
           variant: "destructive",
+          className: "frosted-toast-error",
         });
       }
     }
@@ -1533,46 +1538,63 @@ export function AIChat({ userData }: AIChatProps) {
           <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8">
             {/* 模型选择和网络搜索开关 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
-              {/* 网络搜索按钮 - 使用统一青色主题 */}
+              {/* 网络搜索按钮 - 特殊样式，表明它是独立选项 */}
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-8 text-xs bg-black/40 hover:bg-opacity-10 ` + 
+                className={`h-8 text-xs bg-black/40 hover:bg-opacity-10 relative transition-all duration-200 
+                  ${useWebSearch ? 'shadow-inner transform scale-105' : ''} ` + 
                   (useWebSearch 
                     ? (theme === 'dark' 
-                        ? "border-[#0deae4] text-[#0deae4]" 
-                        : "border-custom-theme text-custom-theme") 
+                        ? "border-yellow-400 text-yellow-300 bg-yellow-900/30" 
+                        : "border-yellow-500 text-yellow-700 bg-yellow-50") 
                     : (theme === 'dark'
-                        ? "border-[#0deae4]/40 text-white"
-                        : "border-custom-theme/40 text-white"))
+                        ? "border-yellow-600/40 text-white"
+                        : "border-yellow-400/40 text-white"))
                 }
-                style={theme === 'light' && useWebSearch ? {
-                  borderColor: 'var(--custom-theme-color)',
-                  color: 'var(--custom-theme-color)'
-                } : theme === 'light' ? {
-                  borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
-                  '--tw-hover-bg-opacity': 0.1
-                } as React.CSSProperties : {}}
+                style={{
+                  ...(theme === 'light' && useWebSearch ? {
+                    borderColor: '#f59e0b',
+                    color: '#b45309',
+                    backgroundColor: 'rgba(254, 240, 138, 0.2)',
+                    boxShadow: useWebSearch ? 'inset 0 2px 4px rgba(245, 158, 11, 0.1)' : 'none'
+                  } : {}),
+                  ...(theme === 'light' && !useWebSearch ? {
+                    borderColor: 'rgba(245, 158, 11, 0.4)',
+                    '--tw-hover-bg-opacity': 0.1
+                  } as React.CSSProperties : {})
+                }}
                 onClick={() => {
                   const newState = !useWebSearch;
                   setUseWebSearch(newState);
                   // 保存到localStorage，确保刷新页面后状态不丢失
                   localStorage.setItem('useWebSearch', String(newState));
+                  
+                  // 显示状态变化提示
+                  toast({
+                    title: newState ? "网络搜索已启用" : "网络搜索已关闭",
+                    description: newState ? "现在AI将使用网络搜索工具获取最新信息" : "AI将仅使用内部知识回答",
+                    variant: "default",
+                    className: newState ? "frosted-toast-success" : "frosted-toast",
+                  });
                 }}
               >
                 <Search 
                   className={`w-3.5 h-3.5 mr-1.5 ${
                     theme === 'dark' 
-                      ? (useWebSearch ? 'text-[#0deae4]' : 'text-[#0deae4]/70')
+                      ? (useWebSearch ? 'text-yellow-300' : 'text-yellow-600/70')
                       : ''
                   }`} 
                   style={theme === 'light' ? {
                     color: useWebSearch 
-                      ? 'var(--custom-theme-color)' 
-                      : 'rgba(var(--custom-theme-color-rgb), 0.7)'
+                      ? '#b45309' 
+                      : 'rgba(245, 158, 11, 0.7)'
                   } : {}}
                 />
                 网络搜索
+                {useWebSearch && (
+                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-green-500 border border-green-200"></span>
+                )}
               </Button>
               
               {/* 模型选择按钮 */}
