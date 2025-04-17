@@ -2176,7 +2176,7 @@ export function AIChat({ userData }: AIChatProps) {
           </DialogHeader>
           <div className="space-y-6 py-3">
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">外观</h3>
+              <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">外观</h3>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={theme === "light" ? "default" : "outline"}
