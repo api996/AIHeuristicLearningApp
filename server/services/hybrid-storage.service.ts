@@ -49,16 +49,22 @@ export async function saveFileToStorage(
 ) {
   if (objectStorageEnabled) {
     // 使用对象存储
-    const result = await saveFileToObjectStorage(userId, fileBuffer, originalName, fileType);
-    return {
-      fileId: result.fileId,
-      publicUrl: result.publicUrl,
-      fileVersion: result.version
-    };
-  } else {
-    // 使用文件系统
-    return await saveFileToBucket(userId, fileBuffer, originalName, fileType);
+    try {
+      const result = await saveFileToObjectStorage(userId, fileBuffer, originalName, fileType);
+      return {
+        fileId: result.fileId,
+        publicUrl: result.publicUrl,
+        fileVersion: result.version
+      };
+    } catch (error) {
+      // 如果对象存储失败，记录错误并回退到文件系统
+      console.warn(`对象存储上传失败，回退到文件系统: ${error}`);
+      // 继续执行下面的文件系统存储代码
+    }
   }
+  
+  // 使用文件系统 (作为回退方案或默认选项)
+  return await saveFileToBucket(userId, fileBuffer, originalName, fileType);
 }
 
 /**
@@ -96,10 +102,17 @@ export async function getFileFromStorage(userId: number, fileId: string): Promis
  */
 export async function getUserFiles(userId: number, fileType?: string): Promise<any[]> {
   if (objectStorageEnabled) {
-    return await getFilesFromObjectStorage(userId, fileType);
-  } else {
-    return await getFilesFromBucket(userId, fileType);
+    try {
+      return await getFilesFromObjectStorage(userId, fileType);
+    } catch (error) {
+      // 如果对象存储操作失败，记录错误并回退到文件系统
+      console.warn(`从对象存储获取文件列表失败，回退到文件系统: ${error}`);
+      // 继续执行下面的文件系统获取代码
+    }
   }
+  
+  // 使用文件系统 (作为回退方案或默认选项)
+  return await getFilesFromBucket(userId, fileType);
 }
 
 /**
@@ -109,10 +122,17 @@ export async function getUserFiles(userId: number, fileType?: string): Promise<a
  */
 export async function deleteFileFromStorage(userId: number, fileId: string): Promise<boolean> {
   if (objectStorageEnabled) {
-    return await deleteUserFile(userId, fileId);
-  } else {
-    return await deleteFileFromBucket(userId, fileId);
+    try {
+      return await deleteUserFile(userId, fileId);
+    } catch (error) {
+      // 如果对象存储操作失败，记录错误并回退到文件系统
+      console.warn(`对象存储删除失败，回退到文件系统: ${error}`);
+      // 继续执行下面的文件系统删除代码
+    }
   }
+  
+  // 使用文件系统 (作为回退方案或默认选项)
+  return await deleteFileFromBucket(userId, fileId);
 }
 
 /**
@@ -122,10 +142,17 @@ export async function deleteFileFromStorage(userId: number, fileId: string): Pro
  */
 export async function getUserBackground(userId: number, isPortrait: boolean = false): Promise<string> {
   if (objectStorageEnabled) {
-    return await getBackgroundFromObjectStorage(userId, isPortrait);
-  } else {
-    return await getBackgroundFromBucket(userId, isPortrait);
+    try {
+      return await getBackgroundFromObjectStorage(userId, isPortrait);
+    } catch (error) {
+      // 如果对象存储操作失败，记录错误并回退到文件系统
+      console.warn(`从对象存储获取背景图片失败，回退到文件系统: ${error}`);
+      // 继续执行下面的文件系统获取代码
+    }
   }
+  
+  // 使用文件系统 (作为回退方案或默认选项)
+  return await getBackgroundFromBucket(userId, isPortrait);
 }
 
 /**
@@ -133,7 +160,18 @@ export async function getUserBackground(userId: number, isPortrait: boolean = fa
  * @param userId 用户ID (可选，如果不提供则迁移所有用户的文件)
  */
 export async function migrateToObjectStorage(userId?: number) {
-  return await migrateFilesToObjectStorage(userId);
+  try {
+    return await migrateFilesToObjectStorage(userId);
+  } catch (error) {
+    console.error(`迁移到对象存储失败: ${error}`);
+    return {
+      total: 0,
+      success: 0,
+      failed: 0,
+      users: 0,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
 }
 
 // 导出默认背景路径函数
