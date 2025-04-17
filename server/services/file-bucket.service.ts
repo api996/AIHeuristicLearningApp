@@ -248,6 +248,7 @@ export async function saveFileToBucket(
       filePath: relativePath,
       fileType: fileType as "background" | "avatar" | "attachment",
       publicUrl,
+      storageType: 'file-system' as "file-system" | "object-storage", // 明确指定为文件系统存储
     });
     
     // 如果是背景图片，清理旧的背景图片
