@@ -136,6 +136,22 @@ app.use((req, res, next) => {
     
     // 是否执行自动迁移
     const AUTO_MIGRATE = process.env.AUTO_MIGRATE_FILES === 'true';
+    
+    // 如果配置了自动迁移，且对象存储可用，则执行迁移
+    if (AUTO_MIGRATE && useObjectStorage) {
+      try {
+        log("开始自动迁移文件到对象存储...");
+        // 异步执行迁移，不阻塞服务器启动
+        import('./services/hybrid-storage.service').then(async ({migrateToObjectStorage}) => {
+          const result = await migrateToObjectStorage();
+          log(`文件自动迁移完成: 总共${result.total}个文件，成功${result.success}个，失败${result.failed}个，涉及${result.users}个用户`);
+        }).catch(error => {
+          log(`文件自动迁移失败: ${error instanceof Error ? error.message : String(error)}`);
+        });
+      } catch (error) {
+        log(`启动自动迁移失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
 
     const server = await registerRoutes(app);
 
