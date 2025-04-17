@@ -8,6 +8,7 @@ channel = "stable-24_05"
 [deployment]
 deploymentTarget = "cloudrun"
 run = ["sh", "-c", "npm run dev"]
+build = ["sh", "-c", "npm run build"]
 
 [[ports]]
 localPort = 5000
@@ -376,6 +377,15 @@ args = "python3 scripts/memory_cleanup.py"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "NODE_ENV=development npm run dev"
+
+[[workflows.workflow]]
+name = "清理虚假记忆文件"
+author = 41556570
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 scripts/clean_fake_memories.py"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-a2a19666-a799-475c-bd79-068397f30df4"

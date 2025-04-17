@@ -61,6 +61,12 @@ const router = Router();
  */
 router.get("/:userId", async (req: Request, res: Response) => {
   try {
+    // 如果是管理员路由请求，直接返回空数据，避免触发记忆系统
+    if (req.isAdminRoute) {
+      log(`[记忆空间API] 检测到管理员路由请求，跳过记忆加载`);
+      return res.json({ memories: [] });
+    }
+    
     const userId = utils.safeParseInt(req.params.userId);
     if (!userId) {
       return res.status(400).json({ error: "Invalid user ID" });
