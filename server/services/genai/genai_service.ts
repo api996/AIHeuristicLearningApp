@@ -228,6 +228,29 @@ const createGenAIService = (): GenAIService => {
 };
 
 // 导出服务实例
+/**
+ * 移除模型输出中的思考过程和提示词
+ * @param text 原始模型输出
+ * @returns 过滤后的文本
+ */
+export function removeThinkingProcess(text: string): string {
+  if (!text) return text;
+  
+  // 移除<think>...</think>标签之间的内容
+  let filtered = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+  
+  // 移除提示词模板中的{{...}}指令
+  filtered = filtered.replace(/{{[^}]*}}/g, '');
+  
+  // 整理多余的空行（将连续的多个空行替换为两个空行）
+  filtered = filtered.replace(/(\n\s*){3,}/g, '\n\n');
+  
+  // 去除首尾的空白字符
+  filtered = filtered.trim();
+  
+  return filtered;
+}
+
 export let genAiService: GenAIService;
 
 // 异步初始化
