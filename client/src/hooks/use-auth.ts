@@ -108,7 +108,15 @@ export const useAuth = () => {
         // 服务器确认用户有效，保存到本地
         localStorage.setItem("user", JSON.stringify(userData));
         setUser(userData);
-        authEvents.dispatchUserRegistered(); // 触发用户注册事件
+        
+        // 添加调试日志
+        console.log('[useAuth] 用户登录成功，已保存用户数据:', userData);
+        
+        // 触发用户注册事件
+        authEvents.dispatchUserRegistered(); 
+        
+        // 设置会话Cookie（可选，用于配合服务端session）
+        document.cookie = `userId=${userData.userId}; path=/; max-age=86400`;
         
         // 如果是管理员，直接转到管理界面
         if (userData.role === 'admin') {
@@ -118,10 +126,11 @@ export const useAuth = () => {
         }
       } else {
         // 服务器无法确认用户，可能会话已过期
+        console.error('[useAuth] 用户会话验证失败, 状态码:', response.status);
         throw new Error("用户会话验证失败");
       }
     } catch (error) {
-      console.error("登录验证失败:", error);
+      console.error("[useAuth] 登录验证失败:", error);
       // 清除可能无效的数据
       localStorage.removeItem("user");
       setUser(null);

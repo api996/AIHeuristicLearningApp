@@ -21,8 +21,8 @@ declare global {
 // 要求用户已登录
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // 从session获取用户ID
-    const userId = req.session?.userId;
+    // 从session获取用户ID，如果不存在则尝试从query参数获取
+    const userId = req.session?.userId || (req.query.userId ? Number(req.query.userId) : undefined);
     
     if (!userId) {
       return res.status(401).json({
