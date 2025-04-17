@@ -120,14 +120,23 @@ app.use((req, res, next) => {
     
     // 初始化对象存储服务
     let useObjectStorage = false;
-    try {
-      await initializeObjectStorage();
-      log("对象存储服务初始化成功");
-      useObjectStorage = true;
-    } catch (error) {
-      log(`对象存储服务初始化失败: ${error instanceof Error ? error.message : String(error)}`);
-      log("将继续使用文件系统存储");
-      useObjectStorage = false;
+    
+    // 临时禁用对象存储，目前Replit环境无法连接到存储API
+    const USE_OBJECT_STORAGE_FORCE = process.env.USE_OBJECT_STORAGE_FORCE === 'true';
+    
+    if (USE_OBJECT_STORAGE_FORCE) {
+      // 仅当环境变量明确启用时才尝试使用对象存储
+      try {
+        await initializeObjectStorage();
+        log("对象存储服务初始化成功");
+        useObjectStorage = true;
+      } catch (error) {
+        log(`对象存储服务初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+        log("将继续使用文件系统存储");
+        useObjectStorage = false;
+      }
+    } else {
+      log("对象存储已禁用，使用文件系统存储 (要启用对象存储，请设置环境变量 USE_OBJECT_STORAGE_FORCE=true)");
     }
     
     // 初始化混合存储服务
@@ -135,7 +144,7 @@ app.use((req, res, next) => {
     log(`已初始化混合存储服务，模式: ${useObjectStorage ? '对象存储' : '文件系统'}`);
     
     // 是否执行自动迁移
-    const AUTO_MIGRATE = process.env.AUTO_MIGRATE_FILES === 'true';
+    const AUTO_MIGRATE = process.env.AUTO_MIGRATE_FILES === 'true' && useObjectStorage;
     
     // 如果配置了自动迁移，且对象存储可用，则执行迁移
     if (AUTO_MIGRATE && useObjectStorage) {
