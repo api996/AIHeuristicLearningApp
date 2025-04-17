@@ -60,19 +60,26 @@
     border-top: 1px solid rgba(var(--custom-theme-color-rgb), 0.25) !important; /* 主题色边框 */
   }
   
-  /* 修复输入框获得焦点时底部导航栏的蓝色高亮问题 */
-  .chat-input-area input:focus,
-  .chat-input-area textarea:focus,
-  .chat-input-area [contenteditable]:focus {
-    outline: none !important;
+  /* 专门解决输入框聚焦时底部导航蓝色高亮问题 */
+  .chat-input-area .selectable-container *:focus,
+  .chat-input-area.focused *,
+  .chat-input-area input:focus ~ nav button,
+  .chat-input-area textarea:focus ~ nav button,
+  .keyboard-open nav.bottom-0 button {
     -webkit-tap-highlight-color: transparent !important;
+    outline: none !important;
+    background-color: transparent !important;
     box-shadow: none !important;
   }
   
-  /* 防止底部导航按钮在触摸时显示蓝色高亮 */
-  .bottom-nav-button {
+  /* 修复聊天页面所有底部导航按钮，确保它们不受聚焦的影响 */
+  nav.bottom-0 button,
+  nav.fixed.bottom-0 button,
+  .keyboard-open nav button {
     -webkit-tap-highlight-color: transparent !important;
-    outline: none !important;
+    background-color: transparent !important;
+    outline: none !important; 
+    box-shadow: none !important;
   }
   
   /* 消息容器 */
