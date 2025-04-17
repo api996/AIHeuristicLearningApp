@@ -19,6 +19,10 @@ rm -rf dist
 echo "安装依赖..."
 npm ci
 
+# 确保vite在生产环境可用
+echo "确保vite在生产环境可用..."
+npm install --save vite
+
 # 构建前端
 echo "构建前端..."
 NODE_ENV=production npx vite build
