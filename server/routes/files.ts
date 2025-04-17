@@ -1,12 +1,17 @@
 /**
  * 文件API路由
  * 处理文件上传、获取和管理
+ * 升级版: 支持图像处理、缓存控制和即时更新
  */
 
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import etag from 'etag';
+import { db } from '../db';
+import { eq } from 'drizzle-orm';
+import { userFiles } from '../../shared/schema';
 import { 
   saveFileToBucket, 
   getFileFromBucket, 
@@ -30,6 +35,7 @@ const upload = multer({
 /**
  * 上传文件
  * 支持背景图片、头像和其他附件
+ * 增强版: 支持进度反馈、图像处理和缓存控制
  */
 router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
   try {
@@ -51,7 +57,20 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
       return res.status(400).json({ error: '不支持的文件类型' });
     }
 
-    // 保存文件到存储桶
+    // 检查文件大小
+    if (req.file.size > 10 * 1024 * 1024) { // 10MB
+      return res.status(400).json({ error: '文件过大，请上传10MB以内的文件' });
+    }
+
+    // 检查文件类型
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    const allowedImageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+    
+    if (fileType === 'background' && !allowedImageExtensions.includes(fileExtension)) {
+      return res.status(400).json({ error: '背景图片仅支持JPG, JPEG, PNG, WEBP和GIF格式' });
+    }
+
+    // 保存文件到存储桶 (增强版，支持图像处理)
     const result = await saveFileToBucket(
       userId,
       req.file.buffer,
@@ -59,10 +78,18 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
       fileType
     );
 
+    // 生成缓存破坏参数
+    const timestamp = Date.now();
+    const urlWithCacheBuster = `${result.publicUrl}?v=${result.fileVersion || timestamp}`;
+
+    // 成功上传响应
     res.json({
       success: true,
       fileId: result.fileId,
-      url: result.publicUrl
+      url: urlWithCacheBuster,
+      originalUrl: result.publicUrl,
+      timestamp,
+      version: result.fileVersion || timestamp
     });
   } catch (error) {
     console.error('文件上传失败:', error);
@@ -94,11 +121,15 @@ router.get('/list', async (req: Request, res: Response) => {
 
 /**
  * 获取背景图片
+ * 增强版: 支持缓存控制和实时更新
  */
 router.get('/background', async (req: Request, res: Response) => {
   try {
     // 从请求参数或会话中获取用户ID
     const userId = Number(req.query.userId) || req.session.userId;
+    
+    // 获取客户端请求的ETag (如果有)
+    const ifNoneMatch = req.headers['if-none-match'];
     
     // 根据设备方向选择背景图片，而不是设备类型
     const userAgent = req.headers['user-agent'] || '';
@@ -117,8 +148,38 @@ router.get('/background', async (req: Request, res: Response) => {
       return res.json({ url: defaultUrl });
     }
 
+    // 获取用户背景
     const backgroundUrl = await getUserBackground(userId, isPortrait);
-    res.json({ url: backgroundUrl });
+    
+    // 生成版本标识 (使用时间戳)
+    const timestamp = Date.now();
+    const version = timestamp.toString(36);
+    
+    // 构建带有缓存破坏参数的URL
+    const cacheBuster = req.query.noCache ? timestamp : version;
+    const urlWithCacheBuster = backgroundUrl.includes('?') 
+      ? `${backgroundUrl}&v=${cacheBuster}` 
+      : `${backgroundUrl}?v=${cacheBuster}`;
+    
+    // 生成新的ETag
+    const newETag = etag(`${userId}-${backgroundUrl}-${version}`);
+    
+    // 如果客户端发送了If-None-Match头，并且ETag匹配，返回304 Not Modified
+    if (ifNoneMatch && ifNoneMatch === newETag) {
+      return res.status(304).end();
+    }
+    
+    // 设置缓存控制头
+    res.setHeader('ETag', newETag);
+    res.setHeader('Cache-Control', 'max-age=60, must-revalidate'); // 缓存1分钟
+    
+    // 返回背景URL和版本信息
+    res.json({ 
+      url: urlWithCacheBuster,
+      originalUrl: backgroundUrl,
+      timestamp,
+      version
+    });
   } catch (error) {
     console.error('获取背景图片失败:', error);
     // 出错时也返回默认背景，确保前端始终有图片可用
@@ -128,11 +189,16 @@ router.get('/background', async (req: Request, res: Response) => {
 
 /**
  * 获取用户文件
+ * 增强版: 支持缓存控制、ETag和条件请求
  */
 router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => {
   try {
     const { userId, fileType, fileId } = req.params;
     const userIdNum = parseInt(userId);
+    
+    // 获取客户端缓存控制请求头
+    const ifNoneMatch = req.headers['if-none-match'];
+    const ifModifiedSince = req.headers['if-modified-since'];
     
     // 两种方式获取用户ID：会话或查询参数
     const sessionUserId = req.session.userId;
@@ -173,6 +239,13 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
 
     // 从ID中提取真实的文件ID (去掉扩展名)
     const realFileId = path.parse(fileId).name;
+    
+    // 查询数据库获取文件记录，获取更多元数据
+    const fileRecord = await db.query.userFiles.findFirst({
+      where: eq(userFiles.fileId, realFileId)
+    });
+    
+    // 获取文件数据
     const fileData = await getFileFromBucket(userIdNum, realFileId);
     
     // 根据屏幕方向而非设备类型选择背景图片
@@ -182,7 +255,7 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
       (userAgent.match(/iPhone/i) && !req.query.orientation) // iPhone默认假设为竖屏，除非明确指定
     );
     
-    if (!fileData) {
+    if (!fileData || !fileRecord) {
       // 如果是背景请求且找不到文件，返回默认背景
       if (fileType === 'background') {
         const defaultBgPath = getDefaultBackgroundPath(isPortrait);
@@ -190,10 +263,38 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
           const defaultData = fs.readFileSync(defaultBgPath);
           const ext = path.extname(defaultBgPath).substring(1);
           res.contentType(`image/${ext}`);
+          
+          // 设置缓存控制头 - 默认背景可以缓存更长时间
+          res.setHeader('Cache-Control', 'max-age=86400'); // 24小时
+          res.setHeader('Expires', new Date(Date.now() + 86400000).toUTCString());
+          
           return res.send(defaultData);
         }
       }
       return res.status(404).json({ error: '文件不存在' });
+    }
+    
+    // 生成ETag (基于文件ID和创建时间)
+    const fileETag = etag(`${fileRecord.fileId}-${fileRecord.createdAt.getTime()}`);
+    
+    // 设置缓存控制头
+    if (fileType === 'background') {
+      // 背景图片缓存时间较短，因为可能被频繁更改
+      res.setHeader('Cache-Control', 'max-age=300, must-revalidate'); // 5分钟
+    } else {
+      // 其他类型文件可以缓存更长时间
+      res.setHeader('Cache-Control', 'max-age=86400'); // 24小时
+    }
+    
+    res.setHeader('ETag', fileETag);
+    res.setHeader('Last-Modified', fileRecord.createdAt.toUTCString());
+    
+    // 支持条件请求 - 如果文件未修改，返回304
+    if (
+      (ifNoneMatch && ifNoneMatch === fileETag) || 
+      (ifModifiedSince && new Date(ifModifiedSince) >= fileRecord.createdAt)
+    ) {
+      return res.status(304).end();
     }
     
     // 设置适当的Content-Type
@@ -209,6 +310,10 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
     } else {
       res.contentType('application/octet-stream');
     }
+    
+    // 设置内容长度和过期时间
+    res.setHeader('Content-Length', fileData.length);
+    res.setHeader('Expires', new Date(Date.now() + 86400000).toUTCString());
     
     res.send(fileData);
   } catch (error) {
