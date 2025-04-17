@@ -10,7 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import etag from 'etag';
 import { db } from '../db';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { userFiles } from '../../shared/schema';
 import { 
   saveFileToStorage, 
@@ -392,6 +392,54 @@ router.post('/migrate', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('迁移文件失败:', error);
     res.status(500).json({ error: '迁移文件失败' });
+  }
+});
+
+/**
+ * 测试文件存储模式 (仅用于开发环境)
+ */
+router.get('/storage-test', async (req: Request, res: Response) => {
+  try {
+    // 获取查询参数
+    const fileType = (req.query.type as string) || 'background';
+    const testMode = req.query.mode as string;
+    
+    // 获取用户ID
+    const userId = req.session.userId || Number(req.query.userId) || 3;
+    
+    if (testMode === 'migrate') {
+      // 手动迁移指定用户的文件记录
+      await db.update(userFiles)
+        .set({ storageType: 'object-storage' as "file-system" | "object-storage" })
+        .where(eq(userFiles.userId, userId));
+      
+      const updatedFiles = await db.query.userFiles.findMany({
+        where: eq(userFiles.userId, userId)
+      });
+      
+      return res.json({ 
+        success: true, 
+        message: `已将用户 ${userId} 的 ${updatedFiles.length} 个文件记录标记为对象存储`,
+        files: updatedFiles
+      });
+    }
+    
+    // 获取当前存储模式
+    const files = await db.query.userFiles.findMany({
+      where: eq(userFiles.userId, userId)
+    });
+    
+    // 返回测试结果
+    res.json({
+      success: true,
+      storageMode: 'hybrid',
+      activeStorage: process.env.AUTO_MIGRATE_FILES === 'true' ? '对象存储' : '文件系统',
+      filesCount: files.length,
+      files
+    });
+  } catch (error) {
+    console.error('存储测试失败:', error);
+    res.status(500).json({ error: '存储测试失败' });
   }
 });
 
