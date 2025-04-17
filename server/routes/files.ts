@@ -81,7 +81,8 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 
     // 生成缓存破坏参数
     const timestamp = Date.now();
-    const urlWithCacheBuster = `${result.publicUrl}?v=${result.fileVersion || timestamp}`;
+    const version = timestamp.toString(36); // 简短的版本标识
+    const urlWithCacheBuster = `${result.publicUrl}?v=${version}`;
 
     // 成功上传响应
     res.json({
@@ -90,7 +91,7 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
       url: urlWithCacheBuster,
       originalUrl: result.publicUrl,
       timestamp,
-      version: result.fileVersion || timestamp
+      version
     });
   } catch (error) {
     console.error('文件上传失败:', error);
@@ -253,7 +254,7 @@ router.get('/:userId/:fileType/:fileId', async (req: Request, res: Response) => 
     }
     
     // 获取文件数据
-    const fileData = await getFileFromBucket(userIdNum, realFileId);
+    const fileData = await getFileFromStorage(userIdNum, realFileId);
     
     // 根据屏幕方向而非设备类型选择背景图片
     const userAgent = req.headers['user-agent'] || '';
@@ -346,7 +347,7 @@ router.delete('/:fileId', async (req: Request, res: Response) => {
     }
 
     const { fileId } = req.params;
-    const success = await deleteFileFromBucket(userId, fileId);
+    const success = await deleteFileFromStorage(userId, fileId);
     
     if (!success) {
       return res.status(404).json({ error: '文件不存在或无权限删除' });
@@ -356,6 +357,41 @@ router.delete('/:fileId', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('删除文件失败:', error);
     res.status(500).json({ error: '删除文件失败' });
+  }
+});
+
+/**
+ * 迁移文件到对象存储
+ * 管理员功能
+ */
+router.post('/migrate', async (req: Request, res: Response) => {
+  try {
+    // 从会话或请求参数中获取用户ID
+    const userId = req.session.userId;
+    
+    // 安全检查：此操作仅限管理员
+    // 这里简化验证，假设只有用户ID为1的是管理员
+    if (!userId || userId !== 1) {
+      console.error('迁移文件失败: 未授权执行迁移操作');
+      return res.status(401).json({ error: '未授权执行迁移操作，需要管理员权限' });
+    }
+    
+    // 获取要迁移的特定用户ID (可选)
+    const targetUserId = req.body.userId ? Number(req.body.userId) : undefined;
+    
+    // 开始迁移
+    const result = await migrateToObjectStorage(targetUserId);
+    
+    res.json({
+      success: true,
+      message: targetUserId 
+        ? `已完成用户${targetUserId}的文件迁移` 
+        : '已完成所有用户的文件迁移',
+      stats: result
+    });
+  } catch (error) {
+    console.error('迁移文件失败:', error);
+    res.status(500).json({ error: '迁移文件失败' });
   }
 });
 
