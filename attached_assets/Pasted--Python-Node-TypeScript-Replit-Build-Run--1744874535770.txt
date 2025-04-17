@@ -1,0 +1,95 @@
+下面给你几种 “Python 后端 + Node/TypeScript” 混合项目在 Replit 部署时最常见的目录结构和对应的 Build / Run 写法，你照自己项目的实际情况拿去改即可。
+
+⸻
+
+1. 目录结构先对一对
+
+.
+├── backend/                # FastAPI / Flask  等 Python 代码
+│   ├── main.py
+│   └── requirements.txt
+├── frontend/               # React / Vite  (TypeScript)
+│   ├── src/
+│   ├── tsconfig.json
+│   ├── package.json
+│   └── vite.config.ts
+├── .replit                 # 建议放到版本库里
+└── replit.nix              # 给开发时装系统包（可选）
+
+如果是 Node 后端也用 TypeScript，通常会有 server/ 目录，同理处理；本文用最典型的「Python API + React‑TS 前端」来举例。
+
+⸻
+
+2. Build command 参考模板
+
+一行写不下 就写脚本 scripts/build.sh 再呼叫，效果一样。
+
+# ① 安装 Python 依赖
+pip install -r backend/requirements.txt      
+
+# ② 安装 Node 依赖并编译 TS → JS / 打包前端
+npm ci --prefix frontend                     
+npm run build --prefix frontend              # 产物进 frontend/dist
+
+# ③（可选）把 dist 拷到 backend/static，方便后端一起托管
+cp -r frontend/dist backend/static
+
+为什么不用 npm install？
+	•	npm ci 走 package-lock.json，更快、更可复现。
+	•	如果你用 pnpm/yarn，把上面两行换掉即可。
+
+如果 后端也是 TypeScript (Node/Express)
+
+npm ci --prefix server
+npm run build --prefix server                # tsc → server/dist
+
+然后在 Run command 用 node server/dist/index.js 启动。
+
+⸻
+
+3. Run / Start command 示例
+
+Autoscale / Reserved VM 都需要指定运行指令——
+
+# .replit 或 Deploy 面板
+uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+
+	•	这里假设 Python API 直接把 backend/static 目录挂出来提供前端静态文件。
+	•	如果前后端分离、用 Nginx 或 PM2 多进程，就拆成多服务或用 Docker，多一步配置即可。
+
+⸻
+
+4. 在 .replit 里写（推荐）
+
+[deployment]
+build = """
+pip install -r backend/requirements.txt && \
+npm ci --prefix frontend && \
+npm run build --prefix frontend && \
+cp -r frontend/dist backend/static
+"""
+run   = "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
+
+这样 GUI 面板自动读取，以后改动也跟代码一起版本控制。
+
+⸻
+
+5. 常见“混合项目”掉坑提示
+
+症状	可能原因	解决办法
+部署后看不到前端页面，只剩 API 404	frontend/dist 打包后没被复制	确认 Build command 有 npm run build 且复制产物
+TypeScript 代码仍然是 .ts，启动时报不能识别	忘记 npm run build / tsc	后端 TS 要么编译成 JS 再 node dist/...js，要么用 ts-node 直接跑（但生产不推荐）
+打包时间超长 / 内存爆	Replit 免费版 2 GB RAM 触顶	前端打包装插件 --max_old_space_size=1024；或者手动拆步骤，前端先在本地 build 把 dist push 上去
+Secrets （API Key 等）在 Build 阶段拿不到	这里只能用 “Deployment secrets”	在 Deploy 面板单独设置，工作区的 Secrets 不会自动复制
+
+
+
+⸻
+
+下一步
+	1.	对照目录：确认你 TypeScript 部分是在 frontend/ 还是 server/。
+	2.	把上面模板粘贴进 .replit（或 Deploy GUI），自行调整路径。
+	3.	点击 Redeploy → View build logs，应当看到先跑 pip install… 再跑 npm ci → tsc / vite build 的完整输出。
+	4.	浏览器访问，看前端是否正常加载；/api/health 或类似路径确认后端也 OK。
+
+如果在某一步骤报红，把那段日志贴给我，我再帮你具体定位。祝部署顺利！
