@@ -29,12 +29,20 @@ async function formatAndReturnMemories(res: Response, memories: any[]) {
         const keywords = keywordObjects.map(k => k.keyword);
         
         // 构建前端格式
+        let summarizedContent = memory.summary;
+        // 如果摘要为空，使用内容的前部分作为摘要
+        if (!summarizedContent || summarizedContent.trim() === '') {
+          summarizedContent = memory.content ? 
+            (memory.content.slice(0, 100).trim() + (memory.content.length > 100 ? '...' : '')) : 
+            "无内容";
+        }
+        
         const formattedMemory = {
           id: memory.id.toString(),
           content: memory.content || "",
           type: memory.type || "text", 
           timestamp: memory.createdAt ? memory.createdAt.toISOString() : new Date().toISOString(),
-          summary: memory.summary || "",
+          summary: summarizedContent,
           keywords: keywords
         };
         
@@ -158,12 +166,20 @@ router.get("/:userId", async (req: Request, res: Response) => {
         const keywords = keywordObjects.map(k => k.keyword);
         
         // 构建前端格式
+        let summarizedContent = memory.summary;
+        // 如果摘要为空，使用内容的前部分作为摘要
+        if (!summarizedContent || summarizedContent.trim() === '') {
+          summarizedContent = memory.content ? 
+            (memory.content.slice(0, 100).trim() + (memory.content.length > 100 ? '...' : '')) : 
+            "无内容";
+        }
+        
         const formattedMemory = {
           id: memory.id.toString(),
           content: memory.content || "",
           type: memory.type || "text", 
           timestamp: memory.createdAt?.toISOString() || new Date().toISOString(),
-          summary: memory.summary || "",
+          summary: summarizedContent,
           keywords: keywords
         };
         
@@ -248,17 +264,26 @@ router.get("/:userId/clusters", async (req: Request, res: Response) => {
     const clusterResults = await memoryService.analyzeMemoryClusters(userId, memoryObjects, embeddings);
     
     // 将聚类结果转换为前端需要的格式
-    const formattedTopics = clusterResults.topics.map(topic => {
+    const formattedTopics = clusterResults.topics.map((topic: any) => {
       let representativeMemory = undefined;
       
       if (topic.representativeMemory) {
         const memory = topic.representativeMemory;
+        
+        // 处理代表性记忆的摘要
+        let summarizedContent = memory.summary;
+        if (!summarizedContent || summarizedContent.trim() === '') {
+          summarizedContent = memory.content ? 
+            (memory.content.slice(0, 100).trim() + (memory.content.length > 100 ? '...' : '')) : 
+            "无内容";
+        }
+        
         representativeMemory = {
           id: memory.id.toString(),
           content: memory.content,
           type: memory.type || "text",
           timestamp: memory.createdAt?.toISOString() || new Date().toISOString(),
-          summary: memory.summary || "",
+          summary: summarizedContent,
           keywords: [] // 关键词会在前端根据需要加载
         };
       }
@@ -268,7 +293,7 @@ router.get("/:userId/clusters", async (req: Request, res: Response) => {
         topic: topic.topic,
         count: topic.count,
         percentage: topic.percentage,
-        memoryIds: topic.memoryIds?.map(id => id.toString()),
+        memoryIds: topic.memoryIds?.map((id: number) => id.toString()),
         representativeMemory
       };
     });
@@ -324,12 +349,20 @@ router.post("/:userId/search", async (req: Request, res: Response) => {
         const keywordObjects = await storage.getKeywordsByMemoryId(memory.id);
         const keywords = keywordObjects.map(k => k.keyword);
         
+        // 处理空摘要
+        let summarizedContent = memory.summary;
+        if (!summarizedContent || summarizedContent.trim() === '') {
+          summarizedContent = memory.content ? 
+            (memory.content.slice(0, 100).trim() + (memory.content.length > 100 ? '...' : '')) : 
+            "无内容";
+        }
+        
         return {
           id: memory.id.toString(),
           content: memory.content,
           type: memory.type || "text", 
           timestamp: memory.createdAt?.toISOString() || new Date().toISOString(),
-          summary: memory.summary || "",
+          summary: summarizedContent,
           keywords: keywords
         };
       })
