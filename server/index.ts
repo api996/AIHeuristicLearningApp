@@ -72,7 +72,7 @@ app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // 添加会话支持
 app.use(session({
-  secret: 'ai-learning-companion-secret',
+  secret: process.env.SESSION_SECRET || 'ai-learning-companion-secret',
   resave: false,
   saveUninitialized: true,
   cookie: { 
@@ -181,30 +181,17 @@ app.use((req, res, next) => {
     }
 
     // 使用环境变量PORT（适用于部署）或默认端口5000（适用于开发）
-    const startPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
-    let port = startPort;
+    const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
 
-    const startServer = (portToUse: number) => {
-      server.listen({
-        port: portToUse,
-        host: "0.0.0.0",
-        reusePort: true,
-      }, () => {
-        log(`Server is now listening on port ${portToUse}`);
-      }).on('error', (err: any) => {
-        if (err.code === 'EADDRINUSE' && !process.env.PORT) {
-          // 仅在开发环境中尝试其他端口（不是在部署环境）
-          log(`Port ${portToUse} is in use, trying another port...`);
-          port++;
-          startServer(port);
-        } else {
-          log(`Failed to start server: ${err.message}`);
-          throw err;
-        }
-      });
-    };
-
-    startServer(port);
+    server.listen({
+      port: port,
+      host: "0.0.0.0",
+    }, () => {
+      log(`Server is now listening on port ${port}`);
+    }).on('error', (err: any) => {
+      log(`Failed to start server: ${err.message}`);
+      throw err;
+    });
   } catch (error) {
     log(`Failed to start server: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);

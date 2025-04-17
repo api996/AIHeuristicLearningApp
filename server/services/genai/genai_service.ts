@@ -3,7 +3,18 @@
  * 提供向量嵌入生成、文本总结等功能
  */
 
-import { log } from "../../vite";
+// Create a simple logger that doesn't depend on vite.ts
+const log = (message: string, source = "genai_service") => {
+  const formattedTime = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+
+  console.log(`${formattedTime} [${source}] ${message}`);
+};
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // 导入环境变量配置
