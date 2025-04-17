@@ -140,73 +140,8 @@ export default function Login() {
       setError("两次输入的密码不一致");
       return;
     }
-
-    // 开发者模式特殊处理 - 登录和注册都启用
-    if (isDeveloperMode) {
-      if (!developerPassword) {
-        setError("请输入开发者密码");
-        return;
-      }
-
-      setIsVerifying(true);
-
-      try {
-        console.log('[Login] Starting developer authentication process');
-        // 确保使用完整URL
-        const baseUrl = window.location.origin;
-        const devLoginUrl = `${baseUrl}/api/developer-login`;
-        console.log('[Login] 开发者登录请求URL:', devLoginUrl);
-        
-        const response = await fetch(devLoginUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            username, 
-            password, 
-            developerPassword 
-          }),
-        });
-
-        if (!response.ok) {
-          console.error('[Login] 开发者验证HTTP错误:', response.status);
-          throw new Error(`HTTP错误 ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (data.success) {
-          console.log('[Login] 开发者验证成功，用户ID:', data.userId);
-          const userData = {
-            userId: data.userId,
-            role: data.role,
-            username: username
-          };
-          localStorage.setItem("user", JSON.stringify(userData));
-
-          // 添加会话标记，用于后续API请求
-          sessionStorage.setItem("developer_mode_verified", "true");
-
-          if (data.role === 'admin') {
-            setLocation("/admin");
-          } else {
-            setLocation("/");
-          }
-        } else {
-          console.error('[Login] 开发者验证失败:', data.message);
-          setError(data.message || "开发者验证失败");
-        }
-      } catch (err) {
-        console.error('[Login] Developer authentication error:', err);
-        setError("服务器错误，请稍后重试");
-      } finally {
-        setIsVerifying(false);
-      }
-      return;
-    }
-
-    // 正常模式需要人机验证
+    
+    // 检查人机验证
     if (!turnstileToken) {
       setError("请完成人机验证");
       return;
@@ -325,6 +260,21 @@ export default function Login() {
               密码
             </label>
           </div>
+          
+          {/* 注册时显示密码要求提示 */}
+          {isRegistering && (
+            <div className="text-xs text-blue-300 mt-1">
+              <p>密码要求：</p>
+              <ul className="list-disc pl-5">
+                <li className={password.length >= 6 && password.length <= 30 ? "text-green-400" : ""}>
+                  长度为6-30个字符
+                </li>
+                <li className={confirmPassword === password && confirmPassword !== "" ? "text-green-400" : confirmPassword !== "" ? "text-red-400" : ""}>
+                  两次输入的密码需要一致
+                </li>
+              </ul>
+            </div>
+          )}
 
           {isRegistering && (
             <div className="input-box relative w-full my-[30px] border-b-2 border-white">
@@ -342,7 +292,8 @@ export default function Login() {
             </div>
           )}
 
-          {/* 开发者模式切换 - 在登录和注册时都显示 */}
+          {/* 开发者模式相关代码已暂时注释 */}
+          {/*
           <div className="flex items-center justify-end space-x-2 my-4">
             <Label htmlFor="developer-mode" className="text-white cursor-pointer">
               开发者模式
@@ -353,61 +304,33 @@ export default function Login() {
               onCheckedChange={setIsDeveloperMode}
             />
           </div>
+          */}
 
-          {/* 开发者密码输入框 */}
-          {isDeveloperMode && (
-            <div className="input-box relative w-full my-[30px] border-b-2 border-white">
-              <i className="fas fa-code icon absolute right-2 text-white text-lg top-1/2 -translate-y-1/2"></i>
-              <input
-                type="password"
-                value={developerPassword}
-                onChange={(e) => setDeveloperPassword(e.target.value)}
-                className="w-full h-[50px] bg-transparent outline-none border-none text-base text-white px-[5px] pr-[40px]"
-                required={isDeveloperMode}
+          {/* 显示人机验证 */}
+          <div className="space-y-2 mt-4">
+            {turnstileBypass ? (
+              <Alert className="bg-blue-900 border-blue-700 text-white">
+                <AlertCircle className="h-4 w-4 text-blue-300" />
+                <AlertDescription className="text-sm">
+                  人机验证已绕过。您现在可以继续登录或注册。
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <TurnstileWidget 
+                onVerify={verifyTurnstileToken}
+                onError={() => {
+                  turnstileErrorCount.current += 1;
+                  if (turnstileErrorCount.current >= 3) {
+                    setTurnstileBypass(true);
+                    setTurnstileToken("bypass-token");
+                    setError("");
+                  } else {
+                    setError("人机验证加载失败，请刷新页面重试");
+                  }
+                }}
               />
-              <label className="absolute top-1/2 left-[5px] -translate-y-1/2 text-base text-white pointer-events-none transition-all duration-500 peer-focus:-top-[5px] peer-valid:-top-[5px]">
-                管理员密码
-              </label>
-            </div>
-          )}
-
-          {/* 开发者模式说明 */}
-          {isDeveloperMode && (
-            <div className="text-xs text-blue-300 mt-1 italic">
-              使用开发者密码验证后，将在此会话中跳过后续的人机验证。<br/>
-              {isRegistering ? 
-                "注意：使用此模式注册时，若用户不存在将自动创建普通用户账户。" : 
-                "提示：开发者模式下仅跳过人机验证，仍需正确的用户名和密码。"}
-            </div>
-          )}
-
-          {/* 在非开发者模式下显示人机验证 */}
-          {!isDeveloperMode && (
-            <div className="space-y-2 mt-4">
-              {turnstileBypass ? (
-                <Alert className="bg-blue-900 border-blue-700 text-white">
-                  <AlertCircle className="h-4 w-4 text-blue-300" />
-                  <AlertDescription className="text-sm">
-                    人机验证已绕过。您现在可以继续登录或注册。
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <TurnstileWidget 
-                  onVerify={verifyTurnstileToken}
-                  onError={() => {
-                    turnstileErrorCount.current += 1;
-                    if (turnstileErrorCount.current >= 3) {
-                      setTurnstileBypass(true);
-                      setTurnstileToken("bypass-token");
-                      setError("");
-                    } else {
-                      setError("人机验证加载失败，请刷新页面重试");
-                    }
-                  }}
-                />
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
           {error && (
             <div className="text-red-500 text-sm text-center mt-2">{error}</div>
@@ -416,7 +339,7 @@ export default function Login() {
           <button 
             type="submit" 
             className="btn w-full h-[40px] bg-white outline-none border-none rounded-[40px] cursor-pointer text-base font-medium text-black mt-[20px] hover:bg-[#ffffea]"
-            disabled={isVerifying || (!isDeveloperMode && !turnstileToken)}
+            disabled={isVerifying || !turnstileToken}
           >
             {isVerifying ? "验证中..." : (isRegistering ? "注册" : "登录")}
           </button>
