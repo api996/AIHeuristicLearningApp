@@ -108,7 +108,7 @@ export async function saveFileToBucket(
   
   // 添加到数据库
   await db.insert(userFiles).values({
-    userId,
+    userId, // 这里使用userId，因为schema.ts中定义的是userId，但数据库列名是user_id
     fileId,
     originalName,
     filePath: relativePath,

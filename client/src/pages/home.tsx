@@ -75,13 +75,20 @@ export default function Home() {
       });
       
       if (response.data && response.data.url) {
-        const fullImageUrl = response.data.url.startsWith('http') 
+        let fullImageUrl = response.data.url.startsWith('http') 
           ? response.data.url 
           : `${baseUrl}${response.data.url}`;
+        
+        // 检查URL是否包含用户ID参数，如果没有则添加
+        if (fullImageUrl.includes('/api/files/') && !fullImageUrl.includes('userId=')) {
+          const separator = fullImageUrl.includes('?') ? '&' : '?';
+          fullImageUrl += `${separator}userId=${userId}`;
+        }
+        
         console.log('[Home] 设置背景图片:', fullImageUrl);
         
         // 添加时间戳或随机参数防止缓存
-        const cacheBuster = `?t=${new Date().getTime()}`;
+        const cacheBuster = fullImageUrl.includes('?') ? `&t=${new Date().getTime()}` : `?t=${new Date().getTime()}`;
         setBackgroundUrl(fullImageUrl + cacheBuster);
       }
     } catch (error) {
