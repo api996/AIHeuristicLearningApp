@@ -35,6 +35,11 @@ NODE_ENV=production npx esbuild server/index.ts \
   --external:vite \
   --external:* 
 
+# 确保routes目录被正确复制到dist
+echo "复制routes目录到dist..."
+mkdir -p dist/routes
+cp -r server/routes/* dist/routes/
+
 # 如果出现问题，创建备用启动器
 echo "创建备用启动器..."
 cat > dist/backup-launcher.js << 'EOF'
@@ -49,15 +54,14 @@ const __dirname = dirname(__filename);
 console.log('使用备用启动器...');
 process.env.NODE_ENV = 'production';
 
-const serverProcess = spawn('npx', ['tsx', '../server/index.ts'], {
-  stdio: 'inherit',
-  env: { ...process.env, NODE_ENV: 'production' }
+const serverProcess = spawn('npx', ['tsx', 'server/index.ts'], {
+  env: { ...process.env, NODE_ENV: 'production' },
+  stdio: 'inherit'
 });
 
-serverProcess.on('exit', (code) => {
-  console.log(`服务器退出，代码: ${code}`);
-  process.exit(code);
+serverProcess.on('close', (code) => {
+  console.log(`服务器进程退出，退出码: ${code}`);
 });
 EOF
 
-echo "构建完成！"
+echo "构建完成"
