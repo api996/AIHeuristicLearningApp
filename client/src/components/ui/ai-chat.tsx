@@ -2224,7 +2224,7 @@ export function AIChat({ userData }: AIChatProps) {
                     setFontSize("small");
                     applyFontSize("small");
                   }}
-                  className="flex-1"
+                  className={`flex-1 ${fontSize === "small" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   小
                 </Button>
@@ -2235,7 +2235,7 @@ export function AIChat({ userData }: AIChatProps) {
                     setFontSize("medium");
                     applyFontSize("medium");
                   }}
-                  className="flex-1"
+                  className={`flex-1 ${fontSize === "medium" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   中
                 </Button>
@@ -2246,7 +2246,7 @@ export function AIChat({ userData }: AIChatProps) {
                     setFontSize("large");
                     applyFontSize("large");
                   }}
-                  className="flex-1"
+                  className={`flex-1 ${fontSize === "large" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   大
                 </Button>
