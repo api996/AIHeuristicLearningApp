@@ -102,7 +102,10 @@ export const useAuth = () => {
     
     try {
       // 验证用户会话是否有效，确保前端和后端状态一致
-      const response = await fetch(`/api/users/${userData.userId}?userId=${userData.userId}`);
+      // 添加 credentials: 'include' 确保发送和接收Cookie
+      const response = await fetch(`/api/users/${userData.userId}?userId=${userData.userId}`, {
+        credentials: 'include'  // 确保发送Cookie
+      });
       
       if (response.ok) {
         // 服务器确认用户有效，保存到本地
