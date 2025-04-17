@@ -339,7 +339,17 @@ ${searchResults}
             log(`Received DeepSeek API response`);
             
             // NVIDIA NIM平台的响应格式处理
-            const responseText = data.choices?.[0]?.message?.content || "DeepSeek模型无法生成回应";
+            let responseText = data.choices?.[0]?.message?.content || "DeepSeek模型无法生成回应";
+            
+            // 过滤思考过程（从genai_service.ts导入）
+            try {
+              const { removeThinkingProcess } = require('./genai/genai_service');
+              if (typeof removeThinkingProcess === 'function') {
+                responseText = removeThinkingProcess(responseText);
+              }
+            } catch (error) {
+              log(`Error filtering DeepSeek thinking process: ${error}`);
+            }
             
             return {
               text: responseText,
@@ -589,8 +599,19 @@ ${searchResults}
             const data: any = await response.json();
             log(`Received Dify API response`);
             
+            // 过滤Deep模型输出中的思考过程
+            let responseText = data.answer || "Deep模型暂时无法回应";
+            try {
+              const { removeThinkingProcess } = require('./genai/genai_service');
+              if (typeof removeThinkingProcess === 'function') {
+                responseText = removeThinkingProcess(responseText);
+              }
+            } catch (error) {
+              log(`Error filtering Deep thinking process: ${error}`);
+            }
+            
             return {
-              text: data.answer || "Deep模型暂时无法回应",
+              text: responseText,
               model: "deep"
             };
           } catch (error) {
