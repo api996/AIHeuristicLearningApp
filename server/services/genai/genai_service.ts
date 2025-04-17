@@ -237,24 +237,3 @@ createGenAIService().then(service => {
 
 // 默认使用后备服务，直到异步初始化完成
 genAiService = new FallbackService();
-/**
- * 去除DeepSeek模型回复中的思考过程和提示词
- * 例如: <think>这是思考过程</think> 或 {{提示词模板}}
- */
-function removeThinkingProcess(text: string): string {
-  if (!text) return text;
-  
-  // 移除<think>...</think>标签之间的内容
-  let result = text.replace(/<think>[\s\S]*?<\/think>/g, '');
-  
-  // 移除{{...}}模板指令
-  result = result.replace(/{{[^}]*}}/g, '');
-  
-  // 整理多余的空行（3个以上连续空行变为2个）
-  result = result.replace(/\n{3,}/g, '\n\n');
-  
-  // 去除首尾空白
-  result = result.trim();
-  
-  return result;
-}

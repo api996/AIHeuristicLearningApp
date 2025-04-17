@@ -7,8 +7,8 @@ channel = "stable-24_05"
 
 [deployment]
 deploymentTarget = "cloudrun"
-run = ["sh", "-c", "NODE_ENV=production node dist/production-launcher.js"]
-build = ["sh", "-c", "bash deploy-fix-v2.sh"]
+run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
+build = ["sh", "-c", "NODE_OPTIONS='--experimental-vm-modules' npm run build"]
 
 [[ports]]
 localPort = 5000
@@ -389,5 +389,3 @@ args = "python3 scripts/clean_fake_memories.py"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-a2a19666-a799-475c-bd79-068397f30df4"
-[env]
-REPLIT_KEEP_PACKAGE_DEV_DEPENDENCIES = "1"
