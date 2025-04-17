@@ -252,6 +252,26 @@ export default function AdminDashboard() {
             </TabsContent>
             
             {/* Content Moderation Tab */}
+            {/* Security Settings Tab */}
+            <TabsContent value="security">
+              <div className="py-8">
+                <div className="container mx-auto px-4 mb-6">
+                  <Card className="bg-neutral-900 border-neutral-800">
+                    <CardHeader>
+                      <div className="flex items-center">
+                        <Shield className="h-6 w-6 text-yellow-500 mr-2" />
+                        <CardTitle className="text-white">系统安全设置</CardTitle>
+                      </div>
+                      <CardDescription>
+                        控制用户访问权限和系统安全设置，保护系统免受高流量或潜在攻击
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </div>
+                <SystemSettings />
+              </div>
+            </TabsContent>
+            
             <TabsContent value="moderation">
               <div className="py-8">
                 <div className="container mx-auto px-4 mb-6">
