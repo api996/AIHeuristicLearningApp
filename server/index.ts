@@ -180,8 +180,8 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    // 使用端口5000以确保与工作流兼容
-    const startPort = 5000;
+    // 使用环境变量PORT（适用于部署）或默认端口5000（适用于开发）
+    const startPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
     let port = startPort;
 
     const startServer = (portToUse: number) => {
@@ -192,7 +192,8 @@ app.use((req, res, next) => {
       }, () => {
         log(`Server is now listening on port ${portToUse}`);
       }).on('error', (err: any) => {
-        if (err.code === 'EADDRINUSE') {
+        if (err.code === 'EADDRINUSE' && !process.env.PORT) {
+          // 仅在开发环境中尝试其他端口（不是在部署环境）
           log(`Port ${portToUse} is in use, trying another port...`);
           port++;
           startServer(port);
