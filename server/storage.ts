@@ -3,6 +3,7 @@ import {
   chats, messages, type Chat, type Message,
   memories, memoryKeywords, memoryEmbeddings,
   promptTemplates, searchResults, conversationAnalytics,
+  userFiles, userSettings,
   type Memory, type MemoryKeyword, type MemoryEmbedding,
   type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding,
   type PromptTemplate, type SearchResult, type ConversationAnalytic
@@ -10,6 +11,8 @@ import {
 import { db } from "./db";
 import { eq, ne, and, asc, desc, sql, inArray } from "drizzle-orm";
 import { log } from "./vite";
+import fs from 'fs';
+import path from 'path';
 
 export interface IStorage {
   // User methods
@@ -200,10 +203,31 @@ export class DatabaseStorage implements IStorage {
           await tx.delete(memories).where(eq(memories.userId, userId));
         }
         
-        // 8. 最后删除用户本身
+        // 8. 删除用户文件记录
+        log(`删除用户 ${userId} 的文件记录`);
+        await tx.delete(userFiles).where(eq(userFiles.userId, userId));
+        
+        // 9. 删除用户设置
+        log(`删除用户 ${userId} 的设置`);
+        await tx.delete(userSettings).where(eq(userSettings.userId, userId));
+        
+        // 10. 最后删除用户本身
         log(`删除用户 ${userId}`);
         await tx.delete(users).where(eq(users.id, userId));
       });
+      
+      // 删除文件系统中的记忆目录
+      try {
+        const memoryPath = path.join(process.cwd(), 'memory_space', userId.toString());
+        if (fs.existsSync(memoryPath)) {
+          log(`删除用户 ${userId} 的记忆文件目录: ${memoryPath}`);
+          fs.rmSync(memoryPath, { recursive: true, force: true });
+          log(`用户 ${userId} 的记忆文件目录已成功删除`);
+        }
+      } catch (fileError) {
+        // 仅记录错误，但不抛出异常，因为数据库中的数据已经被删除
+        log(`删除用户 ${userId} 的记忆文件目录时出错: ${fileError}`);
+      }
       
       log(`用户 ${userId} 及其所有关联数据已成功删除`);
     } catch (error) {
