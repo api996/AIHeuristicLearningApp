@@ -1,6 +1,6 @@
 modules = ["nodejs-20", "bash", "web", "postgresql-16", "python-3.11", "python3"]
 run = "npm run dev"
-hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
+hidden = [".config", ".git", "generated-icon.png", "node_modules"]
 
 [nix]
 channel = "stable-24_05"
@@ -11,6 +11,7 @@ REPLIT_DISABLE_PACKAGE_LAYER = "1"
 [deployment]
 deploymentTarget = "cloudrun"
 run = ["sh", "-c", "npm run start"]
+build = ["sh", "-c", "npm run build"]
 
 [[ports]]
 localPort = 5000
