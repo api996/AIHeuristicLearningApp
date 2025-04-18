@@ -1,19 +1,12 @@
 
-#!/usr/bin/env node
-
 /**
  * 生产环境构建脚本
  * 确保所有依赖项（特别是session存储相关）正确包含在构建中
  */
 
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// Get current file's directory when using ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 console.log('开始生产环境构建...');
 
