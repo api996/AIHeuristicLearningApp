@@ -965,34 +965,75 @@ ${searchResults}
 
 export const chatService = new ChatService();
 
-// 添加重试逻辑，避免504超时问题
+// 增强版重试逻辑，处理更多类型的超时和连接问题
 const fetchWithRetry = async (url: string, options: any, retries = 3, backoff = 300) => {
   let lastError;
+  let attempt = 0;
+  
+  // 支持自定义超时
+  const timeout = options.timeout || 60000; // 默认60秒
   
   for (let i = 0; i < retries; i++) {
+    attempt++;
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     try {
-      const response = await fetch(url, options);
-      if (response.ok) return response;
+      log(`API请求第${attempt}次尝试: ${url}`);
       
-      // 如果服务器返回504，等待后重试
-      if (response.status === 504) {
-        lastError = new Error(`Gateway timeout (504) on attempt ${i + 1} of ${retries}`);
-        log(`Gateway timeout, retrying in ${backoff}ms...`);
-        await new Promise(resolve => setTimeout(resolve, backoff));
-        backoff *= 2; // 指数退避策略
+      // 创建一个可以被中断的请求
+      const fetchPromise = fetch(url, options);
+      
+      // 创建一个超时Promise
+      const timeoutPromise = new Promise<Response>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`请求超时(${timeout}ms)`));
+        }, timeout);
+      });
+      
+      // 竞争Promise
+      const response = await Promise.race([fetchPromise, timeoutPromise]);
+      
+      // 清除超时计时器
+      if (timeoutId) clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        log(`API请求成功，状态码: ${response.status}`);
+        return response;
+      }
+      
+      // 处理特定错误状态码
+      if (response.status === 504 || response.status === 502 || response.status === 503) {
+        lastError = new Error(`服务器错误(${response.status})，第${attempt}次尝试，共${retries}次`);
+        const waitTime = backoff * Math.pow(2, i); // 更平滑的退避策略
+        log(`服务器错误(${response.status})，${waitTime}ms后重试...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
         continue;
       }
       
-      // 其他错误直接返回
+      // 其他HTTP错误直接返回，让调用者处理
+      log(`API请求返回非成功状态码: ${response.status}`);
       return response;
+      
     } catch (error) {
+      // 清除超时计时器
+      if (timeoutId) clearTimeout(timeoutId);
+      
       lastError = error;
-      log(`Network error on attempt ${i + 1} of ${retries}: ${error}`);
-      await new Promise(resolve => setTimeout(resolve, backoff));
-      backoff *= 2;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // 判断是否是超时错误
+      const isTimeoutError = errorMessage.includes('timeout') || errorMessage.includes('超时');
+      log(`API请求错误 ${isTimeoutError ? '[超时]' : ''} 第${attempt}次尝试: ${errorMessage}`);
+      
+      // 退避策略
+      const waitTime = backoff * Math.pow(2, i);
+      log(`等待${waitTime}ms后重试...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   }
   
-  // 所有重试都失败了
-  throw lastError || new Error('Failed after retries');
+  // 所有重试都失败
+  const errorMessage = lastError instanceof Error ? lastError.message : String(lastError);
+  log(`多次尝试后请求失败，放弃: ${errorMessage}`);
+  throw lastError || new Error('所有重试尝试都失败了');
 };
