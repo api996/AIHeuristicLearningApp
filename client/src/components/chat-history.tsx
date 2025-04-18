@@ -234,9 +234,10 @@ export function ChatHistory({
             {chatsToRender.map((chat: any) => (
               <div
                 key={chat.id}
-                className={`group flex items-center rounded-lg ${
+                className={`group flex items-center rounded-lg select-none ${
                   currentChatId === chat.id ? 'bg-[#0deae4]/10' : 'hover:bg-black/40'
                 }`}
+                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                 onTouchStart={(e) => handleLongPressStart(chat.id, e)}
                 onTouchEnd={handleLongPressEnd}
                 onTouchMove={handleLongPressEnd}
@@ -266,7 +267,8 @@ export function ChatHistory({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity h-8 w-8 mr-1 hover:bg-red-500/10"
+                  className="md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity h-8 w-8 mr-1 hover:bg-red-500/10 select-none"
+                  style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                   onClick={(e) => handleDeleteChat(chat.id, e)}
                   onTouchStart={(e) => handleLongPressStart(chat.id, e)}
                   onTouchEnd={handleLongPressEnd}
@@ -293,9 +295,10 @@ export function ChatHistory({
           {chatsToRender.map((chat: any) => (
             <div
               key={chat.id}
-              className={`group flex items-center rounded-lg ${
+              className={`group flex items-center rounded-lg select-none ${
                 currentChatId === chat.id ? 'bg-[#0deae4]/10' : 'hover:bg-black/40'
               }`}
+              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
               onTouchStart={(e) => handleLongPressStart(chat.id, e)}
               onTouchEnd={handleLongPressEnd}
               onTouchMove={handleLongPressEnd}
@@ -325,7 +328,8 @@ export function ChatHistory({
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity h-8 w-8 mr-1 hover:bg-red-500/10"
+                className="md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity h-8 w-8 mr-1 hover:bg-red-500/10 select-none"
+                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                 onClick={(e) => handleDeleteChat(chat.id, e)}
                 onTouchStart={(e) => handleLongPressStart(chat.id, e)}
                 onTouchEnd={handleLongPressEnd}
