@@ -244,22 +244,151 @@ async function build() {
       }
     }
     
-    // 修复 __filename 冲突
+    // 修复 __filename 冲突，使用更独特的变量名以避免冲突
     if (content.includes('var __filename,')) {
       log('发现 __filename 变量声明冲突，正在修复...', 'info');
+      
+      // 生成随机字符串作为变量名后缀，确保极低概率冲突
+      const randomSuffix = Math.random().toString(36).substring(2, 10);
+      const uniqueVar = `__filename_unique_${randomSuffix}`;
+      
       const fixedContent6 = content.replace(
         'var __filename,',
-        'var __filename2,'
+        `var ${uniqueVar},`
       ).replace(
         /__filename([ ,;\.=\(\)\[\]\{\}])/g, 
-        '__filename2$1'
+        `${uniqueVar}$1`
       );
       
       if (fixedContent6 !== content) {
         fixes++;
         content = fixedContent6;
-        log('已修复 __filename 变量声明冲突', 'info');
+        log(`已修复 __filename 变量声明冲突，使用唯一变量名: ${uniqueVar}`, 'info');
       }
+    }
+    
+    // 查找并修复其他可能的 __dirname 冲突
+    if (content.includes('var __dirname2,') || content.includes(', __dirname2,')) {
+      log('发现 __dirname 变量声明冲突，正在修复...', 'info');
+      
+      // 生成随机字符串作为变量名后缀
+      const randomSuffix = Math.random().toString(36).substring(2, 10);
+      const uniqueVar = `__dirname_unique_${randomSuffix}`;
+      
+      const fixedContent7 = content.replace(
+        /__dirname2([ ,;\.=\(\)\[\]\{\}])/g, 
+        `${uniqueVar}$1`
+      );
+      
+      if (fixedContent7 !== content) {
+        fixes++;
+        content = fixedContent7;
+        log(`已修复 __dirname 变量声明冲突，使用唯一变量名: ${uniqueVar}`, 'info');
+      }
+    }
+    
+    // 修复大型变量声明区块
+    if (content.includes('var __filename')) {
+      log('尝试修复整个HTML解析器变量声明区块...', 'info');
+      
+      // 这部分代码修复HTML解析器中大量变量声明造成的冲突
+      // 通过将整个声明区块替换成使用单独的const声明来避免冲突
+      const pattern = /var (__filename[^,]*),\s*(__dirname[^,]*),\s*(require[^,]*),\s*([^;]+);/;
+      
+      if (pattern.test(content)) {
+        const newContent = content.replace(pattern, (match, filename, dirname, require, rest) => {
+          // 生成随机后缀
+          const suffix = Math.random().toString(36).substring(2, 8);
+          // 将变量声明拆分成单独的const语句
+          return `// 重写变量声明以避免冲突
+const ${filename.replace('__filename', `__filename_html_${suffix}`)} = undefined;
+const ${dirname.replace('__dirname', `__dirname_html_${suffix}`)} = undefined;
+const ${require.replace('require', `require_html_${suffix}`)} = undefined;
+var ${rest};`;
+        });
+        
+        if (newContent !== content) {
+          fixes++;
+          content = newContent;
+          log('已修复HTML解析器变量声明区块', 'success');
+        }
+      }
+    }
+    
+    // 修复其他常见的模块冲突
+    if (content.includes('var fs,') || content.includes(', fs,')) {
+      log('发现 fs 模块命名冲突，正在修复...', 'info');
+      
+      // 使用一个特殊的随机后缀，确保不会与其他变量冲突
+      const randomSuffix = Math.random().toString(36).substring(2, 10);
+      
+      // 替换 fs 变量声明和使用
+      const fixedContent = content.replace(
+        /\bvar\s+([^,]*,\s*)*fs(,|\s*;|\s*=)/g,
+        (match) => match.replace(/\bfs\b/, `fs_unique_${randomSuffix}`)
+      ).replace(
+        /\bfs\.([a-zA-Z0-9_]+)/g,
+        `fs_unique_${randomSuffix}.$1`
+      );
+      
+      if (fixedContent !== content) {
+        fixes++;
+        content = fixedContent;
+        log(`已修复 fs 模块命名冲突，使用唯一变量名: fs_unique_${randomSuffix}`, 'info');
+      }
+    }
+    
+    // 修复整个大型变量声明块
+    const largeVarDeclarationPattern = /var\s+([a-zA-Z0-9_$]+,\s*){10,}[a-zA-Z0-9_$]+;/g;
+    const matches = content.match(largeVarDeclarationPattern);
+    
+    if (matches && matches.length > 0) {
+      log(`发现 ${matches.length} 个大型变量声明块，尝试修复...`, 'info');
+      
+      matches.forEach(match => {
+        // 记录所有变量名以检测冲突
+        const varNames = match.replace(/var\s+/, '').replace(/;$/, '').split(/,\s*/);
+        const problematicVars = varNames.filter(name => 
+          name === 'fs' || name === 'path' || name.startsWith('__filename') || 
+          name.startsWith('__dirname') || name.startsWith('require')
+        );
+        
+        if (problematicVars.length > 0) {
+          log(`发现问题变量: ${problematicVars.join(', ')}`, 'info');
+          
+          // 获取一个唯一的随机后缀
+          const suffix = Math.random().toString(36).substring(2, 8);
+          
+          // 创建替换后的声明
+          let replacement = 'var ';
+          let replacedCount = 0;
+          
+          varNames.forEach((name, index) => {
+            if (problematicVars.includes(name)) {
+              // 对冲突的变量使用唯一名称
+              const uniqueName = `${name}_fixed_${suffix}`;
+              replacement += uniqueName;
+              replacedCount++;
+            } else {
+              replacement += name;
+            }
+            
+            // 添加逗号或分号
+            if (index < varNames.length - 1) {
+              replacement += ', ';
+            } else {
+              replacement += ';';
+            }
+          });
+          
+          // 只有在实际有变量被替换时才执行替换
+          if (replacedCount > 0) {
+            content = content.replace(match, replacement);
+            fixes += replacedCount;
+            log(`已修复 ${replacedCount} 个变量命名冲突`, 'info');
+          }
+        }
+      });
     }
     
     // 保存修改后的文件
@@ -290,6 +419,26 @@ globalThis.__filename = __filename;
 globalThis.__dirname = __dirname;
 globalThis.__path = path;
 globalThis.__fs = fs;
+
+// 预加载更多常用模块以避免冲突
+import * as os from 'os';
+import * as http from 'http';
+import * as https from 'https';
+import * as url from 'url';
+import * as crypto from 'crypto';
+import * as util from 'util';
+import * as stream from 'stream';
+import * as events from 'events';
+
+// 全局缓存更多模块
+globalThis.__os = os;
+globalThis.__http = http;
+globalThis.__https = https;
+globalThis.__url = url;
+globalThis.__crypto = crypto;
+globalThis.__util = util;
+globalThis.__stream = stream;
+globalThis.__events = events;
 
 // 初始化会话存储
 const PgSession = pgSessionInit(expressSession);
