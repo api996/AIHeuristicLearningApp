@@ -9,8 +9,13 @@
  * - 生产环境: `NODE_ENV=production node scripts/check-session-config.js`
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// 在ESM中获取当前文件路径
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 颜色设置
 const colors = {
@@ -21,9 +26,6 @@ const colors = {
   yellow: '\x1b[33m',
   blue: '\x1b[34m',
 };
-
-console.log(`${colors.bright}${colors.blue}===== 会话配置检查 =====${colors.reset}`);
-console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
 
 // 检查源代码配置
 function checkSourceConfig() {
@@ -183,14 +185,19 @@ function runChecks() {
   return allPassed;
 }
 
-// 执行检查
-const checksPassed = runChecks();
+// 包装主执行代码为IIFE
+(async () => {
+  console.log(`${colors.bright}${colors.blue}===== 会话配置检查 =====${colors.reset}`);
+  console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
+  
+  // 执行检查
+  const checksPassed = runChecks();
+  
+  // 如果是作为命令行脚本运行，则设置退出码
+  if (import.meta.url === `file://${process.argv[1]}`) {
+    process.exit(checksPassed ? 0 : 1);
+  }
+})();
 
-// 如果是作为命令行脚本运行，则设置退出码
-if (require.main === module) {
-  process.exit(checksPassed ? 0 : 1);
-}
-
-module.exports = {
-  runChecks
-};
+// 导出函数，使用ESM语法
+export { runChecks };
