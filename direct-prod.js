@@ -3,12 +3,18 @@
 /**
  * 直接生产环境启动脚本
  * 绕过ESM/CJS模块冲突问题 
+ * 使用ES模块语法
  */
 
 // 使用child_process直接调用原始文件
-const { spawn } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+import { spawn } from 'child_process';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+// 获取当前文件的目录
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 设置生产环境变量
 process.env.NODE_ENV = 'production';
@@ -18,7 +24,7 @@ console.log('启动生产服务器...');
 try {
   // 检查dist是否存在
   if (!fs.existsSync('./dist/index.js')) {
-    console.error('错误: 找不到构建文件。请先运行: node scripts/build-direct.js');
+    console.error('错误: 找不到构建文件。请先运行: node scripts/build-fixed.js');
     process.exit(1);
   }
 
