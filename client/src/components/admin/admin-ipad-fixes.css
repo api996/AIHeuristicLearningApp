@@ -6,22 +6,23 @@
 /* 为整个模板编辑器添加触摸滚动支持 */
 .admin-template-editor {
   -webkit-overflow-scrolling: touch;
-  height: 100vh;
-  overflow: auto;
+  min-height: 100vh;
+  overflow: auto; /* 允许整体滚动 */
 }
 
 /* 修复iPad上的网格布局 */
 .admin-template-editor-grid {
   display: grid;
   min-height: 0;  /* 确保网格不会超出其容器 */
+  padding-bottom: 20px; /* 增加底部内边距 */
 }
 
 /* 提高模板编辑卡片的滚动可靠性 */
 .template-editor-card {
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
-  overflow: hidden;
+  height: auto; /* 自适应高度而不是固定高度 */
+  overflow: visible; /* 允许内容正常显示 */
 }
 
 /* 确保内容区域可以正常滚动 */
@@ -30,6 +31,7 @@
   overflow-y: auto;
   flex: 1;
   padding: 1rem;
+  max-height: 50vh; /* 限制编辑内容区域的最大高度，允许页面整体滚动 */
 }
 
 /* 提升文本区域的可用性 */
