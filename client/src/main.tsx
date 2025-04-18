@@ -7,4 +7,19 @@ import "./components/ui/mobile-fixes.css";
 import "./components/ui/ipad-fixes.css";
 import "./components/ui/button-styles.css";
 
+// 预加载管理员组件，确保它们被包含在构建中
+import { preloadAdminComponents } from "./admin-components";
+
+// 在开发环境下，预加载管理员组件
+if (process.env.NODE_ENV !== 'production') {
+  console.log('开发环境：预加载管理员组件');
+  preloadAdminComponents();
+} else {
+  // 在生产环境中，延迟预加载管理员组件，但确保它们被包含在构建中
+  setTimeout(() => {
+    preloadAdminComponents();
+    console.log('生产环境：管理员组件已加载');
+  }, 2000);
+}
+
 createRoot(document.getElementById("root")!).render(<App />);
