@@ -326,13 +326,15 @@ ${searchResults}
             log(`DeepSeek API请求目标: ${this.modelConfigs.deepseek.endpoint!}`);
             
             log(`开始向NVIDIA NIM平台发送DeepSeek API请求...`);
+            log(`DeepSeek 请求完整信息 - Headers: ${JSON.stringify(this.modelConfigs.deepseek.headers!)}`);
+            log(`DeepSeek 请求完整信息 - Body: ${JSON.stringify(transformedMessage).substring(0, 500)}...`);
             
             const response = await fetchWithRetry(this.modelConfigs.deepseek.endpoint!, {
               method: "POST",
               headers: this.modelConfigs.deepseek.headers!,
               body: JSON.stringify(transformedMessage),
-              timeout: 180000, // 增加到180秒超时（3分钟），因为NVIDIA NIM平台反应缓慢
-            }, 5, 3000); // 增加重试次数和间隔
+              timeout: 300000, // 增加到300秒超时（5分钟），因为NVIDIA NIM平台反应缓慢
+            }, 7, 5000); // 增加到7次重试，初始间隔5秒
 
             if (!response.ok) {
               const errorText = await response.text();
