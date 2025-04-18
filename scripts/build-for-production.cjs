@@ -1,31 +1,24 @@
 
-#!/usr/bin/env node
-
 /**
  * 生产环境构建脚本
  * 确保所有依赖项（特别是session存储相关）正确包含在构建中
  */
 
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// Get current file's directory when using ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 console.log('开始生产环境构建...');
 
-// 执行前端构建
+// 执行前端构建, 使用CommonJS配置
 console.log('1. 执行前端构建 (vite build)...');
-execSync('vite build', { stdio: 'inherit' });
+execSync('vite build --config vite.config.js', { stdio: 'inherit' });
 console.log('前端构建完成 ✓');
 
-// 执行后端构建，但不使用 --packages=external 标志
-console.log('2. 执行后端构建 (esbuild)，包含所有依赖...');
+// 执行后端构建，使用CommonJS格式
+console.log('2. 执行后端构建 (esbuild)，使用CommonJS格式...');
 execSync(
-  'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=esm --outdir=dist',
+  'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=cjs --outdir=dist --external:lightningcss',
   { stdio: 'inherit' }
 );
 console.log('后端构建完成 ✓');
@@ -55,7 +48,8 @@ if (hasPgSession) {
   // 添加必要的导入和配置
   const fixedContent = `
 // 自动添加的PostgreSQL会话存储修复
-import pgSession from 'connect-pg-simple';
+const pgSession = require('connect-pg-simple');
+const session = require('express-session');
 const PgStore = pgSession(session);
 // 修复结束
 
