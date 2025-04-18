@@ -200,7 +200,7 @@ async function testLearningPath(): Promise<boolean> {
     const memories = await storage.getMemoriesByUserId(TEST_USER_ID);
     
     for (const memory of memories) {
-      const keywords = await storage.getMemoryKeywords(memory.id);
+      const keywords = await storage.getKeywordsByMemoryId(memory.id);
       
       for (const keyword of keywords) {
         if (allKeywords.has(keyword.keyword)) {
