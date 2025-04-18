@@ -1,56 +1,53 @@
-# 构建指南
+# 生产环境构建与部署说明
 
-本项目提供了几种构建方式，以确保生产环境中会话存储正常工作。
-
-## 构建选项
-
-1. **标准构建（不推荐用于生产）**
-   ```bash
-   npm run build
-   ```
-   ⚠️ 警告：此构建使用`--packages=external`标志，可能不包含会话存储依赖，导致生产环境中的内存泄漏。
-
-2. **安全构建（推荐用于生产）**
-   ```bash
-   node scripts/build-secure.js
-   ```
-   ✓ 此脚本会构建前后端，并验证构建输出中是否包含PostgreSQL会话存储配置，确保不会发生会话存储相关的内存泄漏。
-
-3. **生产环境构建（推荐用于生产）**
-   ```bash
-   node scripts/build-for-production.js
-   ```
-   ✓ 类似于安全构建，但包含更多验证和错误处理。
-
-## 验证构建配置
-
-在部署前，可以运行以下脚本验证会话存储配置是否正确：
-
-```bash
-node scripts/check-session-config.js
+## 1. 开发环境启动
+```
+npm run dev
 ```
 
-此脚本会检查：
-- 源代码中的会话存储配置
-- 构建配置（package.json中的build脚本）
-- 构建输出是否包含PostgreSQL会话存储
+## 2. 生产环境构建和部署步骤
+构建和部署生产环境需要几个关键步骤:
 
-## 常见问题
+### 步骤 1: 构建应用程序
 
-### 内存泄漏问题
-
-如果服务器在生产环境中经历内存泄漏，可能是因为会话存储配置不正确。请确保：
-
-1. 使用`node scripts/build-secure.js`或`node scripts/build-for-production.js`进行构建
-2. 环境变量`DATABASE_URL`设置正确
-3. 使用`NODE_ENV=production node dist/index.js`启动服务器
-
-### 构建问题排查
-
-如果构建过程中出现问题，可以运行：
-
+使用特制的构建脚本以避免ESM模块导入冲突:
 ```bash
-node scripts/check-deployment.js
+node scripts/build-direct.js
 ```
 
-此脚本会检查部署前的关键配置，包括环境变量、会话配置和构建输出。
+### 步骤 2: 启动生产服务器
+
+使用专用的生产启动脚本，它解决了ESM模块冲突问题:
+```bash
+node production.js
+```
+
+## 3. 部署常见问题解决方案
+
+### 3.1 ESM模块导入冲突
+如果遇到 `SyntaxError: Identifier 'createRequire' has already been declared` 错误，请确保:
+- 使用 `production.js` 启动应用程序，而不是直接启动 `dist/index.js`
+- 生产环境中使用 `package-prod.json` 列出的最小依赖集
+
+### 3.2 PostgreSQL会话存储问题
+如果会话存储相关错误出现，请确保:
+- 正确配置了 `DATABASE_URL` 环境变量
+- 会话表已经在数据库中创建
+- 使用 `connect-pg-simple` 在生产环境中管理会话
+
+## 4. 环境变量配置
+
+确保生产环境中配置以下环境变量:
+- `DATABASE_URL`: PostgreSQL数据库连接URL
+- `NODE_ENV`: 设置为 "production"
+- `PORT`: 可选，默认为5000
+- `SESSION_SECRET`: 用于会话加密的密钥
+- `GEMINI_API_KEY`: Gemini AI API密钥
+- 其他AI模型相关API密钥
+
+## 5. 数据库迁移
+
+数据库迁移通过Drizzle自动完成。如果需要手动迁移:
+```bash
+npm run db:push
+```

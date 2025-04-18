@@ -32,8 +32,18 @@ import { execSync } from 'child_process';
     
     // 3. 执行后端构建
     console.log('3. 执行后端构建 (esbuild)...');
-    execSync('node esbuild.config.js', { stdio: 'inherit' });
-    console.log('✓ 后端构建完成');
+    // 使用最新的esbuild配置
+    try {
+      execSync('node esbuild.config.js', { stdio: 'inherit' });
+      console.log('✓ 后端构建完成');
+    } catch (error) {
+      console.error('后端构建失败，尝试备用构建流程...');
+      // 如果新的esbuild配置失败，使用备用命令
+      execSync('npx esbuild server/index.ts --bundle --platform=node --format=esm --outdir=dist --banner:js="import { createRequire } from \'module\'; const require = createRequire(import.meta.url); import pgSession from \'connect-pg-simple\'; import session from \'express-session\'; const PgStore = pgSession(session);"', 
+        { stdio: 'inherit' }
+      );
+      console.log('✓ 后端构建完成 (使用备用流程)');
+    }
     
     // 4. 验证构建结果
     console.log('4. 验证构建结果...');
