@@ -292,16 +292,43 @@ export class DatabaseStorage implements IStorage {
 
   async deleteChat(chatId: number, userId: number, isAdmin: boolean): Promise<void> {
     try {
+      log(`[Storage] 开始删除聊天: chatId=${chatId}, userId=${userId}, isAdmin=${isAdmin}`);
+      
       // First verify if the user has access to this chat
       const chat = await this.getChatById(chatId, userId, isAdmin);
-      if (!chat) return;
+      if (!chat) {
+        log(`[Storage] 删除失败: 用户 ${userId} 无权访问聊天 ${chatId} 或聊天不存在`);
+        throw new Error(`Access denied or chat not found: chatId=${chatId}, userId=${userId}`);
+      }
+      
+      log(`[Storage] 删除消息前查询到有效聊天: ${JSON.stringify({
+        id: chat.id,
+        title: chat.title,
+        userId: chat.userId,
+        createdAt: chat.createdAt
+      })}`);
 
-      // First delete all messages in the chat
-      await db.delete(messages).where(eq(messages.chatId, chatId));
-      // Then delete the chat itself
-      await db.delete(chats).where(eq(chats.id, chatId));
+      try {
+        // First delete all messages in the chat
+        const deleteMessagesResult = await db.delete(messages).where(eq(messages.chatId, chatId));
+        log(`[Storage] 删除聊天的所有消息完成: ${JSON.stringify(deleteMessagesResult)}`);
+      } catch (msgError) {
+        log(`[Storage] 删除聊天消息时出错: ${msgError}`);
+        throw msgError;
+      }
+      
+      try {
+        // Then delete the chat itself
+        const deleteChatResult = await db.delete(chats).where(eq(chats.id, chatId));
+        log(`[Storage] 删除聊天记录完成: ${JSON.stringify(deleteChatResult)}`);
+      } catch (chatError) {
+        log(`[Storage] 删除聊天记录时出错: ${chatError}`);
+        throw chatError;
+      }
+      
+      log(`[Storage] 成功删除聊天: chatId=${chatId}`);
     } catch (error) {
-      log(`Error deleting chat: ${error}`);
+      log(`[Storage] 删除聊天时发生错误: ${error}`);
       throw error;
     }
   }

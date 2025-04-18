@@ -708,14 +708,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const chatId = parseInt(req.params.chatId);
       const { userId, role } = req.query;
+      
+      log(`[Delete] 收到删除聊天请求: chatId=${chatId}, 查询参数: userId=${userId}, role=${role}`);
+      
       if (!userId) {
+        log(`[Delete] 删除失败: 未提供用户ID`);
         return res.status(401).json({ message: "Please login first" });
       }
+      
+      if (isNaN(chatId)) {
+        log(`[Delete] 删除失败: 无效的聊天ID ${chatId}`);
+        return res.status(400).json({ message: "Invalid chat ID" });
+      }
+      
+      // 将userId转换为数字类型，防止字符串比较问题
+      const userIdNumber = Number(userId);
       const isAdmin = role === "admin";
-      await storage.deleteChat(chatId, Number(userId), isAdmin);
+      
+      log(`[Delete] 尝试删除聊天: chatId=${chatId}, userId=${userIdNumber}, isAdmin=${isAdmin}`);
+      
+      // 先检查用户是否有权限访问该聊天
+      const chat = await storage.getChatById(chatId, userIdNumber, isAdmin);
+      if (!chat) {
+        log(`[Delete] 删除失败: 用户 ${userIdNumber} 无权访问聊天 ${chatId} 或聊天不存在`);
+        return res.status(403).json({ message: "Access denied or chat not found" });
+      }
+      
+      // 执行删除操作
+      await storage.deleteChat(chatId, userIdNumber, isAdmin);
+      log(`[Delete] 聊天删除成功: chatId=${chatId}`);
+      
       res.json({ success: true });
     } catch (error) {
-      log(`Error deleting chat: ${error}`);
+      log(`[Delete] 删除聊天时发生错误: ${error}`);
       res.status(500).json({ message: "Failed to delete chat" });
     }
   });
