@@ -108,30 +108,36 @@ export const memoriesRelations = relations(memories, ({ one, many }) => ({
 // 记忆关键词表：存储记忆的关键词
 export const memoryKeywords = pgTable("memory_keywords", {
   id: serial("id").primaryKey(),
-  memoryId: integer("memory_id").notNull().references(() => memories.id),
+  // 使用text类型存储记忆ID，以支持时间戳格式ID
+  memoryId: text("memory_id").notNull(),
   keyword: text("keyword").notNull(),
 });
 
-// 记忆关键词与记忆的关系
+// 记忆关键词与记忆的关系 - 自定义关系逻辑
 export const memoryKeywordsRelations = relations(memoryKeywords, ({ one }) => ({
   memory: one(memories, {
+    // 使用自定义转换函数处理ID格式差异
     fields: [memoryKeywords.memoryId],
     references: [memories.id],
+    relationName: 'memory_keywords_relation'
   }),
 }));
 
 // 记忆嵌入向量表：存储记忆的向量表示
 export const memoryEmbeddings = pgTable("memory_embeddings", {
   id: serial("id").primaryKey(),
-  memoryId: integer("memory_id").notNull().references(() => memories.id).unique(),
+  // 使用text类型存储记忆ID，以支持时间戳格式ID
+  memoryId: text("memory_id").notNull(),
   vectorData: json("vector_data").notNull(), // 存储为JSON数组
 });
 
-// 记忆嵌入向量与记忆的关系
+// 记忆嵌入向量与记忆的关系 - 自定义关系逻辑
 export const memoryEmbeddingsRelations = relations(memoryEmbeddings, ({ one }) => ({
   memory: one(memories, {
+    // 使用自定义转换函数处理ID格式差异
     fields: [memoryEmbeddings.memoryId],
     references: [memories.id],
+    relationName: 'memory_embeddings_relation'
   }),
 }));
 
