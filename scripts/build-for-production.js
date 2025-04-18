@@ -67,10 +67,19 @@ ${content}`;
       console.log('已添加必要的会话存储导入 ✓');
     }
 
-    console.log('\n构建完成! 现在可以使用以下命令启动生产服务器:');
+    // 验证banner是否成功添加
+    if (fs.readFileSync(indexPath, 'utf8').includes('createRequire')) {
+      console.log('✓ 验证成功: 动态导入支持已添加到构建');
+    } else {
+      console.warn('⚠️ 警告: 动态导入支持可能未正确添加');
+    }
+
+    console.log('\n✅ 构建完成! 现在可以使用以下命令启动生产服务器:');
     console.log('NODE_ENV=production node dist/index.js');
   } catch (error) {
     console.error('构建过程中出错:', error);
+    if (error.stdout) console.error('标准输出:', error.stdout.toString());
+    if (error.stderr) console.error('错误输出:', error.stderr.toString());
     process.exit(1);
   }
 })();
