@@ -57,6 +57,10 @@ export function ChatHistory({
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<number | null>(null);
   
+  // 长按相关状态
+  const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [isLongPressing, setIsLongPressing] = useState(false);
+  
   // 如果用户不存在或未登录，不渲染任何内容
   if (!user?.userId) {
     console.log('[ChatHistory] No user found, not rendering');
@@ -120,6 +124,44 @@ export function ChatHistory({
     console.log(`[ChatHistory] 删除确认对话框状态：${showDeleteAlert ? '已显示' : '未显示'}`);
   };
   
+  // 长按开始处理
+  const handleLongPressStart = (chatId: number, e: React.TouchEvent | React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    console.log(`[ChatHistory] 开始长按, ID: ${chatId}`);
+    
+    // 设置长按计时器
+    const timer = setTimeout(() => {
+      console.log(`[ChatHistory] 长按时间到达，触发删除确认`);
+      setIsLongPressing(true);
+      
+      // 触发确认对话框
+      setChatToDelete(chatId);
+      setShowDeleteAlert(true);
+      
+      // 震动反馈 (如果设备支持)
+      if (navigator.vibrate) {
+        navigator.vibrate(100);
+      }
+    }, 600); // 长按时间设为600毫秒
+    
+    setLongPressTimer(timer);
+  };
+  
+  // 长按结束处理
+  const handleLongPressEnd = () => {
+    console.log(`[ChatHistory] 长按结束`);
+    
+    // 清除计时器
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+    
+    setIsLongPressing(false);
+  };
+  
   // 确认删除函数
   const confirmDelete = async () => {
     console.log(`[ChatHistory] 确认删除聊天，ID: ${chatToDelete}`);
@@ -176,21 +218,96 @@ export function ChatHistory({
         暂无记录
       </div>
     );
+  
+    // 添加空状态提示
+  } else if (chatsToRender.length === 1) {
+    // 只有一个聊天记录时，显示长按提示
+    chatListContent = (
+      <>
+        <div className="px-2 pt-1 pb-0">
+          <div className="text-xs text-[#0deae4]/70 mb-1 text-center">
+            提示: 长按聊天记录可以删除
+          </div>
+        </div>
+        <ScrollArea className="flex-1">
+          <div className="px-2 py-2 space-y-1">
+            {chatsToRender.map((chat: any) => (
+              <div
+                key={chat.id}
+                className={`group flex items-center rounded-lg ${
+                  currentChatId === chat.id ? 'bg-[#0deae4]/10' : 'hover:bg-black/40'
+                }`}
+                onTouchStart={(e) => handleLongPressStart(chat.id, e)}
+                onTouchEnd={handleLongPressEnd}
+                onTouchMove={handleLongPressEnd}
+                onTouchCancel={handleLongPressEnd}
+              >
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-sm py-3 px-3 h-auto"
+                  onClick={() => {
+                    // 如果是长按结束，不触发导航
+                    if (isLongPressing) return;
+                    
+                    if (onSelectChat) onSelectChat(chat.id);
+                    if (setCurrentChatId) setCurrentChatId(chat.id);
+                  }}
+                >
+                  <MessageSquare className={`mr-3 h-4 w-4 shrink-0 ${currentChatId === chat.id ? 'text-[#0deae4]' : 'text-[#0deae4]/60'}`} />
+                  <div className="flex flex-col items-start truncate">
+                    <span className={`truncate w-[180px] ${currentChatId === chat.id ? 'text-white' : 'text-white/80'}`}>{chat.title}</span>
+                    {user.role === "admin" && chat.username && (
+                      <span className="text-xs text-[#0deae4]/50">
+                        by {chat.username}
+                      </span>
+                    )}
+                  </div>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity h-8 w-8 mr-1 hover:bg-red-500/10"
+                  onClick={(e) => handleDeleteChat(chat.id, e)}
+                  onTouchStart={(e) => handleLongPressStart(chat.id, e)}
+                  onTouchEnd={handleLongPressEnd}
+                  onTouchMove={handleLongPressEnd}
+                  onTouchCancel={handleLongPressEnd}
+                >
+                  <Trash2 className="h-4 w-4 text-red-400" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </>
+    );
   } else {
     chatListContent = (
       <ScrollArea className="flex-1">
-        <div className="px-2 py-3 space-y-1">
+        <div className="px-2 pt-1 pb-0">
+          <div className="text-xs text-[#0deae4]/70 mb-1 text-center">
+            提示: 长按聊天记录可以删除
+          </div>
+        </div>
+        <div className="px-2 py-2 space-y-1">
           {chatsToRender.map((chat: any) => (
             <div
               key={chat.id}
               className={`group flex items-center rounded-lg ${
                 currentChatId === chat.id ? 'bg-[#0deae4]/10' : 'hover:bg-black/40'
               }`}
+              onTouchStart={(e) => handleLongPressStart(chat.id, e)}
+              onTouchEnd={handleLongPressEnd}
+              onTouchMove={handleLongPressEnd}
+              onTouchCancel={handleLongPressEnd}
             >
               <Button
                 variant="ghost"
                 className="w-full justify-start text-sm py-3 px-3 h-auto"
                 onClick={() => {
+                  // 如果是长按结束，不触发导航
+                  if (isLongPressing) return;
+                  
                   if (onSelectChat) onSelectChat(chat.id);
                   if (setCurrentChatId) setCurrentChatId(chat.id);
                 }}
@@ -210,6 +327,10 @@ export function ChatHistory({
                 size="icon"
                 className="md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity h-8 w-8 mr-1 hover:bg-red-500/10"
                 onClick={(e) => handleDeleteChat(chat.id, e)}
+                onTouchStart={(e) => handleLongPressStart(chat.id, e)}
+                onTouchEnd={handleLongPressEnd}
+                onTouchMove={handleLongPressEnd}
+                onTouchCancel={handleLongPressEnd}
               >
                 <Trash2 className="h-4 w-4 text-red-400" />
               </Button>
