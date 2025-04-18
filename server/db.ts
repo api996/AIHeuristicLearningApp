@@ -9,19 +9,17 @@ interface ErrorWithMessage {
   message: string;
 }
 
+// 修复WebSocket连接错误
+// 在生产环境中，我们需要特别处理
+const isProduction = process.env.NODE_ENV === 'production';
+
 // 配置Neon WebSocket连接
+// 在生产模式下，使用更简单的WebSocket配置避免TypeError
 neonConfig.webSocketConstructor = ws;
-// 注意：下面对neonConfig的其他设置在某些版本中可能不支持
-// 我们使用try/catch来确保代码不会因为不支持的配置而崩溃
-try {
-  // 尝试设置WebSocket选项以提高稳定性
-  // @ts-ignore - 这些选项在较新版本可能可用
-  neonConfig.wsClosingTimeout = 10000;
-  // @ts-ignore 
-  neonConfig.useSecureWebSocket = true;
-} catch (e) {
-  log('注意: 无法设置某些Neon WebSocket配置选项，但连接仍将继续');
-}
+
+// 不使用可能导致问题的配置
+// 在生产模式下，我们使用默认值
+// 避免使用额外配置，这些配置在不同版本间可能不兼容
 
 // 使用环境变量中的数据库URL
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -32,14 +30,21 @@ if (!DATABASE_URL) {
   );
 }
 
-// 配置连接池，使用推荐的生产环境设置
-export const pool = new Pool({
-  connectionString: DATABASE_URL,
-  max: 10, // 降低最大连接数，避免超出PostgreSQL限制
-  idleTimeoutMillis: 30000, // 连接最大空闲时间
-  connectionTimeoutMillis: 5000, // 增加连接超时时间
-  allowExitOnIdle: false // 禁止空闲时退出
-});
+// 配置连接池，根据环境使用不同的配置
+export const pool = new Pool(isProduction ? 
+  // 生产环境使用最简化配置，避免额外属性可能引起的问题
+  { 
+    connectionString: DATABASE_URL 
+  } : 
+  // 开发环境可以使用更多配置
+  {
+    connectionString: DATABASE_URL,
+    max: 10, // 降低最大连接数，避免超出PostgreSQL限制
+    idleTimeoutMillis: 30000, // 连接最大空闲时间
+    connectionTimeoutMillis: 5000, // 增加连接超时时间
+    allowExitOnIdle: false // 禁止空闲时退出
+  }
+);
 
 // 监听连接池错误，防止连接问题导致整个应用崩溃
 pool.on('error', (err) => {
