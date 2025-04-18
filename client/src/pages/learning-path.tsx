@@ -451,51 +451,53 @@ export default function LearningPath() {
                     </h3>
                     
                     <div className="flex h-[500px] w-full relative">
-                      <ForceGraph2D
-                        graphData={knowledgeGraph}
-                        nodeLabel={node => `${node.label} (${node.category})`}
-                        nodeColor={node => {
-                          if (node.category === 'cluster') return '#3b82f6'; // blue
-                          if (node.category === 'keyword') return '#10b981'; // green
-                          if (node.category === 'memory') return '#f59e0b'; // yellow
-                          return '#6366f1'; // indigo default
-                        }}
-                        nodeRelSize={8}
-                        linkWidth={link => link.value * 5} // 根据关联强度调整线宽
-                        linkColor={() => 'rgba(59, 130, 246, 0.5)'} // 半透明蓝色
-                        backgroundColor="rgba(0,0,0,0)"
-                        width={800}
-                        height={500}
-                        cooldownTicks={100}
-                        onEngineStop={() => {
-                          // 布局完成后的操作
-                        }}
-                        nodeCanvasObject={(node, ctx, globalScale) => {
-                          const label = node.label;
-                          const fontSize = 12/globalScale;
-                          const size = node.size / 2; // 调整节点大小
-                          
-                          // 绘制节点
-                          ctx.beginPath();
-                          ctx.arc(node.x || 0, node.y || 0, size, 0, 2 * Math.PI, false);
-                          ctx.fillStyle = node.color || '#3b82f6'; 
-                          ctx.fill();
-                          
-                          // 为节点添加边框
-                          ctx.strokeStyle = '#1e40af';
-                          ctx.lineWidth = 0.5;
-                          ctx.stroke();
-                          
-                          // 节点文本
-                          if (globalScale >= 1) {
-                            ctx.font = `${fontSize}px Sans-Serif`;
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'middle';
-                            ctx.fillStyle = '#e2e8f0';
-                            ctx.fillText(label, node.x || 0, (node.y || 0) + size + fontSize);
-                          }
-                        }}
-                      />
+                      {knowledgeGraph && (
+                        <Graph
+                          id="knowledge-graph"
+                          data={{
+                            nodes: knowledgeGraph.nodes.map(node => ({
+                              id: node.id,
+                              color: node.category === 'cluster' ? '#3b82f6' : 
+                                    node.category === 'keyword' ? '#10b981' : 
+                                    node.category === 'memory' ? '#f59e0b' : '#6366f1',
+                              size: node.size * 300,
+                              symbolType: "circle",
+                              label: node.label,
+                              category: node.category
+                            })),
+                            links: knowledgeGraph.links.map(link => ({
+                              source: link.source,
+                              target: link.target,
+                              strokeWidth: link.value * 3,
+                              color: 'rgba(59, 130, 246, 0.5)'
+                            }))
+                          }}
+                          config={{
+                            nodeHighlightBehavior: true,
+                            directed: true,
+                            d3: {
+                              gravity: -100,
+                              linkLength: 120
+                            },
+                            node: {
+                              color: "#3b82f6",
+                              size: 300,
+                              highlightStrokeColor: 'white',
+                              fontSize: 12,
+                              fontColor: 'white',
+                              labelProperty: "label",
+                              renderLabel: true
+                            },
+                            link: {
+                              highlightColor: 'white',
+                              color: 'rgba(59, 130, 246, 0.5)',
+                              strokeWidth: 2
+                            },
+                            height: 500,
+                            width: 800
+                          }}
+                        />
+                      )}
                     </div>
                     
                     <div className="flex justify-between items-center border-t border-blue-900/30 pt-4 mt-2">
