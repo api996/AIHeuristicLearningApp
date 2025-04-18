@@ -81,7 +81,11 @@ export function AIChat({ userData }: AIChatProps) {
   const [input, setInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentModel, setCurrentModel] = useState<Model>("deep");
+  // 默认使用Gemini模型，并通过localStorage保持状态
+  const [currentModel, setCurrentModel] = useState<Model>(() => {
+    const savedModel = localStorage.getItem('currentModel') as Model;
+    return savedModel || "gemini"; // 默认使用Gemini模型
+  });
   
   // 跨模型上下文共享函数，用于在模型切换时更新聊天模型设置
   const handleModelChange = async (newModel: Model) => {
@@ -150,10 +154,11 @@ export function AIChat({ userData }: AIChatProps) {
       }
     }
   };
-  // 网络搜索状态 - 使用 localStorage 保持状态一致性
+  // 网络搜索状态 - 默认关闭，使用 localStorage 保持状态一致性
   const [useWebSearch, setUseWebSearch] = useState(() => {
     const savedState = localStorage.getItem('useWebSearch');
-    return savedState === 'true';
+    // 如果没有保存的状态，则默认为关闭
+    return savedState === 'true' ? true : false;
   });
   const [currentChatId, setCurrentChatId] = useState<number>();
   const fileInputRef = useRef<HTMLInputElement>(null);
