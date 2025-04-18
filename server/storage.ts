@@ -46,7 +46,7 @@ export interface IStorage {
   getMessageById(messageId: number): Promise<Message | undefined>; // Added method
 
   // Memory methods
-  createMemory(userId: number, content: string, type?: string, summary?: string): Promise<Memory>;
+  createMemory(userId: number, content: string, type?: string, summary?: string, timestamp?: Date): Promise<Memory>;
   getMemoriesByUserId(userId: number): Promise<Memory[]>;
   getMemoryById(memoryId: number): Promise<Memory | undefined>;
   updateMemory(memoryId: number, content?: string, summary?: string): Promise<Memory>;
@@ -559,7 +559,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Memory methods
-  async createMemory(userId: number, content: string, type: string = "chat", summary?: string): Promise<Memory> {
+  async createMemory(userId: number, content: string, type: string = "chat", summary?: string, timestamp?: Date): Promise<Memory> {
     try {
       if (!userId || isNaN(userId)) {
         throw new Error("Invalid user ID");
@@ -576,7 +576,7 @@ export class DatabaseStorage implements IStorage {
           content,
           type,
           summary,
-          timestamp: new Date()
+          timestamp: timestamp || new Date()
         })
         .returning();
       
