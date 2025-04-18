@@ -15,10 +15,10 @@ console.log('1. 执行前端构建 (vite build)...');
 execSync('vite build', { stdio: 'inherit' });
 console.log('前端构建完成 ✓');
 
-// 执行后端构建，但不使用 --packages=external 标志
+// 执行后端构建，但不使用 --packages=external 标志，标记lightningcss为external
 console.log('2. 执行后端构建 (esbuild)，包含所有依赖...');
 execSync(
-  'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=esm --outdir=dist',
+  'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=esm --outdir=dist --external:lightningcss',
   { stdio: 'inherit' }
 );
 console.log('后端构建完成 ✓');
