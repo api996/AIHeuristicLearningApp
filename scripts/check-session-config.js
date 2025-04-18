@@ -9,13 +9,8 @@
  * - 生产环境: `NODE_ENV=production node scripts/check-session-config.js`
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// 获取当前文件的目录路径
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const fs = require('fs');
+const path = require('path');
 
 // 颜色设置
 const colors = {
