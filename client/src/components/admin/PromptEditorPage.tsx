@@ -612,7 +612,12 @@ export function PromptEditorPage() {
                   </div>
                 )}
               </CardHeader>
-              <CardContent className="flex-grow overflow-y-auto" style={{ maxHeight: "60vh", WebkitOverflowScrolling: "touch" }}>
+              <CardContent className="flex-grow overflow-y-auto overflow-x-hidden -mx-1 px-1" style={{ 
+                  maxHeight: "calc(100vh - 250px)", 
+                  WebkitOverflowScrolling: "touch",
+                  msOverflowStyle: "none",
+                  scrollbarWidth: "thin" 
+                }}>
                 <div className="bg-neutral-800 border border-neutral-700 p-3 rounded-md mb-3 text-sm text-white">
                   <p className="text-gray-200">提示词支持以下变量：</p>
                   <div className="grid grid-cols-2 gap-2 mt-1">
@@ -627,14 +632,20 @@ export function PromptEditorPage() {
                   </div>
                 </div>
                 
-                <Textarea
-                  value={templateContent.value}
-                  onChange={(e) => templateContent.setter(e.target.value)}
-                  placeholder={templateContent.placeholder}
-                  className="min-h-[300px] max-h-[50vh] font-mono text-sm bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 overflow-y-auto"
-                  disabled={loading}
-                  style={{ WebkitOverflowScrolling: "touch" }}
-                />
+                <div className="overflow-auto -mx-1 px-1" style={{ WebkitOverflowScrolling: "touch" }}>
+                  <Textarea
+                    value={templateContent.value}
+                    onChange={(e) => templateContent.setter(e.target.value)}
+                    placeholder={templateContent.placeholder}
+                    className="min-h-[250px] w-full font-mono text-sm bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500"
+                    disabled={loading}
+                    style={{ 
+                      WebkitOverflowScrolling: "touch",
+                      touchAction: "pan-y",
+                      overscrollBehavior: "contain"
+                    }}
+                  />
+                </div>
               </CardContent>
               <CardFooter className="flex justify-between">
                 <div className="flex space-x-2">

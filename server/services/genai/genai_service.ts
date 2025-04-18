@@ -20,10 +20,16 @@ const log = (message: string, source = "genai_service") => {
 /**
  * 移除AI响应中的思考过程
  * 主要过滤DeepSeek R1模型的<Think></Think>标签内容
+ * 注意：此功能已暂时禁用，不再过滤思考过程，直接返回原始文本
  * @param text AI响应文本
  * @returns 过滤后的文本
  */
 export function removeThinkingProcess(text: string): string {
+  // 当前已禁用思考过程过滤
+  log(`跳过DeepSeek思考过程过滤，使用原始响应文本`);
+  return text;
+  
+  /* 暂时禁用的原始过滤逻辑
   if (!text) return text;
   
   // 记录原始长度，用于判断是否进行了过滤
@@ -62,6 +68,7 @@ export function removeThinkingProcess(text: string): string {
   }
   
   return filteredText.trim();
+  */
 }
 
 // 导入环境变量配置
