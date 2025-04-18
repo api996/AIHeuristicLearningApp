@@ -1,78 +1,62 @@
-/* 管理员界面iPad和平板设备特定修复 */
+/*
+ * iPad特定修复样式
+ * 修复高级提示词模板管理在iPad上无法正常滚动的问题
+ */
 
-.ipad-device .admin-template-editor,
-.tablet-device .admin-template-editor {
-  /* 基础布局 */
-  display: flex !important;
-  flex-direction: column !important;
-  height: calc(100vh - 70px) !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  position: relative !important;
+/* 为整个模板编辑器添加触摸滚动支持 */
+.admin-template-editor {
+  -webkit-overflow-scrolling: touch;
+  height: 100vh;
+  overflow: auto;
 }
 
-/* 修复模板编辑区滚动问题 */
-.ipad-device .template-editor-card,
-.tablet-device .template-editor-card {
-  height: auto !important;
-  min-height: 300px !important;
-  max-height: calc(100vh - 100px) !important;
-  display: flex !important;
-  flex-direction: column !important;
+/* 修复iPad上的网格布局 */
+.admin-template-editor-grid {
+  display: grid;
+  min-height: 0;  /* 确保网格不会超出其容器 */
 }
 
-/* 编辑区内容区域 */
-.ipad-device .template-editor-content,
-.tablet-device .template-editor-content {
-  flex: 1 !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  position: relative !important;
-  padding: 16px !important;
-  margin: -8px !important;
+/* 提高模板编辑卡片的滚动可靠性 */
+.template-editor-card {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
 }
 
-/* 专门处理文本区域 */
-.ipad-device .template-textarea-container,
-.tablet-device .template-textarea-container {
-  width: 100% !important;
-  position: relative !important;
-  overflow: visible !important; /* 确保滚动条可见 */
+/* 确保内容区域可以正常滚动 */
+.template-editor-content {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  flex: 1;
+  padding: 1rem;
 }
 
-.ipad-device .template-textarea,
-.tablet-device .template-textarea {
-  width: 100% !important;
-  min-height: 200px !important;
-  max-height: none !important; /* 移除最大高度限制 */
-  padding: 12px !important;
-  font-size: 14px !important;
-  line-height: 1.5 !important;
-  border-radius: 8px !important;
-  resize: vertical !important; /* 允许垂直调整大小 */
-  -webkit-appearance: none !important; /* 移除iOS默认样式 */
-  appearance: none !important;
+/* 提升文本区域的可用性 */
+.template-textarea-container {
+  position: relative;
+  min-height: 200px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* 防止iOS橡皮筋效果 */
-.ipad-device,
-.tablet-device {
-  overscroll-behavior: none !important;
-  -webkit-overflow-scrolling: touch !important;
+.template-textarea {
+  width: 100%;
+  min-height: 200px;
+  resize: vertical;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  font-family: monospace;
 }
 
-/* 确保编辑区可见 */
-@media (max-width: 1024px) {
-  .ipad-device .admin-template-editor-grid,
-  .tablet-device .admin-template-editor-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 16px !important;
-  }
-  
-  .ipad-device .template-editor-card,
-  .tablet-device .template-editor-card {
-    width: 100% !important;
-    margin-bottom: 16px !important;
+/* 针对iOS Safari浏览器的特定修复 */
+@supports (-webkit-touch-callout: none) {
+  .template-editor-content,
+  .template-textarea {
+    /* iOS Safari特定修复 */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
   }
 }
