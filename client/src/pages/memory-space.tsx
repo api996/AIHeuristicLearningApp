@@ -83,12 +83,34 @@ const MemorySpace: React.FC = () => {
   const { 
     data: memoriesData, 
     isLoading: isLoadingMemories,
+    error: memoriesError,
     refetch: refetchMemories
   } = useQuery({
     queryKey: ['/api/memory-space', localUserId || userId],
     // 使用localUserId或userId中任一有效值
     enabled: !!(localUserId || userId),
+    queryFn: async () => {
+      console.log('记忆查询，使用用户ID:', localUserId || userId);
+      const effectiveUserId = localUserId || userId;
+      
+      if (!effectiveUserId) {
+        console.error('查询记忆时无有效用户ID');
+        throw new Error('无有效用户ID');
+      }
+      
+      const response = await fetch(`/api/memory-space/${effectiveUserId}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('获取记忆失败:', response.status, errorText);
+        throw new Error(`获取记忆失败: ${response.status} ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('记忆API返回数据:', data);
+      return data || { memories: [] };
+    },
     select: (data) => {
+      console.log('记忆API数据处理:', data);
       return data || { memories: [] };
     }
   });
@@ -96,12 +118,34 @@ const MemorySpace: React.FC = () => {
   // 获取记忆聚类
   const { 
     data: clustersData, 
-    isLoading: isLoadingClusters 
+    isLoading: isLoadingClusters,
+    error: clustersError 
   } = useQuery({
     queryKey: ['/api/memory-space', localUserId || userId, 'clusters'],
     // 使用localUserId或userId中任一有效值
     enabled: !!(localUserId || userId),
+    queryFn: async () => {
+      console.log('聚类查询，使用用户ID:', localUserId || userId);
+      const effectiveUserId = localUserId || userId;
+      
+      if (!effectiveUserId) {
+        console.error('查询聚类时无有效用户ID');
+        throw new Error('无有效用户ID');
+      }
+      
+      const response = await fetch(`/api/memory-space/${effectiveUserId}/clusters`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('获取聚类失败:', response.status, errorText);
+        throw new Error(`获取聚类失败: ${response.status} ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('聚类API返回数据:', data);
+      return data || { topics: [] };
+    },
     select: (data) => {
+      console.log('聚类API数据处理:', data);
       return data || { topics: [] };
     }
   });
