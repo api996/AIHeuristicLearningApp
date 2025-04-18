@@ -105,33 +105,55 @@ export function ChatHistory({
 
   // 常规删除处理函数
   const handleDeleteChat = async (chatId: number, e: React.MouseEvent) => {
+    console.log(`[ChatHistory] 尝试删除聊天，ID: ${chatId}`);
     e.stopPropagation();
+    e.preventDefault(); // 防止事件冒泡
+    
+    // 显示确认对话框前记录日志
+    console.log(`[ChatHistory] 打开确认对话框，chatId=${chatId}`);
+    
     // 先显示确认对话框
     setChatToDelete(chatId);
     setShowDeleteAlert(true);
+    
+    // 确保对话框已显示
+    console.log(`[ChatHistory] 删除确认对话框状态：${showDeleteAlert ? '已显示' : '未显示'}`);
   };
   
   // 确认删除函数
   const confirmDelete = async () => {
+    console.log(`[ChatHistory] 确认删除聊天，ID: ${chatToDelete}`);
+    
     if (chatToDelete) {
       try {
+        console.log(`[ChatHistory] 开始调用API删除聊天，ID: ${chatToDelete}`);
         await deleteChatMutation.mutateAsync(chatToDelete);
-        if (onDeleteChat) onDeleteChat(chatToDelete);
+        
+        console.log(`[ChatHistory] API删除成功，通知父组件更新UI`);
+        if (onDeleteChat) {
+          onDeleteChat(chatToDelete);
+          console.log(`[ChatHistory] 已通知父组件删除ID: ${chatToDelete}`);
+        }
+        
         toast({
           title: "删除成功",
           description: "已成功删除对话",
         });
+        console.log(`[ChatHistory] 已显示成功提示`);
       } catch (error) {
-        console.error('Failed to delete chat:', error);
+        console.error('[ChatHistory] 删除聊天失败:', error);
         toast({
           title: "删除失败",
           description: "删除对话时发生错误",
           variant: "destructive",
         });
       }
+    } else {
+      console.warn('[ChatHistory] 确认删除时chatToDelete为null');
     }
     
     // 重置状态
+    console.log('[ChatHistory] 重置确认对话框状态');
     setShowDeleteAlert(false);
     setChatToDelete(null);
   };
@@ -186,7 +208,7 @@ export function ChatHistory({
               <Button
                 variant="ghost"
                 size="icon"
-                className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 mr-1 hover:bg-red-500/10"
+                className="md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity h-8 w-8 mr-1 hover:bg-red-500/10"
                 onClick={(e) => handleDeleteChat(chat.id, e)}
               >
                 <Trash2 className="h-4 w-4 text-red-400" />
