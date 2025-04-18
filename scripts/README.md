@@ -18,13 +18,13 @@ command finished with error [sh -c NODE_ENV=production node dist/index.js]: sign
 
 ## 工具列表
 
-### 1. 构建工具 (build-prod.js)
+### 1. 构建工具 (build-prod.cjs)
 
 用于生产环境的构建脚本，确保PostgreSQL会话存储正确包含在构建中。
 
 **使用方法:**
 ```bash
-node scripts/build-prod.js
+node scripts/build-prod.cjs
 ```
 
 这个脚本会：
@@ -32,13 +32,13 @@ node scripts/build-prod.js
 - 确保构建输出包含PostgreSQL会话存储配置
 - 验证最终构建内容
 
-### 2. 改进的生产构建工具 (build-for-production.js)
+### 2. 改进的生产构建工具 (build-for-production.cjs)
 
 解决特定问题：构建命令中的 `--packages=external` 标志导致会话存储配置丢失。
 
 **使用方法:**
 ```bash
-node scripts/build-for-production.js
+node scripts/build-for-production.cjs
 ```
 
 这个脚本会：
@@ -46,25 +46,25 @@ node scripts/build-for-production.js
 - 确保构建输出包含所有依赖，特别是会话存储相关代码
 - 验证最终构建并在必要时修复
 
-### 3. 会话管理模块 (db-session.js)
+### 3. 会话管理模块 (db-session.cjs)
 
 提供基于PostgreSQL的会话存储功能，解决内存泄漏问题。
 
 **使用方法:**
 ```javascript
-const { createSessionConfig } = require('./scripts/db-session');
+const { createSessionConfig } = require('./scripts/db-session.cjs');
 
 // 在Express应用中使用
 app.use(session(createSessionConfig()));
 ```
 
-### 4. 部署检查工具 (check-deployment.js)
+### 4. 部署检查工具 (check-deployment.cjs)
 
 在部署前检查关键生产配置，特别是会话存储设置。
 
 **使用方法:**
 ```bash
-node scripts/check-deployment.js
+node scripts/check-deployment.cjs
 ```
 
 这个脚本会检查：
