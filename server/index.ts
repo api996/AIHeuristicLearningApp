@@ -75,15 +75,13 @@ app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 // 创建PostgreSQL会话存储
 const PgStore = pgSession(session);
 
-// 添加会话支持，在生产环境中使用PostgreSQL存储会话数据
+// 添加会话支持，始终使用PostgreSQL存储会话数据（生产和开发环境）
 app.use(session({
-  store: process.env.NODE_ENV === 'production' 
-    ? new PgStore({
-        pool,
-        tableName: 'session', // 与之前创建的表名匹配
-        createTableIfMissing: true
-      }) 
-    : undefined, // 开发环境仍使用内存存储
+  store: new PgStore({
+    pool,
+    tableName: 'session', // 与之前创建的表名匹配
+    createTableIfMissing: true
+  }),
   secret: process.env.SESSION_SECRET || 'ai-learning-companion-secret',
   resave: false,
   saveUninitialized: true,
