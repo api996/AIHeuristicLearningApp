@@ -184,8 +184,8 @@ class GeminiService implements GenAIService {
       // 截断文本，防止过长
       const truncatedText = text.length > 15000 ? text.substring(0, 15000) + "..." : text;
       
-      // 使用Gemini 2.5 Pro模型生成摘要
-      const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-pro-exp-03-25" });
+      // 使用Gemini 2.0 Flash模型生成摘要
+      const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const prompt = `请为以下文本生成一个简洁的摘要（不超过50个字）:\n\n${truncatedText}`;
       
       const result = await model.generateContent(prompt);
@@ -209,8 +209,8 @@ class GeminiService implements GenAIService {
       // 截断文本，防止过长
       const truncatedText = text.length > 10000 ? text.substring(0, 10000) + "..." : text;
       
-      // 使用Gemini 2.5 Pro模型提取关键词
-      const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-pro-exp-03-25" });
+      // 使用Gemini 2.0 Flash模型提取关键词
+      const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const prompt = `请从以下文本中提取5到10个关键词或短语，以逗号分隔。这些关键词应该能够概括文本的主要内容和主题:\n\n${truncatedText}`;
       
       const result = await model.generateContent(prompt);
@@ -239,8 +239,8 @@ class GeminiService implements GenAIService {
       // 合并并截断文本，防止过长
       const combinedText = texts.join("\n\n").substring(0, 20000);
       
-      // 使用Gemini 2.5 Pro模型生成主题
-      const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-pro-exp-03-25" });
+      // 使用Gemini 2.0 Flash模型生成主题
+      const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const prompt = `请为以下一组相关文本生成一个简洁的主题标签（5-10个字）。这个标签应该能够概括这组文本的共同主题:\n\n${combinedText}`;
       
       const result = await model.generateContent(prompt);
