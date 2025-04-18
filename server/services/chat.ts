@@ -331,8 +331,8 @@ ${searchResults}
               method: "POST",
               headers: this.modelConfigs.deepseek.headers!,
               body: JSON.stringify(transformedMessage),
-              timeout: 120000, // 增加到120秒超时，因为DeepSeek大模型推理可能需要更长时间
-            }, 4, 2000); // 增加重试次数和间隔
+              timeout: 180000, // 增加到180秒超时（3分钟），因为NVIDIA NIM平台反应缓慢
+            }, 5, 3000); // 增加重试次数和间隔
 
             if (!response.ok) {
               const errorText = await response.text();
@@ -387,7 +387,15 @@ ${searchResults}
             
           } catch (error) {
             log(`DeepSeek处理过程出错: ${error}`);
-            throw new Error(`DeepSeek API调用失败: ${error.message || '未知错误'}`);
+            
+            // 给用户一个友好的错误信息，告知实际错误情况
+            const errorMessage = (error instanceof Error) ? error.message : String(error);
+            const friendlyMessage = `DeepSeek模型暂时无法使用：${errorMessage.includes('timeout') ? '服务响应超时' : '连接服务失败'}。请尝试使用Gemini或Grok模型，或稍后再试。`;
+            
+            return {
+              text: friendlyMessage,
+              model: "deepseek"
+            };
           }
         }
       },
@@ -495,7 +503,15 @@ ${searchResults}
             };
           } catch (error) {
             log(`Error calling Grok API: ${error}`);
-            throw error;
+            
+            // 给用户一个友好的错误信息
+            const errorMessage = (error instanceof Error) ? error.message : String(error);
+            const friendlyMessage = `Grok模型暂时无法使用：${errorMessage.includes('timeout') ? '服务响应超时' : '连接服务失败'}。请尝试使用Gemini或其他模型，或稍后再试。`;
+            
+            return {
+              text: friendlyMessage,
+              model: "grok"
+            };
           }
         }
       },
@@ -646,7 +662,15 @@ ${searchResults}
             };
           } catch (error) {
             log(`Error calling Dify API: ${error}`);
-            throw error;
+            
+            // 给用户一个友好的错误信息
+            const errorMessage = (error instanceof Error) ? error.message : String(error);
+            const friendlyMessage = `Deep模型暂时无法使用：${errorMessage.includes('timeout') ? '服务响应超时' : '连接服务失败'}。请尝试使用Gemini或其他模型，或稍后再试。`;
+            
+            return {
+              text: friendlyMessage,
+              model: "deep"
+            };
           }
         }
       }
