@@ -72,13 +72,13 @@ node scripts/check-deployment.cjs
 - 会话存储配置
 - 构建输出中的会话存储代码
 
-### 5. 会话存储验证工具 (verify-session-storage.js)
+### 5. 会话存储验证工具 (verify-session-storage.cjs)
 
 检查数据库中的会话表，验证会话存储是否正确配置。
 
 **使用方法:**
 ```bash
-node scripts/verify-session-storage.js
+node scripts/verify-session-storage.cjs
 ```
 
 这个脚本会：
@@ -86,17 +86,17 @@ node scripts/verify-session-storage.js
 - 显示当前会话记录数量
 - 检查过期会话并建议清理
 
-### 6. 会话配置检查工具 (check-session-config.js)
+### 6. 会话配置检查工具 (check-session-config.cjs)
 
 全面检查应用程序的会话配置，从源代码到构建配置到最终构建输出。
 
 **使用方法:**
 ```bash
 # 开发环境检查
-node scripts/check-session-config.js
+node scripts/check-session-config.cjs
 
 # 生产环境检查
-NODE_ENV=production node scripts/check-session-config.js
+NODE_ENV=production node scripts/check-session-config.cjs
 ```
 
 这个脚本会检查：
@@ -105,13 +105,13 @@ NODE_ENV=production node scripts/check-session-config.js
 - 构建输出中是否包含会话存储相关代码
 - 提供修复建议
 
-### 7. 过期会话清理工具 (cleanup-expired-sessions.js)
+### 7. 过期会话清理工具 (cleanup-expired-sessions.cjs)
 
 定期清理数据库中的过期会话记录，优化数据库性能。
 
 **使用方法:**
 ```bash
-node scripts/cleanup-expired-sessions.js
+node scripts/cleanup-expired-sessions.cjs
 ```
 
 这个脚本会：
@@ -122,11 +122,11 @@ node scripts/cleanup-expired-sessions.js
 ## 解决生产环境会话问题的步骤
 
 1. 确保 `server/index.ts` 中已配置PostgreSQL会话存储
-2. 运行 `check-session-config.js` 全面检查会话配置
-3. 使用 `build-for-production.js` 进行构建，确保包含所有依赖
-4. 部署前运行 `check-deployment.js` 进行验证
-5. 部署后运行 `verify-session-storage.js` 确认会话表正确创建
-6. 定期运行 `cleanup-expired-sessions.js` 清理过期会话
+2. 运行 `check-session-config.cjs` 全面检查会话配置
+3. 使用 `build-for-production.cjs` 进行构建，确保包含所有依赖
+4. 部署前运行 `check-deployment.cjs` 进行验证
+5. 部署后运行 `verify-session-storage.cjs` 确认会话表正确创建
+6. 定期运行 `cleanup-expired-sessions.cjs` 清理过期会话
 
 ## 注意事项
 
