@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -7,6 +7,37 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+// @ts-ignore 忽略类型检查
+import { Graph } from "react-d3-graph";
+// @ts-ignore 忽略类型检查
+import * as d3 from "d3";
+
+// 定义知识图谱节点类型
+interface KnowledgeNode {
+  id: string;
+  label: string;
+  size: number;
+  category?: string;
+  clusterId?: string;
+  color?: string;
+  x?: number;
+  y?: number;
+}
+
+// 定义知识图谱连接类型
+interface KnowledgeLink {
+  source: string;
+  target: string;
+  value: number;
+  type?: string;
+}
+
+// 知识图谱数据结构
+interface KnowledgeGraph {
+  nodes: KnowledgeNode[];
+  links: KnowledgeLink[];
+  version?: number;
+}
 
 export default function LearningPath() {
   const [, setLocation] = useLocation();
@@ -412,56 +443,84 @@ export default function LearningPath() {
             <CardContent>
               {knowledgeGraph?.nodes && 
                knowledgeGraph.nodes.length > 0 ? (
-                <div className="h-[500px] rounded-lg border border-blue-900/50 bg-gradient-to-b from-blue-950/20 to-purple-950/10 p-6">
-                  <div className="space-y-6">
+                <div className="h-[600px] rounded-lg border border-blue-900/50 bg-gradient-to-b from-blue-950/20 to-purple-950/10 p-6">
+                  <div className="space-y-4">
                     <h3 className="text-lg text-blue-300 flex items-center">
                       <Network className="h-5 w-5 mr-2 text-blue-400" />
-                      知识图谱
+                      知识图谱可视化
                     </h3>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {knowledgeGraph.nodes.map((node) => (
-                        <div 
-                          key={node.id}
-                          className="border border-blue-800/30 rounded-lg p-4 bg-blue-900/10 hover:bg-blue-900/20 transition-colors"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium text-blue-300">{node.label}</h4>
-                            <span className="text-xs px-2 py-1 bg-blue-900/40 rounded-full text-blue-300">
-                              {node.category}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm text-neutral-400">
-                            <span>权重: {node.size}</span>
-                            <span>ID: {node.id}</span>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="flex h-[500px] w-full relative">
+                      <ForceGraph2D
+                        graphData={knowledgeGraph}
+                        nodeLabel={node => `${node.label} (${node.category})`}
+                        nodeColor={node => {
+                          if (node.category === 'cluster') return '#3b82f6'; // blue
+                          if (node.category === 'keyword') return '#10b981'; // green
+                          if (node.category === 'memory') return '#f59e0b'; // yellow
+                          return '#6366f1'; // indigo default
+                        }}
+                        nodeRelSize={8}
+                        linkWidth={link => link.value * 5} // 根据关联强度调整线宽
+                        linkColor={() => 'rgba(59, 130, 246, 0.5)'} // 半透明蓝色
+                        backgroundColor="rgba(0,0,0,0)"
+                        width={800}
+                        height={500}
+                        cooldownTicks={100}
+                        onEngineStop={() => {
+                          // 布局完成后的操作
+                        }}
+                        nodeCanvasObject={(node, ctx, globalScale) => {
+                          const label = node.label;
+                          const fontSize = 12/globalScale;
+                          const size = node.size / 2; // 调整节点大小
+                          
+                          // 绘制节点
+                          ctx.beginPath();
+                          ctx.arc(node.x || 0, node.y || 0, size, 0, 2 * Math.PI, false);
+                          ctx.fillStyle = node.color || '#3b82f6'; 
+                          ctx.fill();
+                          
+                          // 为节点添加边框
+                          ctx.strokeStyle = '#1e40af';
+                          ctx.lineWidth = 0.5;
+                          ctx.stroke();
+                          
+                          // 节点文本
+                          if (globalScale >= 1) {
+                            ctx.font = `${fontSize}px Sans-Serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillStyle = '#e2e8f0';
+                            ctx.fillText(label, node.x || 0, (node.y || 0) + size + fontSize);
+                          }
+                        }}
+                      />
                     </div>
                     
-                    {knowledgeGraph.links && knowledgeGraph.links.length > 0 ? (
-                      <div className="mt-4 border-t border-blue-900/30 pt-4">
-                        <h4 className="text-blue-300 mb-3">知识关联</h4>
-                        <div className="space-y-2">
-                          {knowledgeGraph.links.map((link, index) => (
-                            <div key={index} className="border border-blue-800/30 rounded-lg p-3 bg-blue-900/10">
-                              <div className="flex items-center text-sm">
-                                <span className="text-neutral-300">{link.source}</span>
-                                <span className="mx-2 text-blue-400">→</span>
-                                <span className="text-neutral-300">{link.target}</span>
-                                <span className="ml-auto text-xs bg-blue-900/40 px-2 py-0.5 rounded-full text-blue-300">
-                                  关联度: {(link.value * 100).toFixed(0)}%
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                    <div className="flex justify-between items-center border-t border-blue-900/30 pt-4 mt-2">
+                      <div className="text-sm text-neutral-300">
+                        <span className="font-medium">节点数:</span> {knowledgeGraph.nodes.length}
+                        <span className="mx-2">|</span>
+                        <span className="font-medium">关联数:</span> {knowledgeGraph.links.length}
                       </div>
-                    ) : (
-                      <div className="mt-4 border-t border-blue-900/30 pt-4 text-center text-neutral-400 text-sm">
-                        暂无知识关联数据，将随着学习内容增加自动生成
+                      
+                      <div className="flex gap-2">
+                        {['cluster', 'keyword', 'memory'].map(category => (
+                          <div key={category} className="flex items-center gap-1">
+                            <div className={`w-3 h-3 rounded-full ${
+                              category === 'cluster' ? 'bg-blue-500' : 
+                              category === 'keyword' ? 'bg-green-500' : 
+                              'bg-yellow-500'
+                            }`}></div>
+                            <span className="text-xs text-neutral-400">
+                              {category === 'cluster' ? '主题' : 
+                               category === 'keyword' ? '关键词' : '记忆'}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               ) : (
