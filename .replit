@@ -17,10 +17,6 @@ build = ["sh", "-c", "node build-frontend.js"]
 localPort = 5000
 externalPort = 80
 
-[[ports]]
-localPort = 5001
-externalPort = 3000
-
 [workflows]
 runButton = "修复记忆文件系统并重启"
 

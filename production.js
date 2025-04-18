@@ -10,7 +10,7 @@ import { spawn } from 'child_process';
 const env = {
   ...process.env,
   NODE_ENV: 'production',
-  PORT: '5001'
+  PORT: '5000'
 };
 
 console.log('启动生产环境应用...');
