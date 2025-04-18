@@ -19,7 +19,7 @@ const log = (message: string, source = "genai_service") => {
 
 /**
  * 移除AI响应中的思考过程
- * 过滤掉包含在各种思考标签中的内容
+ * 主要过滤DeepSeek R1模型的<Think></Think>标签内容
  * @param text AI响应文本
  * @returns 过滤后的文本
  */
@@ -29,69 +29,15 @@ export function removeThinkingProcess(text: string): string {
   // 记录原始长度，用于判断是否进行了过滤
   const originalLength = text.length;
   
-  // 过滤<think>...</think>标签和其他HTML样式标签
-  let filteredText = text.replace(/<think>[\s\S]*?<\/think>/g, '');
-  filteredText = filteredText.replace(/<思考>[\s\S]*?<\/思考>/g, '');
-  filteredText = filteredText.replace(/<思考过程>[\s\S]*?<\/思考过程>/g, '');
-  filteredText = filteredText.replace(/<分析>[\s\S]*?<\/分析>/g, '');
-  filteredText = filteredText.replace(/<analysis>[\s\S]*?<\/analysis>/g, '');
-  filteredText = filteredText.replace(/<thinking>[\s\S]*?<\/thinking>/g, '');
-  
-  // 过滤各种代码块格式的思考
-  filteredText = filteredText.replace(/```思考[\s\S]*?```/g, '');
-  filteredText = filteredText.replace(/```thinking[\s\S]*?```/g, '');
-  filteredText = filteredText.replace(/```分析[\s\S]*?```/g, '');
-  filteredText = filteredText.replace(/```analysis[\s\S]*?```/g, '');
-  filteredText = filteredText.replace(/```理解[\s\S]*?```/g, '');
-  
-  // 过滤各种括号样式的思考
-  filteredText = filteredText.replace(/【思考】[\s\S]*?【\/思考】/g, '');
-  filteredText = filteredText.replace(/【分析】[\s\S]*?【\/分析】/g, '');
-  filteredText = filteredText.replace(/【理解】[\s\S]*?【\/理解】/g, '');
-  filteredText = filteredText.replace(/\[思考:[\s\S]*?\]/g, '');
-  filteredText = filteredText.replace(/\[思考：[\s\S]*?\]/g, '');
-  filteredText = filteredText.replace(/\[分析:[\s\S]*?\]/g, '');
-  filteredText = filteredText.replace(/\[分析：[\s\S]*?\]/g, '');
-  filteredText = filteredText.replace(/\[Thinking:[\s\S]*?\]/g, '');
-  filteredText = filteredText.replace(/\[Analysis:[\s\S]*?\]/g, '');
-  
-  // 过滤常见的思考段落格式
-  filteredText = filteredText.replace(/思考过程[：:][^\n]*[\s\S]*?(?=\n\n|\n[^思]|$)/g, '');
-  filteredText = filteredText.replace(/分析过程[：:][^\n]*[\s\S]*?(?=\n\n|\n[^分]|$)/g, '');
-  filteredText = filteredText.replace(/我的理解[：:][^\n]*[\s\S]*?(?=\n\n|\n[^我]|$)/g, '');
-  filteredText = filteredText.replace(/Thinking process[：:][^\n]*[\s\S]*?(?=\n\n|\n[^T]|$)/g, '');
-  filteredText = filteredText.replace(/Analysis[：:][^\n]*[\s\S]*?(?=\n\n|\n[^A]|$)/g, '');
-  
-  // 移除各种常见的思考开头句
-  const thinkingPhrases = [
-    /让我思考一下.*?\n/g,
-    /我来分析一下.*?\n/g,
-    /思考过程：.*?\n/g,
-    /分析过程：.*?\n/g,
-    /我需要理解.*?\n/g,
-    /让我理解一下.*?\n/g,
-    /首先，我需要思考.*?\n/g,
-    /Let me think.*?\n/g,
-    /I'll analyze.*?\n/g,
-    /思考：.*?\n/g,
-    /分析：.*?\n/g,
-    /Thinking:.*?\n/g,
-    /Analysis:.*?\n/g
-  ];
-  
-  for (const pattern of thinkingPhrases) {
-    filteredText = filteredText.replace(pattern, '');
-  }
+  // DeepSeek R1模型主要使用<Think></Think>标签
+  let filteredText = text.replace(/<Think>[\s\S]*?<\/Think>/g, '');
   
   // 清理可能出现的连续空行
   filteredText = filteredText.replace(/\n{3,}/g, '\n\n');
   
-  // 移除提示词模板中的{{...}}指令
-  filteredText = filteredText.replace(/{{[^}]*}}/g, '');
-  
   // 如果过滤后文本明显缩短，记录日志
   if (originalLength - filteredText.length > 50) {
-    log(`从AI响应中移除了思考过程，减少了${originalLength - filteredText.length}个字符`);
+    log(`从DeepSeek响应中移除了思考过程，减少了${originalLength - filteredText.length}个字符`);
   }
   
   return filteredText.trim();
