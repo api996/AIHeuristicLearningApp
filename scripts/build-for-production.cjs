@@ -15,10 +15,10 @@ console.log('1. 执行前端构建 (vite build)...');
 execSync('vite build', { stdio: 'inherit' });
 console.log('前端构建完成 ✓');
 
-// 执行后端构建，但不使用 --packages=external 标志，标记lightningcss为external
-console.log('2. 执行后端构建 (esbuild)，包含所有依赖...');
+// 执行后端构建，使用CommonJS格式
+console.log('2. 执行后端构建 (esbuild)，使用CommonJS格式...');
 execSync(
-  'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=esm --outdir=dist --external:lightningcss',
+  'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=cjs --outdir=dist --external:lightningcss',
   { stdio: 'inherit' }
 );
 console.log('后端构建完成 ✓');
@@ -48,7 +48,8 @@ if (hasPgSession) {
   // 添加必要的导入和配置
   const fixedContent = `
 // 自动添加的PostgreSQL会话存储修复
-import pgSession from 'connect-pg-simple';
+const pgSession = require('connect-pg-simple');
+const session = require('express-session');
 const PgStore = pgSession(session);
 // 修复结束
 
