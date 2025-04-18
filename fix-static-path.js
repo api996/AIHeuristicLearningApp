@@ -241,6 +241,15 @@ function ensureBackgroundsDirectory() {
     
     let copiedCount = 0;
     
+    // 关键背景图片列表 - 确保这些文件一定存在
+    const criticalBackgrounds = [
+      'landscape-background.jpg',
+      'portrait-background.jpg',
+      'default-background.jpg',
+      'mobile-background.jpg'
+    ];
+    
+    // 先复制所有现有图片
     backgroundFiles.forEach(file => {
       const srcPath = path.join(bgSourceDir, file);
       const destPath = path.join(bgDestDir, file);
@@ -250,6 +259,12 @@ function ensureBackgroundsDirectory() {
           fs.copyFileSync(srcPath, destPath);
           copiedCount++;
           log(`复制背景图片: ${file}`, 'success');
+          
+          // 从关键列表中移除已复制的文件
+          const index = criticalBackgrounds.indexOf(file);
+          if (index !== -1) {
+            criticalBackgrounds.splice(index, 1);
+          }
         }
       } catch (err) {
         log(`复制背景图片失败 ${file}: ${err.message}`, 'error');
@@ -257,23 +272,49 @@ function ensureBackgroundsDirectory() {
     });
     
     log(`背景图片复制完成 (${copiedCount}/${backgroundFiles.length})`, 'info');
-  } else {
-    log('背景图片源目录不存在', 'warning');
     
-    // 创建默认背景图片占位符
-    try {
-      // 这里我们创建一个1x1像素的透明图片作为占位符
-      // 在实际部署中，您应该替换为真实的背景图片
-      const placeholderContent = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+    // 检查是否所有关键背景都已复制
+    if (criticalBackgrounds.length > 0) {
+      log(`警告: 缺少关键背景图片: ${criticalBackgrounds.join(', ')}`, 'warning');
       
-      fs.writeFileSync(path.join(bgDestDir, 'landscape-background.jpg'), placeholderContent);
-      fs.writeFileSync(path.join(bgDestDir, 'portrait-background.jpg'), placeholderContent);
-      fs.writeFileSync(path.join(bgDestDir, 'default-background.jpg'), placeholderContent);
-      
-      log('创建了背景图片占位符', 'warning');
-    } catch (err) {
-      log(`创建背景图片占位符失败: ${err.message}`, 'error');
+      // 对于缺少的关键背景，尝试进行备份方案
+      criticalBackgrounds.forEach(file => {
+        // 如果有landscape但缺少portrait，则复制landscape作为portrait
+        if (file === 'portrait-background.jpg' && fs.existsSync(path.join(bgDestDir, 'landscape-background.jpg'))) {
+          fs.copyFileSync(
+            path.join(bgDestDir, 'landscape-background.jpg'),
+            path.join(bgDestDir, file)
+          );
+          log(`使用landscape-background.jpg作为${file}的替代`, 'info');
+        }
+        // 如果有portrait但缺少landscape，则复制portrait作为landscape
+        else if (file === 'landscape-background.jpg' && fs.existsSync(path.join(bgDestDir, 'portrait-background.jpg'))) {
+          fs.copyFileSync(
+            path.join(bgDestDir, 'portrait-background.jpg'),
+            path.join(bgDestDir, file)
+          );
+          log(`使用portrait-background.jpg作为${file}的替代`, 'info');
+        }
+        // 如果缺少default-background.jpg，使用landscape作为替代
+        else if (file === 'default-background.jpg' && fs.existsSync(path.join(bgDestDir, 'landscape-background.jpg'))) {
+          fs.copyFileSync(
+            path.join(bgDestDir, 'landscape-background.jpg'),
+            path.join(bgDestDir, file)
+          );
+          log(`使用landscape-background.jpg作为${file}的替代`, 'info');
+        }
+        // 如果缺少mobile-background.jpg，使用portrait作为替代
+        else if (file === 'mobile-background.jpg' && fs.existsSync(path.join(bgDestDir, 'portrait-background.jpg'))) {
+          fs.copyFileSync(
+            path.join(bgDestDir, 'portrait-background.jpg'),
+            path.join(bgDestDir, file)
+          );
+          log(`使用portrait-background.jpg作为${file}的替代`, 'info');
+        }
+      });
     }
+  } else {
+    log('背景图片源目录不存在，跳过背景图片处理', 'warning');
   }
 }
 
