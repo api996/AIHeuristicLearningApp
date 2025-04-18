@@ -40,30 +40,77 @@ const launcherScript = `
 import fs from 'fs';
 import { createRequire } from 'module';
 
-// 创建一个缓存机制，避免污染全局变量
-const moduleCache = new Map();
-function moduleProvider(name) {
-  if (!moduleCache.has(name)) {
-    if (name === 'path') {
-      moduleCache.set(name, await import('path'));
-    } else if (name === 'url') {
-      moduleCache.set(name, await import('url'));
-    } else {
-      const req = createRequire(import.meta.url);
-      moduleCache.set(name, req(name));
-    }
-  }
-  return moduleCache.get(name);
+// 全局模块映射，预先处理潜在的命名冲突
+globalThis.__moduleCache = new Map();
+
+// 预先加载关键模块到全局缓存，避免命名冲突
+async function preloadCriticalModules() {
+  // 工具模块
+  const path = await import('path');
+  const url = await import('url');
+  const fs = await import('fs');
+  
+  // 存储到全局缓存中
+  globalThis.__moduleCache.set('path', path);
+  globalThis.__moduleCache.set('url', url);
+  globalThis.__moduleCache.set('fs', fs);
+  
+  // 关键函数单独缓存
+  globalThis.__moduleCache.set('fileURLToPath', url.fileURLToPath);
+  globalThis.__moduleCache.set('dirname', path.dirname);
+  globalThis.__moduleCache.set('join', path.join);
+  globalThis.__moduleCache.set('resolve', path.resolve);
+  
+  // 替换模块的原生导入
+  globalThis.path = path;
+  globalThis.url = url;
+  globalThis.fs = fs;
+  
+  return { path, url, fs };
 }
 
-// 启动实际应用
-log.info('加载应用...');
-try {
-  await import('./dist/index.js');
-} catch (err) {
-  console.error('应用启动失败:', err);
-  process.exit(1);
+// 全局模块提供程序，可以获取预加载的模块
+function getModule(name) {
+  return globalThis.__moduleCache.get(name);
 }
+
+// 简单日志工具
+const log = {
+  info: (msg) => console.log('[INFO] ' + msg),
+  error: (msg) => console.error('[ERROR] ' + msg)
+};
+
+// 启动入口函数
+async function main() {
+  log.info('预加载关键模块...');
+  await preloadCriticalModules();
+  
+  log.info('创建模块声明垫片...');
+  // 为了防止其他模块的命名冲突，修补全局空间
+  Object.defineProperty(globalThis, '__dirname', {
+    get: function() { return getModule('dirname')(import.meta.url); }
+  });
+  
+  Object.defineProperty(globalThis, '__filename', {
+    get: function() { return getModule('fileURLToPath')(import.meta.url); }
+  });
+  
+  log.info('加载应用...');
+  try {
+    await import('./dist/index.js');
+    log.info('应用已成功启动');
+  } catch (err) {
+    log.error('应用启动失败: ' + err.message);
+    console.error(err.stack);
+    process.exit(1);
+  }
+}
+
+// 执行主函数
+main().catch(err => {
+  console.error('启动器错误:', err);
+  process.exit(1);
+});
 `;
 
 fs.writeFileSync('prod-launcher.js', launcherScript);
