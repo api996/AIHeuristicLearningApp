@@ -17,7 +17,8 @@ if (!DATABASE_URL) {
 }
 
 // 配置NeonDB WebSocket
-const neonConfig = { webSocketConstructor: ws };
+const { neonConfig } = require('@neondatabase/serverless');
+neonConfig.webSocketConstructor = ws;
 
 async function cleanupExpiredSessions() {
   console.log('开始清理过期会话...');

@@ -53,7 +53,8 @@ async function verifySessionTable() {
   log('正在验证数据库会话表...');
   
   // 配置NeonDB WebSocket
-  const neonConfig = { webSocketConstructor: ws };
+  const { neonConfig } = require('@neondatabase/serverless');
+  neonConfig.webSocketConstructor = ws;
   
   try {
     // 创建数据库连接
