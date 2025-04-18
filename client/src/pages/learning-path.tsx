@@ -452,7 +452,7 @@ export default function LearningPath() {
                     
                     <div className="relative">
                       <div className="flex flex-col h-[400px] w-full relative overflow-hidden border border-blue-900/50 rounded-lg p-4 bg-blue-950/30">
-                        {knowledgeGraph && knowledgeGraph.nodes.length > 5 ? (
+                        {knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
                           <>
                             <div className="h-[350px] w-full">
                               <Graph
