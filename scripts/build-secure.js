@@ -26,7 +26,7 @@ const __dirname = path.dirname(__filename);
     // 执行后端构建，不使用--packages=external标志，但排除lightningcss
     console.log('2. 执行后端构建 (esbuild)，使用ESM格式，包含所有依赖...');
     execSync(
-      'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=esm --outdir=dist --external:lightningcss',
+      'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=esm --outdir=dist --external:lightningcss --banner:js="import { createRequire } from \'module\'; const require = createRequire(import.meta.url);"',
       { stdio: 'inherit' }
     );
     console.log('后端构建完成 ✓');
@@ -53,15 +53,35 @@ const __dirname = path.dirname(__filename);
       console.warn('⚠️ 警告: 构建中缺少PostgreSQL会话存储配置');
       console.log('正在修复构建...');
       
-      // 添加必要的导入和配置，使用ESM格式
-      const fixedContent = `
+      // 分析文件寻找第一个导入语句后的位置，避免在所有导入之前添加
+      const importLines = content.split('\n').filter(line => line.trim().startsWith('import '));
+      const lastImportIndex = importLines.length > 0 ? 
+        content.lastIndexOf(importLines[importLines.length - 1]) + importLines[importLines.length - 1].length : 0;
+      
+      // 在最后一个import语句后添加会话存储相关代码
+      let fixedContent;
+      if (lastImportIndex > 0) {
+        const beforeImports = content.substring(0, lastImportIndex);
+        const afterImports = content.substring(lastImportIndex);
+        
+        fixedContent = `${beforeImports}
+
 // 自动添加的PostgreSQL会话存储修复
-import pgSession from 'connect-pg-simple';
-import session from 'express-session';
-const PgStore = pgSession(session);
+import pgSessionLib from 'connect-pg-simple';
+import sessionLib from 'express-session';
+const PgSessionStore = pgSessionLib(sessionLib);
+// 修复结束
+${afterImports}`;
+      } else {
+        // 如果找不到import语句，则添加到文件顶部
+        fixedContent = `// 自动添加的PostgreSQL会话存储修复
+import pgSessionLib from 'connect-pg-simple';
+import sessionLib from 'express-session';
+const PgSessionStore = pgSessionLib(sessionLib);
 // 修复结束
 
 ${content}`;
+      }
       
       fs.writeFileSync(indexPath, fixedContent);
       console.log('已添加必要的会话存储导入 ✓');

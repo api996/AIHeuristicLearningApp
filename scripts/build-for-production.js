@@ -18,15 +18,15 @@ const __dirname = path.dirname(__filename);
   try {
     console.log('开始生产环境构建...');
 
-    // 执行前端构建, 使用CommonJS配置
+    // 执行前端构建, 使用ESM配置
     console.log('1. 执行前端构建 (vite build)...');
-    execSync('vite build --config vite.config.js', { stdio: 'inherit' });
+    execSync('vite build', { stdio: 'inherit' });
     console.log('前端构建完成 ✓');
 
-    // 执行后端构建，使用CommonJS格式
-    console.log('2. 执行后端构建 (esbuild)，使用ESM格式...');
+    // 执行后端构建，保持ESM格式，但处理动态导入
+    console.log('2. 执行后端构建 (esbuild)，使用ESM格式，优化动态导入...');
     execSync(
-      'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=esm --outdir=dist --external:lightningcss',
+      'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=esm --outdir=dist --external:lightningcss --banner:js="import { createRequire } from \'module\'; const require = createRequire(import.meta.url);"',
       { stdio: 'inherit' }
     );
     console.log('后端构建完成 ✓');
@@ -53,24 +53,53 @@ const __dirname = path.dirname(__filename);
       console.warn('⚠️ 警告: 构建中缺少PostgreSQL会话存储配置');
       console.log('正在修复构建...');
       
-      // 添加必要的导入和配置，使用ESM格式
-      const fixedContent = `
+      // 分析文件寻找第一个导入语句后的位置，避免在所有导入之前添加
+      const importLines = content.split('\n').filter(line => line.trim().startsWith('import '));
+      const lastImportIndex = importLines.length > 0 ? 
+        content.lastIndexOf(importLines[importLines.length - 1]) + importLines[importLines.length - 1].length : 0;
+      
+      // 在最后一个import语句后添加会话存储相关代码
+      let fixedContent;
+      if (lastImportIndex > 0) {
+        const beforeImports = content.substring(0, lastImportIndex);
+        const afterImports = content.substring(lastImportIndex);
+        
+        fixedContent = `${beforeImports}
+
 // 自动添加的PostgreSQL会话存储修复
-import pgSession from 'connect-pg-simple';
-import session from 'express-session';
-const PgStore = pgSession(session);
+import pgSessionLib from 'connect-pg-simple';
+import sessionLib from 'express-session';
+const PgSessionStore = pgSessionLib(sessionLib);
+// 修复结束
+${afterImports}`;
+      } else {
+        // 如果找不到import语句，则添加到文件顶部
+        fixedContent = `// 自动添加的PostgreSQL会话存储修复
+import pgSessionLib from 'connect-pg-simple';
+import sessionLib from 'express-session';
+const PgSessionStore = pgSessionLib(sessionLib);
 // 修复结束
 
 ${content}`;
+      }
       
       fs.writeFileSync(indexPath, fixedContent);
       console.log('已添加必要的会话存储导入 ✓');
     }
 
-    console.log('\n构建完成! 现在可以使用以下命令启动生产服务器:');
+    // 验证banner是否成功添加
+    if (fs.readFileSync(indexPath, 'utf8').includes('createRequire')) {
+      console.log('✓ 验证成功: 动态导入支持已添加到构建');
+    } else {
+      console.warn('⚠️ 警告: 动态导入支持可能未正确添加');
+    }
+
+    console.log('\n✅ 构建完成! 现在可以使用以下命令启动生产服务器:');
     console.log('NODE_ENV=production node dist/index.js');
   } catch (error) {
     console.error('构建过程中出错:', error);
+    if (error.stdout) console.error('标准输出:', error.stdout.toString());
+    if (error.stderr) console.error('错误输出:', error.stderr.toString());
     process.exit(1);
   }
 })();
