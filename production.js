@@ -1,21 +1,40 @@
 /**
  * 生产环境启动脚本
- * 专门解决ESM模块冲突问题，提供稳定的生产部署
+ * 极简化版本，解决端口冲突和访问问题
  */
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+// 导入子进程模块
+import { spawn } from 'child_process';
 
-// 预加载session存储依赖
-import pgSessionLib from 'connect-pg-simple';
-import sessionLib from 'express-session';
-const PgSessionStore = pgSessionLib(sessionLib);
+// 设置正确的环境和端口
+const env = {
+  ...process.env,
+  NODE_ENV: 'production',
+  PORT: '5001'
+};
 
-// 设置环境变量
-process.env.NODE_ENV = 'production';
+console.log('启动生产环境应用...');
+console.log('时间:', new Date().toISOString());
 
-// 导入并启动主应用程序
-import('./dist/index.js').catch(error => {
-  console.error('应用程序启动失败:', error);
-  process.exit(1);
+// 使用tsx直接运行TypeScript
+const server = spawn('npx', ['tsx', 'server/index.ts'], { 
+  stdio: 'inherit',
+  env: env
+});
+
+// 处理服务器进程结束
+server.on('close', (code) => {
+  console.log(`服务器进程已结束，退出码: ${code}`);
+  process.exit(code);
+});
+
+// 处理终止信号
+process.on('SIGINT', () => {
+  console.log('接收到SIGINT信号，关闭服务器...');
+  server.kill('SIGINT');
+});
+
+process.on('SIGTERM', () => {
+  console.log('接收到SIGTERM信号，关闭服务器...');
+  server.kill('SIGTERM');
 });
