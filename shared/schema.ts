@@ -3,6 +3,15 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
+// 定义会话表结构，确保connect-pg-simple能正确使用
+// 注意：此表在本模块中声明，但由connect-pg-simple模块管理
+// 它只需要作为表结构定义出现，不需要创建对应的插入schema
+export const session = pgTable("session", {
+  sid: text("sid").primaryKey(),
+  sess: json("sess").notNull(),
+  expire: timestamp("expire", { mode: "date" }).notNull(),
+});
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
