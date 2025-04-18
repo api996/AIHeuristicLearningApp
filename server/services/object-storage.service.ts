@@ -35,12 +35,8 @@ const OLD_UPLOADS_DIR = path.join(process.cwd(), 'uploads');
  */
 function isReplitDataConfigured(): boolean {
   const token = process.env.REPLIT_DATA_TOKEN;
-  if (!token) {
-    console.log('REPLIT_DATA_TOKEN环境变量未设置，无法使用对象存储');
-    return false;
-  }
-  console.log(`检查Replit数据API配置: REPLIT_DATA_TOKEN=<已设置>`);
-  return true;
+  console.log(`检查Replit数据API配置: REPLIT_DATA_TOKEN=${token ? '已设置' : '未设置'}`);
+  return !!token;
 }
 
 /**
