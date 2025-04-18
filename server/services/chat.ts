@@ -326,8 +326,8 @@ ${searchResults}
               method: "POST",
               headers: this.modelConfigs.deepseek.headers!,
               body: JSON.stringify(transformedMessage),
-              timeout: 60000, // 60秒超时，因为大模型推理可能需要更长时间
-            }, 3, 1000);
+              timeout: 120000, // 增加到120秒超时，因为DeepSeek大模型推理可能需要更长时间
+            }, 4, 2000); // 增加重试次数和间隔
 
             if (!response.ok) {
               const errorText = await response.text();
