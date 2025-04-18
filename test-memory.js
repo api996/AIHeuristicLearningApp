@@ -1,12 +1,14 @@
+#!/usr/bin/env node
 /**
  * 记忆系统测试脚本
  * 测试从数据库读取记忆和创建新记忆，以及记忆聚类功能
+ * @type {module}
  */
 
-import { storage } from './server/storage';
-import { memoryService } from './server/services/learning/memory_service';
-import { db } from './server/db';
-import { memories, keywords, embeddings } from './shared/schema';
+import { storage } from './server/storage.js';
+import { memoryService } from './server/services/learning/memory_service.js';
+import { db } from './server/db.js';
+import { memories, memoryKeywords as keywords, memoryEmbeddings as embeddings } from './shared/schema.js';
 import { eq } from 'drizzle-orm';
 
 // 色彩日志函数
@@ -273,4 +275,10 @@ async function testMemorySystem() {
 }
 
 // 运行测试
-testMemorySystem();
+try {
+  log('运行测试脚本...', 'info');
+  testMemorySystem();
+} catch (error) {
+  log(`运行测试时发生错误: ${error.message}`, 'error');
+  console.error(error);
+}
