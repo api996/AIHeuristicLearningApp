@@ -150,7 +150,7 @@ async function saveTestMemoriesToDatabase(userId: number, testMemories: TestMemo
         await db
           .insert(memoryEmbeddings)
           .values({
-            memoryId: insertedMemory.id,
+            memoryId: String(insertedMemory.id), // 转换为字符串
             vectorData: memory.embedding
           });
       }
@@ -160,7 +160,7 @@ async function saveTestMemoriesToDatabase(userId: number, testMemories: TestMemo
         await db
           .insert(memoryKeywords)
           .values({
-            memoryId: insertedMemory.id,
+            memoryId: String(insertedMemory.id), // 转换为字符串
             keyword
           });
       }
@@ -191,11 +191,11 @@ export async function generateTestGraph(userId: number, memoryCount: number = 50
       success: true, 
       message: `成功生成${insertedCount}条测试记忆数据，刷新页面查看知识图谱` 
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('生成测试图谱数据失败:', error);
     return { 
       success: false, 
-      message: `生成测试数据失败: ${error.message}` 
+      message: `生成测试数据失败: ${error?.message || "未知错误"}` 
     };
   }
 }

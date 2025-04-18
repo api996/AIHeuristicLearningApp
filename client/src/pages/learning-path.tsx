@@ -458,7 +458,7 @@ export default function LearningPath() {
                               <Graph
                                 id="knowledge-graph-preview"
                                 data={{
-                                  nodes: knowledgeGraph.nodes.map(node => ({
+                                  nodes: knowledgeGraph.nodes.map((node: KnowledgeNode) => ({
                                     id: node.id,
                                     color: node.category === 'cluster' ? '#3b82f6' : 
                                           node.category === 'keyword' ? '#10b981' : 
@@ -468,7 +468,7 @@ export default function LearningPath() {
                                     label: node.label,
                                     category: node.category
                                   })),
-                                  links: knowledgeGraph.links.map(link => ({
+                                  links: knowledgeGraph.links.map((link: KnowledgeLink) => ({
                                     source: link.source,
                                     target: link.target,
                                     strokeWidth: link.value * 2,
