@@ -44,8 +44,30 @@ function copyDir(src, dest) {
     if (entry.isDirectory()) {
       copyDir(srcPath, destPath);
     } else {
+      // 进行文件复制
       fs.copyFileSync(srcPath, destPath);
-      log(`复制: ${srcPath} → ${destPath}`, 'info');
+      
+      // 验证文件复制是否成功
+      const srcStat = fs.statSync(srcPath);
+      const destStat = fs.statSync(destPath);
+      
+      // 检查文件大小是否一致
+      if (srcStat.size !== destStat.size) {
+        log(`警告: 文件大小不匹配 ${srcPath} (${srcStat.size}) vs ${destPath} (${destStat.size})`, 'warning');
+      } else {
+        log(`复制: ${srcPath} → ${destPath} (${srcStat.size} 字节)`, 'info');
+      }
+      
+      // 对CSS文件进行额外检查
+      if (entry.name.endsWith('.css')) {
+        log(`验证CSS文件: ${destPath}`, 'info');
+        const content = fs.readFileSync(destPath, 'utf8');
+        if (content.length > 0) {
+          log(`CSS文件有效，大小: ${content.length} 字节`, 'success');
+        } else {
+          log(`警告: CSS文件为空: ${destPath}`, 'error');
+        }
+      }
     }
   }
 }
