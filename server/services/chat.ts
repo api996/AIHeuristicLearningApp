@@ -363,20 +363,11 @@ ${searchResults}
             let responseText = responseData.choices?.[0]?.message?.content || "DeepSeek模型无法生成回应";
             log(`获取到DeepSeek原始响应文本，长度: ${responseText.length}`);
             
-            // 过滤思考过程（从genai_service.ts导入）
-            try {
-              const { removeThinkingProcess } = require('./genai/genai_service');
-              if (typeof removeThinkingProcess === 'function') {
-                const originalLength = responseText.length;
-                responseText = removeThinkingProcess(responseText);
-                log(`过滤DeepSeek思考过程，文本长度变化: ${originalLength} -> ${responseText.length}`);
-              }
-            } catch (filterError) {
-              log(`过滤DeepSeek思考过程出错: ${filterError}`);
-            }
+            // 暂时禁用思考过程过滤函数，直接使用原始响应
+            log(`跳过DeepSeek思考过程过滤，使用原始响应（长度: ${responseText.length}字符）`);
             
             if (!responseText.trim()) {
-              log(`警告: 过滤后DeepSeek响应为空`);
+              log(`警告: DeepSeek响应为空`);
               responseText = "DeepSeek模型返回了空响应，请重试或选择其他模型。";
             }
             
