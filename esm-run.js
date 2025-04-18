@@ -34,14 +34,48 @@ if (!fs.existsSync('./dist/index.js')) {
   process.exit(1);
 }
 
+// 创建启动脚本
+log.info('生成优化的启动脚本...');
+const launcherScript = `
+import fs from 'fs';
+import { createRequire } from 'module';
+
+// 创建一个缓存机制，避免污染全局变量
+const moduleCache = new Map();
+function moduleProvider(name) {
+  if (!moduleCache.has(name)) {
+    if (name === 'path') {
+      moduleCache.set(name, await import('path'));
+    } else if (name === 'url') {
+      moduleCache.set(name, await import('url'));
+    } else {
+      const req = createRequire(import.meta.url);
+      moduleCache.set(name, req(name));
+    }
+  }
+  return moduleCache.get(name);
+}
+
+// 启动实际应用
+log.info('加载应用...');
+try {
+  await import('./dist/index.js');
+} catch (err) {
+  console.error('应用启动失败:', err);
+  process.exit(1);
+}
+`;
+
+fs.writeFileSync('prod-launcher.js', launcherScript);
+
 // 启动服务器
-log.info('启动节点应用，附加ESM兼容环境变量...');
-const server = spawn('node', ['--no-warnings', './dist/index.js'], {
+log.info('启动节点应用，使用优化的启动器脚本...');
+const server = spawn('node', ['--no-warnings', './prod-launcher.js'], {
   env: { 
     ...process.env,
     NODE_ENV: 'production',
     // 添加额外的环境变量，增强ESM兼容性
-    NODE_OPTIONS: '--experimental-modules --es-module-specifier-resolution=node'
+    NODE_OPTIONS: '--experimental-modules --enable-source-maps'
   },
   stdio: 'inherit'
 });

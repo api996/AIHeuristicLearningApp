@@ -51,19 +51,22 @@ const config = {
 
 // 提供统一的全局require函数，避免重复createRequire声明
 import { createRequire as __cjsCreateRequire } from 'module';
-import { fileURLToPath } from 'url';
+import { fileURLToPath as __fileURLToPath } from 'url';
 import * as path from 'path';
+import * as url from 'url';
 
 // 在ES模块中模拟CommonJS变量 - 使用唯一前缀避免命名冲突
 const require = __cjsCreateRequire(import.meta.url);
 globalThis.require = require; // 确保全局可用
 
 // 为ES模块环境提供 __dirname 和 __filename - 使用命名空间避免冲突
-const __filename = fileURLToPath(import.meta.url);
+const __filename = __fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 globalThis.__filename = __filename;
 globalThis.__dirname = __dirname;
 globalThis.__path = path; // 提供path作为全局变量
+globalThis.__url = url;   // 提供url作为全局变量
+globalThis.__fileURLToPath = __fileURLToPath; // 导出fileURLToPath函数
 
 // 禁用其他模块中的createRequire导入 - 使用相同的名称
 import { createRequire as createRequire } from 'module';
@@ -118,13 +121,81 @@ try {
   ];
   
   // 额外处理 path 相关导入，替换 node:path 导入，减少冲突
+  let pathFixCount = 0;
+  
+  // 处理解构导入冲突
   if (content.includes('import { resolve, basename, extname, dirname } from "node:path";')) {
-    console.log('发现 path 模块导入冲突，正在修复...');
+    console.log('发现 path 解构导入冲突，正在修复...');
     content = content.replace(
       'import { resolve, basename, extname, dirname } from "node:path";',
       '/* 使用全局 __path 命名空间代替解构导入 */\n' +
       'const { resolve, basename, extname, dirname } = globalThis.__path || path;'
     );
+    pathFixCount++;
+  }
+  
+  // 处理命名导入冲突
+  if (content.includes('import path, { resolve as resolve2 } from "node:path";')) {
+    console.log('发现 path 命名导入冲突，正在修复...');
+    content = content.replace(
+      'import path, { resolve as resolve2 } from "node:path";',
+      '/* 使用全局 __path 命名空间替代命名导入 */\n' +
+      'const path2 = globalThis.__path || path;\n' +
+      'const { resolve: resolve2 } = path2;'
+    );
+    pathFixCount++;
+  }
+  
+  // 处理简单命名冲突
+  if (content.includes('import path from "node:path";') || content.includes('import path from \'node:path\';')) {
+    console.log('发现 path 基本导入冲突，正在修复...');
+    content = content.replace(
+      /import path from ["']node:path["'];/g,
+      '/* 使用全局 __path 命名空间替代导入 */\n' +
+      'const path = globalThis.__path;'
+    );
+    pathFixCount++;
+  }
+  
+  if (pathFixCount > 0) {
+    console.log(`共修复了 ${pathFixCount} 处 path 模块相关导入冲突`);
+  }
+  
+  // 处理 url 模块和 fileURLToPath 相关冲突
+  let urlFixCount = 0;
+  
+  // 处理 fileURLToPath 导入冲突
+  if (content.includes('import { fileURLToPath } from "node:url";') || 
+      content.includes('import { fileURLToPath } from \'node:url\';') ||
+      content.includes('import { fileURLToPath } from "url";') ||
+      content.includes('import { fileURLToPath } from \'url\';')) {
+    console.log('发现 fileURLToPath 导入冲突，正在修复...');
+    
+    // 替换所有可能的导入模式
+    let newContent = content;
+    const urlImportPatterns = [
+      'import { fileURLToPath } from "node:url";',
+      'import { fileURLToPath } from \'node:url\';',
+      'import { fileURLToPath } from "url";',
+      'import { fileURLToPath } from \'url\';'
+    ];
+    
+    for (const pattern of urlImportPatterns) {
+      if (newContent.includes(pattern)) {
+        newContent = newContent.replace(
+          pattern,
+          '/* 使用全局 __fileURLToPath 函数替代导入 */\n' +
+          'const fileURLToPath = globalThis.__fileURLToPath;'
+        );
+        urlFixCount++;
+      }
+    }
+    
+    content = newContent;
+  }
+  
+  if (urlFixCount > 0) {
+    console.log(`共修复了 ${urlFixCount} 处 url 模块相关导入冲突`);
   }
 
   // 在文件内容的开头（跳过我们的banner）查找第一个导入声明之后的位置
