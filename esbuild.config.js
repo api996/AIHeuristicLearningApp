@@ -8,6 +8,8 @@ module.exports = {
   outdir: 'dist',
   external: [
     'lightningcss',
+    'module',
+    'url',
     // Add other problematic dependencies here if needed
   ]
 }
