@@ -17,6 +17,7 @@ import memorySpaceRoutes from './routes/memory-space';
 import memoryTestRoutes from './routes/memory-test';
 import filesRoutes from './routes/files';
 import systemConfigRoutes from './routes/system-config';
+import testDataRoutes from './routes/test-data';
 import { initializeBucket } from './services/file-bucket.service';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1805,6 +1806,7 @@ asyncio.run(test_memory())
   app.use('/api/memory-space', memorySpaceRoutes);
   app.use('/api/system-config', systemConfigRoutes);
   app.use('/api/memory-test', memoryTestRoutes);
+  app.use('/api/test-data', testDataRoutes); // 只用于测试环境，生成测试数据
   app.use('/api/admin/prompts', adminPromptsRoutes);
   app.use('/api/admin/content-moderation', contentModerationRoutes);
 

@@ -501,13 +501,36 @@ export default function LearningPath() {
                                 }}
                               />
                             </div>
-                            <div className="mt-4 flex justify-center">
+                            <div className="mt-4 flex justify-center gap-2 flex-wrap">
                               <Button
                                 onClick={() => setLocation('/knowledge-graph-detail')}
                                 className="bg-blue-600 hover:bg-blue-700 text-white"
                               >
                                 查看完整知识图谱
                               </Button>
+                              {user?.userId === 6 && (
+                                <Button
+                                  onClick={async () => {
+                                    try {
+                                      const response = await fetch(`/api/test-data/generate-graph/6?count=35`);
+                                      const result = await response.json();
+                                      if (result.success) {
+                                        alert(`测试数据生成成功：${result.message}`);
+                                        // 刷新页面以加载新数据
+                                        window.location.reload();
+                                      } else {
+                                        alert(`测试数据生成失败：${result.message}`);
+                                      }
+                                    } catch (error) {
+                                      console.error('生成测试数据失败:', error);
+                                      alert('生成测试数据时发生错误，请查看控制台');
+                                    }
+                                  }}
+                                  variant="secondary"
+                                >
+                                  生成测试数据
+                                </Button>
+                              )}
                             </div>
                           </>
                         ) : (
