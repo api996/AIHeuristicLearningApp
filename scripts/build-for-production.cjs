@@ -12,13 +12,13 @@ console.log('开始生产环境构建...');
 
 // 执行前端构建, 使用CommonJS配置
 console.log('1. 执行前端构建 (vite build)...');
-execSync('vite build --config vite.config.cjs', { stdio: 'inherit' });
+execSync('vite build --config vite.config.js', { stdio: 'inherit' });
 console.log('前端构建完成 ✓');
 
 // 执行后端构建，使用CommonJS格式
-console.log('2. 执行后端构建 (esbuild)，使用CommonJS格式...');
+console.log('2. 执行后端构建 (esbuild)，使用ESM格式...');
 execSync(
-  'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=cjs --outdir=dist --external:lightningcss',
+  'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=esm --outdir=dist --external:lightningcss',
   { stdio: 'inherit' }
 );
 console.log('后端构建完成 ✓');
