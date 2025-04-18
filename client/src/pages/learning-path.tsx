@@ -480,7 +480,9 @@ export default function LearningPath() {
                                   directed: true,
                                   d3: {
                                     gravity: -80,
-                                    linkLength: 100
+                                    linkLength: 100,
+                                    disableLinkForce: false,
+                                    useWindowScale: false
                                   },
                                   node: {
                                     color: "#3b82f6",

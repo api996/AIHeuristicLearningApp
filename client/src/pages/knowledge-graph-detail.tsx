@@ -247,6 +247,12 @@ export default function KnowledgeGraphDetail() {
                     ...graphConfig,
                     height: isFullScreen ? window.innerHeight - 120 : graphConfig.height,
                     width: isFullScreen ? window.innerWidth - 40 : graphConfig.width,
+                    d3: {
+                      ...graphConfig.d3,
+                      // 禁用d3缩放功能，我们使用自己的缩放控制
+                      disableLinkForce: false,
+                      useWindowScale: false,
+                    }
                   }}
                   onClickNode={onClickNode}
                 />
