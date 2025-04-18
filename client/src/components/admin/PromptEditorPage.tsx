@@ -612,7 +612,7 @@ export function PromptEditorPage() {
                   </div>
                 )}
               </CardHeader>
-              <CardContent className="flex-grow overflow-y-auto" style={{ maxHeight: "calc(100vh - 300px)" }}>
+              <CardContent className="flex-grow overflow-y-auto" style={{ maxHeight: "60vh", WebkitOverflowScrolling: "touch" }}>
                 <div className="bg-neutral-800 border border-neutral-700 p-3 rounded-md mb-3 text-sm text-white">
                   <p className="text-gray-200">提示词支持以下变量：</p>
                   <div className="grid grid-cols-2 gap-2 mt-1">
@@ -631,8 +631,9 @@ export function PromptEditorPage() {
                   value={templateContent.value}
                   onChange={(e) => templateContent.setter(e.target.value)}
                   placeholder={templateContent.placeholder}
-                  className="min-h-[400px] max-h-[70vh] font-mono text-sm bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 overflow-y-auto"
+                  className="min-h-[300px] max-h-[50vh] font-mono text-sm bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500 overflow-y-auto"
                   disabled={loading}
+                  style={{ WebkitOverflowScrolling: "touch" }}
                 />
               </CardContent>
               <CardFooter className="flex justify-between">
