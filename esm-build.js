@@ -50,22 +50,23 @@ const config = {
  * ================================================ */
 
 // 提供统一的全局require函数，避免重复createRequire声明
-import { createRequire as _createRequire } from 'module';
-import { fileURLToPath as _fileURLToPath } from 'url';
-import { dirname as _dirname, join as _join } from 'path';
+import { createRequire as __cjsCreateRequire } from 'module';
+import { fileURLToPath } from 'url';
+import * as path from 'path';
 
-// 在ES模块中模拟CommonJS变量
-const require = _createRequire(import.meta.url);
+// 在ES模块中模拟CommonJS变量 - 使用唯一前缀避免命名冲突
+const require = __cjsCreateRequire(import.meta.url);
 globalThis.require = require; // 确保全局可用
 
-// 为ES模块环境提供 __dirname 和 __filename
-const __filename = _fileURLToPath(import.meta.url);
-const __dirname = _dirname(__filename);
+// 为ES模块环境提供 __dirname 和 __filename - 使用命名空间避免冲突
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 globalThis.__filename = __filename;
 globalThis.__dirname = __dirname;
+globalThis.__path = path; // 提供path作为全局变量
 
-// 禁用其他模块中的createRequire导入
-import { createRequire } from 'module';
+// 禁用其他模块中的createRequire导入 - 使用相同的名称
+import { createRequire as createRequire } from 'module';
 export { createRequire }; // 导出以阻止其他模块重新导入
 
 // 会话存储初始化 (预先加载关键CJS模块)
@@ -101,20 +102,41 @@ try {
   const initialCount = (content.match(/createRequire/g) || []).length;
   
   // 保留原始banner中定义的createRequire，移除其他导入
-  // 使用更精确的正则表达式，减少错误匹配
+  // 使用更精确的字符串匹配，减少错误匹配
   const importPatterns = [
     'import { createRequire } from "module";',
     'import { createRequire } from \'module\';',
+    'import { createRequire } from "node:module";',
+    'import { createRequire } from \'node:module\';',
+    // 别名匹配
+    'import { createRequire as _createRequire } from "module";', 
+    'import { createRequire as _createRequire } from \'module\';',
     'import { createRequire as __createRequire } from "module";',
     'import { createRequire as __createRequire } from \'module\';',
     'import { createRequire as __cjs_createRequire } from "node:module";',
     'import { createRequire as __cjs_createRequire } from \'node:module\';'
   ];
   
+  // 额外处理 path 相关导入，替换 node:path 导入，减少冲突
+  if (content.includes('import { resolve, basename, extname, dirname } from "node:path";')) {
+    console.log('发现 path 模块导入冲突，正在修复...');
+    content = content.replace(
+      'import { resolve, basename, extname, dirname } from "node:path";',
+      '/* 使用全局 __path 命名空间代替解构导入 */\n' +
+      'const { resolve, basename, extname, dirname } = globalThis.__path || path;'
+    );
+  }
+
   // 在文件内容的开头（跳过我们的banner）查找第一个导入声明之后的位置
-  const skipBannerPos = content.indexOf('// 禁用其他模块中的createRequire导入');
+  let skipBannerPos = content.indexOf('// 禁用其他模块中的createRequire导入 - 使用相同的名称');
   if (skipBannerPos === -1) {
-    console.log('警告: 未找到banner标记，可能导致处理不完整');
+    console.log('警告: 未找到banner标记，尝试查找替代标记');
+    // 尝试查找旧标记
+    const oldMarkerPos = content.indexOf('// 禁用其他模块中的createRequire导入');
+    if (oldMarkerPos !== -1) {
+      console.log('找到旧版本的标记，将使用它');
+      skipBannerPos = oldMarkerPos;
+    }
   }
   
   const startPos = skipBannerPos > 0 ? content.indexOf('\n', skipBannerPos) + 1 : 0;
