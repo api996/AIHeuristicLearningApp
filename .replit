@@ -7,7 +7,7 @@ channel = "stable-24_05"
 
 [deployment]
 deploymentTarget = "cloudrun"
-run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
+run = ["sh", "-c", "NODE_ENV=production node --experimental-modules dist/index.js"]
 build = ["sh", "-c", "node scripts/build-for-production.cjs"]
 
 [[ports]]
