@@ -139,8 +139,13 @@ globalThis.__require = require;
 // ===== 预加载会话存储模块 =====
 import expressSession from 'express-session';
 import pgSessionInit from 'connect-pg-simple';
-const PgSession = pgSessionInit(expressSession);
-const MemoryStore = expressSession.MemoryStore;
+// 使用不同的变量名，避免冲突
+const __PgSessionStore = pgSessionInit(expressSession);
+const __MemoryStore = expressSession.MemoryStore;
+
+// 将它们放入全局缓存
+globalThis.__PgSessionStore = __PgSessionStore;
+globalThis.__MemoryStore = __MemoryStore;
 `
   },
   define: {
@@ -209,6 +214,54 @@ async function build() {
       content = fixedContent3;
     }
     
+    // 修复 PgSession 相关冲突
+    if (content.includes('var PgPreparedQuery, PgSession, PgTransaction;')) {
+      log('发现 PgSession 变量声明冲突，正在修复...', 'info');
+      const fixedContent4 = content.replace(
+        'var PgPreparedQuery, PgSession, PgTransaction;',
+        'var PgPreparedQuery, /* 使用全局 __PgSessionStore */ PgTransaction;'
+      );
+      
+      if (fixedContent4 !== content) {
+        fixes++;
+        content = fixedContent4;
+        log('已修复 PgSession 变量声明', 'info');
+      }
+    }
+    
+    // 修复 path 导入冲突
+    if (content.includes('import path, { resolve as resolve2 } from "node:path";')) {
+      log('发现 path 命名导入冲突，正在修复...', 'info');
+      const fixedContent5 = content.replace(
+        'import path, { resolve as resolve2 } from "node:path";',
+        '/* 使用全局 path */\nconst path2 = globalThis.__path;\nconst { resolve: resolve2 } = path2;'
+      );
+      
+      if (fixedContent5 !== content) {
+        fixes++;
+        content = fixedContent5;
+        log('已修复 path 命名导入冲突', 'info');
+      }
+    }
+    
+    // 修复 __filename 冲突
+    if (content.includes('var __filename,')) {
+      log('发现 __filename 变量声明冲突，正在修复...', 'info');
+      const fixedContent6 = content.replace(
+        'var __filename,',
+        'var __filename2,'
+      ).replace(
+        /__filename([ ,;\.=\(\)\[\]\{\}])/g, 
+        '__filename2$1'
+      );
+      
+      if (fixedContent6 !== content) {
+        fixes++;
+        content = fixedContent6;
+        log('已修复 __filename 变量声明冲突', 'info');
+      }
+    }
+    
     // 保存修改后的文件
     fs.writeFileSync(indexPath, content);
     log(`构建完成，修复了 ${fixes} 处模块导入冲突`, 'success');
@@ -217,9 +270,33 @@ async function build() {
     const startScript = `#!/usr/bin/env node
 /**
  * 生产环境启动入口
+ * 包含兼容性修复和环境初始化
  */
 console.log('[INFO] 启动生产环境应用...');
 console.log('[INFO] 时间:', new Date().toISOString());
+
+// 预加载关键模块
+import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import * as path from 'path';
+import * as fs from 'fs';
+import expressSession from 'express-session';
+import pgSessionInit from 'connect-pg-simple';
+
+// 设置全局变量
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+globalThis.__filename = __filename;
+globalThis.__dirname = __dirname;
+globalThis.__path = path;
+globalThis.__fs = fs;
+
+// 初始化会话存储
+const PgSession = pgSessionInit(expressSession);
+globalThis.PgSession = PgSession; 
+globalThis.MemoryStore = expressSession.MemoryStore;
+
+console.log('[INFO] 环境初始化完成，加载应用...');
 
 // ESM 导入应用
 import './dist/index.js';
