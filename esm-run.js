@@ -35,8 +35,14 @@ if (!fs.existsSync('./dist/index.js')) {
 }
 
 // 启动服务器
-const server = spawn('node', ['./dist/index.js'], {
-  env: { ...process.env, NODE_ENV: 'production' },
+log.info('启动节点应用，附加ESM兼容环境变量...');
+const server = spawn('node', ['--no-warnings', './dist/index.js'], {
+  env: { 
+    ...process.env,
+    NODE_ENV: 'production',
+    // 添加额外的环境变量，增强ESM兼容性
+    NODE_OPTIONS: '--experimental-modules --es-module-specifier-resolution=node'
+  },
   stdio: 'inherit'
 });
 
