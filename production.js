@@ -1,40 +1,38 @@
 /**
- * 生产环境启动脚本
- * 极简化版本，解决端口冲突和访问问题
+ * Standard production environment startup script
  */
 
-// 导入子进程模块
 import { spawn } from 'child_process';
 
-// 设置正确的环境和端口
+// Set environment to production
 const env = {
   ...process.env,
   NODE_ENV: 'production',
-  PORT: '5000' // 使用默认的5000端口
+  PORT: process.env.PORT || '5000'
 };
 
-console.log('启动生产环境应用...');
-console.log('时间:', new Date().toISOString());
+console.log('Starting production server...');
+console.log('Time:', new Date().toISOString());
 
-// 使用tsx直接运行TypeScript
-const server = spawn('npx', ['tsx', 'server/index.ts'], { 
+// Use standard Node.js to run the server
+const server = spawn('node', ['./dist/index.js'], { 
   stdio: 'inherit',
   env: env
 });
 
-// 处理服务器进程结束
+// Handle server process termination
 server.on('close', (code) => {
-  console.log(`服务器进程已结束，退出码: ${code}`);
+  console.log(`Server process exited with code: ${code}`);
   process.exit(code);
 });
 
-// 处理终止信号
+// Handle termination signals
 process.on('SIGINT', () => {
-  console.log('接收到SIGINT信号，关闭服务器...');
+  console.log('Received SIGINT signal, closing server...');
   server.kill('SIGINT');
 });
 
 process.on('SIGTERM', () => {
-  console.log('接收到SIGTERM信号，关闭服务器...');
+  console.log('Received SIGTERM signal, closing server...');
   server.kill('SIGTERM');
 });
