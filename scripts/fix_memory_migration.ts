@@ -31,7 +31,7 @@ async function fixMemoryMigration(targetUserId: number) {
     // 检查是否已有该用户的数据库记录
     const existingCount = await db.select()
       .from(memories)
-      .where(eb => eb.eq(memories.userId, targetUserId));
+      .where(eq(memories.userId, targetUserId));
       
     log(`数据库中已有用户ID=${targetUserId}的记忆记录 ${existingCount.length} 条`);
     
@@ -79,12 +79,10 @@ async function fixMemoryMigration(targetUserId: number) {
         const timestamp = new Date(memoryData.timestamp);
         const existingMemory = await db.select()
           .from(memories)
-          .where(eb => 
-            eb.and([
-              eb.eq(memories.userId, targetUserId),
-              eb.eq(memories.timestamp, timestamp)
-            ])
-          );
+          .where(and(
+            eq(memories.userId, targetUserId),
+            eq(memories.timestamp, timestamp)
+          ));
         
         if (existingMemory.length > 0) {
           log(`记忆文件 ${file} 已经迁移过，跳过`);
@@ -129,7 +127,7 @@ async function fixMemoryMigration(targetUserId: number) {
     
     const dbCount = await db.select()
       .from(memories)
-      .where(eb => eb.eq(memories.userId, targetUserId));
+      .where(eq(memories.userId, targetUserId));
       
     log(`数据库中现有用户ID=${targetUserId}的记忆记录 ${dbCount.length} 条`);
     
