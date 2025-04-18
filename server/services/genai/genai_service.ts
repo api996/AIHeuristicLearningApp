@@ -18,57 +18,15 @@ const log = (message: string, source = "genai_service") => {
 };
 
 /**
- * 移除AI响应中的思考过程
- * 主要过滤DeepSeek R1模型的<Think></Think>标签内容
- * 注意：此功能已暂时禁用，不再过滤思考过程，直接返回原始文本
- * @param text AI响应文本
- * @returns 过滤后的文本
+ * 此函数已被禁用，不再用于过滤AI响应中的"思考过程"内容
+ * @deprecated 此函数已不再使用，保留是为了兼容性
+ * @param text 原始AI响应文本
+ * @returns 未经修改的原始文本
  */
 export function removeThinkingProcess(text: string): string {
-  // 当前已禁用思考过程过滤
-  log(`跳过DeepSeek思考过程过滤，使用原始响应文本`);
+  // 函数已被禁用，直接返回原始文本
+  log(`removeThinkingProcess函数已被禁用，直接返回原始响应文本`);
   return text;
-  
-  /* 暂时禁用的原始过滤逻辑
-  if (!text) return text;
-  
-  // 记录原始长度，用于判断是否进行了过滤
-  const originalLength = text.length;
-  
-  // 检查是否整个响应都被包裹在Think标签中
-  const isEntireResponseInThinkTags = text.trim().startsWith('<Think>') && 
-                                      text.trim().endsWith('</Think>') && 
-                                      text.indexOf('<Think>') === text.lastIndexOf('<Think>');
-  
-  // 如果整个响应都在Think标签中，则提取标签内容而不是删除它
-  if (isEntireResponseInThinkTags) {
-    log(`检测到整个DeepSeek响应被包裹在Think标签中，提取内容而非删除`);
-    const thinkContent = text.substring(
-      text.indexOf('<Think>') + '<Think>'.length, 
-      text.lastIndexOf('</Think>')
-    );
-    return thinkContent.trim();
-  }
-  
-  // 正常情况：DeepSeek R1模型主要使用<Think></Think>标签，去除这些标签中的内容
-  let filteredText = text.replace(/<Think>[\s\S]*?<\/Think>/g, '');
-  
-  // 清理可能出现的连续空行
-  filteredText = filteredText.replace(/\n{3,}/g, '\n\n');
-  
-  // 如果过滤后文本明显缩短，记录日志
-  if (originalLength - filteredText.length > 50) {
-    log(`从DeepSeek响应中移除了思考过程，减少了${originalLength - filteredText.length}个字符`);
-  }
-  
-  // 如果过滤后文本为空或只有空白字符，则返回原始文本
-  if (!filteredText.trim()) {
-    log(`过滤后文本为空，使用原始响应`);
-    return text;
-  }
-  
-  return filteredText.trim();
-  */
 }
 
 // 导入环境变量配置
