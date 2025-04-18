@@ -116,7 +116,7 @@ export function TurnstileWidget({ onVerify, onError }: TurnstileProps) {
     mountedRef.current = true;
 
     // 检测Replit环境，立即触发成功回调
-    if (isReplitEnv()) {
+    if (isReplitEnv() || window.location.hostname.includes('.repl.co') || window.location.hostname.includes('.replit.dev') || window.location.hostname.includes('.replit.app')) {
       console.log('[Turnstile] Replit环境检测到，自动跳过验证（仅开发环境）');
       // 延迟一小段时间后触发验证成功，确保登录组件已准备好处理
       setTimeout(() => {

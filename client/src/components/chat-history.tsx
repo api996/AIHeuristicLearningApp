@@ -83,11 +83,24 @@ export function ChatHistory({
 
   const deleteChatMutation = useMutation({
     mutationFn: async (chatId: number) => {
-      await apiRequest('DELETE', `/api/chats/${chatId}?userId=${user.userId}&role=${user.role}`);
+      // 添加错误处理和详细的日志输出
+      console.log(`[Chat] Attempting to delete chat ID: ${chatId}, user ID: ${user.userId}, role: ${user.role}`);
+      try {
+        const res = await apiRequest('DELETE', `/api/chats/${chatId}?userId=${user.userId}&role=${user.role}`);
+        console.log(`[Chat] Delete API response status: ${res.status}`);
+        return res;
+      } catch (error) {
+        console.error(`[Chat] Delete API error:`, error);
+        throw error;
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/chats'] });
+      console.log('[Chat] Deletion successful, invalidating queries');
+      queryClient.invalidateQueries({ queryKey: ['/api/chats', user.userId, user.role] });
     },
+    onError: (error) => {
+      console.error('[Chat] Deletion mutation error:', error);
+    }
   });
 
   // 常规删除处理函数
