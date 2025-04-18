@@ -9,7 +9,8 @@ import {
   generateSuggestions,
   clusterMemories
 } from '../services/learning';
-import { memoryService, StorageMode, MemoryItem } from '../services/learning/memory_service';
+import { memoryService } from '../services/learning/memory_service';
+import { generateUserKnowledgeGraph } from '../services/learning/knowledge_graph';
 import { log } from '../vite';
 import { utils } from '../utils';
 import { spawn } from 'child_process';
@@ -221,6 +222,41 @@ router.get('/:userId/clusters', async (req, res) => {
     res.json({ clusters });
   } catch (error) {
     log(`[API] 获取记忆聚类出错: ${error}`);
+    res.status(500).json({ error: utils.sanitizeErrorMessage(error) });
+  }
+});
+
+/**
+ * 获取用户知识图谱
+ * GET /api/learning-path/:userId/knowledge-graph
+ */
+router.get('/:userId/knowledge-graph', async (req, res) => {
+  try {
+    const userId = utils.safeParseInt(req.params.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ error: "无效的用户ID" });
+    }
+    
+    log(`[API] 获取用户 ${userId} 的知识图谱`);
+    
+    // 设置响应头，禁用缓存
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    // 生成知识图谱
+    const knowledgeGraph = await generateUserKnowledgeGraph(userId);
+    
+    // 添加时间戳版本，避免浏览器缓存
+    const response = {
+      ...knowledgeGraph,
+      version: new Date().getTime()
+    };
+    
+    res.json(response);
+  } catch (error) {
+    log(`[API] 获取知识图谱出错: ${error}`);
     res.status(500).json({ error: utils.sanitizeErrorMessage(error) });
   }
 });

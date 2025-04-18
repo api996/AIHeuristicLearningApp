@@ -217,12 +217,14 @@ export class ClusterMemoryRetrievalService {
         if (!embedding) continue;
         
         // 计算与查询的相似度
-        const similarity = this.cosineSimilarity(queryEmbedding, embedding.vectorData);
-        
-        topicScores.push({
-          topic,
-          score: similarity
-        });
+        if (Array.isArray(embedding.vectorData)) {
+          const similarity = this.cosineSimilarity(queryEmbedding, embedding.vectorData);
+          
+          topicScores.push({
+            topic,
+            score: similarity
+          });
+        }
       } catch (error) {
         continue; // 跳过出错的主题
       }
