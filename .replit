@@ -10,8 +10,8 @@ REPLIT_DISABLE_PACKAGE_LAYER = "1"
 
 [deployment]
 deploymentTarget = "cloudrun"
-run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
-build = ["sh", "-c", "node scripts/build-secure.js"]
+run = ["sh", "-c", "NODE_ENV=production node direct-prod.js"]
+build = ["sh", "-c", "node scripts/build-fixed.js"]
 
 [[ports]]
 localPort = 5000
