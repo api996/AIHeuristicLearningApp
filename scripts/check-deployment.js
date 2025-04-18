@@ -5,8 +5,13 @@
  * 验证关键生产配置，特别是会话存储设置
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// 在ESM中获取当前文件路径
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 颜色设置，用于控制台输出
 const colors = {
@@ -17,8 +22,6 @@ const colors = {
   yellow: '\x1b[33m',
   blue: '\x1b[34m',
 };
-
-console.log(`${colors.bright}${colors.blue}===== 部署前配置检查 =====${colors.reset}`);
 
 // 检查环境变量
 function checkEnvironmentVariables() {
@@ -153,14 +156,18 @@ function runAllChecks() {
   return allPassed;
 }
 
-// 执行检查
-const checksPassed = runAllChecks();
+// 使用IIFE包装主执行代码
+(async () => {
+  console.log(`${colors.bright}${colors.blue}===== 部署前配置检查 =====${colors.reset}`);
+  
+  // 执行检查
+  const checksPassed = runAllChecks();
+  
+  // 如果是作为命令行脚本运行，则设置退出码
+  if (import.meta.url === `file://${process.argv[1]}`) {
+    process.exit(checksPassed ? 0 : 1);
+  }
+})();
 
-// 如果是作为命令行脚本运行，则设置退出码
-if (require.main === module) {
-  process.exit(checksPassed ? 0 : 1);
-}
-
-module.exports = {
-  runAllChecks
-};
+// 导出函数，使用ESM语法
+export { runAllChecks };
