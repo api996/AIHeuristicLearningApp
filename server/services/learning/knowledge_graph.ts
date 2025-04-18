@@ -212,10 +212,10 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
       try {
         const embedding = await storage.getEmbeddingByMemoryId(memory.id);
         
-        if (embedding && embedding.vector_data) {
+        if (embedding && embedding.vectorData && Array.isArray(embedding.vectorData)) {
           memoryVectors.push({
             id: memory.id,
-            vector: embedding.vector_data as number[]
+            vector: embedding.vectorData
           });
         }
       } catch (error) {
