@@ -8,15 +8,17 @@ import { storage } from "../../storage";
 import { vectorEmbeddingsService } from "./vector_embeddings";
 import { memorySummarizer } from "./memory_summarizer";
 import { clusterAnalyzer } from "./cluster_analyzer";
+import { clusterMemoryRetrieval } from "./cluster_memory_retrieval";
 import { Memory } from "@shared/schema";
 
 export class MemoryService {
   private storageMode: "database" | "hybrid" | "file" = "database";
+  private useClusterRetrieval: boolean = true; // 是否使用聚类记忆检索
 
   constructor() {
     // 强制使用数据库存储模式，忽略环境变量设置
     this.storageMode = "database";
-    log(`[MemoryService] 初始化，存储模式: ${this.storageMode}`, "info");
+    log(`[MemoryService] 初始化，存储模式: ${this.storageMode}，使用聚类检索: ${this.useClusterRetrieval}`, "info");
   }
 
   /**
@@ -47,6 +49,9 @@ export class MemoryService {
       if (embedding) {
         await storage.saveMemoryEmbedding(memory.id, embedding);
       }
+      
+      // 5. 清除用户的聚类缓存，因为已添加新记忆
+      clusterMemoryRetrieval.clearUserClusterCache(userId);
       
       return memory;
     } catch (error) {
@@ -84,13 +89,29 @@ export class MemoryService {
 
   /**
    * 查找与查询语义相似的记忆
+   * 使用优化的聚类检索方法
+   * 
    * @param userId 用户ID
    * @param query 查询文本
    * @param limit 最大结果数
    * @returns 相似记忆
    */
   async findSimilarMemories(userId: number, query: string, limit: number = 5): Promise<Memory[]> {
-    return vectorEmbeddingsService.findSimilarMemories(userId, query, limit);
+    try {
+      // 根据设置决定使用聚类检索还是直接向量检索
+      if (this.useClusterRetrieval) {
+        // 使用基于聚类的检索方法
+        log(`[MemoryService] 使用聚类记忆检索，用户ID=${userId}，查询="${query.substring(0, 30)}..."`);
+        return clusterMemoryRetrieval.retrieveClusterMemories(userId, query, limit);
+      } else {
+        // 使用标准向量检索方法
+        log(`[MemoryService] 使用标准向量记忆检索，用户ID=${userId}，查询="${query.substring(0, 30)}..."`);
+        return vectorEmbeddingsService.findSimilarMemories(userId, query, limit);
+      }
+    } catch (error) {
+      log(`[MemoryService] 找不到相似记忆，回退到标准检索: ${error}`, "warn");
+      return vectorEmbeddingsService.findSimilarMemories(userId, query, limit);
+    }
   }
 
   /**
@@ -191,11 +212,25 @@ export class MemoryService {
         }
       }
       
+      // 如果修复了记忆，清除聚类缓存
+      if (repairedCount > 0) {
+        clusterMemoryRetrieval.clearUserClusterCache(userId);
+      }
+      
       return repairedCount;
     } catch (error) {
       log(`[MemoryService] 修复用户记忆时出错: ${error}`, "error");
       return 0;
     }
+  }
+  
+  /**
+   * 获取用户的聚类主题
+   * @param userId 用户ID
+   * @returns 聚类主题数组
+   */
+  async getUserClusterTopics(userId: number): Promise<any[]> {
+    return clusterMemoryRetrieval.getUserClusterTopics(userId);
   }
 }
 
