@@ -10,7 +10,7 @@ REPLIT_DISABLE_PACKAGE_LAYER = "1"
 
 [deployment]
 deploymentTarget = "cloudrun"
-run = ["sh", "-c", "NODE_ENV=production node production.js"]
+run = ["sh", "-c", "node production.js"]
 build = ["sh", "-c", "node build-frontend.js"]
 
 [[ports]]
