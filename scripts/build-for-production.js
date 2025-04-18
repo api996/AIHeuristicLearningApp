@@ -23,10 +23,10 @@ const __dirname = path.dirname(__filename);
     execSync('vite build --config vite.config.js', { stdio: 'inherit' });
     console.log('前端构建完成 ✓');
 
-    // 执行后端构建，使用CommonJS格式
-    console.log('2. 执行后端构建 (esbuild)，使用ESM格式...');
+    // 执行后端构建，保持ESM格式，但处理动态导入
+    console.log('2. 执行后端构建 (esbuild)，使用ESM格式，优化动态导入...');
     execSync(
-      'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=esm --outdir=dist --external:lightningcss',
+      'NODE_OPTIONS="--experimental-vm-modules" esbuild server/index.ts --platform=node --bundle --format=esm --outdir=dist --external:lightningcss --banner:js="import { createRequire } from \'module\'; const require = createRequire(import.meta.url);"',
       { stdio: 'inherit' }
     );
     console.log('后端构建完成 ✓');
