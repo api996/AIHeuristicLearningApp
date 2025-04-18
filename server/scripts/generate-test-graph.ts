@@ -139,9 +139,7 @@ async function saveTestMemoriesToDatabase(userId: number, testMemories: TestMemo
           content: memory.content,
           summary: memory.summary,
           type: 'conversation',
-          timestamp: new Date(currentTime.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(), // 过去7天内的随机时间
-          chatId: null,
-          conversationId: uuidv4()
+          timestamp: new Date(currentTime.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString() // 过去7天内的随机时间
         })
         .returning();
       
