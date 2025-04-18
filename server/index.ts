@@ -7,6 +7,8 @@ import path from "path";
 import fs from "fs";
 import { initializeObjectStorage } from "./services/object-storage.service";
 import { initializeStorage } from "./services/hybrid-storage.service";
+import pgSession from "connect-pg-simple";
+import { pool } from "./db";
 
 // 自动修复记忆文件
 const runMemoryCleanup = (userId?: number) => {
@@ -70,8 +72,18 @@ const app = express();
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// 添加会话支持
+// 创建PostgreSQL会话存储
+const PgStore = pgSession(session);
+
+// 添加会话支持，在生产环境中使用PostgreSQL存储会话数据
 app.use(session({
+  store: process.env.NODE_ENV === 'production' 
+    ? new PgStore({
+        pool,
+        tableName: 'session', // 与之前创建的表名匹配
+        createTableIfMissing: true
+      }) 
+    : undefined, // 开发环境仍使用内存存储
   secret: process.env.SESSION_SECRET || 'ai-learning-companion-secret',
   resave: false,
   saveUninitialized: true,

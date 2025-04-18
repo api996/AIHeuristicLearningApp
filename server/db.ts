@@ -6,8 +6,8 @@ import { log } from "./vite";
 
 neonConfig.webSocketConstructor = ws;
 
-// 使用指定的原始数据库URL
-const DATABASE_URL = "postgresql://neondb_owner:npg_6aGbrZqS3Qjg@ep-tiny-grass-a5mbunjc.us-east-2.aws.neon.tech/neondb?sslmode=require";
+// 使用环境变量中的数据库URL
+const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
   throw new Error(
