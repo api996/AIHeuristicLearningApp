@@ -668,9 +668,6 @@ export function AIChat({ userData }: AIChatProps) {
       // 注意：我们先添加一个空内容的消息，显示思考动画
       setMessages([...newMessages, { role: "assistant" as const, content: "" }]);
 
-      // 发送给后端 API - 故意延迟300-600ms以显示思考状态
-      await new Promise(resolve => setTimeout(resolve, Math.random() * 300 + 300));
-
       // 确保使用正确的聊天ID发送消息
       console.log("使用聊天ID发送消息:", chatIdForRequest);
       const response = await apiRequest("POST", "/api/chat", {
@@ -686,6 +683,12 @@ export function AIChat({ userData }: AIChatProps) {
       // 获取AI响应内容
       const aiResponse = data.text || "抱歉，我现在无法回答这个问题。";
 
+      // 检查API响应是否包含错误信息
+      const containsError = aiResponse.includes("模型暂时无法使用") || 
+                           aiResponse.includes("DeepSeek模型无法生成回应") ||
+                           aiResponse.includes("服务响应超时") || 
+                           aiResponse.includes("连接服务失败");
+      
       // 更新现有的思考消息为真实响应
       setMessages(prev => {
         // 复制当前消息数组
@@ -696,11 +699,22 @@ export function AIChat({ userData }: AIChatProps) {
           updatedMessages[updatedMessages.length - 1] = {
             role: "assistant" as const,
             content: aiResponse,
-            model: data.model || currentModel // 添加模型信息
+            model: data.model || currentModel, // 添加模型信息
+            hasError: containsError // 标记是否包含错误信息
           };
         }
         return updatedMessages;
       });
+      
+      // 如果是DeepSeek模型且响应中包含错误信息，显示提示
+      if (currentModel === "deepseek" && containsError) {
+        toast({
+          title: "DeepSeek模型暂时不可用",
+          description: "请尝试使用Gemini或Grok模型，或稍后再试",
+          variant: "destructive",
+          duration: 5000
+        });
+      }
 
       // 保存用户消息到记忆空间
       saveToMemorySpace(userInput, 'user');

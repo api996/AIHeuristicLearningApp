@@ -19,6 +19,7 @@ interface ChatMessageProps {
     content: string;
     isRegenerating?: boolean; // 添加是否正在重新生成的状态
     model?: string;           // 使用的模型
+    hasError?: boolean;       // 标记消息是否包含错误信息
   };
   isThinking?: boolean; // 用于表示AI是否正在思考
   onEdit?: (id: number | undefined, newContent: string) => Promise<void>; // 编辑消息
