@@ -137,14 +137,20 @@ app.use((req, res, next) => {
     
     if (USE_OBJECT_STORAGE_FORCE) {
       // 仅当环境变量明确启用时才尝试使用对象存储
-      try {
-        await initializeObjectStorage();
-        log("对象存储服务初始化成功");
-        useObjectStorage = true;
-      } catch (error) {
-        log(`对象存储服务初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      if (!process.env.REPLIT_DATA_TOKEN) {
+        log("对象存储服务初始化失败: REPLIT_DATA_TOKEN环境变量未设置");
         log("将继续使用文件系统存储");
         useObjectStorage = false;
+      } else {
+        try {
+          await initializeObjectStorage();
+          log("对象存储服务初始化成功");
+          useObjectStorage = true;
+        } catch (error) {
+          log(`对象存储服务初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+          log("将继续使用文件系统存储");
+          useObjectStorage = false;
+        }
       }
     } else {
       log("对象存储已禁用，使用文件系统存储 (要启用对象存储，请设置环境变量 USE_OBJECT_STORAGE_FORCE=true)");
