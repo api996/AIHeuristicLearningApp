@@ -1,0 +1,1236 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('./components/ui/button-styles.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 全局 - 精致磨砂玻璃效果公共样式（升级版） */
+.frosted-glass {
+  background: rgba(255, 255, 255, 0.15) !important;
+  backdrop-filter: blur(18px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+.frosted-glass-dark {
+  background: rgba(25, 25, 35, 0.75) !important;
+  backdrop-filter: blur(18px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(120%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 浅色模式磨砂玻璃 - 浅蓝色系统风格 */
+.light-mode .frosted-glass {
+  background: rgba(240, 248, 255, 0.7) !important; /* 浅蓝色背景 */
+  backdrop-filter: blur(16px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+  border: 1px solid rgba(200, 225, 255, 0.4) !important; /* 浅蓝色边框 */
+  box-shadow: 0 4px 24px rgba(0, 120, 255, 0.05) !important; /* 蓝色阴影 */
+}
+
+/* 对话框磨砂玻璃样式 - 深色模式 */
+.frosted-dialog {
+  background: rgba(30, 30, 35, 0.85) !important; 
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+  border-radius: 16px !important;
+}
+
+/* 对话框磨砂玻璃样式 - 浅色模式 */
+:root.light .frosted-dialog {
+  background: rgba(250, 250, 255, 0.85) !important; 
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border: 1px solid rgba(230, 230, 250, 0.5) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+  color: #1a1a2e !important;
+}
+
+/* 精美磨砂玻璃提示框样式 - 深色模式 */
+.frosted-toast-info {
+  background: rgba(59, 130, 246, 0.2) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+.frosted-toast-success {
+  background: rgba(34, 197, 94, 0.2) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(34, 197, 94, 0.2) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+.frosted-toast-error {
+  background: rgba(239, 68, 68, 0.2) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+.frosted-toast {
+  background: rgba(30, 30, 35, 0.75) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+.frosted-toast-success {
+  background: rgba(34, 197, 94, 0.2) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(34, 197, 94, 0.2) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+.frosted-toast-error {
+  background: rgba(239, 68, 68, 0.2) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 精美磨砂玻璃提示框样式 - 浅色模式 */
+:root.light .frosted-toast-info {
+  background: rgba(59, 130, 246, 0.15) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  color: rgba(23, 71, 157, 1) !important;
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.1) !important;
+}
+
+:root.light .frosted-toast-success {
+  background: rgba(34, 197, 94, 0.15) !important;
+  border: 1px solid rgba(34, 197, 94, 0.3) !important;
+  color: rgba(21, 128, 61, 1) !important;
+  box-shadow: 0 8px 32px rgba(34, 197, 94, 0.1) !important;
+}
+
+:root.light .frosted-toast-error {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  color: rgba(185, 28, 28, 1) !important;
+  box-shadow: 0 8px 32px rgba(239, 68, 68, 0.1) !important;
+}
+
+/* 美化滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* 长按菜单动画效果 */
+@keyframes scale-in-menu {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in-menu {
+  animation: scale-in-menu 0.2s ease-out forwards;
+}
+
+/* 禁用移动端长按选择菜单 */
+.user-select-none {
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* 自定义动画 */
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-blink {
+  animation: blink 1s ease-in-out infinite;
+}
+
+/* 增强亮度效果，用于高亮选中的消息 */
+.brightness-130 {
+  filter: brightness(1.3);
+}
+
+/* 消息样式修复与优化 */
+.message-appear,
+.chat-message-container .message-appear,
+.message-bubble,
+.message-content,
+.chat-message,
+[class*="py-3 px-4 rounded-2xl"] {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08) !important; /* 添加微妙阴影 */
+  border-radius: 18px !important; /* 更圆润的边角 */
+  text-align: center !important; /* 文字居中 */
+}
+
+/* 深色模式下的消息样式 */
+:root.dark .message-appear [class*="py-3 px-4 rounded-2xl"] {
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 浅色模式下的消息样式 */
+:root.light .message-appear [class*="from-blue-600/20 to-purple-600/20"] {
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.7), rgba(233, 213, 255, 0.7)) !important;
+  color: #1e293b !important;
+  box-shadow: 0 4px 14px rgba(30, 58, 138, 0.08) !important;
+  border: 1px solid rgba(147, 197, 253, 0.3) !important;
+}
+
+:root.light .message-appear [class*="from-blue-600/25 to-indigo-600/25"] {
+  background: linear-gradient(135deg, rgba(191, 219, 254, 0.7), rgba(165, 180, 252, 0.7)) !important;
+  color: #1e293b !important;
+  box-shadow: 0 4px 14px rgba(30, 64, 175, 0.08) !important;
+  border: 1px solid rgba(96, 165, 250, 0.3) !important;
+}
+
+/* 对话框保留阴影效果 */
+div[role="dialog"] {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/**
+ * 全局菜单和弹出层修复
+ * - 确保下拉菜单和对话框始终位于顶层
+ * - 不使用position:relative避免定位问题
+ * - 提供更高的z-index防止叠层问题
+ */
+[data-radix-popper-content-wrapper] {
+  z-index: 99999 !important; /* 极高的z-index确保菜单位于最上层 */
+}
+
+/* Radix UI组件通用修复 */
+.dropdown-menu,
+.popover-content,
+[role="menu"],
+.menu-content,
+.user-dropdown,
+.dropdown-content,
+.dialog-content,
+[data-state="open"] div[role="dialog"],
+[data-radix-portal],
+[data-state="open"],
+.ContextMenu,
+[data-radix-menu-content],
+[aria-haspopup="menu"],
+[data-state="open"] .radix-dropdown,
+.context-menu-content,
+[data-radix-dropdown-menu-content] {
+  z-index: 99999 !important; /* 极高的z-index确保UI元素位于最上层 */
+}
+
+/* 特别处理弹出菜单的容器，确保它们使用正确的定位 */
+.dropdown-menu-container {
+  position: relative !important; /* 菜单容器使用相对定位 */
+}
+
+/* 修复iPad和移动设备上的菜单问题 */
+@media (max-width: 1366px) {
+  [data-radix-popper-content-wrapper] {
+    position: fixed !important; /* 在移动设备上使用fixed定位避免滚动问题 */
+    z-index: 999999 !important; /* 更高的z-index */
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 3s infinite linear;
+}
+
+@keyframes scale-in {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
+@keyframes scale-in-menu {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in-menu {
+  animation: scale-in-menu 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform-origin: center;
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 消息框动画 */
+.message-appear {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: message-appear 0.3s forwards cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+
+@keyframes message-appear {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 主题设置和字体大小 */
+:root {
+  --primary-foreground: #f8f9fa;
+  --primary-background: #131518;
+  --secondary-foreground: #a0a6ab;
+  --secondary-background: #1c1e24;
+  --border-color: #2a2d35;
+  --input-background: #18191c;
+  --selected-background: #2c2e35;
+  --hover-background: #25272e;
+  --vh: 1vh; /* 默认viewport height变量，将通过JS动态更新 */
+  font-size: 16px; /* 默认字体大小 */
+}
+
+:root.dark {
+  --primary-foreground: #f8f9fa;
+  --primary-background: #131518;
+  --secondary-foreground: #a0a6ab;
+  --secondary-background: #1c1e24;
+  --border-color: #2a2d35;
+  --input-background: #18191c;
+  --selected-background: #2c2e35;
+  --hover-background: #25272e;
+}
+
+:root.light {
+  --primary-foreground: #1c1e24;
+  --primary-background: rgba(230, 242, 255, 0.85); /* 更浅蓝色背景 */
+  --secondary-foreground: #406080; /* 蓝灰色文字 */
+  --secondary-background: rgba(235, 245, 255, 0.8); /* 浅蓝色二级背景 */
+  --border-color: rgba(190, 215, 250, 0.5); /* 浅蓝色边框 */
+  --input-background: rgba(240, 248, 255, 0.9); /* 更亮的浅蓝色输入框 */
+  --selected-background: rgba(210, 230, 255, 0.8); /* 蓝色选中背景 */
+  --hover-background: rgba(220, 235, 255, 0.7); /* 蓝色悬停背景 */
+  --glass-effect: saturate(150%) blur(16px);
+  --accent-blue: rgba(0, 122, 255, 1); /* iOS系统蓝色 */
+  color-scheme: light;
+}
+
+/* 字体大小设置 */
+:root.text-sm {
+  font-size: 14px;
+}
+
+:root.text-md {
+  font-size: 16px;
+}
+
+:root.text-lg {
+  font-size: 18px;
+}
+
+/* 根据字体大小的自定义样式 */
+.text-size-small {
+  font-size: 0.875rem;
+}
+
+.text-size-medium {
+  font-size: 1rem;
+}
+
+.text-size-large {
+  font-size: 1.125rem;
+}
+
+* {
+  font-family: "Poppins", sans-serif;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.wrapper .input-box input:focus ~ label,
+.wrapper .input-box input:valid ~ label {
+  top: -5px !important;
+}
+
+@media (max-width: 360px) {
+  .wrapper {
+    width: 100%;
+    height: 100vh;
+    border: none;
+    border-radius: 0px;
+  }
+
+  .wrapper .input-box {
+    width: 290px;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* 自定义滚动条样式 - 深色模式 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: rgba(26, 26, 26, 0.5);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(99, 102, 241, 0.5);
+}
+
+/* 自定义滚动条样式 - 浅色模式蓝色系 */
+:root.light ::-webkit-scrollbar-track {
+  background-color: rgba(230, 242, 255, 0.5); /* 浅蓝色背景 */
+}
+
+:root.light ::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 122, 255, 0.2); /* 浅蓝色滑块 */
+  border-radius: 8px;
+}
+
+:root.light ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 122, 255, 0.4); /* 更深的浅蓝色 */
+}
+
+/* 隐藏空内容区域的滚动条 */
+.hide-empty-scrollbar {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+  overflow: -moz-scrollbars-none !important; /* 旧版Firefox */
+  overflow-y: auto !important; /* 确保内容可正常显示且仍可滚动 */
+}
+
+.hide-empty-scrollbar::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Edge */
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* 滚动条控制 - 智能判断是否需要滚动 */
+.content-scrollbar {
+  scrollbar-width: thin;
+  -ms-overflow-style: auto;
+  overflow-y: auto; /* 默认使用自动溢出 */
+}
+
+/* 当内容高度超过容器高度时才显示滚动条 */
+.content-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+/* 消息内容较少时不显示滚动条 */
+.minimal-content::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* 自动隐藏/显示滚动条 */
+@media (hover: hover) {
+  .auto-hide-scrollbar::-webkit-scrollbar {
+    width: 0;
+    opacity: 0;
+    transition: all 0.3s;
+  }
+
+  .auto-hide-scrollbar:hover::-webkit-scrollbar {
+    width: 6px;
+    opacity: 1;
+  }
+}
+
+/* 苹果风格的磨砂玻璃效果 */
+.frosted-glass {
+  background-color: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.07);
+}
+
+.frosted-glass-dark {
+  background-color: rgba(17, 25, 40, 0.65);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.25);
+}
+
+/* 自定义背景图片容器 */
+.bg-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.bg-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: all 0.5s ease;
+  opacity: 1; /* 将不透明度设为1，以便显示完整图像 */
+}
+
+/* 背景图片上传按钮样式 */
+/* 背景上传按钮已移至偏好设置对话框中 */
+
+/* 使用真实视口高度的容器样式 */
+.vh-100 {
+  height: 100vh; /* 回退方案 */
+  height: calc(var(--vh, 1vh) * 100); /* 使用CSS变量适配真实视口高度 */
+}
+
+.vh-chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* 回退方案 */
+  height: calc(var(--vh, 1vh) * 100); 
+  overflow: hidden; /* 防止整体页面滚动 */
+}
+
+.vh-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 60px; /* 增加底部空间，确保键盘弹出时内容可见 */
+  overscroll-behavior: contain; /* 防止iOS弹性滚动影响容器外部 */
+  -webkit-overflow-scrolling: touch; /* 平滑iOS滚动 */
+  will-change: transform; /* 优化滚动性能 */
+  scroll-behavior: smooth; /* 平滑滚动效果 */
+}
+
+.vh-chat-input {
+  position: fixed; /* 固定定位而非粘性定位，确保在所有设备上一致 */
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 0;
+  background-color: inherit; /* 继承父容器背景色 */
+  z-index: 30; /* 确保输入框始终可见，提高z-index避免被其他元素覆盖 */
+  border-top: 1px solid var(--border-color);
+  margin-bottom: env(safe-area-inset-bottom, 0); /* 兼容iOS底部安全区域 */
+  max-height: 45vh; /* 增加最大高度，确保在小屏幕上也能容纳更多内容 */
+  overflow: visible; /* 确保内容不被截断 */
+  transform: translateZ(0); /* 强制GPU渲染，提高性能 */
+}
+
+/* 键盘弹出时的修改 */
+.keyboard-open .chat-input-area {
+  position: static !important;
+  bottom: auto !important;
+  margin-top: auto !important;
+  z-index: 20 !important;
+}
+
+/* 确保键盘弹出时内容保持可见 */
+.keyboard-open .flex-1.overflow-y-auto {
+  margin-bottom: 0 !important;
+  padding-bottom: 10px !important;
+}
+
+/* ===== 键盘相关布局优化（全平台）===== */
+/* 在键盘打开时的基本调整 */
+.keyboard-open {
+  /* 防止主体滚动 */
+  overflow: hidden !important;
+}
+
+/* 当键盘打开时，调整聊天区域的高度 */
+.keyboard-open .chat-message-container {
+  /* 动态调整聊天区域的高度为可视区域高度减去输入区域高度 */
+  max-height: calc(var(--viewport-height) - 160px) !important; /* 增大减去的数值，避免黑色空白区域 */
+  height: calc(var(--viewport-height) - 160px) !important;
+  margin-bottom: 140px !important; /* 确保内容不被输入框遮挡 */
+  padding-bottom: 8px !important;
+  overflow-y: auto !important;
+}
+
+/* 键盘打开时，输入区域固定在可见区域底部 */
+.keyboard-open .chat-input-container {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  background-color: var(--background) !important;
+  z-index: 50 !important;
+  transform: translateY(0) !important;
+  transition: transform 0.2s ease-out !important;
+}
+
+/* ==== 针对不同平台的特殊处理 ==== */
+/* iOS 设备特殊处理 */
+@supports (-webkit-touch-callout: none) {
+  /* 固定输入区域，防止iOS中输入区被弹起的键盘推至不可见区域 - 深色模式 */
+  .keyboard-open .chat-input-container {
+    position: fixed !important;
+    /* 使用可视区域高度剩余部分的固定位置 - 自动适应键盘高度 */
+    bottom: 0 !important;
+    backdrop-filter: blur(10px) !important; /* 确保背景模糊效果 */
+    background-color: rgba(15, 15, 15, 0.75) !important; /* 半透明深色背景 */
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding-bottom: env(safe-area-inset-bottom, 8px) !important; /* 支持安全区域 */
+  }
+  
+  /* 浅色模式下的输入区域样式 */
+  :root.light .keyboard-open .chat-input-container {
+    background-color: rgba(230, 242, 255, 0.85) !important; /* 浅蓝色半透明背景 */
+    border-top: 1px solid rgba(190, 215, 250, 0.5) !important; /* 浅蓝色边框 */
+    box-shadow: 0 -5px 15px rgba(0, 122, 255, 0.05) !important; /* 蓝色阴影 */
+  }
+
+  /* 键盘打开时，确保消息区域留有足够空间且内容可见 */
+  .keyboard-open .chat-message-container {
+    padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px)) !important;
+    position: relative !important;
+    top: 0 !important;
+  }
+
+  /* 防止iOS中可输入元素缩放 */
+  .keyboard-open textarea,
+  .keyboard-open input[type="text"],
+  .keyboard-open input[type="search"] {
+    font-size: 16px !important; /* 防止iOS自动缩放 */
+  }
+}
+
+/* 安卓设备特殊处理 */
+@supports not (-webkit-touch-callout: none) {
+  .keyboard-open .chat-input-container {
+    /* 安卓设备的特定调整 */
+    position: sticky !important;
+    bottom: 0 !important;
+  }
+}
+
+/* 键盘弹出时优化滚动区域和布局 */
+.keyboard-open .vh-chat-messages,
+.keyboard-focused .vh-chat-messages {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  scroll-behavior: auto !important; /* 使用即时滚动而非平滑滚动 */
+  padding-bottom: 0 !important; /* 移除底部额外空间 */
+}
+
+/* iOS键盘处理 - 消除黑色空隙 */
+@supports (-webkit-touch-callout: none) {
+  /* iOS特有样式 */
+  .keyboard-open .chat-message-container,
+  .keyboard-focused .chat-message-container {
+    padding-bottom: 120px !important; /* 留出足够的底部空间 */
+    margin-bottom: 0 !important;
+    /* 添加平滑过渡效果 */
+    transition: padding-bottom 0.3s ease;
+  }
+
+  /* 让输入框在键盘上方正确位置 - 直接填充黑色空白区域 */
+  .keyboard-open .chat-input-area,
+  .keyboard-focused .chat-input-area {
+    position: fixed !important;
+    bottom: 0 !important; 
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 50 !important;
+    /* 移除额外空间，确保良好显示 */
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    /* 使用动态变量确保输入框始终在键盘上方 */
+    transform: translateY(calc(-1 * var(--keyboard-height, 270px))) !important; /* 使用动态计算的键盘高度 */
+    /* 添加平滑过渡效果 */
+    transition: transform 0.25s ease-out !important;
+  }
+
+  /* 确保输入框背景与内容完全显示 - 深色模式 */
+  .keyboard-open .chat-input-container > div,
+  .keyboard-focused .chat-input-container > div {
+    backdrop-filter: blur(10px) !important;
+    background-color: rgba(20, 20, 20, 0.85) !important; /* 半透明磨砂玻璃效果 */
+    padding: 8px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  /* 确保输入框背景与内容完全显示 - 浅色模式 */
+  :root.light .keyboard-open .chat-input-container > div,
+  :root.light .keyboard-focused .chat-input-container > div {
+    backdrop-filter: blur(10px) saturate(150%) !important;
+    background-color: rgba(230, 242, 255, 0.85) !important; /* 浅蓝色半透明磨砂玻璃效果 */
+    padding: 8px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(190, 215, 250, 0.5) !important; /* 浅蓝色边框 */
+    box-shadow: 0 4px 15px rgba(0, 122, 255, 0.05) !important; /* 蓝色阴影 */
+  }
+}
+
+/* Android键盘处理 */
+@supports not (-webkit-touch-callout: none) {
+  /* Android特有样式 */
+  .keyboard-open .chat-message-container,
+  .keyboard-focused .chat-message-container {
+    padding-bottom: 80px !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* 确保输入区域始终定位在底部 */
+  .keyboard-open .chat-input-area,
+  .keyboard-focused .chat-input-area {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    z-index: 50 !important;
+  }
+}
+
+/* iPad布局特殊修复 - 专用于解决键盘导致的UI问题 */
+@media (min-width: 768px) and (max-width: 1366px) and (-webkit-min-device-pixel-ratio: 2), 
+       only screen and (min-device-width: 768px) and (max-device-width: 1366px) and (-webkit-min-device-pixel-ratio: 2) {
+  /* iPad布局基础修复 */
+  body, html {
+    position: fixed !important;
+    height: 100% !important;
+    width: 100% !important;
+    max-height: -webkit-fill-available !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  /* 主容器重置 */
+  #root {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* 处理主容器布局 - 修复横向对齐问题 */
+  .flex.h-screen {
+    position: fixed !important; /* fixed替代absolute确保全屏铺满 */
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 100% !important;
+    width: 100% !important;
+    max-width: 100vw !important; /* 防止溢出视口宽度 */
+    display: flex !important;
+    flex-direction: row !important; /* 使用行布局确保左右并排 */
+    overflow: hidden !important;
+    margin: 0 !important; /* 移除所有外边距 */
+    padding: 0 !important; /* 清除可能的内边距 */
+    justify-content: flex-start !important; /* 从左到右布局 */
+    align-items: stretch !important; /* 子元素拉伸填满高度 */
+  }
+
+  /* 修复左侧栏溢出问题 - 解决遮挡内容的问题 - 深色模式 */
+  .sidebar-container {
+    position: absolute !important;
+    width: 256px !important; /* 精确固定宽度，与JSX中保持一致 */
+    max-width: 80vw !important; /* 响应式最大宽度 */
+    z-index: 40 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    overflow-y: auto !important;
+    background-color: rgba(15, 15, 20, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    transition: transform 0.3s ease !important;
+    flex-shrink: 0 !important; /* 确保不会被挤压 */
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  /* 浅色模式侧边栏样式 */
+  :root.light .sidebar-container {
+    background-color: rgba(250, 250, 255, 0.85) !important;
+    backdrop-filter: blur(12px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+    border-right: 1px solid rgba(220, 225, 235, 0.5) !important;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  /* 修复当侧边栏关闭时的问题 */
+  .sidebar-container.hidden {
+    transform: translateX(-100%) !important;
+  }
+
+  /* 确保聊天内容区域正确定位，避免被侧边栏覆盖，解决右侧黑色空白问题 */
+  .chat-content-area {
+    position: absolute !important;
+    left: 256px !important; /* 侧边栏宽度，与前面定义保持一致 */
+    right: 0 !important;
+    width: calc(100% - 256px) !important; 
+    max-width: calc(100% - 256px) !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    overflow: hidden !important;
+    z-index: 30 !important;
+    margin-left: 0 !important; /* 确保没有边距导致额外偏移 */
+    transform: none !important; /* 防止变换导致偏移 */
+  }
+
+  /* 当侧边栏隐藏时，聊天区域应占据全宽 */
+  .sidebar-container.hidden + .chat-content-area,
+  .lg\\:hidden + .chat-content-area {
+    left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* 背景容器固定 */
+  .bg-container {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: -1 !important;
+  }
+
+  .bg-image {
+    object-fit: cover !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* 重置所有可能的滚动区域 */
+  .overflow-auto, .overflow-y-auto, .overflow-scroll, .overflow-y-scroll {
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* 消息列表容器 - 使用绝对布局取代flex布局 */
+  .flex-1.overflow-y-auto {
+    position: absolute !important;
+    top: 64px !important; /* 头部高度 */
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 80px !important; /* 输入框高度 */
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 20px !important;
+  }
+
+  /* 聊天组件核心区域 */
+  .flex-1.flex.flex-col.relative {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    overflow: hidden !important;
+    height: 100% !important;
+  }
+
+  /* 聊天消息容器特殊处理 */
+  .chat-message-container {
+    padding-bottom: var(--content-bottom-padding, 80px) !important;
+  }
+
+  /* 输入区域固定处理 - 深色模式 */
+  .vh-chat-input,
+  .chat-input-area,
+  [class*="chat-input"] {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 1000 !important;
+    background-color: rgba(15, 15, 20, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    padding: 10px 16px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  /* 浅色模式输入区域样式 */
+  :root.light .vh-chat-input,
+  :root.light .chat-input-area,
+  :root.light [class*="chat-input"] {
+    background-color: rgba(250, 250, 255, 0.9) !important;
+    backdrop-filter: blur(12px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+    border-top: 1px solid rgba(220, 225, 235, 0.5) !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  /* iPad特有标记时应用更特殊的规则 - 彻底简化iPad键盘处理 - 深色模式 */
+  .ipad-device.keyboard-open .chat-input-area {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    z-index: 9999 !important;
+    background-color: rgba(15, 15, 20, 0.9) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    transition: none !important;
+    animation: none !important;
+    padding-bottom: env(safe-area-inset-bottom, 10px) !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  /* iPad浅色模式样式 */
+  :root.light .ipad-device.keyboard-open .chat-input-area {
+    background-color: rgba(250, 250, 255, 0.9) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
+    border-top: 1px solid rgba(220, 225, 235, 0.5) !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  /* 输入框聚焦时特殊样式 - 确保输入框始终在视野内 - 深色模式 */
+  .ipad-device.keyboard-open .chat-input-area textarea:focus,
+  .ipad-device.keyboard-focused .chat-input-area textarea:focus {
+    border-color: rgba(59, 130, 246, 0.5) !important; /* 高亮边框 */
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+    background-color: rgba(40, 40, 40, 0.95) !important;
+  }
+  
+  /* 浅色模式下的输入框聚焦样式 */
+  :root.light .ipad-device.keyboard-open .chat-input-area textarea:focus,
+  :root.light .ipad-device.keyboard-focused .chat-input-area textarea:focus {
+    border-color: rgba(59, 130, 246, 0.5) !important; /* 高亮边框 */
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+    background-color: rgba(245, 245, 250, 0.95) !important;
+    color: #1e293b !important;
+  }
+
+  /* 输入框本身的样式增强 - 深色模式 */
+  .ipad-device.keyboard-open .chat-input-container,
+  .ipad-device.keyboard-focused .chat-input-container {
+    padding: 12px !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(15px) !important;
+    background-color: rgba(30, 30, 30, 0.8) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+  }
+  
+  /* 浅色模式输入框样式增强 */
+  :root.light .ipad-device.keyboard-open .chat-input-container,
+  :root.light .ipad-device.keyboard-focused .chat-input-container {
+    padding: 12px !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
+    background-color: rgba(250, 250, 255, 0.85) !important;
+    border: 1px solid rgba(220, 225, 235, 0.5) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  /* 键盘弹出时的消息容器调整 - 固定布局而非弹性布局 */
+  .ipad-device.keyboard-open .flex-1.overflow-y-auto,
+  .ipad-device.keyboard-focused .flex-1.overflow-y-auto {
+    position: absolute !important;
+    top: 64px !important; /* 头部高度 */
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 80px !important; /* 输入框高度 - 固定值 */
+    max-height: calc(100% - 144px) !important; /* 100% - 头部 - 输入框 */
+    overflow-y: scroll !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 100px !important; /* 增加底部填充 */
+  }
+
+  /* 针对iPad键盘特殊处理，确保滚动区域不被键盘遮挡 */
+  @supports (-webkit-touch-callout: none) {
+    /* iOS特有修复 */
+    .ipad-device.keyboard-open,
+    .ipad-device.keyboard-focused {
+      /* 阻止iOS页面弹跳 */
+      height: 100% !important;
+      position: fixed !important;
+      overflow: hidden !important;
+    }
+
+    /* 使用视口高度动态调整 */
+    .ipad-device.keyboard-open .flex-1.overflow-y-auto,
+    .ipad-device.keyboard-focused .flex-1.overflow-y-auto {
+      height: var(--viewport-height, 100vh) !important;
+      max-height: calc(var(--viewport-height, 100vh) - 144px) !important;
+    }
+  }
+
+  /* 消息样式修正 */
+  .chat-message-item {
+    max-width: 90% !important; /* iPad上略微减小最大宽度 */
+  }
+
+  /* 覆盖iOS系统键盘行为 */
+  input, textarea {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+  }
+}
+
+/* 磨砂玻璃风格的Toast通知 */
+.frosted-toast {
+  backdrop-filter: blur(8px) !important;
+  background-color: rgba(20, 20, 20, 0.75) !important; 
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  color: white !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 成功toast样式 */
+.frosted-toast-success {
+  backdrop-filter: blur(8px) !important;
+  background-color: rgba(22, 101, 52, 0.75) !important; 
+  border: 1px solid rgba(74, 222, 128, 0.3) !important;
+  border-radius: 12px !important;
+  color: white !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 信息toast样式 */
+.frosted-toast-info {
+  backdrop-filter: blur(8px) !important;
+  background-color: rgba(30, 64, 175, 0.75) !important; 
+  border: 1px solid rgba(96, 165, 250, 0.3) !important;
+  border-radius: 12px !important;
+  color: white !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 错误toast的特殊样式 */
+.frosted-toast-error {
+  backdrop-filter: blur(8px) !important;
+  background-color: rgba(220, 38, 38, 0.3) !important; 
+  border: 1px solid rgba(220, 38, 38, 0.3) !important;
+  border-radius: 12px !important;
+  color: white !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 全局移除消息外部阴影效果和框架，对所有设备生效 */
+.message-appear,
+.w-full.max-w-3xl.mx-auto.px-4.py-2,
+div[class*="message-wrapper"],
+div[class*="flex flex-col"] > div,
+div[class*="w-full mx-auto"],
+div[class*="flex items-start"],
+div[class*="chat-message-wrapper"],
+.message-shadow,
+div[class*="chat-message-container"] > div,
+div[class*="message-appear"] > div {
+  box-shadow: none !important; /* 彻底移除所有消息相关元素的阴影 */
+  filter: none !important; /* 完全移除所有过滤器效果 */
+  text-shadow: none !important; /* 移除文本阴影 */
+  -webkit-box-shadow: none !important;
+  -moz-box-shadow: none !important;
+  background-clip: padding-box !important; /* 防止背景溢出到边框外 */
+  border: none !important; /* 移除所有边框 */
+  backdrop-filter: none !important; /* 移除外部框架的磨砂效果 */
+  -webkit-backdrop-filter: none !important;
+  background: transparent !important; /* 确保外部框架背景透明 */
+  background-color: transparent !important;
+}
+
+/* 保留消息气泡本身样式（所有设备通用） */
+div[class*="py-3 px-4 rounded-2xl"],
+.chat-message-item > div,
+.message-content,
+.user-message > div,
+.ai-message > div {
+  /* 保留气泡自身的样式属性 */
+  backdrop-filter: inherit !important;
+  -webkit-backdrop-filter: inherit !important;
+  background: inherit !important;
+  box-shadow: inherit !important;
+  border: inherit !important;
+}
+
+/* 保留消息气泡内部的适当阴影 */
+.message-content .prose pre,
+.message-content code,
+.message-content pre {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important; /* 保留代码块内部阴影 */
+}
+
+/* iPad和平板设备消息区统一对齐 - 保持消息右对齐 */
+.ipad-device .chat-message-container > div > div,
+.tablet-device .chat-message-container > div > div {
+  margin: 0 16px 0.75rem auto !important; /* 保持消息右对齐 */
+  width: auto !important; /* 宽度自适应内容 */
+  max-width: 85% !important; /* 最大宽度限制 */
+}
+
+/* iPad设备用户和AI消息的特定样式 - 保持消息右对齐 */
+.ipad-device .flex.flex-col,
+.tablet-device .flex.flex-col {
+  width: auto !important;
+  max-width: 100% !important;
+  margin-right: 16px !important; /* 添加右侧小边距 */
+}
+
+/* 确保所有消息气泡向右对齐 - 保持消息右对齐 */
+.ipad-device .message-appear,
+.tablet-device .message-appear,
+.ipad-device .chat-message-item,
+.tablet-device .chat-message-item {
+  margin-right: 16px !important; /* 统一右侧小边距 */
+  margin-left: auto !important; /* 左侧自动，使内容向右对齐 */
+}
+
+/* 明确设置用户消息向右对齐 */
+.ipad-device [class*="user-message"],
+.tablet-device [class*="user-message"],
+.ipad-device [class*="items-end"],
+.tablet-device [class*="items-end"] {
+  margin-left: auto !important;
+  margin-right: 16px !important;
+}
+
+/* 确保AI消息也向右对齐 */
+.ipad-device [class*="ai-message"],
+.tablet-device [class*="ai-message"],
+.ipad-device [class*="items-start"],
+.tablet-device [class*="items-start"] {
+  margin-left: auto !important;
+  margin-right: 16px !important;
+}
+
+/* 侧边栏历史记录项保持左对齐 */
+.ipad-device .sidebar-container .group,
+.tablet-device .sidebar-container .group,
+.ipad-device .sidebar-container .flex,
+.tablet-device .sidebar-container .flex,
+.ipad-device .sidebar-container button,
+.tablet-device .sidebar-container button {
+  justify-content: flex-start !important; /* 历史记录项左对齐 */
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  text-align: left !important;
+}
+
+/* 确保导航栏和头部容器在iPad上对齐到左侧边缘 */
+.ipad-device header,
+.tablet-device header {
+  justify-content: space-between !important; /* 两端对齐 */
+  padding-left: 0 !important; /* 移除左侧内边距，使其与侧边栏对齐 */
+  padding-right: 16px !important;
+}
+
+.ipad-device header > div,
+.tablet-device header > div {
+  margin-right: 16px !important; /* 添加统一的右侧小边距 */
+  margin-left: 0 !important; /* 移除左侧自动间距 */
+  padding-left: 16px !important; /* 添加与侧边栏内部相同的左侧内边距 */
+  display: flex !important;
+  justify-content: space-between !important; /* 两端对齐 */
+}

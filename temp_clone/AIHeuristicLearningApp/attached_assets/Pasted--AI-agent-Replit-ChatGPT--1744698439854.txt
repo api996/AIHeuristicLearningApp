@@ -1,0 +1,107 @@
+下面是一份精炼后的、面向“干活”的最终需求文档，作为系统提示传递给你的 AI agent，用于对现有项目进行优化改进。这份文档基于你现有的项目（使用 Replit 部署），并采用类似 ChatGPT 的“Customize GPT”方式——提示词按区域分开存储，可按标签抽取注入，同时在管理员界面新增敏感内容过滤选项。
+
+⸻
+
+最终需求文档：基于大模型摘要与动态系统提示注入的启发式教育智能体优化方案
+
+一、项目背景与目标
+	•	项目背景
+现有系统基于 KWLQ 教学理论、动态支架法及苏格拉底提问法构建启发式教学智能体，已有基本的会话与多模型调用功能（支持 Gemini、DeepSeek、Grok-3）。目前项目运行于 Replit 平台，已有部分页面与功能，现需优化提示词管理与动态注入机制。
+	•	改进目标
+	1.	分区域提示词存储与抽取：
+模仿 ChatGPT Customize GPT，将系统提示词拆分为多个区域（例如：base、K、W、L、Q、style、policy），管理时按标签存储。调用时只需根据当前对话阶段从相应区域抽取提示词，无需每次拼装完整提示，降低 Token 消耗并简化更新流程。
+	2.	动态系统提示注入：
+通过调用低成本大模型（如 Gemini 2.0 Flash），对当前完整对话进行摘要，自动判断处于 K、W、L 或 Q 阶段，并动态拼装最终的系统提示（系统提示 = base + 对应阶段提示 + 风格要求）。
+	3.	管理员界面扩展：
+在现有管理页面中增加：
+	•	分区域提示词编辑、预览与保存功能。
+	•	敏感内容过滤选项，可配置敏感词列表及规则，确保生成内容符合政策要求，不输出违规信息。
+	4.	统一会话管理与跨模型调用：
+保证用户在会话中跨模型调用时，上下文和动态注入的提示始终保持一致，便于对比实验和稳定使用。
+
+⸻
+
+二、系统架构与数据流
+	1.	管理员端
+	•	提示词模板管理：分区域（base、K、W、L、Q、style、policy）存储提示词，支持在线编辑、预览、保存。
+	•	敏感内容过滤配置：提供配置界面，管理员可设定敏感内容过滤规则、关键词列表及拦截动作。
+	2.	用户端对话处理流程
+	•	会话管理模块：记录完整对话历史，保证跨模型上下文共享。
+	•	摘要与阶段识别模块：利用 Gemini 2.0 Flash 对当前会话生成摘要，并根据规则判断当前处于哪个阶段（K/W/L/Q）。
+	•	动态系统提示注入模块：根据检测到的阶段，从提示词模板中抽取对应区域内容，将其与基础提示和风格描述拼接，构成最终系统提示（system message），并附加到 API 请求中。
+	•	多模型调用器：根据用户选择自动调用 Gemini、DeepSeek 或 Grok-3 模型，所有调用均附带统一格式的系统提示与完整会话上下文。
+	3.	平台
+	•	整体系统运行于 Replit 平台，利用 Replit 的在线 IDE 与部署环境，实现快速迭代和实时调试。
+
+⸻
+
+三、提示词模板示例（分区域存储）
+
+模板以 JSON 格式存储，结构如下：
+
+{
+  "base": "You are a professional heuristic education mentor skilled in the Socratic method, scaffolding learning theory, and the K-W-L-Q teaching model. Your mission is to guide learners through carefully crafted open-ended questions without providing direct answers.",
+  "phases": {
+    "K": "Ask the learner to describe what they already know about this topic.",
+    "W": "Encourage the learner to articulate what questions they have about the subject.",
+    "L": "Guide the learner to explore new information and share their understanding.",
+    "Q": "Prompt the learner to reflect on what they have learned and what further queries remain."
+  },
+  "style": {
+    "tone": "Friendly, empathetic, yet intellectually challenging.",
+    "format": "Express your questions clearly and concisely, maintaining a structured approach."
+  },
+  "policy": {
+    "sensitive_filter": "Block content that contains hate speech, explicit violence, or other flagged sensitive topics."
+  }
+}
+
+在调用时，根据摘要模块返回的阶段标签（例如 “L”），调用拼装函数组装最终系统提示：
+
+function buildSystemPrompt(phaseTag, templateJSON) {
+  return `${templateJSON.base}\n\n${templateJSON.phases[phaseTag]}\n\n${templateJSON.style.tone}\n${templateJSON.style.format}`;
+}
+
+
+
+⸻
+
+四、关键功能实现
+	1.	动态摘要与阶段识别
+	•	利用 Gemini 2.0 Flash（或其他大模型）对当前对话上下文生成摘要；
+	•	基于预设规则/关键词判断当前阶段（K/W/L/Q）。
+	2.	动态提示词拼装
+	•	读取存储在后端的分区域模板，根据摘要结果提取对应阶段提示词，与 base 与 style 部分拼装成完整系统提示；
+	•	在每次模型调用前，将该系统提示作为 system message 附加于请求中。
+	3.	敏感内容过滤
+	•	在服务器端或响应处理流程中调用过滤模块，依据管理员配置规则检查生成内容，确保符合政策要求。
+	4.	统一多模型调用封装
+	•	封装 Gemini、DeepSeek、Grok-3 模型的调用接口，确保请求时均加入动态拼装的系统提示和完整会话上下文；
+	•	支持跨模型日志记录与对比分析。
+
+⸻
+
+五、改进实施方案
+	•	改进现有项目：
+本方案作为现有系统的优化升级，不需要从头创建，直接在现有页面及 API 基础上扩展分区域提示词管理与动态注入模块。
+	•	管理员界面扩展：
+	•	对现有管理员页面增加分区域编辑功能及敏感内容过滤设置；
+	•	修改提示词存储结构，实现按标签（base、K/W/L/Q、style、policy）存储和调用。
+	•	优化系统提示注入：
+	•	在每次用户请求时，通过摘要模块检测对话阶段，动态拼装更新后的系统提示；
+	•	保证所有模型调用（Gemini、DeepSeek、Grok-3）使用相同的动态提示注入逻辑，确保一致性与可对比性。
+
+⸻
+
+六、开发交付成果
+	1.	分区域提示词模板 JSON 文件及后端存储方案；
+	2.	动态摘要与阶段识别模块（调用 Gemini 2.0 Flash 进行摘要生成，返回阶段标签）；
+	3.	动态系统提示拼装模块代码（如上示例）；
+	4.	管理员界面扩展，包括分区域模板编辑、预览、保存与敏感内容过滤设置；
+	5.	统一多模型调用封装代码，支持 Gemini、DeepSeek、Grok-3 模型调用时自动注入系统提示；
+	6.	完整的会话管理模块，确保用户对话上下文跨请求、跨模型共享；
+	7.	部署配置与测试文档（Replit 平台环境下调试、部署与日志记录方案）。
+
+⸻
+
+请按照上述需求文档作为系统提示词传递给 AI agent，指导它针对现有项目进行改进和功能扩展。所有的调整均基于现有基础，侧重于优化动态系统提示注入机制及管理员管理界面，确保项目在 Replit 平台上高效运行且满足对比实验需求。

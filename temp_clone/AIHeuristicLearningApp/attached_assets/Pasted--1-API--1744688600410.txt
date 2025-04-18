@@ -1,0 +1,88 @@
+针对您遇到的问题，也就是在网站中调用不同模型的按钮各自使用独立的会话历史，导致每次触发请求时都是全新会话，解决方案主要有两个方向：
+
+⸻
+
+1. 共享会话历史
+
+原因说明
+目前每个按钮的 API 调用都采用单次请求的形式，并且没有传递会话上下文（通常是之前的对话消息）。多数聊天 API（例如 Grok 3 的 API）要求在请求中传递完整的对话历史（通常通过 "messages" 数组实现），否则每次请求就被视为新会话。
+
+解决方案
+	•	全局状态管理：在您的前端或后端中，维护一个全局或当前用户的会话历史变量。
+	•	合并历史消息：每次用户发送新消息时，将该消息追加到现有的对话上下文中，再把整个对话历史作为请求参数传给 API。
+	•	模型切换处理：如果您的网站中有多个按钮对应不同模型（例如文本生成和图像生成），尽量设计一个统一的会话管理模块来维护用户在同一会话中的所有输入和输出。这样即使切换模型，您也可以根据实际业务需求选择共享全部上下文，或只共享部分关键上下文。
+
+示例说明（伪代码或 JavaScript 示例）：
+
+// 假设使用前端单页面应用框架 (例如 React 或 Vue)
+// 定义一个全局状态来存储对话历史
+let conversationHistory = [];
+
+// 当用户发送一条新消息时（点击按钮）
+function onUserSendMessage(newMessage, modelName) {
+  // 将用户消息追加到会话历史中（假设角色为 "user"）
+  conversationHistory.push({ role: "user", content: newMessage });
+
+  // 准备调用 API，带上整个 conversationHistory
+  const requestBody = {
+    model: modelName, // 例如 "grok-3-fast-beta" 或其他模型名称
+    messages: conversationHistory,
+    temperature: 0.7,
+    top_p: 0.9,
+    max_tokens: 1024
+  };
+
+  // 调用 API（这里以 fetch 为例）
+  fetch("https://api.x.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer YOUR_XAI_API_KEY",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(requestBody)
+  })
+    .then(response => response.json())
+    .then(data => {
+      // 将模型返回的消息追加到会话历史中（角色为 "assistant"）
+      conversationHistory.push({ role: "assistant", content: data.generated_text });
+      // 更新 UI 显示最新的对话
+      updateChatUI();
+    })
+    .catch(error => console.error(error));
+}
+
+// 当用户切换模型时，您可以选择：
+// a. 清除当前会话历史（如果需要全新会话）
+// b. 或者继续使用统一的对话历史（保持上下文连贯性）
+function onModelSwitch(newModelName) {
+  // 例如：保留部分上下文，或者完全重置
+  // conversationHistory = []; // 重置会话
+  // 然后设置当前模型
+  currentModel = newModelName;
+}
+
+
+
+⸻
+
+2. 会话标识（Session ID）或 Token
+
+部分 API 提供了传递会话标识的选项（如 "conversation_id"），这样后端可以自动关联上下文。如果 API 支持这种方式：
+	•	获取会话 ID：在第一次请求时，记录返回的会话 ID。
+	•	后续请求传递会话 ID：在每次调用 API 时，将这个 ID 附加到请求参数中，而无需手动附加全部对话历史。
+
+不过，目前 xAI 的 API（例如 Grok 3）通常要求开发者传递完整的历史对话，而不一定有内置的会话 ID 参数。因此，还是建议通过前端或后端自行管理会话数据。
+
+⸻
+
+综合建议
+	1.	统一管理对话历史
+设计一个对话管理模块，无论用户点击哪个按钮，都使用同一个管理单元来保存和更新会话历史。可以考虑将每个模型的调用封装成一个函数，然后共用同一个全局状态。
+	2.	UI 与 API 分离
+在前端，维护一个单独的聊天窗口组件，该组件负责展示所有交互记录；每个按钮只负责触发不同的 API 请求，实际的对话记录则保存在这个组件中，确保上下文一致性。
+	3.	分模型上下文共享策略
+根据实际场景，您可以选择全部共享对话历史，或按模型类别分别保存上下文。如果内容和语境在不同模型间会话关联性不高，可能需要做局部分离，但如果希望形成一个完整的用户体验，就建议统一管理。
+
+⸻
+
+采用上述方法，您就可以避免每次按钮点击都导致对话重置的问题，实现跨模型调用时的上下文共享。如果需要更多具体语言（如 Python、Node.js、Vue、React 等）的代码示例，请告知您的技术栈，我可以进一步提供相应示例代码。
