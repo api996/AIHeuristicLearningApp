@@ -365,8 +365,8 @@ ${searchResults}
             let responseText = responseData.choices?.[0]?.message?.content || "DeepSeek模型无法生成回应";
             log(`获取到DeepSeek原始响应文本，长度: ${responseText.length}`);
             
-            // 暂时禁用思考过程过滤函数，直接使用原始响应
-            log(`跳过DeepSeek思考过程过滤，使用原始响应（长度: ${responseText.length}字符）`);
+            // 不再使用思考过程过滤函数，直接使用原始响应
+            log(`使用DeepSeek原始响应（长度: ${responseText.length}字符）`);
             
             if (!responseText.trim()) {
               log(`警告: DeepSeek响应为空`);
