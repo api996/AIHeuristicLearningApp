@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronLeft, Save, RotateCcw, Trash, BookOpen, Lightbulb, LampDesk, HelpCircle, Pencil, Settings } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import './admin-ipad-fixes.css'; // 导入iPad专用修复CSS
 
 // 提示词模板接口
 interface PromptTemplate {
@@ -595,7 +596,7 @@ export function PromptEditorPage() {
 
           {/* 右侧编辑区 */}
           <div className="lg:col-span-3">
-            <Card className="h-full bg-neutral-900 border-neutral-800 flex flex-col">
+            <Card className="h-full bg-neutral-900 border-neutral-800 flex flex-col template-editor-card">
               <CardHeader className="flex-shrink-0">
                 <div className="flex items-center">
                   <div className="text-blue-500 mr-2">
@@ -612,8 +613,8 @@ export function PromptEditorPage() {
                   </div>
                 )}
               </CardHeader>
-              <CardContent className="flex-grow overflow-y-auto overflow-x-hidden -mx-1 px-1" style={{ 
-                  maxHeight: "calc(100vh - 250px)", 
+              <CardContent className="flex-grow overflow-y-auto overflow-x-hidden template-editor-content" style={{ 
+                  minHeight: "300px",
                   WebkitOverflowScrolling: "touch",
                   msOverflowStyle: "none",
                   scrollbarWidth: "thin" 
@@ -632,17 +633,18 @@ export function PromptEditorPage() {
                   </div>
                 </div>
                 
-                <div className="overflow-auto -mx-1 px-1" style={{ WebkitOverflowScrolling: "touch" }}>
+                <div className="template-textarea-container">
                   <Textarea
                     value={templateContent.value}
                     onChange={(e) => templateContent.setter(e.target.value)}
                     placeholder={templateContent.placeholder}
-                    className="min-h-[250px] w-full font-mono text-sm bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500"
+                    className="template-textarea min-h-[200px] w-full font-mono text-sm bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500"
                     disabled={loading}
                     style={{ 
                       WebkitOverflowScrolling: "touch",
                       touchAction: "pan-y",
-                      overscrollBehavior: "contain"
+                      overscrollBehavior: "contain",
+                      resize: "vertical"
                     }}
                   />
                 </div>
