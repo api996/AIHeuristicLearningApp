@@ -10,9 +10,9 @@ const path = require('path');
 
 console.log('开始生产环境构建...');
 
-// 执行前端构建
+// 执行前端构建, 使用CommonJS配置
 console.log('1. 执行前端构建 (vite build)...');
-execSync('vite build', { stdio: 'inherit' });
+execSync('vite build --config vite.config.js', { stdio: 'inherit' });
 console.log('前端构建完成 ✓');
 
 // 执行后端构建，使用CommonJS格式
