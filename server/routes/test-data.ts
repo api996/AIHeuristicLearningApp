@@ -41,11 +41,11 @@ router.get('/generate-graph/:userId', async (req, res) => {
     const result = await generateTestGraph(userId, count);
     
     return res.json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error('生成测试数据失败:', error);
     return res.status(500).json({
       success: false,
-      message: `服务器错误: ${error.message}`
+      message: `服务器错误: ${error?.message || "未知错误"}`
     });
   }
 });
@@ -72,11 +72,11 @@ router.delete('/clear-memories/:userId', async (req, res) => {
       success: false,
       message: `功能尚未实现`
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('删除测试数据失败:', error);
     return res.status(500).json({
       success: false,
-      message: `服务器错误: ${error.message}`
+      message: `服务器错误: ${error?.message || "未知错误"}`
     });
   }
 });
