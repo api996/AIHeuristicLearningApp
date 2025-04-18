@@ -29,7 +29,22 @@ export function removeThinkingProcess(text: string): string {
   // 记录原始长度，用于判断是否进行了过滤
   const originalLength = text.length;
   
-  // DeepSeek R1模型主要使用<Think></Think>标签
+  // 检查是否整个响应都被包裹在Think标签中
+  const isEntireResponseInThinkTags = text.trim().startsWith('<Think>') && 
+                                      text.trim().endsWith('</Think>') && 
+                                      text.indexOf('<Think>') === text.lastIndexOf('<Think>');
+  
+  // 如果整个响应都在Think标签中，则提取标签内容而不是删除它
+  if (isEntireResponseInThinkTags) {
+    log(`检测到整个DeepSeek响应被包裹在Think标签中，提取内容而非删除`);
+    const thinkContent = text.substring(
+      text.indexOf('<Think>') + '<Think>'.length, 
+      text.lastIndexOf('</Think>')
+    );
+    return thinkContent.trim();
+  }
+  
+  // 正常情况：DeepSeek R1模型主要使用<Think></Think>标签，去除这些标签中的内容
   let filteredText = text.replace(/<Think>[\s\S]*?<\/Think>/g, '');
   
   // 清理可能出现的连续空行
@@ -38,6 +53,12 @@ export function removeThinkingProcess(text: string): string {
   // 如果过滤后文本明显缩短，记录日志
   if (originalLength - filteredText.length > 50) {
     log(`从DeepSeek响应中移除了思考过程，减少了${originalLength - filteredText.length}个字符`);
+  }
+  
+  // 如果过滤后文本为空或只有空白字符，则返回原始文本
+  if (!filteredText.trim()) {
+    log(`过滤后文本为空，使用原始响应`);
+    return text;
   }
   
   return filteredText.trim();
