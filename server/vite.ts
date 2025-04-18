@@ -10,6 +10,8 @@ import { type Server } from "http";
 const viteConfigPath = process.env.NODE_ENV === 'production' 
   ? path.resolve(__dirname, '..', 'vite.config.js')
   : path.resolve(__dirname, '..', 'vite.config.ts');
+// Use path.resolve instead of URL imports for production compatibility
+const packageJsonPath = path.resolve(__dirname, '..', 'package.json');
 import { nanoid } from "nanoid";
 
 const viteLogger = createLogger();
