@@ -11,6 +11,7 @@ REPLIT_DISABLE_PACKAGE_LAYER = "1"
 [deployment]
 deploymentTarget = "cloudrun"
 run = ["sh", "-c", "npm run start"]
+build = ["sh", "-c", "npm run build"]
 
 [[ports]]
 localPort = 5000
