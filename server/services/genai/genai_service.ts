@@ -29,24 +29,54 @@ export function removeThinkingProcess(text: string): string {
   // 记录原始长度，用于判断是否进行了过滤
   const originalLength = text.length;
   
-  // 过滤<think>...</think>标签
+  // 过滤<think>...</think>标签和其他HTML样式标签
   let filteredText = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+  filteredText = filteredText.replace(/<思考>[\s\S]*?<\/思考>/g, '');
+  filteredText = filteredText.replace(/<思考过程>[\s\S]*?<\/思考过程>/g, '');
+  filteredText = filteredText.replace(/<分析>[\s\S]*?<\/分析>/g, '');
+  filteredText = filteredText.replace(/<analysis>[\s\S]*?<\/analysis>/g, '');
+  filteredText = filteredText.replace(/<thinking>[\s\S]*?<\/thinking>/g, '');
   
-  // 过滤```思考 ... ```代码块
+  // 过滤各种代码块格式的思考
   filteredText = filteredText.replace(/```思考[\s\S]*?```/g, '');
+  filteredText = filteredText.replace(/```thinking[\s\S]*?```/g, '');
+  filteredText = filteredText.replace(/```分析[\s\S]*?```/g, '');
+  filteredText = filteredText.replace(/```analysis[\s\S]*?```/g, '');
+  filteredText = filteredText.replace(/```理解[\s\S]*?```/g, '');
   
-  // 过滤【思考】...【/思考】标记
+  // 过滤各种括号样式的思考
   filteredText = filteredText.replace(/【思考】[\s\S]*?【\/思考】/g, '');
-  
-  // 过滤[思考: ... ]格式
+  filteredText = filteredText.replace(/【分析】[\s\S]*?【\/分析】/g, '');
+  filteredText = filteredText.replace(/【理解】[\s\S]*?【\/理解】/g, '');
   filteredText = filteredText.replace(/\[思考:[\s\S]*?\]/g, '');
+  filteredText = filteredText.replace(/\[思考：[\s\S]*?\]/g, '');
+  filteredText = filteredText.replace(/\[分析:[\s\S]*?\]/g, '');
+  filteredText = filteredText.replace(/\[分析：[\s\S]*?\]/g, '');
+  filteredText = filteredText.replace(/\[Thinking:[\s\S]*?\]/g, '');
+  filteredText = filteredText.replace(/\[Analysis:[\s\S]*?\]/g, '');
   
-  // 移除"让我思考一下..."这类常见的思考开头句
+  // 过滤常见的思考段落格式
+  filteredText = filteredText.replace(/思考过程[：:][^\n]*[\s\S]*?(?=\n\n|\n[^思]|$)/g, '');
+  filteredText = filteredText.replace(/分析过程[：:][^\n]*[\s\S]*?(?=\n\n|\n[^分]|$)/g, '');
+  filteredText = filteredText.replace(/我的理解[：:][^\n]*[\s\S]*?(?=\n\n|\n[^我]|$)/g, '');
+  filteredText = filteredText.replace(/Thinking process[：:][^\n]*[\s\S]*?(?=\n\n|\n[^T]|$)/g, '');
+  filteredText = filteredText.replace(/Analysis[：:][^\n]*[\s\S]*?(?=\n\n|\n[^A]|$)/g, '');
+  
+  // 移除各种常见的思考开头句
   const thinkingPhrases = [
     /让我思考一下.*?\n/g,
     /我来分析一下.*?\n/g,
     /思考过程：.*?\n/g,
-    /分析过程：.*?\n/g
+    /分析过程：.*?\n/g,
+    /我需要理解.*?\n/g,
+    /让我理解一下.*?\n/g,
+    /首先，我需要思考.*?\n/g,
+    /Let me think.*?\n/g,
+    /I'll analyze.*?\n/g,
+    /思考：.*?\n/g,
+    /分析：.*?\n/g,
+    /Thinking:.*?\n/g,
+    /Analysis:.*?\n/g
   ];
   
   for (const pattern of thinkingPhrases) {
@@ -154,8 +184,8 @@ class GeminiService implements GenAIService {
       // 截断文本，防止过长
       const truncatedText = text.length > 15000 ? text.substring(0, 15000) + "..." : text;
       
-      // 使用Gemini模型生成摘要
-      const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+      // 使用Gemini 2.5 Pro模型生成摘要
+      const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-pro-exp-03-25" });
       const prompt = `请为以下文本生成一个简洁的摘要（不超过50个字）:\n\n${truncatedText}`;
       
       const result = await model.generateContent(prompt);
@@ -179,8 +209,8 @@ class GeminiService implements GenAIService {
       // 截断文本，防止过长
       const truncatedText = text.length > 10000 ? text.substring(0, 10000) + "..." : text;
       
-      // 使用Gemini模型提取关键词
-      const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+      // 使用Gemini 2.5 Pro模型提取关键词
+      const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-pro-exp-03-25" });
       const prompt = `请从以下文本中提取5到10个关键词或短语，以逗号分隔。这些关键词应该能够概括文本的主要内容和主题:\n\n${truncatedText}`;
       
       const result = await model.generateContent(prompt);
@@ -209,8 +239,8 @@ class GeminiService implements GenAIService {
       // 合并并截断文本，防止过长
       const combinedText = texts.join("\n\n").substring(0, 20000);
       
-      // 使用Gemini模型生成主题
-      const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+      // 使用Gemini 2.5 Pro模型生成主题
+      const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-pro-exp-03-25" });
       const prompt = `请为以下一组相关文本生成一个简洁的主题标签（5-10个字）。这个标签应该能够概括这组文本的共同主题:\n\n${combinedText}`;
       
       const result = await model.generateContent(prompt);
