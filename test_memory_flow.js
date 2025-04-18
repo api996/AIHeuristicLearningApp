@@ -3,11 +3,11 @@
  * 测试整个流程从创建记忆->聚类->知识图谱生成
  */
 
-const { log } = require("./server/vite");
-const { memoryService } = require("./server/services/learning/memory_service");
-const { clusterMemoryRetrieval } = require("./server/services/learning/cluster_memory_retrieval");
-const { storage } = require("./server/storage");
-const { generateKnowledgeGraph } = require("./server/services/learning/knowledge_graph");
+import { log } from "./server/vite.js";
+import { memoryService } from "./server/services/learning/memory_service.js";
+import { clusterMemoryRetrieval } from "./server/services/learning/cluster_memory_retrieval.js";
+import { storage } from "./server/storage.js";
+import { generateKnowledgeGraph } from "./server/services/learning/knowledge_graph.js";
 
 // 设置测试用户ID
 const TEST_USER_ID = 6;
@@ -149,7 +149,8 @@ async function testKnowledgeGraphGeneration() {
   }
   
   // 执行聚类
-  const clusterResult = require("./server/services/learning/kmeans_clustering").kMeansClustering(
+  const { kMeansClustering } = await import("./server/services/learning/kmeans_clustering.js");
+  const clusterResult = kMeansClustering(
     memoryEmbeddings,
     3, // 3个聚类
     50, // 最大迭代次数

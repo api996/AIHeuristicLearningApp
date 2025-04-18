@@ -39,6 +39,19 @@ export default function LearningPath() {
     },
     enabled: !!user?.userId,
   });
+  
+  // 获取知识图谱数据
+  const { data: knowledgeGraph } = useQuery({
+    queryKey: ["/api/learning-path/knowledge-graph", user?.userId],
+    queryFn: async () => {
+      const response = await fetch(`/api/learning-path/${user?.userId}/knowledge-graph`);
+      if (!response.ok) {
+        throw new Error("获取知识图谱失败");
+      }
+      return response.json();
+    },
+    enabled: !!user?.userId,
+  });
 
   // 如果用户未登录，显示提示信息
   if (!user?.userId) {
@@ -397,25 +410,58 @@ export default function LearningPath() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {learningPath?.knowledge_graph?.nodes && 
-               learningPath.knowledge_graph.nodes.length > 0 ? (
+              {knowledgeGraph?.nodes && 
+               knowledgeGraph.nodes.length > 0 ? (
                 <div className="h-[500px] rounded-lg border border-blue-900/50 bg-gradient-to-b from-blue-950/20 to-purple-950/10 p-6">
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center space-y-3">
-                      <div className="bg-blue-900/30 w-16 h-16 rounded-full mx-auto flex items-center justify-center">
-                        <Network className="h-8 w-8 text-blue-400" />
-                      </div>
-                      <h3 className="text-lg text-blue-300">知识图谱可视化</h3>
-                      <p className="text-sm text-neutral-400 max-w-lg">
-                        系统已收集了您的学习数据，知识图谱可视化功能将在后续版本中提供，敬请期待！
-                      </p>
-                      <div className="pt-2 pb-1">
-                        <div className="h-2 w-48 mx-auto bg-neutral-800 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-blue-600 animate-pulse" style={{width: '35%'}}></div>
+                  <div className="space-y-6">
+                    <h3 className="text-lg text-blue-300 flex items-center">
+                      <Network className="h-5 w-5 mr-2 text-blue-400" />
+                      知识图谱
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {knowledgeGraph.nodes.map((node) => (
+                        <div 
+                          key={node.id}
+                          className="border border-blue-800/30 rounded-lg p-4 bg-blue-900/10 hover:bg-blue-900/20 transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-blue-300">{node.label}</h4>
+                            <span className="text-xs px-2 py-1 bg-blue-900/40 rounded-full text-blue-300">
+                              {node.category}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm text-neutral-400">
+                            <span>权重: {node.size}</span>
+                            <span>ID: {node.id}</span>
+                          </div>
                         </div>
-                        <p className="text-xs text-neutral-500 mt-2">开发进度: 35%</p>
-                      </div>
+                      ))}
                     </div>
+                    
+                    {knowledgeGraph.links && knowledgeGraph.links.length > 0 ? (
+                      <div className="mt-4 border-t border-blue-900/30 pt-4">
+                        <h4 className="text-blue-300 mb-3">知识关联</h4>
+                        <div className="space-y-2">
+                          {knowledgeGraph.links.map((link, index) => (
+                            <div key={index} className="border border-blue-800/30 rounded-lg p-3 bg-blue-900/10">
+                              <div className="flex items-center text-sm">
+                                <span className="text-neutral-300">{link.source}</span>
+                                <span className="mx-2 text-blue-400">→</span>
+                                <span className="text-neutral-300">{link.target}</span>
+                                <span className="ml-auto text-xs bg-blue-900/40 px-2 py-0.5 rounded-full text-blue-300">
+                                  关联度: {(link.value * 100).toFixed(0)}%
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-4 border-t border-blue-900/30 pt-4 text-center text-neutral-400 text-sm">
+                        暂无知识关联数据，将随着学习内容增加自动生成
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
