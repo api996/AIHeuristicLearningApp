@@ -319,8 +319,13 @@ ${searchResults}
           }
           
           try {
+            // 详细记录API请求信息
+            log(`开始准备DeepSeek API请求...`);
             const transformedMessage = await this.modelConfigs.deepseek.transformRequest!(message, contextMemories, searchResults);
-            log(`Calling DeepSeek API (NVIDIA NIM平台) with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
+            log(`DeepSeek API请求准备完成，消息长度: ${JSON.stringify(transformedMessage).length}字节`);
+            log(`DeepSeek API请求目标: ${this.modelConfigs.deepseek.endpoint!}`);
+            
+            log(`开始向NVIDIA NIM平台发送DeepSeek API请求...`);
             
             const response = await fetchWithRetry(this.modelConfigs.deepseek.endpoint!, {
               method: "POST",
@@ -331,33 +336,58 @@ ${searchResults}
 
             if (!response.ok) {
               const errorText = await response.text();
-              log(`DeepSeek API error: ${response.status} - ${errorText}`);
-              throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`);
+              log(`DeepSeek API错误: ${response.status} - ${errorText}`);
+              log(`DeepSeek API请求头: ${JSON.stringify(this.modelConfigs.deepseek.headers!)}`);
+              throw new Error(`DeepSeek API错误: ${response.status} - ${errorText}`);
             }
 
-            const data: any = await response.json();
-            log(`Received DeepSeek API response`);
+            log(`DeepSeek API响应状态码: ${response.status}`);
+            let responseData;
+            
+            try {
+              responseData = await response.json();
+              log(`成功解析DeepSeek API JSON响应，字段: ${Object.keys(responseData).join(', ')}`);
+            } catch (parseError) {
+              const rawText = await response.text();
+              log(`DeepSeek API响应解析失败: ${parseError}`);
+              log(`原始响应内容(截断): ${rawText.substring(0, 200)}...`);
+              throw new Error(`DeepSeek API响应解析失败: ${parseError}`);
+            }
             
             // NVIDIA NIM平台的响应格式处理
-            let responseText = data.choices?.[0]?.message?.content || "DeepSeek模型无法生成回应";
+            log(`处理DeepSeek响应数据...`);
+            if (!responseData.choices || !responseData.choices.length) {
+              log(`警告: DeepSeek响应缺少choices字段: ${JSON.stringify(responseData).substring(0, 200)}...`);
+            }
+            
+            let responseText = responseData.choices?.[0]?.message?.content || "DeepSeek模型无法生成回应";
+            log(`获取到DeepSeek原始响应文本，长度: ${responseText.length}`);
             
             // 过滤思考过程（从genai_service.ts导入）
             try {
               const { removeThinkingProcess } = require('./genai/genai_service');
               if (typeof removeThinkingProcess === 'function') {
+                const originalLength = responseText.length;
                 responseText = removeThinkingProcess(responseText);
+                log(`过滤DeepSeek思考过程，文本长度变化: ${originalLength} -> ${responseText.length}`);
               }
-            } catch (error) {
-              log(`Error filtering DeepSeek thinking process: ${error}`);
+            } catch (filterError) {
+              log(`过滤DeepSeek思考过程出错: ${filterError}`);
+            }
+            
+            if (!responseText.trim()) {
+              log(`警告: 过滤后DeepSeek响应为空`);
+              responseText = "DeepSeek模型返回了空响应，请重试或选择其他模型。";
             }
             
             return {
               text: responseText,
               model: "deepseek"
             };
+            
           } catch (error) {
-            log(`Error calling DeepSeek API: ${error}`);
-            throw error;
+            log(`DeepSeek处理过程出错: ${error}`);
+            throw new Error(`DeepSeek API调用失败: ${error.message || '未知错误'}`);
           }
         }
       },
