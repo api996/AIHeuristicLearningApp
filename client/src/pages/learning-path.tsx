@@ -450,54 +450,75 @@ export default function LearningPath() {
                       知识图谱可视化
                     </h3>
                     
-                    <div className="flex h-[500px] w-full relative">
-                      {knowledgeGraph && (
-                        <Graph
-                          id="knowledge-graph"
-                          data={{
-                            nodes: knowledgeGraph.nodes.map(node => ({
-                              id: node.id,
-                              color: node.category === 'cluster' ? '#3b82f6' : 
-                                    node.category === 'keyword' ? '#10b981' : 
-                                    node.category === 'memory' ? '#f59e0b' : '#6366f1',
-                              size: node.size * 300,
-                              symbolType: "circle",
-                              label: node.label,
-                              category: node.category
-                            })),
-                            links: knowledgeGraph.links.map(link => ({
-                              source: link.source,
-                              target: link.target,
-                              strokeWidth: link.value * 3,
-                              color: 'rgba(59, 130, 246, 0.5)'
-                            }))
-                          }}
-                          config={{
-                            nodeHighlightBehavior: true,
-                            directed: true,
-                            d3: {
-                              gravity: -100,
-                              linkLength: 120
-                            },
-                            node: {
-                              color: "#3b82f6",
-                              size: 300,
-                              highlightStrokeColor: 'white',
-                              fontSize: 12,
-                              fontColor: 'white',
-                              labelProperty: "label",
-                              renderLabel: true
-                            },
-                            link: {
-                              highlightColor: 'white',
-                              color: 'rgba(59, 130, 246, 0.5)',
-                              strokeWidth: 2
-                            },
-                            height: 500,
-                            width: 800
-                          }}
-                        />
-                      )}
+                    <div className="relative">
+                      <div className="flex flex-col h-[400px] w-full relative overflow-hidden border border-blue-900/50 rounded-lg p-4 bg-blue-950/30">
+                        {knowledgeGraph && knowledgeGraph.nodes.length > 5 ? (
+                          <>
+                            <div className="h-[350px] w-full">
+                              <Graph
+                                id="knowledge-graph-preview"
+                                data={{
+                                  nodes: knowledgeGraph.nodes.map(node => ({
+                                    id: node.id,
+                                    color: node.category === 'cluster' ? '#3b82f6' : 
+                                          node.category === 'keyword' ? '#10b981' : 
+                                          node.category === 'memory' ? '#f59e0b' : '#6366f1',
+                                    size: node.size * 200, // 预览图尺寸小一些
+                                    symbolType: "circle",
+                                    label: node.label,
+                                    category: node.category
+                                  })),
+                                  links: knowledgeGraph.links.map(link => ({
+                                    source: link.source,
+                                    target: link.target,
+                                    strokeWidth: link.value * 2,
+                                    color: 'rgba(59, 130, 246, 0.5)'
+                                  }))
+                                }}
+                                config={{
+                                  nodeHighlightBehavior: true,
+                                  directed: true,
+                                  d3: {
+                                    gravity: -80,
+                                    linkLength: 100
+                                  },
+                                  node: {
+                                    color: "#3b82f6",
+                                    size: 200,
+                                    highlightStrokeColor: 'white',
+                                    fontSize: 10,
+                                    fontColor: 'white',
+                                    labelProperty: "label",
+                                    renderLabel: window.innerWidth > 768 // 只在桌面端显示标签
+                                  },
+                                  link: {
+                                    highlightColor: 'white',
+                                    color: 'rgba(59, 130, 246, 0.5)',
+                                    strokeWidth: 1.5
+                                  },
+                                  height: 350,
+                                  width: window.innerWidth > 768 ? 800 : window.innerWidth - 60
+                                }}
+                              />
+                            </div>
+                            <div className="mt-4 flex justify-center">
+                              <Button
+                                onClick={() => setLocation('/knowledge-graph-detail')}
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                              >
+                                查看完整知识图谱
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full w-full">
+                            <p className="text-lg text-neutral-400">知识图谱数据不足</p>
+                            <p className="text-sm text-neutral-500 max-w-md mx-auto mt-2 text-center">
+                              继续与AI对话，系统将自动分析您的学习主题并构建知识图谱
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex justify-between items-center border-t border-blue-900/30 pt-4 mt-2">

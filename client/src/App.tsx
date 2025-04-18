@@ -9,6 +9,7 @@ import UserDetails from "@/pages/user-details";
 import ChatDetails from "@/pages/chat-details";
 import LearningPath from "@/pages/learning-path";
 import MemorySpace from "@/pages/memory-space";
+import KnowledgeGraphDetail from "@/pages/knowledge-graph-detail";
 import PromptEditor from "@/pages/prompt-editor";
 import NotFound from "@/pages/not-found";
 
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/admin/prompts" component={PromptEditor} />
       <Route path="/learning-path" component={LearningPath} />
       <Route path="/memory-space" component={MemorySpace} />
+      <Route path="/knowledge-graph-detail" component={KnowledgeGraphDetail} />
       <Route path="/" component={Home} />
       <Route component={NotFound} />
     </Switch>
