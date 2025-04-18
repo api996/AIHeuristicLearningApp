@@ -5,10 +5,11 @@
  * 检查当前应用程序是否正确配置了数据库会话存储
  */
 
-const pgSession = require('connect-pg-simple');
-const session = require('express-session');
-const { Pool } = require('@neondatabase/serverless');
-const ws = require('ws');
+import pgSession from 'connect-pg-simple';
+import session from 'express-session';
+import { Pool } from '@neondatabase/serverless';
+import { neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
 
 // 颜色设置，用于控制台输出
 const colors = {
@@ -53,7 +54,6 @@ async function verifySessionTable() {
   log('正在验证数据库会话表...');
   
   // 配置NeonDB WebSocket
-  const { neonConfig } = require('@neondatabase/serverless');
   neonConfig.webSocketConstructor = ws;
   
   try {
@@ -138,14 +138,15 @@ async function main() {
   }
 }
 
-// 如果直接运行此脚本，则执行main函数
-if (require.main === module) {
-  main().catch(error => {
+// 使用IIFE来执行代码
+(async () => {
+  try {
+    await main();
+  } catch (error) {
     log(`运行失败: ${error.message}`, 'error');
     process.exit(1);
-  });
-}
+  }
+})();
 
-module.exports = {
-  verifySessionTable
-};
+// ESM导出
+export { verifySessionTable };

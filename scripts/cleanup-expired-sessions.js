@@ -5,8 +5,9 @@
  * 用于定期清理数据库中的过期会话记录，降低数据库体积
  */
 
-const { Pool } = require('@neondatabase/serverless');
-const ws = require('ws');
+import { Pool } from '@neondatabase/serverless';
+import { neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
 
 // 配置数据库连接
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -17,7 +18,6 @@ if (!DATABASE_URL) {
 }
 
 // 配置NeonDB WebSocket
-const { neonConfig } = require('@neondatabase/serverless');
 neonConfig.webSocketConstructor = ws;
 
 async function cleanupExpiredSessions() {
@@ -94,24 +94,22 @@ async function cleanupExpiredSessions() {
   }
 }
 
-// 如果直接运行脚本，则执行清理
-if (require.main === module) {
-  cleanupExpiredSessions()
-    .then(result => {
-      if (result.error) {
-        console.error(`清理失败: ${result.error}`);
-        process.exit(1);
-      } else {
-        console.log(`清理完成，共删除 ${result.deleted} 个过期会话`);
-        process.exit(0);
-      }
-    })
-    .catch(error => {
-      console.error(`执行出错: ${error.message}`);
+// 使用IIFE立即执行函数来处理顶级await
+(async () => {
+  try {
+    const result = await cleanupExpiredSessions();
+    if (result.error) {
+      console.error(`清理失败: ${result.error}`);
       process.exit(1);
-    });
-}
+    } else {
+      console.log(`清理完成，共删除 ${result.deleted} 个过期会话`);
+      process.exit(0);
+    }
+  } catch (error) {
+    console.error(`执行出错: ${error.message}`);
+    process.exit(1);
+  }
+})();
 
-module.exports = {
-  cleanupExpiredSessions
-};
+// ESM导出
+export { cleanupExpiredSessions };
