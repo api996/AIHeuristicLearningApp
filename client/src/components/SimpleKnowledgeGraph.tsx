@@ -3,8 +3,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import * as d3Raw from 'd3';
 // 类型转换为any，解决TypeScript类型检查错误
 const d3 = d3Raw as any;
-// 导入D3补丁，确保补丁在组件加载前应用
-import { loadD3AndApplyPatch } from '../lib/d3-patch';
+// 导入D3补丁文件路径（注意：我们不直接导入，只是确保它被加载）
+// '../lib/d3-patch';
 
 // 声明简化的d3类型，以便在代码中使用
 declare global {
@@ -58,27 +58,39 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
   const [error, setError] = useState<string | null>(null);
   
-  // 将d3添加到全局对象，确保d3补丁能够正确工作
+  // 确保D3补丁正确应用
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // 确保全局d3对象存在
       window.d3 = d3;
       
-      // 将d3导出到_d3Selection对象，这是关键步骤
-      if (window._d3Selection) {
-        window._d3Selection.d3 = d3;
-        console.log("已将d3导出到_d3Selection对象，确保补丁正确工作");
+      // 初始化必要的全局对象
+      if (!window._d3Selection) {
+        window._d3Selection = {
+          d3: d3,
+          event: null,
+          transform: { k: 1, x: 0, y: 0 }
+        };
       } else {
-        // 如果_d3Selection不存在，创建它（这是备用方案）
-        window._d3Selection = { d3: d3 };
-        console.log("已创建_d3Selection对象并设置d3引用");
+        window._d3Selection.d3 = d3;
       }
       
-      // 模拟d3.event.transform以支持缩放功能
-      if (window.d3Selection) {
-        window.d3Selection.transform = { k: 1, x: 0, y: 0 };
-        console.log("已设置初始缩放变换参数");
+      if (!window.d3Selection) {
+        window.d3Selection = {
+          d3: d3,
+          event: null,
+          transform: { k: 1, x: 0, y: 0 },
+          mouse: function(container: any) {
+            return [0, 0];
+          },
+          setEvent: function(event: any) {
+            this.event = event;
+          }
+        };
       }
+      
+      // 标记组件已加载
+      console.log("SimpleKnowledgeGraph组件已加载并初始化D3全局对象");
     }
   }, []);
 

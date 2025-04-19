@@ -106,4 +106,10 @@ function applyD3Patch(d3) {
 loadD3AndApplyPatch();
 
 // 导出以便在需要时手动重新加载
+// 使用三种导出方式确保兼容性
 export { loadD3AndApplyPatch };
+export default loadD3AndApplyPatch;
+// CommonJS兼容
+if (typeof module !== 'undefined') {
+  module.exports = { loadD3AndApplyPatch };
+}
