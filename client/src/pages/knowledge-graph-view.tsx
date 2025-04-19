@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import SimpleD3Graph from '@/components/SimpleD3Graph';
+import SimpleKnowledgeGraph from '@/components/SimpleKnowledgeGraph';
 import { ArrowLeft, ZoomIn, ZoomOut, Sun, Moon, RotateCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import '../components/ui/knowledge-graph-view.css';
@@ -147,20 +147,20 @@ export default function KnowledgeGraphView({}: KnowledgeGraphViewProps) {
             </div>
           </div>
         ) : knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
-          <SimpleD3Graph
+          <SimpleKnowledgeGraph
             nodes={graphData.nodes.map(node => ({
               id: node.id,
               label: node.name,
-              size: node.size || (node.type === 'cluster' ? 15 : node.type === 'keyword' ? 10 : 8),
-              color: node.color || (node.type === 'cluster' ? '#3b82f6' : 
-                      node.type === 'keyword' ? '#10b981' : 
-                      '#eab308')
+              size: node.size,
+              color: node.color,
+              category: node.type
             }))}
             links={graphData.links}
             height={window.innerHeight}
             width={window.innerWidth}
             onNodeClick={onClickNode}
             zoomLevel={zoomLevel}
+            isFullScreen={true}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full">
