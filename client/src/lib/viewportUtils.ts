@@ -206,3 +206,40 @@ export function isNearBottom(element: HTMLElement | null, threshold = 100): bool
   const { scrollTop, scrollHeight, clientHeight } = element;
   return scrollHeight - scrollTop - clientHeight < threshold;
 }
+
+/**
+ * 优化触摸交互的辅助函数，特别适用于iPad等移动设备
+ * @param element 需要优化触摸交互的元素
+ */
+export function enhanceTouchInteraction(element: HTMLElement | null): void {
+  if (!element) return;
+  
+  // 设置触摸相关的样式
+  const touchStyles: Record<string, string> = {
+    touchAction: 'manipulation',
+    WebkitOverflowScrolling: 'touch',
+    WebkitUserSelect: 'none',
+    userSelect: 'none',
+    WebkitTouchCallout: 'none',
+  };
+  
+  // 应用样式
+  Object.entries(touchStyles).forEach(([key, value]) => {
+    (element.style as any)[key] = value;
+  });
+  
+  // 为元素添加特定的类
+  element.classList.add('touch-optimized');
+  
+  // 检测是否为iPad或平板设备
+  const isIPad = /iPad/.test(navigator.userAgent) || 
+                 (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
+  const isTablet = isIPad || (window.innerWidth >= 768 && window.innerWidth <= 1366 && 'ontouchend' in document);
+  
+  // 根据设备类型添加额外的类
+  if (isIPad) {
+    element.classList.add('ipad-touch-target');
+  } else if (isTablet) {
+    element.classList.add('tablet-touch-target');
+  }
+}

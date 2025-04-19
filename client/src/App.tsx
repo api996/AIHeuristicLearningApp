@@ -20,6 +20,8 @@ import "./lib/d3-patch";
 import "./lib/d3-direct-patch";
 // 导入视口工具，检测设备类型并设置CSS变量
 import { setupViewportHeightListeners } from "@/lib/viewportUtils";
+// 导入全局触摸交互优化样式
+import "@/components/ui/touch-interaction.css";
 
 function Router() {
   // 使用简单的路由配置，让各个组件内部自己处理授权逻辑
