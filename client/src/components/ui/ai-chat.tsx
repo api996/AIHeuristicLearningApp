@@ -692,7 +692,8 @@ export function AIChat({ userData }: AIChatProps) {
 
       // 检查API响应是否包含错误信息
       const containsError = aiResponse.includes("模型暂时无法使用") || 
-                           aiResponse.includes("DeepSeek模型无法生成回应") ||
+                           aiResponse.includes("DeepSeek模型无法生成回应") || 
+                           aiResponse.includes("Dify模型暂时无法使用") || 
                            aiResponse.includes("服务响应超时") || 
                            aiResponse.includes("连接服务失败");
       
