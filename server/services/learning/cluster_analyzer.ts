@@ -441,10 +441,14 @@ export class ClusterAnalyzerService {
         // 安全地创建日期，避免处理 null
         if (segment[0]?.createdAt) {
           startDate = new Date(segment[0].createdAt);
+        } else {
+          startDate = new Date(); // 提供默认值
         }
         
         if (segment[segment.length - 1]?.createdAt) {
           endDate = new Date(segment[segment.length - 1].createdAt);
+        } else {
+          endDate = new Date(); // 提供默认值
         }
         
         const segmentKey = `segment_${i + 1}`;
