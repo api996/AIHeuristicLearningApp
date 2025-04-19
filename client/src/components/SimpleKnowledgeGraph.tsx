@@ -1,11 +1,13 @@
 import React, { useRef, useEffect, useState } from 'react';
-// @ts-ignore - 完全忽略d3的类型检查，避免TypeScript错误
+// @ts-ignore - 忽略d3模块的类型检查
 import * as d3 from 'd3';
 
 // 声明简化的d3类型，以便在代码中使用
 declare global {
   interface Window {
     d3: any;
+    _d3Selection: any;
+    d3Selection: any;
   }
 }
 
@@ -47,6 +49,14 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // 将d3添加到全局对象，以便d3-direct-patch.js可以访问它
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.d3 = d3;
+      console.log("已将d3导出到全局window对象");
+    }
+  }, []);
 
   // 拖拽事件处理函数（声明在外部以避免提前引用）
   const handleDragStarted = (simulation: any) => (event: any, d: any) => {
@@ -111,10 +121,25 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       const zoom = d3.zoom()
         .scaleExtent([0.1, 4])
         .on('zoom', (event: any) => {
-          container.attr('transform', event.transform);
+          try {
+            // 确保event和transform存在
+            if (event && event.transform) {
+              container.attr('transform', event.transform);
+            } else {
+              // 使用默认变换
+              const defaultTransform = { k: 1, x: 0, y: 0 };
+              container.attr('transform', `translate(${defaultTransform.x},${defaultTransform.y}) scale(${defaultTransform.k})`);
+            }
+          } catch (err) {
+            console.warn("缩放事件处理错误:", err);
+          }
         });
 
-      svg.call(zoom as any);
+      try {
+        svg.call(zoom as any);
+      } catch (err) {
+        console.warn("应用缩放行为时出错:", err);
+      }
 
       // 创建力导向模拟
       const simulation = d3.forceSimulation(nodes as any)
