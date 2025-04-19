@@ -33,10 +33,18 @@ let pendingPromises: Map<number, Promise<KnowledgeGraphData>> = new Map();
 /**
  * 预加载知识图谱数据
  * @param userId 用户ID
+ * @param forceRefresh 是否强制刷新缓存
  * @returns 承诺知识图谱数据
  */
-export async function preloadKnowledgeGraphData(userId: number): Promise<KnowledgeGraphData> {
-  console.log("预加载知识图谱数据...");
+export async function preloadKnowledgeGraphData(userId: number, forceRefresh: boolean = false): Promise<KnowledgeGraphData> {
+  console.log("预加载知识图谱数据...", forceRefresh ? "(强制刷新)" : "");
+  
+  // 如果强制刷新，清除现有缓存
+  if (forceRefresh) {
+    console.log(`强制刷新用户${userId}的知识图谱缓存`);
+    cachedGraphData.delete(userId);
+    pendingPromises.delete(userId);
+  }
   
   // 检查是否已经有正在进行的请求
   if (pendingPromises.has(userId)) {
