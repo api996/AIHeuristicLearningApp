@@ -1130,6 +1130,53 @@ export function AIChat({ userData }: AIChatProps) {
     };
   }, []);
   
+  // 优化触摸交互，特别针对iPad和平板设备
+  useEffect(() => {
+    // 检测是否为iPad或平板设备
+    const isIPad = /iPad/.test(navigator.userAgent) || 
+                  (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
+    const isTablet = isIPad || (window.innerWidth >= 768 && window.innerWidth <= 1366 && 'ontouchend' in document);
+    
+    // 应用触摸优化到消息容器
+    if (messagesContainerRef.current) {
+      enhanceTouchInteraction(messagesContainerRef.current);
+      
+      // 为消息容器添加滚动优化类
+      messagesContainerRef.current.classList.add('scroll-container');
+      messagesContainerRef.current.setAttribute('data-scroll-container', 'true');
+    }
+    
+    // 为文本输入区域添加触摸优化
+    const textareaElement = document.querySelector('.chat-input textarea');
+    if (textareaElement) {
+      enhanceTouchInteraction(textareaElement as HTMLElement);
+    }
+    
+    // 为整个聊天界面添加设备特定类
+    const chatInterface = document.querySelector('.chat-container');
+    if (chatInterface) {
+      chatInterface.classList.add('touch-optimized');
+      if (isIPad) {
+        chatInterface.classList.add('ipad-optimized');
+      } else if (isTablet) {
+        chatInterface.classList.add('tablet-optimized');
+      }
+    }
+    
+    // 优化消息滚动区域的过渡效果
+    if (isIPad || isTablet) {
+      // 为所有按钮添加触摸优化
+      document.querySelectorAll('button').forEach(button => {
+        enhanceTouchInteraction(button);
+      });
+      
+      // 优化对话框交互
+      document.querySelectorAll('.dialog-content').forEach(dialog => {
+        enhanceTouchInteraction(dialog as HTMLElement);
+      });
+    }
+  }, []);
+  
   // 检查用户登录状态和初始化偏好设置
   useEffect(() => {
     // 1. 检查用户登录状态
