@@ -1175,14 +1175,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."`);
       const response = await chatService.sendMessage(promptMessage, userId, Number(chatId));
 
-      // 更新数据库中的消息
-      const updatedMessage = await storage.updateMessage(lastAiMessage.id, response.text, false);
+      // 更新数据库中的消息，包括模型信息
+      const updatedMessage = await storage.updateMessage(lastAiMessage.id, response.text, false, response.model);
 
-      log(`回复重新生成成功，更新消息ID ${lastAiMessage.id}`);
-      res.json({
-        ...updatedMessage,
-        model: response.model
-      });
+      log(`回复重新生成成功，更新消息ID ${lastAiMessage.id}，使用模型 ${response.model}`);
+      res.json(updatedMessage);
     } catch (error) {
       log(`Error regenerating message: ${error instanceof Error ? error.message : String(error)}`);
       res.status(500).json({ 
