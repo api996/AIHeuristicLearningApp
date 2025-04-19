@@ -1,0 +1,108 @@
+/* 
+ * 学习轨迹页面iPad专用滚动修复
+ * 解决iPad上滚动问题的专门CSS
+ */
+
+/* 主容器修复，确保整个页面可滚动 */
+.ipad-device .learning-path-container,
+.tablet-device .learning-path-container {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  max-height: none !important;
+  height: auto !important;
+  min-height: 90vh !important;
+  padding-bottom: 100px !important;
+}
+
+/* 修复学习轨迹页面中的标签内容区域滚动问题 */
+.ipad-device [data-orientation="horizontal"],
+.tablet-device [data-orientation="horizontal"] {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  height: auto !important;
+  min-height: 60vh !important;
+}
+
+/* 特别修复TabsContent容器滚动 */
+.ipad-device [role="tabpanel"],
+.tablet-device [role="tabpanel"] {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  height: auto !important;
+  min-height: 60vh !important;
+  padding-bottom: 50px !important;
+}
+
+/* 强制显示滚动条 */
+.ipad-device [role="tabpanel"]::-webkit-scrollbar,
+.tablet-device [role="tabpanel"]::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+  display: block !important;
+}
+
+.ipad-device [role="tabpanel"]::-webkit-scrollbar-thumb,
+.tablet-device [role="tabpanel"]::-webkit-scrollbar-thumb {
+  background-color: rgba(99, 102, 241, 0.3) !important;
+  border-radius: 8px !important;
+}
+
+/* 确保内容区域的卡片容器可滚动 */
+.ipad-device .tab-content-card,
+.tablet-device .tab-content-card {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: none !important;
+  height: auto !important;
+}
+
+/* 修复knowledge-graph选项卡中的内容滚动 */
+.ipad-device [value="knowledge-graph"] > div,
+.tablet-device [value="knowledge-graph"] > div {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: none !important;
+  height: auto !important;
+  touch-action: pan-y manipulation !important;
+}
+
+/* 修复建议选项卡中的内容滚动 */
+.ipad-device [value="suggestions"] > div,
+.tablet-device [value="suggestions"] > div {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: none !important;
+  height: auto !important;
+}
+
+/* 修复进度选项卡中的内容滚动 */
+.ipad-device [value="progress"] > div,
+.tablet-device [value="progress"] > div {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: none !important;
+  height: auto !important;
+}
+
+/* 最高优先级修复：针对所有标签内容 */
+.ipad-device [data-orientation="horizontal"] > [data-state="active"],
+.tablet-device [data-orientation="horizontal"] > [data-state="active"] {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  height: auto !important;
+  min-height: 60vh !important;
+  display: block !important;
+}
+
+/* iOS Safari特定修复 */
+@supports (-webkit-touch-callout: none) {
+  .ipad-device [data-orientation="horizontal"],
+  .tablet-device [data-orientation="horizontal"],
+  .ipad-device [role="tabpanel"],
+  .tablet-device [role="tabpanel"] {
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: none !important;
+    touch-action: pan-y manipulation !important;
+  }
+}
