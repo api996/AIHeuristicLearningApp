@@ -484,16 +484,38 @@ export default function LearningPath() {
           </Card>
         </TabsContent>
 
-        {/* 知识图谱标签页 - 全屏化增强版 */}
+        {/* 知识图谱标签页 - 高性能优化版 */}
         <TabsContent value="knowledge-graph">
-          {knowledgeGraph?.nodes && knowledgeGraph.nodes.length > 0 ? (
+          {isGraphLoading ? (
+            // 加载状态 - 使用骨架屏减少加载时的布局偏移
+            <div className="relative h-[calc(100vh-200px)] w-full">
+              <div className="absolute inset-0 bg-gradient-to-b from-blue-950/30 to-purple-950/20 rounded-lg border border-blue-900/20 p-4">
+                <div className="flex justify-between items-center mb-3 p-2 bg-gray-900/60 rounded-md backdrop-blur-sm">
+                  <div className="h-8 w-48 bg-gray-800/70 rounded animate-pulse"></div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-20 bg-gray-800/70 rounded animate-pulse"></div>
+                  </div>
+                </div>
+                
+                <div className="h-[calc(100%-60px)] w-full flex flex-col items-center justify-center">
+                  <div className="w-16 h-16 border-t-4 border-b-4 border-indigo-500 rounded-full animate-spin mb-4"></div>
+                  <div className="text-indigo-400 font-medium text-center mb-2">正在加载知识图谱</div>
+                  <div className="text-gray-400 text-sm max-w-md text-center">
+                    绘制知识连接，优化展示效果...
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : knowledgeGraph?.nodes && knowledgeGraph.nodes.length > 0 ? (
             <div className="relative h-[calc(100vh-200px)] w-full">
               {/* 全屏模式下的知识图谱 */}
-              <div className="absolute inset-0 bg-gradient-to-b from-blue-950/60 to-purple-950/40 rounded-lg border border-blue-900/30 p-4">
+              <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/40 to-purple-950/30 rounded-lg border border-indigo-900/30 p-4 overflow-hidden">
                 {/* 顶部操作栏 */}
                 <div className="flex justify-between items-center mb-3 p-2 bg-gray-900/80 rounded-md backdrop-blur-sm">
                   <div className="flex items-center">
-                    <Network className="h-5 w-5 mr-2 text-blue-400" />
+                    <div className="bg-indigo-600 rounded-full p-1 mr-2">
+                      <Network className="h-4 w-4 text-white" />
+                    </div>
                     <h3 className="text-lg font-medium text-white">知识连接图谱</h3>
                   </div>
                   <div className="flex items-center gap-2">
@@ -503,6 +525,7 @@ export default function LearningPath() {
                       className="bg-gray-800/70 text-white border-gray-700 hover:bg-gray-700"
                       onClick={() => {
                         if (user?.userId) {
+                          setIsGraphLoading(true);
                           // 刷新知识图谱数据
                           fetch(`/api/learning-path/${user.userId}/knowledge-graph?refresh=true`, {
                             headers: { 'Cache-Control': 'no-cache' }
@@ -510,17 +533,21 @@ export default function LearningPath() {
                             .then(res => res.json())
                             .then(data => {
                               console.log(`知识图谱数据刷新成功: ${data.nodes.length}个节点`);
-                              // 强制刷新页面以显示新数据
-                              window.location.reload();
+                              // 预加载新数据并刷新本地缓存
+                              preloadKnowledgeGraphData(user.userId, true)
+                                .then(() => {
+                                  window.location.reload();
+                                });
                             })
                             .catch(err => {
                               console.error("知识图谱数据刷新失败:", err);
                               alert("刷新知识图谱失败，请稍后再试");
+                              setIsGraphLoading(false);
                             });
                         }
                       }}
                     >
-                      <RefreshCw className="h-4 w-4 mr-1" />
+                      <RefreshCw className={`h-4 w-4 mr-1 ${isGraphLoading ? 'animate-spin' : ''}`} />
                       刷新
                     </Button>
                     {user?.userId === 6 && (
@@ -530,18 +557,22 @@ export default function LearningPath() {
                         className="bg-gray-800/70 text-white border-gray-700 hover:bg-gray-700"
                         onClick={async () => {
                           try {
+                            setIsGraphLoading(true);
                             const response = await fetch(`/api/test-data/generate-graph/6?count=35`);
                             const result = await response.json();
                             if (result.success) {
-                              alert(`测试数据生成成功：${result.message}`);
-                              // 刷新页面以加载新数据
+                              // 先更新缓存，再重新加载
+                              await preloadKnowledgeGraphData(user.userId as number, true);
+                              console.log(`测试数据生成成功：${result.message}`);
                               window.location.reload();
                             } else {
                               alert(`测试数据生成失败：${result.message}`);
+                              setIsGraphLoading(false);
                             }
                           } catch (error) {
                             console.error('生成测试数据失败:', error);
-                            alert('生成测试数据时发生错误，请查看控制台');
+                            alert('生成测试数据时发生错误，请稍后再试');
+                            setIsGraphLoading(false);
                           }
                         }}
                       >
@@ -559,44 +590,93 @@ export default function LearningPath() {
                     width={window.innerWidth - 80} // 留出边距
                     height={window.innerHeight - 280} // 留出页面头部和底部的空间
                     onNodeClick={(nodeId) => {
-                      const node = knowledgeGraph.nodes.find(n => n.id === nodeId);
+                      const node = knowledgeGraph.nodes.find((n: any) => n.id === nodeId);
                       if (node) {
                         console.log(`点击了节点: ${node.label || nodeId}`);
                         
-                        // 提供节点类型和标签的弹窗
+                        // 提供更美观的节点信息展示，不使用原生alert
                         const nodeType = node.category === 'cluster' ? '主题' : 
-                                       node.category === 'keyword' ? '关键词' : '记忆';
-                        alert(`${nodeType}: ${node.label}`);
+                                         node.category === 'keyword' ? '关键词' : '记忆';
+                        
+                        // 使用自定义样式而非alert
+                        const infoDiv = document.createElement('div');
+                        infoDiv.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/90 p-4 rounded-lg border border-indigo-500 z-50 max-w-md backdrop-blur-md shadow-lg';
+                        infoDiv.style.animation = 'fadeIn 0.2s ease-out';
+                        
+                        let typeColor = node.category === 'cluster' ? 'text-indigo-400' : 
+                                      node.category === 'keyword' ? 'text-emerald-400' : 'text-amber-400';
+                        
+                        infoDiv.innerHTML = `
+                          <div class="flex items-center mb-2">
+                            <div class="h-3 w-3 rounded-full ${node.category === 'cluster' ? 'bg-indigo-500' : 
+                                                             node.category === 'keyword' ? 'bg-emerald-500' : 'bg-amber-500'} mr-2"></div>
+                            <span class="${typeColor} font-medium">${nodeType}</span>
+                          </div>
+                          <div class="text-white text-lg font-bold mb-1">${node.label}</div>
+                          <div class="flex justify-end mt-3">
+                            <button class="bg-gray-800 hover:bg-gray-700 text-gray-200 px-3 py-1 rounded text-sm">关闭</button>
+                          </div>
+                        `;
+                        
+                        document.body.appendChild(infoDiv);
+                        
+                        // 点击关闭或点击外部区域关闭
+                        const closeBtn = infoDiv.querySelector('button');
+                        const closeInfo = () => {
+                          infoDiv.style.animation = 'fadeOut 0.2s ease-out forwards';
+                          setTimeout(() => {
+                            if (document.body.contains(infoDiv)) {
+                              document.body.removeChild(infoDiv);
+                            }
+                          }, 200);
+                        };
+                        
+                        closeBtn?.addEventListener('click', closeInfo);
+                        document.addEventListener('click', function onDocClick(e) {
+                          if (!infoDiv.contains(e.target as Node)) {
+                            closeInfo();
+                            document.removeEventListener('click', onDocClick);
+                          }
+                        }, { once: true });
+                        
+                        // 自动消失
+                        setTimeout(closeInfo, 4000);
                       }
                     }}
                   />
                 </div>
                 
-                {/* 图例说明 */}
-                <div className="absolute bottom-4 left-4 z-10 bg-gray-900/60 p-3 rounded-lg">
-                  <p className="text-sm font-medium mb-2 text-white">图例</p>
-                  <div className="flex flex-col gap-1">
+                {/* 组合图例和统计信息，使界面更简洁 */}
+                <div className="absolute bottom-4 left-4 z-10 bg-gray-900/80 p-3 rounded-lg backdrop-blur-sm border border-gray-800 shadow-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-white">知识节点统计</p>
+                    <p className="text-xs text-gray-400">
+                      {knowledgeGraph.nodes.length}个节点 | {knowledgeGraph.links.length}个连接
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
                     <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+                      <span className="w-3 h-3 rounded-full bg-indigo-500"></span>
                       <span className="text-xs text-gray-300">主题</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                      <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
                       <span className="text-xs text-gray-300">关键词</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+                      <span className="w-3 h-3 rounded-full bg-amber-500"></span>
                       <span className="text-xs text-gray-300">记忆</span>
                     </div>
                   </div>
                 </div>
                 
-                {/* 统计信息 */}
-                <div className="absolute bottom-4 right-4 z-10 bg-gray-900/60 p-3 rounded-lg">
-                  <div className="text-sm text-gray-300">
-                    <span className="font-medium">节点数:</span> {knowledgeGraph.nodes.length}
-                    <span className="mx-2">|</span>
-                    <span className="font-medium">关联数:</span> {knowledgeGraph.links.length}
+                {/* 帮助提示 */}
+                <div className="absolute top-20 right-4 z-10 bg-gray-900/70 p-2 rounded-lg text-xs text-gray-400 backdrop-blur-sm border border-indigo-900/20">
+                  <div className="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    点击节点查看详细信息
                   </div>
                 </div>
               </div>
