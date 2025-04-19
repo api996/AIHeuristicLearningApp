@@ -4,7 +4,8 @@ import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ZoomIn, ZoomOut, Maximize, Minimize, RefreshCw } from "lucide-react";
-import SimpleKnowledgeGraph from "@/components/SimpleKnowledgeGraph";
+// 使用优化的知识图谱组件
+import KnowledgeGraphD3 from "@/components/KnowledgeGraphD3";
 // 导入iPad滚动修复CSS
 import '@/components/ui/knowledge-graph-fixes.css';
 // 导入知识图谱数据预加载器
@@ -143,6 +144,10 @@ export default function KnowledgeGraphDetail() {
     enabled: !!user?.userId,
   });
   
+  // 添加本地状态以管理加载
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localKnowledgeGraph, setLocalKnowledgeGraph] = useState<KnowledgeGraph | null>(null);
+
   // 添加刷新图谱的处理函数 - 使用预加载功能彻底刷新
   const handleRefreshGraph = async () => {
     if (user?.userId) {
@@ -152,7 +157,7 @@ export default function KnowledgeGraphDetail() {
         console.log("已清除知识图谱缓存，开始重新获取数据...");
         
         // 显示加载状态
-        setIsLoading(true);
+        setLocalLoading(true);
         
         // 强制从服务器获取新数据 (不使用缓存)
         const response = await fetch(`/api/learning-path/${user.userId}/knowledge-graph`, {
@@ -172,17 +177,17 @@ export default function KnowledgeGraphDetail() {
         console.log(`获取到新数据: ${freshData.nodes.length}个节点, ${freshData.links.length}个连接`);
         
         // 缓存新数据并更新状态
-        setKnowledgeGraph(freshData);
+        setLocalKnowledgeGraph(freshData);
         
         // 使用预加载器缓存数据，以便其他组件使用
         await preloadKnowledgeGraphData(user.userId);
         
         // 清除加载状态
-        setIsLoading(false);
+        setLocalLoading(false);
       } catch (error) {
         console.error("刷新知识图谱数据失败:", error);
         // 重置加载状态
-        setIsLoading(false);
+        setLocalLoading(false);
         // 如果失败，回退到使用refetch
         refetch();
       }
@@ -565,6 +570,7 @@ export default function KnowledgeGraphDetail() {
             <h1 className="text-xl font-bold mb-4 text-blue-300">我的知识图谱</h1>
             
             {/* 添加更详细的数据检查和日志 */}
+            {/* 检查是否有数据，并且在isLoading状态下显示加载指示器 */}
             {knowledgeGraph && Array.isArray(knowledgeGraph.nodes) && knowledgeGraph.nodes.length > 0 ? (
               <div 
                 className="w-full relative overflow-visible touch-manipulation knowledge-graph-container" 
@@ -583,7 +589,6 @@ export default function KnowledgeGraphDetail() {
                 }}
               >
                 {/* 确保 graphData 正确构建 */}
-                {/* 使用JSX注释方式记录日志 */}
                 <SimpleKnowledgeGraph
                   nodes={graphData.nodes}
                   links={graphData.links}
@@ -596,13 +601,29 @@ export default function KnowledgeGraphDetail() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-[50vh]">
-                <p className="text-lg text-neutral-400">暂无足够数据生成知识图谱</p>
-                <p className="text-sm text-neutral-500 max-w-md mx-auto mt-2">
-                  随着您的学习过程，系统将收集更多数据，并构建您的知识图谱，展示概念之间的关联
+                {/* 改进的加载提示，显示正在处理 */}
+                <div className="animate-pulse bg-blue-500/20 p-5 rounded-full mb-4">
+                  <svg className="animate-spin h-10 w-10 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+                <p className="text-lg text-blue-400 font-medium">正在处理知识图谱数据</p>
+                <p className="text-sm text-neutral-300 max-w-md mx-auto mt-2 text-center">
+                  知识图谱正在加载中，这可能需要几秒钟时间。系统正在处理您的学习记忆和知识连接...
                 </p>
-                {/* 添加调试信息显示 */}
-                <p className="text-xs text-neutral-600 max-w-md mx-auto mt-4">
-                  调试信息: {knowledgeGraph ? `接收到${knowledgeGraph.nodes?.length || 0}个节点和${knowledgeGraph.links?.length || 0}个连接` : '未接收数据'}
+                
+                {/* 加载状态信息 */}
+                <div className="flex items-center gap-2 mt-4">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                  <p className="text-sm text-green-400">
+                    已找到 {knowledgeGraph ? `${knowledgeGraph.nodes?.length || 0}个知识点和${knowledgeGraph.links?.length || 0}个关联` : '知识数据'}
+                  </p>
+                </div>
+                
+                {/* 用户引导 */}
+                <p className="text-xs text-neutral-400 mt-4 italic">
+                  如果图谱未自动显示，请点击右上角刷新按钮
                 </p>
               </div>
             )}
