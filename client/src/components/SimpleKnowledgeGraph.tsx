@@ -12,6 +12,7 @@ declare global {
     d3: any;
     _d3Selection: any;
     d3Selection: any;
+    loadD3AndApplyPatch?: () => void; // 添加函数类型定义
   }
 }
 
@@ -89,20 +90,10 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           console.log("SimpleKnowledgeGraph: 创建了d3Selection全局对象");
         }
         
-        // 直接调用loadD3AndApplyPatch函数
-        // 使用通用JS方法不使用模块导入
-        if (typeof window.loadD3AndApplyPatch !== 'function') {
-          window.loadD3AndApplyPatch = function() {
-            if (window.d3 && window._d3Selection) {
-              window._d3Selection.d3 = window.d3;
-              console.log("SimpleKnowledgeGraph: 内置补丁已应用");
-            }
-          };
-        }
-        
-        // 执行补丁
-        if (typeof window.loadD3AndApplyPatch === 'function') {
-          window.loadD3AndApplyPatch();
+        // 直接应用D3补丁，不使用全局函数
+        if (window.d3 && window._d3Selection) {
+          window._d3Selection.d3 = window.d3;
+          console.log("SimpleKnowledgeGraph: 内置补丁已应用");
         }
         
         // 标记组件已加载
@@ -375,7 +366,16 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
     );
   }
 
-  if (!nodes.length) {
+  // 更精确地检测是否有有效节点
+  if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
+    // 添加更详细的日志，帮助调试
+    console.log("SimpleKnowledgeGraph: 无有效节点数据", {
+      nodesExists: !!nodes,
+      isArray: Array.isArray(nodes),
+      length: nodes ? nodes.length : 0,
+      nodesData: nodes
+    });
+    
     return (
       <div className="flex flex-col items-center justify-center h-full w-full">
         <p className="text-lg text-neutral-400">暂无足够数据生成知识图谱</p>
@@ -385,6 +385,9 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       </div>
     );
   }
+  
+  // 添加确认日志
+  console.log("SimpleKnowledgeGraph: 准备渲染知识图谱，节点数=", nodes.length, "连接数=", links.length);
 
   // 添加触摸事件处理，增强iPad兼容性
   useEffect(() => {

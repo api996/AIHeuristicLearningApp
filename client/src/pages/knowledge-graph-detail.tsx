@@ -85,7 +85,24 @@ export default function KnowledgeGraphDetail() {
         throw new Error("获取知识图谱失败");
       }
       const data = await response.json();
-      console.log(`成功获取知识图谱数据: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+      
+      // 详细检查并记录接收到的数据结构
+      if (data && Array.isArray(data.nodes) && Array.isArray(data.links)) {
+        console.log(`成功获取知识图谱数据: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+        
+        // 检查节点数据是否正确
+        if (data.nodes.length > 0) {
+          console.log('节点示例:', data.nodes[0]);
+        }
+        
+        // 检查连接数据是否正确
+        if (data.links.length > 0) {
+          console.log('连接示例:', data.links[0]);
+        }
+      } else {
+        console.warn('接收到的数据结构异常:', data);
+      }
+      
       return data;
     },
     enabled: !!user?.userId,
@@ -345,9 +362,18 @@ export default function KnowledgeGraphDetail() {
     );
   }
 
+  // 添加数据有效性检查
+  console.log("知识图谱数据:", knowledgeGraph);
+  
+  // 确保数据有效，即使API返回空数组，也要处理
+  const validNodes = (knowledgeGraph?.nodes && Array.isArray(knowledgeGraph.nodes)) ? knowledgeGraph.nodes : [];
+  const validLinks = (knowledgeGraph?.links && Array.isArray(knowledgeGraph.links)) ? knowledgeGraph.links : [];
+  
+  console.log(`处理知识图谱数据: ${validNodes.length}个节点, ${validLinks.length}个连接`);
+  
   // 转换数据格式
   const graphData = {
-    nodes: knowledgeGraph?.nodes.map(node => ({
+    nodes: validNodes.map(node => ({
       id: node.id,
       color: node.category === 'cluster' ? '#3b82f6' : 
              node.category === 'keyword' ? '#10b981' : 
@@ -356,13 +382,13 @@ export default function KnowledgeGraphDetail() {
       symbolType: "circle",
       label: node.label,
       category: node.category
-    })) || [],
-    links: knowledgeGraph?.links.map(link => ({
+    })),
+    links: validLinks.map(link => ({
       source: link.source,
       target: link.target,
       strokeWidth: link.value * 3,
       color: 'rgba(59, 130, 246, 0.5)'
-    })) || []
+    }))
   };
 
   return (
@@ -433,7 +459,8 @@ export default function KnowledgeGraphDetail() {
           <div className="rounded-lg border border-blue-900/50 bg-gradient-to-b from-blue-950/30 to-purple-950/20 p-2 md:p-6 h-full overflow-visible">
             <h1 className="text-xl font-bold mb-4 text-blue-300">我的知识图谱</h1>
             
-            {knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
+            {/* 添加更详细的数据检查和日志 */}
+            {knowledgeGraph && Array.isArray(knowledgeGraph.nodes) && knowledgeGraph.nodes.length > 0 ? (
               <div 
                 className="w-full relative overflow-visible touch-manipulation knowledge-graph-container" 
                 style={{
@@ -450,6 +477,8 @@ export default function KnowledgeGraphDetail() {
                   alignItems: 'center'
                 }}
               >
+                {/* 确保 graphData 正确构建 */}
+                {/* 使用JSX注释方式记录日志 */}
                 <SimpleKnowledgeGraph
                   nodes={graphData.nodes}
                   links={graphData.links}
@@ -465,6 +494,10 @@ export default function KnowledgeGraphDetail() {
                 <p className="text-lg text-neutral-400">暂无足够数据生成知识图谱</p>
                 <p className="text-sm text-neutral-500 max-w-md mx-auto mt-2">
                   随着您的学习过程，系统将收集更多数据，并构建您的知识图谱，展示概念之间的关联
+                </p>
+                {/* 添加调试信息显示 */}
+                <p className="text-xs text-neutral-600 max-w-md mx-auto mt-4">
+                  调试信息: {knowledgeGraph ? `接收到${knowledgeGraph.nodes?.length || 0}个节点和${knowledgeGraph.links?.length || 0}个连接` : '未接收数据'}
                 </p>
               </div>
             )}
