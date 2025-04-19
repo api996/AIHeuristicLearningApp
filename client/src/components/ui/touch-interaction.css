@@ -47,56 +47,6 @@
   -webkit-tap-highlight-color: transparent !important;
   touch-action: manipulation !important;
   min-height: 44px !important; /* 符合Apple可访问性指南的最小触摸目标大小 */
-  position: relative !important;
-  z-index: 1 !important;
-}
-
-/* 提升按钮交互反馈效果 */
-.ipad-device button:active,
-.tablet-device button:active,
-.ipad-device [role="button"]:active,
-.tablet-device [role="button"]:active {
-  transform: scale(0.97) !important;
-  transition: transform 0.1s ease-out !important;
-  opacity: 0.9 !important;
-}
-
-/* 按钮点击状态视觉反馈 */
-.ipad-device button:after,
-.tablet-device button:after,
-.ipad-device [role="button"]:after,
-.tablet-device [role="button"]:after {
-  content: "" !important;
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%) !important;
-  opacity: 0 !important;
-  border-radius: inherit !important;
-  z-index: -1 !important;
-  pointer-events: none !important;
-  transition: opacity 0.3s ease-out !important;
-}
-
-.ipad-device button:active:after,
-.tablet-device button:active:after,
-.ipad-device [role="button"]:active:after,
-.tablet-device [role="button"]:active:after {
-  opacity: 1 !important;
-  animation: button-ripple 0.3s ease-out !important;
-}
-
-@keyframes button-ripple {
-  0% {
-    transform: scale(0.8);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
 }
 
 /* 修复iPad上个人中心选项弹窗被遮挡的问题 */
