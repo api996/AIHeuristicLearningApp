@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
-// @ts-ignore - 忽略d3模块的类型检查
-import * as d3 from 'd3';
+// 直接导入d3作为any类型以避免TypeScript错误
+import * as d3Raw from 'd3';
+// 类型转换为any，解决TypeScript类型检查错误
+const d3 = d3Raw as any;
 
 // 声明简化的d3类型，以便在代码中使用
 declare global {
@@ -58,13 +60,28 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
     }
   }, []);
 
-  // 拖拽事件处理函数（声明在外部以避免提前引用）
+  // 强化的拖拽事件处理函数
   const handleDragStarted = (simulation: any) => (event: any, d: any) => {
     try {
-      if (!event.active) simulation.alphaTarget(0.3).restart();
-      // 确保d.x和d.y存在
+      // 确保事件和节点对象存在
+      if (!event) event = {};
+      if (!d) d = { x: width / 2, y: height / 2 };
+      
+      // 设置力学模拟的活跃度
+      if (typeof event.active !== 'undefined' && !event.active) {
+        try {
+          simulation.alphaTarget(0.3).restart();
+        } catch (e) {
+          console.warn("重启模拟失败:", e);
+        }
+      }
+      
+      // 设置节点的固定位置 (fx, fy) 以实现拖拽效果
       d.fx = typeof d.x !== 'undefined' ? d.x : width / 2;
       d.fy = typeof d.y !== 'undefined' ? d.y : height / 2;
+      
+      // 记录初始拖拽位置
+      console.log("开始拖拽节点:", { id: d.id, x: d.fx, y: d.fy });
     } catch (err) {
       console.warn("拖拽开始事件处理错误:", err);
     }
@@ -72,9 +89,20 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
 
   const handleDragged = () => (event: any, d: any) => {
     try {
-      // 确保event.x和event.y存在
-      d.fx = typeof event.x !== 'undefined' ? event.x : d.fx;
-      d.fy = typeof event.y !== 'undefined' ? event.y : d.fy;
+      // 检查事件和节点对象是否存在
+      if (!event) event = {};
+      if (!d) return;
+      
+      // 获取事件中的坐标
+      // D3的不同版本可能使用不同的属性名称
+      const x = typeof event.x !== 'undefined' ? event.x : 
+               (event.dx && d.fx ? d.fx + event.dx : d.fx);
+      const y = typeof event.y !== 'undefined' ? event.y :
+               (event.dy && d.fy ? d.fy + event.dy : d.fy);
+      
+      // 更新节点位置
+      if (typeof x !== 'undefined') d.fx = x;
+      if (typeof y !== 'undefined') d.fy = y;
     } catch (err) {
       console.warn("拖拽中事件处理错误:", err);
     }
@@ -82,9 +110,24 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
 
   const handleDragEnded = (simulation: any) => (event: any, d: any) => {
     try {
-      if (!event.active) simulation.alphaTarget(0);
+      // 确保事件和节点对象存在
+      if (!event) event = {};
+      if (!d) return;
+      
+      // 减小力学模拟的活跃度
+      if (typeof event.active !== 'undefined' && !event.active) {
+        try {
+          simulation.alphaTarget(0);
+        } catch (e) {
+          console.warn("设置模拟活跃度失败:", e);
+        }
+      }
+      
+      // 释放节点，让它再次自由移动
       d.fx = null;
       d.fy = null;
+      
+      console.log("结束拖拽节点:", d.id);
     } catch (err) {
       console.warn("拖拽结束事件处理错误:", err);
     }
@@ -117,25 +160,52 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       // 创建一个容器以支持缩放和平移
       const container = svg.append('g');
 
-      // 添加缩放行为
-      const zoom = d3.zoom()
-        .scaleExtent([0.1, 4])
-        .on('zoom', (event: any) => {
-          try {
-            // 确保event和transform存在
-            if (event && event.transform) {
-              container.attr('transform', event.transform);
-            } else {
-              // 使用默认变换
-              const defaultTransform = { k: 1, x: 0, y: 0 };
-              container.attr('transform', `translate(${defaultTransform.x},${defaultTransform.y}) scale(${defaultTransform.k})`);
-            }
-          } catch (err) {
-            console.warn("缩放事件处理错误:", err);
-          }
-        });
-
+      // 添加缩放行为 - 使用内联处理而不依赖外部补丁
       try {
+        // 创建自定义缩放行为
+        const defaultTransform = { k: 1, x: 0, y: 0 };
+        let currentTransform = { ...defaultTransform };
+        
+        // 手动创建缩放函数
+        const zoom = d3.zoom()
+          .scaleExtent([0.1, 4])
+          .on('zoom', function(event) {
+            try {
+              // 直接从事件参数中获取变换信息
+              if (event) {
+                // 检查事件中是否有transform对象
+                if (event.transform) {
+                  currentTransform = event.transform;
+                } 
+                // 回退到获取事件中的scale和translate属性（旧版D3）
+                else if (typeof event.scale === 'number') {
+                  currentTransform = {
+                    k: event.scale || 1,
+                    x: event.translate ? event.translate[0] : 0,
+                    y: event.translate ? event.translate[1] : 0
+                  };
+                }
+                
+                // 应用变换
+                container.attr('transform', 
+                  `translate(${currentTransform.x},${currentTransform.y}) scale(${currentTransform.k})`
+                );
+                
+                // 在控制台记录变换信息用于调试
+                if (currentTransform !== defaultTransform) {
+                  console.log("图谱缩放变换:", currentTransform);
+                }
+              }
+            } catch (err) {
+              console.warn("缩放事件处理错误:", err);
+              // 在出错时应用默认变换
+              container.attr('transform', 
+                `translate(${defaultTransform.x},${defaultTransform.y}) scale(${defaultTransform.k})`
+              );
+            }
+          });
+        
+        // 应用缩放行为
         svg.call(zoom as any);
       } catch (err) {
         console.warn("应用缩放行为时出错:", err);
