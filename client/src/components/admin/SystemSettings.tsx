@@ -248,9 +248,9 @@ export const SystemSettings = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
+    <div className="container mx-auto px-4 py-8 space-y-8 system-settings-grid">
       {/* 安全设置卡片 */}
-      <Card className="bg-neutral-900 border-neutral-800">
+      <Card className="bg-neutral-900 border-neutral-800 system-settings-card">
         <CardHeader>
           <div className="flex items-center">
             <ShieldAlert className="h-6 w-6 text-yellow-500 mr-2" />
@@ -317,7 +317,7 @@ export const SystemSettings = () => {
       </Card>
 
       {/* 默认背景图片设置卡片 */}
-      <Card className="bg-neutral-900 border-neutral-800">
+      <Card className="bg-neutral-900 border-neutral-800 system-settings-card">
         <CardHeader>
           <div className="flex items-center">
             <ImageIcon className="h-6 w-6 text-purple-500 mr-2" />
