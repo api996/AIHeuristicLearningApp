@@ -1,0 +1,240 @@
+/* 知识图谱查看页面专用样式 */
+.knowledge-graph-view-page {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* 顶部控制栏 */
+.graph-control-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(3, 7, 18, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+/* 控制按钮 */
+.graph-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border-radius: 0.375rem;
+  background-color: rgba(30, 58, 138, 0.4);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: rgba(219, 234, 254, 0.8);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.graph-button:hover {
+  background-color: rgba(37, 99, 235, 0.5);
+  color: white;
+  border-color: rgba(96, 165, 250, 0.5);
+}
+
+/* 图例 */
+.graph-legend {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  font-size: 0.75rem;
+}
+
+.graph-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.graph-legend-dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+}
+
+.graph-legend-text {
+  color: rgba(219, 234, 254, 0.9);
+  font-weight: 500;
+}
+
+/* 图表容器 */
+.fullscreen-graph-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: visible;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  touch-action: manipulation;
+}
+
+/* 节点点击信息提示 */
+.node-info-tooltip {
+  position: absolute;
+  background-color: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  max-width: 18rem;
+  z-index: 1000;
+  pointer-events: none;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.node-info-title {
+  color: #93c5fd;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.node-info-desc {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.8125rem;
+}
+
+/* 移动设备适配 */
+@media (max-width: 768px) {
+  .graph-legend {
+    padding: 0.25rem 0.5rem;
+    bottom: 0.5rem;
+  }
+  
+  .graph-legend-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+  }
+  
+  .graph-legend-text {
+    font-size: 0.625rem;
+  }
+  
+  .graph-button {
+    padding: 0.25rem;
+  }
+}
+
+/* 浏览器前缀 */
+.fullscreen-graph-container svg {
+  touch-action: manipulation !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* 处理SVG节点 */
+.fullscreen-graph-container circle {
+  cursor: pointer;
+  transition: r 0.2s ease, stroke-width 0.2s ease;
+}
+
+.fullscreen-graph-container circle:hover {
+  stroke: white;
+  stroke-width: 1.5px;
+  r: 8px;
+}
+
+/* 处理SVG连接线 */
+.fullscreen-graph-container line {
+  transition: stroke-width 0.2s ease, opacity 0.2s ease;
+}
+
+.fullscreen-graph-container:hover line {
+  opacity: 0.8;
+}
+
+/* 文本标签 */
+.fullscreen-graph-container text {
+  font-family: system-ui, -apple-system, sans-serif;
+  pointer-events: none;
+  font-size: 10px;
+  font-weight: 500;
+  fill: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* 在亮色模式下调整样式 */
+.light-mode.knowledge-graph-view-page {
+  background: radial-gradient(ellipse at top, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.light-mode .graph-control-bar {
+  background-color: rgba(248, 250, 252, 0.7);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.light-mode .graph-button {
+  background-color: rgba(219, 234, 254, 0.7);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: rgba(29, 78, 216, 0.9);
+}
+
+.light-mode .graph-button:hover {
+  background-color: rgba(191, 219, 254, 0.9);
+}
+
+.light-mode .graph-legend {
+  background-color: rgba(248, 250, 252, 0.8);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.light-mode .graph-legend-text {
+  color: rgba(30, 64, 175, 0.9);
+}
+
+.light-mode .node-info-tooltip {
+  background-color: rgba(248, 250, 252, 0.95);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.light-mode .node-info-title {
+  color: #2563eb;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.light-mode .node-info-desc {
+  color: rgba(15, 23, 42, 0.9);
+}
+
+/* 灯光效果 */
+.glow-effect {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.1) 0%, transparent 80%);
+  opacity: 0.6;
+  mix-blend-mode: screen;
+}

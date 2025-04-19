@@ -3,18 +3,21 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import SimpleKnowledgeGraph from '@/components/SimpleKnowledgeGraph';
-import { ArrowLeft, ZoomIn, ZoomOut, Info } from 'lucide-react';
+import { ArrowLeft, ZoomIn, ZoomOut, Sun, Moon, RotateCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import '../components/ui/knowledge-graph-view.css';
 
 interface KnowledgeGraphViewProps {}
 
 interface GraphNode {
   id: string;
-  name: string;
+  name: string; // API返回的节点名称
+  label?: string; // 用于显示的标签（由name转换）
   type: 'cluster' | 'keyword' | 'memory';
   group?: number;
   desc?: string;
   size?: number;
+  color?: string;
 }
 
 interface GraphLink {
@@ -95,43 +98,53 @@ export default function KnowledgeGraphView({}: KnowledgeGraphViewProps) {
   };
   
   return (
-    <div className="knowledge-graph-view-page fixed inset-0 overflow-hidden bg-gradient-to-br from-blue-950 to-slate-900 flex flex-col">
-      {/* 最小化的顶部导航 */}
-      <div className="absolute top-0 left-0 right-0 z-10 p-2 flex justify-between">
+    <div className={`knowledge-graph-view-page ${colorScheme === 'light' ? 'light-mode' : ''}`}>
+      {/* 专注模式顶部控制栏 */}
+      <div className="graph-control-bar">
         <Link to="/learning-path">
-          <Button variant="outline" size="sm" className="bg-blue-950/50 border-blue-900/50 text-blue-200 shadow-md">
+          <button className="graph-button">
             <ArrowLeft size={16} className="mr-1" />
-            返回
-          </Button>
+            <span className="text-sm">返回</span>
+          </button>
         </Link>
         
-        <div className="flex gap-1">
-          <Button variant="outline" size="icon" onClick={handleZoomIn} className="h-8 w-8 bg-blue-950/50 border-blue-900/50 text-blue-200 shadow-md">
+        <div className="flex gap-2">
+          <button className="graph-button" onClick={handleZoomIn}>
             <ZoomIn size={14} />
-          </Button>
-          <Button variant="outline" size="icon" onClick={handleZoomOut} className="h-8 w-8 bg-blue-950/50 border-blue-900/50 text-blue-200 shadow-md">
+          </button>
+          <button className="graph-button" onClick={handleZoomOut}>
             <ZoomOut size={14} />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
+          </button>
+          <button 
+            className="graph-button" 
             onClick={() => setColorScheme(prev => prev === 'dark' ? 'light' : 'dark')}
-            className="h-8 w-8 bg-blue-950/50 border-blue-900/50 text-blue-200 shadow-md"
           >
-            <Info size={14} />
-          </Button>
+            {colorScheme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+          </button>
         </div>
       </div>
       
-      {/* 图谱区域 */}
-      <div className="flex-1 w-full h-full" ref={graphContainerRef}>
+      {/* 图谱区域 - 全屏专注模式 */}
+      <div className="fullscreen-graph-container" ref={graphContainerRef}>
+        {/* 背景光效 */}
+        <div className="glow-effect"></div>
+        
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-blue-300">加载知识图谱中...</div>
+            <div className="flex flex-col items-center gap-3">
+              <RotateCw size={24} className="animate-spin text-blue-300" />
+              <div className="text-blue-300">正在生成知识图谱...</div>
+            </div>
           </div>
         ) : error ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-red-300">加载失败</div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="text-red-300">加载失败</div>
+              <button className="graph-button mt-2" onClick={() => window.location.reload()}>
+                <RotateCw size={14} className="mr-1" />
+                <span className="text-xs">重试</span>
+              </button>
+            </div>
           </div>
         ) : knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
           <SimpleKnowledgeGraph
@@ -152,29 +165,52 @@ export default function KnowledgeGraphView({}: KnowledgeGraphViewProps) {
         ) : (
           <div className="flex flex-col items-center justify-center h-full">
             <p className="text-lg text-blue-300">暂无足够数据生成知识图谱</p>
-            <p className="text-sm text-blue-400/60 max-w-md mx-auto mt-2">
+            <p className="text-sm text-blue-400/60 max-w-md mx-auto mt-2 text-center">
               随着您的学习过程，系统将收集更多数据，并构建您的知识图谱，展示概念之间的关联
             </p>
           </div>
         )}
       </div>
       
-      {/* 图例 - 悬浮在底部 */}
+      {/* 图例 - 简化且有样式的版本 */}
       {knowledgeGraph && knowledgeGraph.nodes.length > 0 && (
-        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-3 p-2 rounded-full bg-blue-950/70 border border-blue-900/50 shadow-lg">
+        <div className="graph-legend">
           {['cluster', 'keyword', 'memory'].map(category => (
-            <div key={category} className="flex items-center gap-1">
-              <div className={`w-3 h-3 rounded-full ${
-                category === 'cluster' ? 'bg-blue-500' : 
-                category === 'keyword' ? 'bg-green-500' : 
-                'bg-yellow-500'
-              }`}></div>
-              <span className="text-xs text-blue-200">
+            <div key={category} className="graph-legend-item">
+              <div 
+                className="graph-legend-dot" 
+                style={{ 
+                  backgroundColor: category === 'cluster' ? '#3b82f6' : 
+                                   category === 'keyword' ? '#10b981' : 
+                                   '#eab308'
+                }}
+              ></div>
+              <span className="graph-legend-text">
                 {category === 'cluster' ? '主题' : 
                  category === 'keyword' ? '关键词' : '记忆'}
               </span>
             </div>
           ))}
+        </div>
+      )}
+      
+      {/* 节点信息提示 - 当有选中节点时显示 */}
+      {selectedNode && (
+        <div 
+          className="node-info-tooltip"
+          style={{
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        >
+          <div className="node-info-title">
+            {selectedNode.type === 'cluster' ? '主题' : 
+             selectedNode.type === 'keyword' ? '关键词' : '记忆'}: {selectedNode.name}
+          </div>
+          <div className="node-info-desc">
+            {selectedNode.desc || '没有详细描述'}
+          </div>
         </div>
       )}
     </div>
