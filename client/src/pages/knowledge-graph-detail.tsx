@@ -343,8 +343,28 @@ export default function KnowledgeGraphDetail() {
   };
 
   return (
-    <div className="container mx-auto py-4 px-2 md:px-6 flex flex-col min-h-screen overflow-y-auto knowledge-graph-detail-page">
-      <div className="flex justify-between items-center mb-4">
+    <div 
+      className="container mx-auto py-4 px-2 md:px-6 flex flex-col min-h-screen knowledge-graph-detail-page"
+      style={{
+        height: '100vh',
+        overflowY: 'scroll', // 使用scroll而不是auto强制显示滚动条
+        WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'thin', // Firefox
+        display: 'block' // 改为block布局
+      }}
+    >
+      <div 
+        className="flex justify-between items-center mb-4"
+        style={{
+          position: 'sticky',
+          top: 0,
+          backgroundColor: 'rgba(13, 17, 23, 0.8)',
+          zIndex: 10,
+          padding: '10px 0',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)'
+        }}
+      >
         <Link to="/learning-path">
           <Button variant="outline" className="flex items-center gap-2">
             <ArrowLeft size={16} />
@@ -372,9 +392,15 @@ export default function KnowledgeGraphDetail() {
       </div>
 
       {/* 给Card添加card-container-for-fullscreen类，作为高优先级全屏容器 */}
-      <Card className="flex-1 overflow-auto card-container-for-fullscreen">
+      <Card 
+        className="card-container-for-fullscreen" 
+        style={{
+          margin: '0 0 100px 0', // 添加底部边距确保内容可滚动
+          overflowY: 'visible' // 允许内容溢出卡片
+        }}
+      >
         <CardContent 
-          className="p-2 md:p-6 h-full overflow-auto" 
+          className="p-2 md:p-6 h-full" 
           ref={graphContainerRef}
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
