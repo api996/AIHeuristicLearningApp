@@ -239,6 +239,20 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       // 创建一个容器以支持缩放和平移
       const container = svg.append('g');
 
+      // 创建力导向模拟 - 改进力参数
+      const simulation = d3.forceSimulation(nodes as any)
+        // 链接距离更大，使节点分布更开
+        .force('link', d3.forceLink(formattedLinks).id((d: any) => d.id).distance(150))
+        // 增加排斥力，使节点更加分散
+        .force('charge', d3.forceManyBody().strength(-300))
+        // 保持在中心位置
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        // 增加碰撞半径，防止节点重叠
+        .force('collision', d3.forceCollide().radius((d: any) => Math.max(10, (d.size || 15) / 5) + 10))
+        // 增加X、Y方向的力，使图谱更加展开
+        .force('x', d3.forceX(width / 2).strength(0.05))
+        .force('y', d3.forceY(height / 2).strength(0.05));
+
       // 增强版缩放行为 - 完全重写以提供更好的用户体验
       try {
         // 定义默认和当前变换
@@ -370,8 +384,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
             .text('R');
         }
         
-        // 预热力学模拟以获得更好的初始布局
-        for (let i = 0; i < 100; ++i) simulation.tick();
+        // 不再需要预热，删除此部分
         
         // 应用初始缩放级别
         if (zoomLevel && zoomLevel !== 1) {
@@ -394,20 +407,6 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       } catch (err) {
         console.warn("设置增强缩放行为时出错:", err);
       }
-
-      // 创建力导向模拟 - 改进力参数
-      const simulation = d3.forceSimulation(nodes as any)
-        // 链接距离更大，使节点分布更开
-        .force('link', d3.forceLink(formattedLinks).id((d: any) => d.id).distance(150))
-        // 增加排斥力，使节点更加分散
-        .force('charge', d3.forceManyBody().strength(-300))
-        // 保持在中心位置
-        .force('center', d3.forceCenter(width / 2, height / 2))
-        // 增加碰撞半径，防止节点重叠
-        .force('collision', d3.forceCollide().radius((d: any) => Math.max(10, (d.size || 15) / 5) + 10))
-        // 增加X、Y方向的力，使图谱更加展开
-        .force('x', d3.forceX(width / 2).strength(0.05))
-        .force('y', d3.forceY(height / 2).strength(0.05));
 
       // 绘制连接线 - 增强版
       const link = container.append('g')
