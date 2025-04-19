@@ -583,67 +583,69 @@ export default function LearningPath() {
                 </div>
                 
                 {/* 知识图谱可视化区域 */}
-                <div className="h-[calc(100%-60px)] w-full relative overflow-hidden rounded-lg">
-                  <StaticKnowledgeGraph
-                    nodes={knowledgeGraph.nodes}
-                    links={knowledgeGraph.links}
-                    width={window.innerWidth - 80} // 留出边距
-                    height={window.innerHeight - 280} // 留出页面头部和底部的空间
-                    onNodeClick={(nodeId) => {
-                      const node = knowledgeGraph.nodes.find((n: any) => n.id === nodeId);
-                      if (node) {
-                        console.log(`点击了节点: ${node.label || nodeId}`);
-                        
-                        // 提供更美观的节点信息展示，不使用原生alert
-                        const nodeType = node.category === 'cluster' ? '主题' : 
-                                         node.category === 'keyword' ? '关键词' : '记忆';
-                        
-                        // 使用自定义样式而非alert
-                        const infoDiv = document.createElement('div');
-                        infoDiv.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/90 p-4 rounded-lg border border-indigo-500 z-50 max-w-md backdrop-blur-md shadow-lg';
-                        infoDiv.style.animation = 'fadeIn 0.2s ease-out';
-                        
-                        let typeColor = node.category === 'cluster' ? 'text-indigo-400' : 
-                                      node.category === 'keyword' ? 'text-emerald-400' : 'text-amber-400';
-                        
-                        infoDiv.innerHTML = `
-                          <div class="flex items-center mb-2">
-                            <div class="h-3 w-3 rounded-full ${node.category === 'cluster' ? 'bg-indigo-500' : 
-                                                             node.category === 'keyword' ? 'bg-emerald-500' : 'bg-amber-500'} mr-2"></div>
-                            <span class="${typeColor} font-medium">${nodeType}</span>
-                          </div>
-                          <div class="text-white text-lg font-bold mb-1">${node.label}</div>
-                          <div class="flex justify-end mt-3">
-                            <button class="bg-gray-800 hover:bg-gray-700 text-gray-200 px-3 py-1 rounded text-sm">关闭</button>
-                          </div>
-                        `;
-                        
-                        document.body.appendChild(infoDiv);
-                        
-                        // 点击关闭或点击外部区域关闭
-                        const closeBtn = infoDiv.querySelector('button');
-                        const closeInfo = () => {
-                          infoDiv.style.animation = 'fadeOut 0.2s ease-out forwards';
-                          setTimeout(() => {
-                            if (document.body.contains(infoDiv)) {
-                              document.body.removeChild(infoDiv);
+                <div className="h-[calc(100%-60px)] w-full relative rounded-lg bg-indigo-950/10 border border-indigo-900/10 overflow-hidden">
+                  <div className="absolute inset-0" style={{ backdropFilter: 'blur(2px)' }}>
+                    <StaticKnowledgeGraph
+                      nodes={knowledgeGraph.nodes}
+                      links={knowledgeGraph.links}
+                      width={window.innerWidth - 80} // 留出边距
+                      height={window.innerHeight - 280} // 留出页面头部和底部的空间
+                      onNodeClick={(nodeId) => {
+                        const node = knowledgeGraph.nodes.find((n: any) => n.id === nodeId);
+                        if (node) {
+                          console.log(`点击了节点: ${node.label || nodeId}`);
+                          
+                          // 提供更美观的节点信息展示，不使用原生alert
+                          const nodeType = node.category === 'cluster' ? '主题' : 
+                                          node.category === 'keyword' ? '关键词' : '记忆';
+                          
+                          // 使用自定义样式而非alert
+                          const infoDiv = document.createElement('div');
+                          infoDiv.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/90 p-4 rounded-lg border border-indigo-500 z-50 max-w-md backdrop-blur-md shadow-lg';
+                          infoDiv.style.animation = 'fadeIn 0.2s ease-out';
+                          
+                          let typeColor = node.category === 'cluster' ? 'text-indigo-400' : 
+                                        node.category === 'keyword' ? 'text-emerald-400' : 'text-amber-400';
+                          
+                          infoDiv.innerHTML = `
+                            <div class="flex items-center mb-2">
+                              <div class="h-3 w-3 rounded-full ${node.category === 'cluster' ? 'bg-indigo-500' : 
+                                                              node.category === 'keyword' ? 'bg-emerald-500' : 'bg-amber-500'} mr-2"></div>
+                              <span class="${typeColor} font-medium">${nodeType}</span>
+                            </div>
+                            <div class="text-white text-lg font-bold mb-1">${node.label}</div>
+                            <div class="flex justify-end mt-3">
+                              <button class="bg-gray-800 hover:bg-gray-700 text-gray-200 px-3 py-1 rounded text-sm">关闭</button>
+                            </div>
+                          `;
+                          
+                          document.body.appendChild(infoDiv);
+                          
+                          // 点击关闭或点击外部区域关闭
+                          const closeBtn = infoDiv.querySelector('button');
+                          const closeInfo = () => {
+                            infoDiv.style.animation = 'fadeOut 0.2s ease-out forwards';
+                            setTimeout(() => {
+                              if (document.body.contains(infoDiv)) {
+                                document.body.removeChild(infoDiv);
+                              }
+                            }, 200);
+                          };
+                          
+                          closeBtn?.addEventListener('click', closeInfo);
+                          document.addEventListener('click', function onDocClick(e) {
+                            if (!infoDiv.contains(e.target as Node)) {
+                              closeInfo();
+                              document.removeEventListener('click', onDocClick);
                             }
-                          }, 200);
-                        };
-                        
-                        closeBtn?.addEventListener('click', closeInfo);
-                        document.addEventListener('click', function onDocClick(e) {
-                          if (!infoDiv.contains(e.target as Node)) {
-                            closeInfo();
-                            document.removeEventListener('click', onDocClick);
-                          }
-                        }, { once: true });
-                        
-                        // 自动消失
-                        setTimeout(closeInfo, 4000);
-                      }
-                    }}
-                  />
+                          }, { once: true });
+                          
+                          // 自动消失
+                          setTimeout(closeInfo, 4000);
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
                 
                 {/* 组合图例和统计信息，使界面更简洁 */}
