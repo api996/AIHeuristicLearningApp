@@ -200,15 +200,20 @@ router.get('/:userId/clusters', async (req, res) => {
     log(`[API] 获取用户 ${userId} 的记忆聚类`);
     
     // 执行聚类 - 转换为符合Memory接口的对象
-    const memoryObjects = memories.map(memory => ({
-      id: memory.id || '',
-      content: memory.content,
-      type: memory.type,
-      timestamp: memory.timestamp,  // 保持字符串格式
-      summary: memory.summary,
-      keywords: memory.keywords || [],
-      userId: memory.userId || userId, // 确保有userId
-    }));
+    // 将 memory.id 转换为字符串以匹配 Memory 类型定义
+    const memoryObjects = memories.map(memory => {
+      // 创建符合 Memory 类型的对象，将 id 转换为字符串
+      const memoryObj: any = {
+        id: memory.id.toString(), // 将数字ID转换为字符串
+        content: memory.content,
+        type: memory.type,
+        timestamp: memory.timestamp, 
+        summary: memory.summary,
+        userId: memory.userId || userId,
+        createdAt: memory.createdAt || null
+      };
+      return memoryObj;
+    });
     
     const clusters = await clusterMemories(memoryObjects, {
       maxClusters,

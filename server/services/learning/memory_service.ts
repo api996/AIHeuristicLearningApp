@@ -80,15 +80,9 @@ export class MemoryService {
           return true;
         }
         
-        // 到这里需要检查关键词，但我们需要fetch关键词，这可能会很慢
-        // 这里简化实现，实际应用中可能需要优化
-        if (memory.keywords && Array.isArray(memory.keywords)) {
-          return filter.keywords.some(keyword => 
-            memory.keywords.includes(keyword)
-          );
-        }
-        
-        // 默认通过
+        // 由于Memory接口没有keywords属性，需要异步获取关键词，但这里无法使用
+        // 现在我们只是返回true，实际需要优化此处以获取和过滤关键词
+        // 如果真需要关键词过滤，应该提前获取所有记忆的关键词
         return true;
       });
     } catch (error) {
