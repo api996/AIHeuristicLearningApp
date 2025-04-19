@@ -241,19 +241,27 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       // 创建一个容器以支持缩放和平移
       const container = svg.append('g');
 
-      // 创建力导向模拟 - 改进力参数
+      // 性能优化：减少迭代次数，提高初始alpha值
       const simulation = d3.forceSimulation(nodes as any)
+        // 设置更高的alpha值和较低的衰减率，加速收敛
+        .alpha(0.8)
+        .alphaDecay(0.05)
         // 链接距离更大，使节点分布更开
-        .force('link', d3.forceLink(formattedLinks).id((d: any) => d.id).distance(150))
-        // 增加排斥力，使节点更加分散
-        .force('charge', d3.forceManyBody().strength(-300))
+        .force('link', d3.forceLink(formattedLinks).id((d: any) => d.id).distance(120))
+        // 降低排斥力，提高性能
+        .force('charge', d3.forceManyBody().strength(-150).distanceMax(300))
         // 保持在中心位置
         .force('center', d3.forceCenter(width / 2, height / 2))
-        // 增加碰撞半径，防止节点重叠
-        .force('collision', d3.forceCollide().radius((d: any) => Math.max(10, (d.size || 15) / 5) + 10))
-        // 增加X、Y方向的力，使图谱更加展开
-        .force('x', d3.forceX(width / 2).strength(0.05))
-        .force('y', d3.forceY(height / 2).strength(0.05));
+        // 使用较小的碰撞半径，提高性能
+        .force('collision', d3.forceCollide().radius((d: any) => Math.max(8, (d.size || 10) / 5) + 5))
+        // 弱化X、Y方向的力，减少计算量
+        .force('x', d3.forceX(width / 2).strength(0.03))
+        .force('y', d3.forceY(height / 2).strength(0.03))
+        // 减少迭代次数，大幅提高性能
+        .velocityDecay(0.4)
+        .stop()
+        // 手动控制迭代，而不是连续模拟
+        .tick(30);
 
       // 增强版缩放行为 - 完全重写以提供更好的用户体验
       try {
@@ -294,97 +302,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         // 应用缩放行为
         svg.call(zoom as any);
         
-        // 添加缩放按钮和指示器（仅在全屏模式下）
-        if (isFullScreen) {
-          // 添加缩放级别指示器
-          svg.append('text')
-            .attr('id', 'zoom-indicator')
-            .attr('x', 10)
-            .attr('y', 25)
-            .attr('font-size', '12px')
-            .attr('fill', 'rgba(255,255,255,0.7)')
-            .text(`缩放: 1.0x`);
-            
-          // 添加控制按钮组
-          const controlsGroup = svg.append('g')
-            .attr('transform', 'translate(10, 50)')
-            .attr('class', 'zoom-controls');
-            
-          // 放大按钮
-          controlsGroup.append('circle')
-            .attr('cx', 15)
-            .attr('cy', 15)
-            .attr('r', 15)
-            .attr('fill', 'rgba(59, 130, 246, 0.5)')
-            .attr('stroke', 'white')
-            .attr('stroke-width', 1)
-            .attr('cursor', 'pointer')
-            .on('click', () => {
-              svg.transition().duration(300).call(
-                zoom.scaleBy as any, 1.3
-              );
-            });
-            
-          // 放大符号
-          controlsGroup.append('text')
-            .attr('x', 15)
-            .attr('y', 20)
-            .attr('text-anchor', 'middle')
-            .attr('fill', 'white')
-            .attr('font-size', '18px')
-            .attr('cursor', 'pointer')
-            .text('+');
-            
-          // 缩小按钮
-          controlsGroup.append('circle')
-            .attr('cx', 15)
-            .attr('cy', 55)
-            .attr('r', 15)
-            .attr('fill', 'rgba(59, 130, 246, 0.5)')
-            .attr('stroke', 'white')
-            .attr('stroke-width', 1)
-            .attr('cursor', 'pointer')
-            .on('click', () => {
-              svg.transition().duration(300).call(
-                zoom.scaleBy as any, 0.7
-              );
-            });
-            
-          // 缩小符号
-          controlsGroup.append('text')
-            .attr('x', 15)
-            .attr('y', 60)
-            .attr('text-anchor', 'middle')
-            .attr('fill', 'white')
-            .attr('font-size', '18px')
-            .attr('cursor', 'pointer')
-            .text('-');
-            
-          // 重置按钮
-          controlsGroup.append('circle')
-            .attr('cx', 15)
-            .attr('cy', 95)
-            .attr('r', 15)
-            .attr('fill', 'rgba(59, 130, 246, 0.5)')
-            .attr('stroke', 'white')
-            .attr('stroke-width', 1)
-            .attr('cursor', 'pointer')
-            .on('click', () => {
-              svg.transition().duration(500).call(
-                zoom.transform as any, d3.zoomIdentity.translate(width/2, height/2).scale(1)
-              );
-            });
-            
-          // 重置符号
-          controlsGroup.append('text')
-            .attr('x', 15)
-            .attr('y', 100)
-            .attr('text-anchor', 'middle')
-            .attr('fill', 'white')
-            .attr('font-size', '14px')
-            .attr('cursor', 'pointer')
-            .text('R');
-        }
+        // 简化界面，不添加额外按钮和指示器，专注于提升触摸和拖拽体验
         
         // 不再需要预热，删除此部分
         
