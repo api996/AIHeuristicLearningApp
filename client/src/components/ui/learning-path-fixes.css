@@ -1,0 +1,56 @@
+/*
+ * 学习轨迹页面在iPad上的滚动修复
+ * 确保所有标签页内容都可以正常滚动
+ */
+
+/* 整体页面滚动修复 */
+.ipad-device [data-value="overview"],
+.ipad-device [data-value="progress"],
+.ipad-device [data-value="suggestions"],
+.ipad-device [data-value="knowledge-graph"],
+.tablet-device [data-value="overview"],
+.tablet-device [data-value="progress"],
+.tablet-device [data-value="suggestions"],
+.tablet-device [data-value="knowledge-graph"] {
+  height: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 80vh !important;
+  padding-bottom: 80px !important;
+}
+
+/* 标签内容容器修复 */
+.ipad-device [data-radix-tabs-content-wrapper],
+.tablet-device [data-radix-tabs-content-wrapper] {
+  height: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  min-height: 70vh !important;
+}
+
+/* 知识图谱容器修复 */
+.ipad-device .knowledge-graph-container,
+.tablet-device .knowledge-graph-container {
+  height: auto !important;
+  min-height: 60vh !important;
+  overflow: visible !important;
+}
+
+/* 学习轨迹页面容器 */
+.ipad-device .learning-path-container,
+.tablet-device .learning-path-container {
+  height: 100vh !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: 80px !important;
+}
+
+/* iOS Safari特定修复 */
+@supports (-webkit-touch-callout: none) {
+  .ipad-device [data-radix-tabs-content-wrapper],
+  .tablet-device [data-radix-tabs-content-wrapper] {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+  }
+}

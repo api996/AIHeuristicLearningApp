@@ -8,6 +8,8 @@ import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle } from
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import SimpleKnowledgeGraph from "@/components/SimpleKnowledgeGraph";
+// 导入学习轨迹页面的iPad滚动修复CSS
+import "@/components/ui/learning-path-fixes.css";
 
 // 定义知识图谱节点类型
 interface KnowledgeNode {
@@ -134,7 +136,7 @@ export default function LearningPath() {
   };
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 learning-path-container">
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center">
           <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg mr-3">

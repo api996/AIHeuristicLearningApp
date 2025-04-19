@@ -7,7 +7,17 @@
 .admin-template-editor {
   -webkit-overflow-scrolling: touch;
   min-height: 100vh;
-  overflow: auto; /* 允许整体滚动 */
+  overflow-y: auto !important; /* 强制允许整体滚动 */
+  height: 100vh; /* 设置明确的高度 */
+  overscroll-behavior-y: contain; /* 防止滚动穿透 */
+}
+
+/* iPad设备特定滚动修复 */
+.ipad-device .min-h-screen, 
+.tablet-device .min-h-screen {
+  height: 100vh;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* 修复iPad上的网格布局 */

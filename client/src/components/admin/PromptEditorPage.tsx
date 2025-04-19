@@ -459,7 +459,7 @@ export function PromptEditorPage() {
   const templateContent = getTemplateContent(activeTab);
 
   return (
-    <div className="min-h-screen bg-black py-6">
+    <div className="min-h-screen bg-black py-6 admin-template-editor">
       <div className="container px-4 mx-auto max-w-6xl">
         <div className="mb-6 flex items-center">
           <Button 
@@ -475,7 +475,7 @@ export function PromptEditorPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 admin-template-editor-grid">
           {/* 左侧边栏 */}
           <div className="lg:col-span-1">
             <Card className="bg-neutral-900 border-neutral-800">
