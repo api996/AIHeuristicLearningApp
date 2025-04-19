@@ -449,15 +449,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   // TypeScript using an explicit return type
-  async updateMessage(messageId: number, content: string, isUserOwned: boolean = false): Promise<Message> {
+  async updateMessage(messageId: number, content: string, isUserOwned: boolean = false, model?: string): Promise<Message> {
     try {
       // 如果是用户更新消息，需要确保只能更新用户自己的消息
       const condition = isUserOwned ? eq(messages.role, "user") : undefined;
 
+      // 准备更新字段
+      const updateFields: any = { content, isEdited: true };
+      
+      // 如果提供了model参数，更新model字段
+      if (model) {
+        updateFields.model = model;
+      }
+
       // 更新消息
       const results = await db
         .update(messages)
-        .set({ content, isEdited: true })
+        .set(updateFields)
         .where(and(eq(messages.id, messageId), condition || undefined))
         .returning();
 
