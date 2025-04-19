@@ -393,7 +393,7 @@ export function AIChat({ userData }: AIChatProps) {
       // 使用直接fetch发送请求，确保URL是完整的
       const baseUrl = window.location.origin;
       const apiUrl = `${baseUrl}/api/messages/${finalMessageId}/regenerate`;
-      console.log("发送重新生成请求:", apiUrl);
+      console.log("发送重新生成请求:", apiUrl, "使用模型:", currentModel);
       
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -403,7 +403,8 @@ export function AIChat({ userData }: AIChatProps) {
         body: JSON.stringify({
           userId: userData.userId,
           userRole: userData.role,
-          chatId: currentChatId
+          chatId: currentChatId,
+          model: currentModel // 添加当前选择的模型信息
         })
       });
       
