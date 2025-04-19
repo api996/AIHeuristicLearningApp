@@ -115,6 +115,10 @@ export default function KnowledgeGraphDetail() {
       gravity: -150,
       linkLength: isMobile ? 80 : 120,
       alphaTarget: 0.1,
+      // 强制禁用D3 zoom行为，避免与_d3Selection.event.transform冲突
+      disableLinkForce: false,
+      // 使用自定义的D3实例 (v5)，而不是组件内置的
+      useGlobalD3: true
     },
     node: {
       color: "#3b82f6",

@@ -14,6 +14,8 @@ import PromptEditor from "@/pages/prompt-editor";
 import NotFound from "@/pages/not-found";
 // 导入D3补丁文件，修复D3兼容性问题
 import "./lib/d3-patch";
+// 导入直接补丁文件，确保_d3Selection全局对象可用
+import "./lib/d3-direct-patch";
 
 function Router() {
   // 使用简单的路由配置，让各个组件内部自己处理授权逻辑
