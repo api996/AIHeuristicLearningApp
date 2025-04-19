@@ -4,11 +4,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle, RefreshCw, Maximize } from "lucide-react";
+import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
 import SimpleKnowledgeGraph from "@/components/SimpleKnowledgeGraph";
-import KnowledgeGraphModal from "@/components/KnowledgeGraphModal";
 // 导入学习轨迹页面的iPad滚动修复CSS
 import "@/components/ui/learning-path-fixes.css";
 // 导入知识图谱样式
@@ -46,7 +45,6 @@ interface KnowledgeGraph {
 export default function LearningPath() {
   const [, setLocation] = useLocation();
   const [user, setUser] = useState<{userId: number; role: string; username?: string} | null>(null);
-  const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
 
   // 从localStorage获取用户信息
   useEffect(() => {
@@ -63,6 +61,23 @@ export default function LearningPath() {
     }
   }, [setLocation]);
 
+  // 在页面加载后立即开始预加载知识图谱数据
+  useEffect(() => {
+    if (user?.userId) {
+      // 在组件挂载时开始预加载知识图谱数据，无需等待用户点击
+      console.log("学习轨迹页面预加载知识图谱数据...");
+      
+      // 立即开始异步预加载，不阻塞页面渲染
+      preloadKnowledgeGraphData(user.userId)
+        .then(data => {
+          console.log(`知识图谱数据预加载成功: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+        })
+        .catch(err => {
+          console.error("知识图谱数据预加载失败:", err);
+        });
+    }
+  }, [user?.userId]);
+
   // 获取学习轨迹数据
   const { data: learningPath, isLoading, error } = useQuery({
     queryKey: ["/api/learning-path", user?.userId, user?.role],
@@ -75,20 +90,6 @@ export default function LearningPath() {
     },
     enabled: !!user?.userId,
   });
-  
-  // 预加载知识图谱数据
-  useEffect(() => {
-    if (user?.userId) {
-      console.log("学习轨迹页面预加载知识图谱数据...");
-      preloadKnowledgeGraphData(user.userId)
-        .then(data => {
-          console.log(`知识图谱数据预加载成功: ${data.nodes.length}个节点, ${data.links.length}个连接`);
-        })
-        .catch(err => {
-          console.error("知识图谱数据预加载失败:", err);
-        });
-    }
-  }, [user?.userId]);
   
   // 获取知识图谱数据 - 使用预加载与缓存策略
   const { data: knowledgeGraph } = useQuery({
@@ -163,417 +164,143 @@ export default function LearningPath() {
   const navigateBack = () => {
     setLocation("/");
   };
-  
-  // 知识图谱标签页内容
-  const renderKnowledgeGraphTab = () => {
-    return (
-      <TabsContent value="knowledge-graph">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Network className="mr-2" /> 知识连接图谱
-            </CardTitle>
-            <CardDescription>可视化您的学习关联</CardDescription>
-          </CardHeader>
-          <CardContent className="card-content">
-            {knowledgeGraph && knowledgeGraph.nodes && knowledgeGraph.nodes.length > 0 ? (
-              <div className="space-y-6">
-                <div className="rounded-lg overflow-hidden">
-                  <h3 className="text-lg text-blue-300 flex items-center">
-                    <Network className="h-5 w-5 mr-2 text-blue-400" />
-                    知识图谱可视化
-                  </h3>
-                  
-                  <div className="relative">
-                    <div className="flex flex-col h-[400px] w-full relative overflow-hidden border border-blue-900/50 rounded-lg p-4 bg-blue-950/30">
-                      {knowledgeGraph && knowledgeGraph.nodes && knowledgeGraph.nodes.length > 0 ? (
-                        <>
-                          <div className="h-[350px] w-full knowledge-graph-container">
-                            <SimpleKnowledgeGraph
-                              nodes={knowledgeGraph.nodes.map((node: KnowledgeNode) => ({
-                                id: node.id,
-                                color: node.category === 'cluster' ? '#3b82f6' : 
-                                      node.category === 'keyword' ? '#10b981' : 
-                                      node.category === 'memory' ? '#f59e0b' : '#6366f1',
-                                size: node.size * 200, // 预览图尺寸小一些
-                                label: node.label,
-                                category: node.category
-                              }))}
-                              links={knowledgeGraph.links.map((link: KnowledgeLink) => ({
-                                source: link.source,
-                                target: link.target,
-                                strokeWidth: link.value * 2,
-                                color: 'rgba(59, 130, 246, 0.5)'
-                              }))}
-                              height={350}
-                              width={window.innerWidth > 768 ? 800 : window.innerWidth - 60}
-                            />
-                          </div>
-                          <div className="mt-4 flex justify-center gap-2 flex-wrap">
-                            <Button
-                              onClick={() => setIsGraphModalOpen(true)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
-                            >
-                              <Maximize className="h-4 w-4" />
-                              查看全屏知识图谱
-                            </Button>
-                            {user?.userId === 6 && (
-                              <Button
-                                onClick={async () => {
-                                  try {
-                                    const response = await fetch(`/api/test-data/generate-graph/6?count=35`);
-                                    const result = await response.json();
-                                    if (result.success) {
-                                      alert(`测试数据生成成功：${result.message}`);
-                                      // 刷新页面以加载新数据
-                                      window.location.reload();
-                                    } else {
-                                      alert(`测试数据生成失败：${result.message}`);
-                                    }
-                                  } catch (error) {
-                                    console.error('生成测试数据失败:', error);
-                                    alert('生成测试数据时发生错误，请查看控制台');
-                                  }
-                                }}
-                                variant="secondary"
-                              >
-                                生成测试数据
-                              </Button>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-full w-full">
-                          <p className="text-lg text-neutral-400">知识图谱数据不足</p>
-                          <p className="text-sm text-neutral-500 max-w-md mx-auto mt-2 text-center">
-                            继续与AI对话，系统将自动分析您的学习主题并构建知识图谱
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center border-t border-blue-900/30 pt-4 mt-2">
-                    <div className="text-sm text-neutral-300">
-                      <span className="font-medium">节点数:</span> {knowledgeGraph.nodes.length}
-                      <span className="mx-2">|</span>
-                      <span className="font-medium">关联数:</span> {knowledgeGraph.links.length}
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      {['cluster', 'keyword', 'memory'].map(category => (
-                        <div key={category} className="flex items-center gap-1">
-                          <div className={`w-3 h-3 rounded-full ${
-                            category === 'cluster' ? 'bg-blue-500' : 
-                            category === 'keyword' ? 'bg-green-500' : 
-                            'bg-yellow-500'
-                          }`}></div>
-                          <span className="text-xs text-neutral-400">
-                            {category === 'cluster' ? '主题' : 
-                             category === 'keyword' ? '关键词' : '记忆'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="h-[400px] rounded-lg border border-neutral-800 flex items-center justify-center">
-                <div className="text-center space-y-4">
-                  <svg width="80" height="80" viewBox="0 0 24 24" fill="none" className="mx-auto opacity-20">
-                    <path d="M14 12C14 14.7614 11.7614 17 9 17H7C4.23858 17 2 14.7614 2 12C2 9.23858 4.23858 7 7 7H7.5M10 12C10 9.23858 12.2386 7 15 7H17C19.7614 7 22 9.23858 22 12C22 14.7614 19.7614 17 17 17H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                  <p className="text-lg text-neutral-400">暂无足够数据生成知识图谱</p>
-                  <p className="text-sm text-neutral-500 max-w-md mx-auto">
-                    随着您的学习过程，系统将收集更多数据，并构建您的知识图谱，展示概念之间的关联
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </TabsContent>
-    );
-  };
 
   return (
-    <>
-      <div className="container mx-auto py-8 learning-path-container"
+    <div 
+      className="container mx-auto py-8 learning-path-container"
+      style={{
+        height: 'calc(100vh - 80px)', // 减去导航栏高度
+        overflowY: 'scroll', // 强制使用滚动条
+        WebkitOverflowScrolling: 'touch', // iOS滚动优化
+        scrollbarWidth: 'thin', // Firefox
+        position: 'relative',
+        padding: '16px',
+        boxSizing: 'border-box'
+      }}
+    >
+      <div 
+        className="flex justify-between items-center mb-8"
         style={{
-          height: 'calc(100vh - 80px)',
-          overflowY: 'scroll',
-          WebkitOverflowScrolling: 'touch',
-          scrollbarWidth: 'thin',
-          position: 'relative',
-          padding: '16px',
-          boxSizing: 'border-box'
-        }}>
-        <div className="flex justify-between items-center mb-8"
-          style={{
-            position: 'sticky',
-            top: 0,
-            backgroundColor: 'rgba(13, 17, 23, 0.8)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            zIndex: 10,
-            padding: '10px 0'
-          }}>
-          <div className="flex items-center">
-            <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg mr-3">
-              <Brain className="h-7 w-7 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold">我的学习轨迹</h1>
+          position: 'sticky',
+          top: 0,
+          backgroundColor: 'rgba(13, 17, 23, 0.8)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          zIndex: 10,
+          padding: '10px 0'
+        }}
+      >
+        <div className="flex items-center">
+          <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg mr-3">
+            <Brain className="h-7 w-7 text-white" />
           </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="default" 
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={() => setLocation(`/memory-space`)}
-            >
-              <BookOpen size={18} />
-              <span>打开记忆空间</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700"
-              onClick={navigateBack}
-            >
-              <ArrowLeftCircle size={18} />
-              <span>返回聊天</span>
-            </Button>
-          </div>
+          <h1 className="text-3xl font-bold">我的学习轨迹</h1>
         </div>
-        
-        <Tabs defaultValue="overview">
-          <TabsList className="mb-6">
-            <TabsTrigger value="overview">总览</TabsTrigger>
-            <TabsTrigger value="progress">学习进度</TabsTrigger>
-            <TabsTrigger value="suggestions">学习建议</TabsTrigger>
-            <TabsTrigger value="knowledge-graph">知识图谱</TabsTrigger>
-          </TabsList>
-          
-          {/* 其他标签页内容 */}
-          <TabsContent value="overview">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <BookOpen className="mr-2" /> 学习主题
-                  </CardTitle>
-                  <CardDescription>您的主要学习方向</CardDescription>
-                </CardHeader>
-                <CardContent className="card-content">
-                  {learningPath?.topics && learningPath.topics.length > 0 ? (
-                    <div className="space-y-4">
-                      {learningPath.topics.map((topic: any) => (
-                        <div 
-                          key={topic.id} 
-                          className="p-3 border rounded-md flex justify-between items-center hover:bg-neutral-800/30 transition-colors"
-                        >
-                          <div className="flex items-center">
-                            <div className={`w-3 h-3 rounded-full bg-blue-500 mr-3`}></div>
-                            <span className="font-medium">{topic.topic}</span>
-                          </div>
-                          <div className="flex items-center">
-                            <div className={`px-2 py-1 text-xs rounded-full 
-                              ${topic.percentage > 50 ? 'bg-blue-900/30 text-blue-400' : 'bg-neutral-800 text-neutral-400'}`}>
-                              {topic.percentage}%
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-6 text-neutral-400">
-                      <BookOpen className="h-12 w-12 mb-3 opacity-20" />
-                      <p>暂无学习主题数据</p>
-                      <p className="text-sm mt-1">开始与AI对话，系统将自动分析您的学习主题</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+        <div className="flex gap-2">
+          <Button 
+            variant="default" 
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={() => setLocation(`/memory-space`)}
+          >
+            <BookOpen size={18} />
+            <span>打开记忆空间</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700"
+            onClick={navigateBack}
+          >
+            <ArrowLeftCircle size={18} />
+            <span>返回聊天</span>
+          </Button>
+        </div>
+      </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <BarChart3 className="mr-2" /> 学习进度
-                  </CardTitle>
-                  <CardDescription>您在各领域的学习深度</CardDescription>
-                </CardHeader>
-                <CardContent className="card-content">
-                  {learningPath?.progress && learningPath.progress.length > 0 ? (
-                    <div className="space-y-4">
-                      {learningPath.progress.map((item: any, index: number) => {
-                        // 根据进度值确定颜色
-                        const value = item.percentage || item.score || 0;
-                        let color;
-                        if (value >= 75) color = "text-green-400 bg-green-900/30";
-                        else if (value >= 50) color = "text-blue-400 bg-blue-900/30";
-                        else if (value >= 25) color = "text-yellow-400 bg-yellow-900/30";
-                        else color = "text-neutral-400 bg-neutral-800";
-                        
-                        return (
-                          <div 
-                            key={index} 
-                            className="p-3 border rounded-md hover:bg-neutral-800/30 transition-colors"
-                          >
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="font-medium">{item.topic || item.category}</span>
-                              <div className={`px-2.5 py-1 text-xs rounded-full ${color}`}>
-                                {value}%
-                              </div>
-                            </div>
-                            {item.change !== undefined && (
-                              <div className="text-xs text-neutral-400 mt-1">
-                                较上次{item.change > 0 ? 
-                                  <span className="text-green-400">提升 {Math.abs(item.change)}%</span> : 
-                                  <span className="text-red-400">下降 {Math.abs(item.change)}%</span>
-                                }
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-6 text-neutral-400">
-                      <BarChart3 className="h-12 w-12 mb-3 opacity-20" />
-                      <p>暂无学习进度数据</p>
-                      <p className="text-sm mt-1">随着您的持续学习，这里将显示您的进度</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+      <Tabs defaultValue="overview">
+        <TabsList className="mb-6">
+          <TabsTrigger value="overview">总览</TabsTrigger>
+          <TabsTrigger value="progress">学习进度</TabsTrigger>
+          <TabsTrigger value="suggestions">学习建议</TabsTrigger>
+          <TabsTrigger value="knowledge-graph">知识图谱</TabsTrigger>
+        </TabsList>
 
-            <Card className="mt-6">
+        {/* 总览标签页 */}
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
               <CardHeader>
-                <CardTitle>学习建议</CardTitle>
-                <CardDescription>基于您的学习记录生成的个性化建议</CardDescription>
+                <CardTitle className="flex items-center">
+                  <BookOpen className="mr-2" /> 学习主题
+                </CardTitle>
+                <CardDescription>您的主要学习方向</CardDescription>
               </CardHeader>
               <CardContent className="card-content">
-                {learningPath?.suggestions && learningPath.suggestions.length > 0 ? (
-                  <div className="space-y-3">
-                    {learningPath.suggestions.map((suggestion: string, index: number) => (
+                {learningPath?.topics && learningPath.topics.length > 0 ? (
+                  <div className="space-y-4">
+                    {learningPath.topics.map((topic: any) => (
                       <div 
-                        key={index} 
-                        className="p-3 border rounded-md hover:bg-neutral-800/30 transition-colors flex items-start"
+                        key={topic.id} 
+                        className="p-3 border rounded-md flex justify-between items-center hover:bg-neutral-800/30 transition-colors"
                       >
-                        <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full mr-3 shrink-0 mt-0.5">
-                          <ArrowRight className="h-4 w-4 text-white" />
+                        <div className="flex items-center">
+                          <div className={`w-3 h-3 rounded-full bg-blue-500 mr-3`}></div>
+                          <span className="font-medium">{topic.topic}</span>
                         </div>
-                        <div className="text-neutral-200">{suggestion}</div>
+                        <div className="flex items-center">
+                          <div className={`px-2 py-1 text-xs rounded-full 
+                            ${topic.percentage > 50 ? 'bg-blue-900/30 text-blue-400' : 'bg-neutral-800 text-neutral-400'}`}>
+                            {topic.percentage}%
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-6 text-neutral-400">
-                    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" className="mb-3 opacity-20">
-                      <path d="M12 16V10M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <p>暂无学习建议</p>
-                    <p className="text-sm mt-1">随着您的学习进展，系统将生成针对性的学习建议</p>
+                    <BookOpen className="h-12 w-12 mb-3 opacity-20" />
+                    <p>暂无学习主题数据</p>
+                    <p className="text-sm mt-1">开始与AI对话，系统将自动分析您的学习主题</p>
                   </div>
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-          
-          <TabsContent value="progress">
+
             <Card>
               <CardHeader>
-                <CardTitle>详细学习进度</CardTitle>
-                <CardDescription>各主题学习深度分析</CardDescription>
+                <CardTitle className="flex items-center">
+                  <BarChart3 className="mr-2" /> 学习进度
+                </CardTitle>
+                <CardDescription>您在各领域的学习深度</CardDescription>
               </CardHeader>
               <CardContent className="card-content">
                 {learningPath?.progress && learningPath.progress.length > 0 ? (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {learningPath.progress.map((item: any, index: number) => {
                       // 根据进度值确定颜色
                       const value = item.percentage || item.score || 0;
-                      let color, bgColor;
-                      if (value >= 75) {
-                        color = "text-green-400";
-                        bgColor = "from-green-900/20 to-green-800/10";
-                      } else if (value >= 50) {
-                        color = "text-blue-400";
-                        bgColor = "from-blue-900/20 to-blue-800/10";
-                      } else if (value >= 25) {
-                        color = "text-yellow-400";
-                        bgColor = "from-yellow-900/20 to-yellow-800/10";
-                      } else {
-                        color = "text-neutral-400";
-                        bgColor = "from-neutral-800/20 to-neutral-700/10";
-                      }
+                      let color;
+                      if (value >= 75) color = "text-green-400 bg-green-900/30";
+                      else if (value >= 50) color = "text-blue-400 bg-blue-900/30";
+                      else if (value >= 25) color = "text-yellow-400 bg-yellow-900/30";
+                      else color = "text-neutral-400 bg-neutral-800";
                       
                       return (
-                        <div key={index} className="border rounded-lg overflow-hidden">
-                          <div className={`p-4 bg-gradient-to-b ${bgColor}`}>
-                            <div className="flex justify-between items-center">
-                              <h3 className="text-lg font-medium">{item.topic || item.category}</h3>
-                              <div className={`px-3 py-1 rounded-full text-sm ${color} bg-black/20`}>
-                                {value}% 掌握
-                              </div>
-                            </div>
-                            
-                            <div className="mt-4 relative">
-                              <div className="h-2 w-full bg-neutral-800 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full ${
-                                    value >= 75 ? "bg-green-500" :
-                                    value >= 50 ? "bg-blue-500" :
-                                    value >= 25 ? "bg-yellow-500" : "bg-neutral-500"
-                                  }`}
-                                  style={{ width: `${value}%` }}
-                                ></div>
-                              </div>
-                              
-                              {item.change !== undefined && (
-                                <div className="mt-3 flex items-center">
-                                  {item.change > 0 ? (
-                                    <div className="text-xs text-green-400 flex items-center">
-                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-                                        <path d="m18 15-6-6-6 6"/>
-                                      </svg>
-                                      提升 {Math.abs(item.change)}%
-                                    </div>
-                                  ) : (
-                                    <div className="text-xs text-red-400 flex items-center">
-                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-                                        <path d="m6 9 6 6 6-6"/>
-                                      </svg>
-                                      下降 {Math.abs(item.change)}%
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                        <div 
+                          key={index} 
+                          className="p-3 border rounded-md hover:bg-neutral-800/30 transition-colors"
+                        >
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-medium">{item.topic || item.category}</span>
+                            <div className={`px-2.5 py-1 text-xs rounded-full ${color}`}>
+                              {value}%
                             </div>
                           </div>
-                          
-                          {item.details && (
-                            <div className="p-4 border-t border-neutral-800">
-                              <h4 className="text-sm font-medium text-neutral-400 mb-3">知识点掌握情况</h4>
-                              <div className="space-y-3">
-                                {item.details.map((detail: any, i: number) => (
-                                  <div key={i} className="flex justify-between items-center">
-                                    <span className="text-sm text-neutral-300">{detail.name}</span>
-                                    <div className="flex items-center">
-                                      <div className="w-24 h-1.5 bg-neutral-800 rounded-full mr-3 overflow-hidden">
-                                        <div 
-                                          className={`h-full rounded-full ${
-                                            detail.score >= 75 ? "bg-green-500" :
-                                            detail.score >= 50 ? "bg-blue-500" :
-                                            detail.score >= 25 ? "bg-yellow-500" : "bg-neutral-500"
-                                          }`}
-                                          style={{ width: `${detail.score}%` }}
-                                        ></div>
-                                      </div>
-                                      <span className="text-xs text-neutral-400 w-8 text-right">{detail.score}%</span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
+                          {item.change !== undefined && (
+                            <div className="text-xs text-neutral-400 mt-1">
+                              较上次{item.change > 0 ? 
+                                <span className="text-green-400">提升 {Math.abs(item.change)}%</span> : 
+                                <span className="text-red-400">下降 {Math.abs(item.change)}%</span>
+                              }
                             </div>
                           )}
                         </div>
@@ -581,104 +308,309 @@ export default function LearningPath() {
                     })}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-10 text-neutral-400">
-                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" className="mb-4 opacity-20">
-                      <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <p className="text-lg">暂无学习进度数据</p>
-                    <p className="text-sm mt-1 max-w-md text-center">
-                      随着您的持续学习，系统将分析您的学习模式并展示您在各个领域的掌握程度
-                    </p>
+                  <div className="flex flex-col items-center justify-center py-6 text-neutral-400">
+                    <BarChart3 className="h-12 w-12 mb-3 opacity-20" />
+                    <p>暂无学习进度数据</p>
+                    <p className="text-sm mt-1">随着您的持续学习，这里将显示您的进度</p>
                   </div>
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-          
-          <TabsContent value="suggestions">
-            <Card>
-              <CardHeader>
-                <CardTitle>个性化学习建议</CardTitle>
-                <CardDescription>让您的学习更高效</CardDescription>
-              </CardHeader>
-              <CardContent className="card-content">
-                {learningPath?.suggestions && learningPath.suggestions.length > 0 ? (
-                  <div className="space-y-4">
-                    {learningPath.suggestions.map((suggestion: string, index: number) => (
-                      <div 
-                        key={index} 
-                        className="p-4 border rounded-lg hover:bg-neutral-800/30 transition-colors"
-                      >
-                        <div className="flex items-start">
-                          <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-full mr-4 shrink-0 mt-0.5">
-                            <Lightbulb className="h-5 w-5 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-neutral-200">{suggestion}</p>
-                          </div>
-                        </div>
+          </div>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>学习建议</CardTitle>
+              <CardDescription>基于您的学习记录生成的个性化建议</CardDescription>
+            </CardHeader>
+            <CardContent className="card-content">
+              {learningPath?.suggestions && learningPath.suggestions.length > 0 ? (
+                <div className="space-y-3">
+                  {learningPath.suggestions.map((suggestion: string, index: number) => (
+                    <div 
+                      key={index} 
+                      className="p-3 border rounded-md hover:bg-neutral-800/30 transition-colors flex items-start"
+                    >
+                      <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full mr-3 shrink-0 mt-0.5">
+                        <ArrowRight className="h-4 w-4 text-white" />
                       </div>
-                    ))}
+                      <div className="text-neutral-200">{suggestion}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 text-neutral-400">
+                  <svg width="60" height="60" viewBox="0 0 24 24" fill="none" className="mb-3 opacity-20">
+                    <path d="M12 16V10M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <p>暂无学习建议</p>
+                  <p className="text-sm mt-1">随着您的学习进展，系统将生成针对性的学习建议</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 学习进度标签页 */}
+        <TabsContent value="progress">
+          <Card>
+            <CardHeader>
+              <CardTitle>详细学习进度</CardTitle>
+              <CardDescription>各主题学习深度分析</CardDescription>
+            </CardHeader>
+            <CardContent className="card-content">
+              {learningPath?.progress && learningPath.progress.length > 0 ? (
+                <div className="space-y-6">
+                  {learningPath.progress.map((item: any, index: number) => {
+                    // 根据进度值确定颜色
+                    const value = item.percentage || item.score || 0;
+                    let color, bgColor;
+                    if (value >= 75) {
+                      color = "text-green-400";
+                      bgColor = "from-green-900/20 to-green-800/10";
+                    } else if (value >= 50) {
+                      color = "text-blue-400";
+                      bgColor = "from-blue-900/20 to-blue-800/10";
+                    } else if (value >= 25) {
+                      color = "text-yellow-400";
+                      bgColor = "from-yellow-900/20 to-yellow-800/10";
+                    } else {
+                      color = "text-neutral-400";
+                      bgColor = "from-neutral-800/20 to-neutral-700/10";
+                    }
                     
-                    {learningPath.nextSteps && (
-                      <div className="mt-8">
-                        <h3 className="text-lg font-medium mb-4 text-blue-300">推荐下一步</h3>
-                        <div className="space-y-3">
-                          {learningPath.nextSteps.map((step: any, index: number) => (
-                            <div key={index} className="p-3 border border-blue-900/40 rounded-md bg-blue-950/20">
-                              <div className="flex items-start">
-                                <div className="bg-blue-900/50 p-1.5 rounded-full mr-3 mt-0.5">
-                                  <ArrowRight className="h-4 w-4 text-blue-300" />
-                                </div>
-                                <div>
-                                  <p className="text-blue-200">{step.title || step}</p>
-                                  {step.description && (
-                                    <p className="text-sm text-blue-400/70 mt-1">{step.description}</p>
-                                  )}
-                                </div>
-                              </div>
+                    return (
+                      <div key={index} className="border rounded-lg overflow-hidden">
+                        <div className={`p-4 bg-gradient-to-b ${bgColor}`}>
+                          <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-medium">{item.topic || item.category}</h3>
+                            <div className={`px-3 py-1 rounded-full text-sm ${color} bg-black/20`}>
+                              {value}% 掌握
                             </div>
-                          ))}
+                          </div>
+                          
+                          <div className="mt-4 relative">
+                            <div className="h-2 w-full bg-neutral-800 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full ${
+                                  value >= 75 ? "bg-green-500" :
+                                  value >= 50 ? "bg-blue-500" :
+                                  value >= 25 ? "bg-yellow-500" : "bg-neutral-500"
+                                }`}
+                                style={{ width: `${value}%` }}
+                              ></div>
+                            </div>
+                            
+                            {item.change !== undefined && (
+                              <div className="mt-3 flex items-center">
+                                {item.change > 0 ? (
+                                  <div className="text-xs text-green-400 flex items-center">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                                      <path d="m18 15-6-6-6 6"/>
+                                    </svg>
+                                    <span>较上次提升 {Math.abs(item.change)}%</span>
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-red-400 flex items-center">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                                      <path d="m6 9 6 6 6-6"/>
+                                    </svg>
+                                    <span>较上次下降 {Math.abs(item.change)}%</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    )}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
+                  <BarChart3 className="h-16 w-16 mb-4 opacity-20" />
+                  <p className="text-lg">暂无详细学习进度数据</p>
+                  <p className="text-sm mt-2">随着您的持续学习，这里将显示更详细的学习进展</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 学习建议标签页 */}
+        <TabsContent value="suggestions">
+          <Card>
+            <CardHeader>
+              <CardTitle>个性化学习建议</CardTitle>
+              <CardDescription>基于您的学习模式生成的建议</CardDescription>
+            </CardHeader>
+            <CardContent className="card-content">
+              {learningPath?.suggestions && learningPath.suggestions.length > 0 ? (
+                <div className="space-y-5">
+                  {learningPath.suggestions.map((suggestion: string, index: number) => (
+                    <div 
+                      key={index} 
+                      className="border rounded-lg overflow-hidden"
+                    >
+                      <div className="p-4 bg-gradient-to-b from-blue-900/20 to-purple-900/10">
+                        <div className="flex items-start">
+                          <div className="bg-gradient-to-br from-blue-500 to-purple-600 w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0 mr-4">
+                            {index + 1}
+                          </div>
+                          <div className="text-neutral-200 pt-1">
+                            {suggestion}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" className="mb-4 opacity-20">
+                    <path d="M9.51445 4.59997C13.0003 0.329972 21.0003 5.59997 14.0145 10.9C7.02868 16.2 15.0287 21.4 18.5145 17.9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M4 19C5 17 3.5 13 7.5 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M4 8C5 8.83333 7 11.2 7 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <p className="text-lg">暂无学习建议</p>
+                  <p className="text-sm mt-2">系统会根据您的学习模式和内容生成专属建议</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 知识图谱标签页 */}
+        <TabsContent value="knowledge-graph">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Network className="mr-2" /> 知识关联图谱
+              </CardTitle>
+              <CardDescription>
+                您的知识主题和它们之间的关联
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="card-content">
+              {knowledgeGraph?.nodes && 
+               knowledgeGraph.nodes.length > 0 ? (
+                <div className="h-[600px] rounded-lg border border-blue-900/50 bg-gradient-to-b from-blue-950/20 to-purple-950/10 p-6">
+                  <div className="space-y-4">
+                    <h3 className="text-lg text-blue-300 flex items-center">
+                      <Network className="h-5 w-5 mr-2 text-blue-400" />
+                      知识图谱可视化
+                    </h3>
+                    
+                    <div className="relative">
+                      <div className="flex flex-col h-[400px] w-full relative overflow-hidden border border-blue-900/50 rounded-lg p-4 bg-blue-950/30">
+                        {knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
+                          <>
+                            <div className="h-[350px] w-full knowledge-graph-container">
+                              <SimpleKnowledgeGraph
+                                nodes={knowledgeGraph.nodes.map((node: KnowledgeNode) => ({
+                                  id: node.id,
+                                  color: node.category === 'cluster' ? '#3b82f6' : 
+                                        node.category === 'keyword' ? '#10b981' : 
+                                        node.category === 'memory' ? '#f59e0b' : '#6366f1',
+                                  size: node.size * 200, // 预览图尺寸小一些
+                                  label: node.label,
+                                  category: node.category
+                                }))}
+                                links={knowledgeGraph.links.map((link: KnowledgeLink) => ({
+                                  source: link.source,
+                                  target: link.target,
+                                  strokeWidth: link.value * 2,
+                                  color: 'rgba(59, 130, 246, 0.5)'
+                                }))}
+                                height={350}
+                                width={window.innerWidth > 768 ? 800 : window.innerWidth - 60}
+                              />
+                            </div>
+                            <div className="mt-4 flex justify-center gap-2 flex-wrap">
+                              <Button
+                                onClick={() => setLocation(`/knowledge-graph-view?userId=${user?.userId}`)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                              >
+                                查看优化版知识图谱
+                              </Button>
+                              {user?.userId === 6 && (
+                                <Button
+                                  onClick={async () => {
+                                    try {
+                                      const response = await fetch(`/api/test-data/generate-graph/6?count=35`);
+                                      const result = await response.json();
+                                      if (result.success) {
+                                        alert(`测试数据生成成功：${result.message}`);
+                                        // 刷新页面以加载新数据
+                                        window.location.reload();
+                                      } else {
+                                        alert(`测试数据生成失败：${result.message}`);
+                                      }
+                                    } catch (error) {
+                                      console.error('生成测试数据失败:', error);
+                                      alert('生成测试数据时发生错误，请查看控制台');
+                                    }
+                                  }}
+                                  variant="secondary"
+                                >
+                                  生成测试数据
+                                </Button>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full w-full">
+                            <p className="text-lg text-neutral-400">知识图谱数据不足</p>
+                            <p className="text-sm text-neutral-500 max-w-md mx-auto mt-2 text-center">
+                              继续与AI对话，系统将自动分析您的学习主题并构建知识图谱
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center border-t border-blue-900/30 pt-4 mt-2">
+                      <div className="text-sm text-neutral-300">
+                        <span className="font-medium">节点数:</span> {knowledgeGraph.nodes.length}
+                        <span className="mx-2">|</span>
+                        <span className="font-medium">关联数:</span> {knowledgeGraph.links.length}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        {['cluster', 'keyword', 'memory'].map(category => (
+                          <div key={category} className="flex items-center gap-1">
+                            <div className={`w-3 h-3 rounded-full ${
+                              category === 'cluster' ? 'bg-blue-500' : 
+                              category === 'keyword' ? 'bg-green-500' : 
+                              'bg-yellow-500'
+                            }`}></div>
+                            <span className="text-xs text-neutral-400">
+                              {category === 'cluster' ? '主题' : 
+                               category === 'keyword' ? '关键词' : '记忆'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
-                    <Lightbulb className="h-16 w-16 mb-4 opacity-20" />
-                    <p className="text-lg">暂无学习建议</p>
-                    <p className="text-sm mt-1 max-w-md text-center">
-                      随着您的学习进展，系统将分析您的学习行为和进度，为您提供个性化的学习建议
+                </div>
+              ) : (
+                <div className="h-[400px] rounded-lg border border-neutral-800 flex items-center justify-center">
+                  <div className="text-center space-y-4">
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" className="mx-auto opacity-20">
+                      <path d="M14 12C14 14.7614 11.7614 17 9 17H7C4.23858 17 2 14.7614 2 12C2 9.23858 4.23858 7 7 7H7.5M10 12C10 9.23858 12.2386 7 15 7H17C19.7614 7 22 9.23858 22 12C22 14.7614 19.7614 17 17 17H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    <p className="text-lg text-neutral-400">暂无足够数据生成知识图谱</p>
+                    <p className="text-sm text-neutral-500 max-w-md mx-auto">
+                      随着您的学习过程，系统将收集更多数据，并构建您的知识图谱，展示概念之间的关联
                     </p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* 知识图谱标签页 */}
-          {renderKnowledgeGraphTab()}
-        </Tabs>
-      </div>
-      
-      {/* 全屏知识图谱模态对话框 */}
-      {knowledgeGraph && knowledgeGraph.nodes && knowledgeGraph.links && (
-        <KnowledgeGraphModal 
-          isOpen={isGraphModalOpen}
-          onClose={() => setIsGraphModalOpen(false)}
-          nodes={knowledgeGraph.nodes.map((node) => ({
-            id: node.id,
-            label: node.label,
-            category: node.category,
-            size: node.size
-          }))}
-          links={knowledgeGraph.links.map((link) => ({
-            source: link.source,
-            target: link.target,
-            type: link.type
-          }))}
-        />
-      )}
-    </>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
