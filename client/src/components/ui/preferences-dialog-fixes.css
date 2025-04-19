@@ -3,43 +3,67 @@
  * 确保偏好设置对话框在iPad上可以正常滚动，防止内容溢出
  */
 
-/* iPad设备上的偏好设置对话框滚动修复 */
+/* 专门为iPad设备设计的滚动修复 */
 .ipad-device .preferences-dialog-content,
 .tablet-device .preferences-dialog-content {
   max-height: 85vh !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
   padding-bottom: 20px !important;
+  /* 强制开启GPU加速，提高滚动性能 */
+  transform: translateZ(0) !important;
+  will-change: transform !important;
 }
 
-/* 对话框内容区域滚动修复 */
+/* 强化对话框内容滚动功能 */
 .ipad-device .preferences-dialog-content > div,
 .tablet-device .preferences-dialog-content > div {
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
   max-height: 70vh !important;
+  padding-right: 5px !important; /* 为滚动条腾出空间 */
 }
 
-/* 修复颜色选择部分在iPad上的显示 */
+/* 修复iPad上的颜色选择部分 */
 .ipad-device .preferences-theme-color-section,
 .tablet-device .preferences-theme-color-section {
   flex-wrap: wrap !important;
   gap: 8px !important;
+  /* 增强点击区域 */
+  padding: 4px !important;
 }
 
-/* 修复背景图片上传区域在iPad上的触摸交互 */
+/* 修复iPad上背景上传区域的触摸交互，确保正确响应点击 */
 .ipad-device .preferences-background-upload,
 .tablet-device .preferences-background-upload {
   min-height: 120px !important;
   touch-action: manipulation !important;
+  cursor: pointer !important;
 }
 
-/* iOS Safari特定修复 */
-@supports (-webkit-touch-callout: none) {
-  .preferences-dialog-content {
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    touch-action: pan-y !important;
-    overscroll-behavior-y: contain !important;
+/* 对话框底部按钮区域修复 */
+.ipad-device .preferences-dialog-content [role="dialog"] > div:last-child,
+.tablet-device .preferences-dialog-content [role="dialog"] > div:last-child {
+  position: sticky !important;
+  bottom: 0 !important;
+  background-color: inherit !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+  z-index: 10 !important;
+}
+
+/* iPad特定滚动修复 - 横屏模式 */
+@media screen and (min-width: 768px) and (max-width: 1366px) and (orientation: landscape) {
+  .ipad-device.landscape .preferences-dialog-content,
+  .tablet-device.landscape .preferences-dialog-content {
+    max-width: 600px !important;
+  }
+}
+
+/* iPad特定滚动修复 - 竖屏模式 */
+@media screen and (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
+  .ipad-device.portrait .preferences-dialog-content,
+  .tablet-device.portrait .preferences-dialog-content {
+    max-width: 460px !important;
   }
 }
