@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
-import { setupViewportHeightListeners, scrollToBottom, isNearBottom, enhanceTouchInteraction } from "@/lib/viewportUtils";
+import { setupViewportHeightListeners, scrollToBottom, isNearBottom, enhanceTouchInteraction, isIpadDevice } from "@/lib/viewportUtils";
 import "./ipad-fixes.css"; // 导入iPad专用修复样式
 import "./mobile-fixes.css"; // 导入手机设备专用修复样式
 import "./preferences-dialog-fixes.css"; // 导入偏好设置对话框的iPad滚动修复样式
@@ -2259,7 +2259,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* 偏好设置对话框 */}
       <Dialog open={showPreferencesDialog} onOpenChange={setShowPreferencesDialog}>
-        <DialogContent className="sm:max-w-md frosted-dialog preferences-dialog-content user-profile-dialog">
+        <DialogContent className="sm:max-w-md frosted-dialog preferences-dialog-content">
           <DialogHeader>
             <DialogTitle>偏好设置</DialogTitle>
           </DialogHeader>

@@ -19,7 +19,7 @@ import "./lib/d3-patch";
 // 导入直接补丁文件，确保_d3Selection全局对象可用
 import "./lib/d3-direct-patch";
 // 导入视口工具，检测设备类型并设置CSS变量
-import { setupViewportHeightListeners } from "@/lib/viewportUtils";
+import { setupViewportHeightListeners, isIpadDevice } from "@/lib/viewportUtils";
 // 导入全局触摸交互优化样式
 import "@/components/ui/touch-interaction.css";
 // 导入iPad和移动设备相关的修复样式
@@ -58,6 +58,13 @@ function App() {
   useEffect(() => {
     // 初始化设备检测并返回清理函数
     const cleanup = setupViewportHeightListeners();
+    
+    // 检测iPad设备并添加类
+    if (isIpadDevice()) {
+      document.documentElement.classList.add('ipad-device');
+      console.log("检测到iPad设备，已应用专用样式优化");
+    }
+    
     console.log("已启动全局视口监听器，进行设备识别和CSS优化");
     
     // 组件卸载时清理
