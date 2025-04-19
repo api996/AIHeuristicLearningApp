@@ -434,22 +434,8 @@ export class ClusterAnalyzerService {
       
       for (let i = 0; i < timeSegments.length; i++) {
         const segment = timeSegments[i];
-        // 确保 startDate 和 endDate 总是有效的 Date 对象
-        let startDate = new Date();
-        let endDate = new Date();
-        
-        // 安全地创建日期，避免处理 null
-        if (segment[0]?.createdAt) {
-          startDate = new Date(segment[0].createdAt);
-        } else {
-          startDate = new Date(); // 提供默认值
-        }
-        
-        if (segment[segment.length - 1]?.createdAt) {
-          endDate = new Date(segment[segment.length - 1].createdAt);
-        } else {
-          endDate = new Date(); // 提供默认值
-        }
+        const startDate = segment[0]?.createdAt ? new Date(segment[0].createdAt) : new Date();
+        const endDate = segment[segment.length - 1]?.createdAt ? new Date(segment[segment.length - 1].createdAt) : new Date();
         
         const segmentKey = `segment_${i + 1}`;
         timeDistribution[segmentKey] = {

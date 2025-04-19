@@ -3,7 +3,7 @@
  * 负责学习路径分析和知识图谱生成
  */
 
-// Removed child_process import for ESM compatibility
+import { spawn } from 'child_process';
 import { 
   LearningPathResult, 
   ProgressData, 
