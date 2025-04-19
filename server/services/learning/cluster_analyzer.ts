@@ -226,12 +226,14 @@ export class ClusterAnalyzerService {
       const keywordCounts = new Map<string, number>();
       
       // 收集所有记忆的关键词
+      let keywordsFound = false;
       for (const memory of memories) {
         try {
           // 从storage获取关键词
           const keywords = await this.getKeywordsForMemory(memory.id);
           
           if (keywords && keywords.length > 0) {
+            keywordsFound = true;
             for (const keyword of keywords) {
               const count = keywordCounts.get(keyword) || 0;
               keywordCounts.set(keyword, count + 1);
@@ -257,19 +259,92 @@ export class ClusterAnalyzerService {
         }
       }
       
-      // 后备方案2：使用记忆摘要
-      if (memories[0].summary) {
-        const summary = memories[0].summary;
-        // 截取摘要的前15个字符作为主题
-        const shortSummary = summary.length > 15 ? summary.substring(0, 15) + "..." : summary;
-        log(`[cluster_analyzer] 使用记忆摘要生成主题: ${shortSummary}`);
-        return shortSummary;
+      // 后备方案2：提取内容中的关键短语
+      if (!keywordsFound) {
+        try {
+          // 提取文本中的关键短语，使用简单的文本分析
+          const commonWords = new Set(['的', '是', '在', '了', '和', '有', '与', '又', '也', 'the', 'is', 'a', 'an', 'of', 'to', 'in', 'for']);
+          const textForAnalysis = contentSamples.join(" ");
+          
+          // 简单的文本分词 (中文按字符，英文按空格)
+          const chineseWords = textForAnalysis.match(/[\u4e00-\u9fa5]{2,6}/g) || [];
+          const englishWords = textForAnalysis.match(/[a-zA-Z]{3,15}/g) || [];
+          
+          // 过滤常见词和过短的词
+          const filteredWords = [...chineseWords, ...englishWords]
+            .filter(word => !commonWords.has(word.toLowerCase()) && word.length >= 2);
+          
+          // 计算词频
+          const wordFrequency = new Map<string, number>();
+          for (const word of filteredWords) {
+            const count = wordFrequency.get(word) || 0;
+            wordFrequency.set(word, count + 1);
+          }
+          
+          // 取频率最高的2-3个词
+          const topWords = Array.from(wordFrequency.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(entry => entry[0]);
+          
+          if (topWords.length > 0) {
+            const extractedTopic = topWords.join("、");
+            log(`[cluster_analyzer] 从文本内容提取关键短语: ${extractedTopic}`);
+            return extractedTopic;
+          }
+        } catch (e) {
+          log(`[cluster_analyzer] 提取关键短语失败: ${e}`, "warn");
+        }
       }
       
-      // 最后的后备方案：使用记忆内容的前几个字
+      // 后备方案3：使用记忆摘要
+      for (const memory of memories) {
+        if (memory.summary) {
+          const summary = memory.summary;
+          // 截取摘要的前15个字符作为主题
+          const shortSummary = summary.length > 15 ? summary.substring(0, 15) + "..." : summary;
+          log(`[cluster_analyzer] 使用记忆摘要生成主题: ${shortSummary}`);
+          return shortSummary;
+        }
+      }
+      
+      // 最后的后备方案：使用记忆内容的前几个字，但移除特殊字符以获得更好的主题
       const firstContent = contentSamples[0];
-      const shortContent = firstContent.length > 10 ? firstContent.substring(0, 10) + "..." : firstContent;
-      log(`[cluster_analyzer] 使用记忆内容生成主题: ${shortContent}`);
+      
+      // 清理文本，移除常见的特殊标记和控制字符
+      let cleanedContent = firstContent
+        .replace(/[\n\r\t]/g, " ")      // 把换行和制表符替换为空格
+        .replace(/<[^>]*>/g, "")        // 移除HTML标签
+        .replace(/["'`„"''«»]/g, "")    // 移除各种引号
+        .replace(/[\[\]{}()]/g, "")     // 移除括号
+        .replace(/\s+/g, " ")           // 压缩多个空格
+        .trim();
+      
+      // 移除开头的特殊模式，如"1."或数字部分
+      cleanedContent = cleanedContent.replace(/^[0-9.\s]+/, "");
+      
+      // 寻找句子边界，优先用第一个完整句子
+      const sentenceMatch = cleanedContent.match(/^[^.!?。！？]+[.!?。！？]/);
+      if (sentenceMatch && sentenceMatch[0].length <= 20) {
+        log(`[cluster_analyzer] 使用第一个句子作为主题: ${sentenceMatch[0]}`);
+        return sentenceMatch[0];
+      }
+      
+      // 截取内容的前15-20个字符作为主题，避免截断词语
+      let shortContent = "";
+      if (cleanedContent.length > 20) {
+        // 找到第20个字符后的第一个空格
+        const spaceAfter20 = cleanedContent.indexOf(" ", 20);
+        if (spaceAfter20 > 0 && spaceAfter20 < 30) {
+          shortContent = cleanedContent.substring(0, spaceAfter20);
+        } else {
+          shortContent = cleanedContent.substring(0, 20) + "...";
+        }
+      } else {
+        shortContent = cleanedContent;
+      }
+      
+      log(`[cluster_analyzer] 使用清理后的记忆内容生成主题: ${shortContent}`);
       return shortContent;
     } catch (error) {
       log(`[cluster_analyzer] 生成主题时出错: ${error}`, "error");
