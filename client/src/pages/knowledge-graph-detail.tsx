@@ -3,10 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, ZoomIn, ZoomOut, Maximize, Minimize } from "lucide-react";
+import { ArrowLeft, ZoomIn, ZoomOut, Maximize, Minimize, RefreshCw } from "lucide-react";
 import SimpleKnowledgeGraph from "@/components/SimpleKnowledgeGraph";
 // 导入iPad滚动修复CSS
 import '@/components/ui/knowledge-graph-fixes.css';
+// 导入知识图谱数据预加载器
+import { preloadKnowledgeGraphData, getKnowledgeGraphData, clearKnowledgeGraphCache } from '@/lib/knowledge-graph-preloader';
 
 // 定义知识图谱节点类型
 interface KnowledgeNode {
@@ -74,39 +76,83 @@ export default function KnowledgeGraphDetail() {
     }
   }, [setLocation, location]);
 
-  // 获取知识图谱数据
-  const { data: knowledgeGraph, isLoading, error } = useQuery<KnowledgeGraph>({
+  // 预加载知识图谱数据
+  useEffect(() => {
+    if (user?.userId) {
+      // 在组件挂载时立即开始预加载
+      console.log(`开始预加载知识图谱数据，用户ID: ${user.userId}`);
+      preloadKnowledgeGraphData(user.userId)
+        .then(data => {
+          console.log(`预加载知识图谱数据成功: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+        })
+        .catch(err => {
+          console.error('预加载知识图谱数据失败:', err);
+        });
+    }
+  }, [user?.userId]);
+
+  // 获取知识图谱数据 - 使用优化版本 (优先使用预加载的缓存数据)
+  const { data: knowledgeGraph, isLoading, error, refetch } = useQuery<KnowledgeGraph>({
     queryKey: [`/api/learning-path/${user?.userId}/knowledge-graph`],
     queryFn: async () => {
-      console.log(`正在获取知识图谱数据，用户ID: ${user?.userId}`);
-      const response = await fetch(`/api/learning-path/${user?.userId}/knowledge-graph`);
-      if (!response.ok) {
-        console.error(`获取知识图谱失败: ${response.status} ${response.statusText}`);
-        throw new Error("获取知识图谱失败");
-      }
-      const data = await response.json();
+      console.log(`获取知识图谱数据，用户ID: ${user?.userId}`);
       
-      // 详细检查并记录接收到的数据结构
-      if (data && Array.isArray(data.nodes) && Array.isArray(data.links)) {
-        console.log(`成功获取知识图谱数据: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+      try {
+        // 优先使用预加载的缓存数据
+        const data = await getKnowledgeGraphData(user?.userId || 0);
         
-        // 检查节点数据是否正确
-        if (data.nodes.length > 0) {
-          console.log('节点示例:', data.nodes[0]);
+        // 详细检查并记录接收到的数据结构
+        if (data && Array.isArray(data.nodes) && Array.isArray(data.links)) {
+          console.log(`成功获取知识图谱数据 (来自预加载): ${data.nodes.length}个节点, ${data.links.length}个连接`);
+          
+          // 检查节点数据是否正确
+          if (data.nodes.length > 0) {
+            console.log('节点示例:', data.nodes[0]);
+          }
+          
+          // 检查连接数据是否正确
+          if (data.links.length > 0) {
+            console.log('连接示例:', data.links[0]);
+          }
+          
+          return data;
+        } else {
+          console.warn('预加载数据结构异常，尝试直接获取:', data);
+          throw new Error('预加载数据异常');
+        }
+      } catch (err) {
+        // 如果预加载失败，回退到直接获取
+        console.warn('使用预加载数据失败，尝试直接获取:', err);
+        
+        const response = await fetch(`/api/learning-path/${user?.userId}/knowledge-graph`);
+        if (!response.ok) {
+          console.error(`获取知识图谱失败: ${response.status} ${response.statusText}`);
+          throw new Error("获取知识图谱失败");
         }
         
-        // 检查连接数据是否正确
-        if (data.links.length > 0) {
-          console.log('连接示例:', data.links[0]);
+        const data = await response.json();
+        if (data && Array.isArray(data.nodes) && Array.isArray(data.links)) {
+          console.log(`成功获取知识图谱数据 (直接获取): ${data.nodes.length}个节点, ${data.links.length}个连接`);
+        } else {
+          console.warn('接收到的数据结构异常:', data);
         }
-      } else {
-        console.warn('接收到的数据结构异常:', data);
+        
+        return data;
       }
-      
-      return data;
     },
     enabled: !!user?.userId,
   });
+  
+  // 添加刷新图谱的处理函数
+  const handleRefreshGraph = () => {
+    if (user?.userId) {
+      // 清除缓存
+      clearKnowledgeGraphCache(user.userId);
+      console.log("已清除知识图谱缓存，重新获取数据...");
+      // 重新获取数据
+      refetch();
+    }
+  };
 
   // 放大图谱 - 使用一个全局变量存储当前的缩放级别
   const handleZoomIn = () => {
@@ -424,6 +470,15 @@ export default function KnowledgeGraphDetail() {
           </Button>
         </Link>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={handleRefreshGraph}
+            title="刷新知识图谱数据"
+            className="bg-blue-800/30 border-blue-700/50 hover:bg-blue-700/40"
+          >
+            <RefreshCw size={16} />
+          </Button>
           <Button variant="outline" size="icon" onClick={handleZoomIn}>
             <ZoomIn size={16} />
           </Button>
