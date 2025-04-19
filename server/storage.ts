@@ -196,11 +196,11 @@ export class DatabaseStorage implements IStorage {
         // 5. 删除所有记忆关键词
         for (const memory of userMemories) {
           log(`删除记忆 ${memory.id} 的关键词`);
-          await tx.delete(memoryKeywords).where(eq(memoryKeywords.memoryId, memory.id.toString()));
+          await tx.delete(memoryKeywords).where(eq(memoryKeywords.memoryId, memory.id));
           
           // 6. 删除所有记忆嵌入
           log(`删除记忆 ${memory.id} 的嵌入向量`);
-          await tx.delete(memoryEmbeddings).where(eq(memoryEmbeddings.memoryId, memory.id.toString()));
+          await tx.delete(memoryEmbeddings).where(eq(memoryEmbeddings.memoryId, memory.id));
         }
         
         // 7. 删除所有记忆
@@ -696,10 +696,9 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Insert keyword record
-      // 将 memoryId 转换为字符串，以匹配数据库定义
       const [memoryKeyword] = await db.insert(memoryKeywords)
         .values({
-          memoryId: memoryId.toString(), // 转换为字符串
+          memoryId,
           keyword: keyword.trim().toLowerCase()
         })
         .returning();
@@ -718,10 +717,9 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Get all keywords for a memory
-      // 将 memoryId 转换为字符串，以匹配数据库定义
       return await db.select()
         .from(memoryKeywords)
-        .where(eq(memoryKeywords.memoryId, memoryId.toString()));
+        .where(eq(memoryKeywords.memoryId, memoryId));
     } catch (error) {
       log(`Error getting keywords for memory ${memoryId}: ${error}`);
       throw error;
@@ -735,9 +733,8 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Delete all keywords for a memory
-      // 将 memoryId 转换为字符串，以匹配数据库定义
       await db.delete(memoryKeywords)
-        .where(eq(memoryKeywords.memoryId, memoryId.toString()));
+        .where(eq(memoryKeywords.memoryId, memoryId));
       
       log(`All keywords for memory ${memoryId} deleted`);
     } catch (error) {
@@ -762,19 +759,17 @@ export class DatabaseStorage implements IStorage {
       
       if (existing) {
         // Update existing embedding
-        // 将 memoryId 转换为字符串，以匹配数据库定义
         const [updatedEmbedding] = await db.update(memoryEmbeddings)
           .set({ vectorData })
-          .where(eq(memoryEmbeddings.memoryId, memoryId.toString()))
+          .where(eq(memoryEmbeddings.memoryId, memoryId))
           .returning();
         
         return updatedEmbedding;
       } else {
         // Insert new embedding
-        // 将 memoryId 转换为字符串，以匹配数据库定义
         const [embedding] = await db.insert(memoryEmbeddings)
           .values({
-            memoryId: memoryId.toString(), // 转换为字符串
+            memoryId,
             vectorData
           })
           .returning();
@@ -793,10 +788,9 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Invalid memory ID");
       }
       
-      // 将 memoryId 转换为字符串，以匹配数据库定义
       const [embedding] = await db.select()
         .from(memoryEmbeddings)
-        .where(eq(memoryEmbeddings.memoryId, memoryId.toString()));
+        .where(eq(memoryEmbeddings.memoryId, memoryId));
       
       return embedding;
     } catch (error) {
@@ -823,7 +817,7 @@ export class DatabaseStorage implements IStorage {
       .from(memories)
       .innerJoin(
         memoryEmbeddings,
-        eq(memories.id.toString(), memoryEmbeddings.memoryId)
+        eq(memories.id, memoryEmbeddings.memoryId)
       )
       .where(eq(memories.userId, userId));
       
