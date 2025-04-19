@@ -4,12 +4,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle } from "lucide-react";
+import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import SimpleKnowledgeGraph from "@/components/SimpleKnowledgeGraph";
 // 导入学习轨迹页面的iPad滚动修复CSS
 import "@/components/ui/learning-path-fixes.css";
+// 导入知识图谱样式
+import "@/components/ui/knowledge-graph-fixes.css";
+// 导入知识图谱预加载器
+import { preloadKnowledgeGraphData } from '@/lib/knowledge-graph-preloader';
 
 // 定义知识图谱节点类型
 interface KnowledgeNode {
