@@ -343,7 +343,7 @@ export default function KnowledgeGraphDetail() {
             
             {knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
               <div 
-                className="w-full relative overflow-visible touch-manipulation" 
+                className="w-full relative overflow-visible touch-manipulation knowledge-graph-container" 
                 style={{
                   touchAction: 'manipulation',
                   WebkitUserSelect: 'none',
