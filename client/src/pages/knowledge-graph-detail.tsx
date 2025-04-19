@@ -93,7 +93,22 @@ export default function KnowledgeGraphDetail() {
   // 切换全屏模式
   const toggleFullScreen = () => {
     if (!isFullScreen) {
-      if (graphContainerRef.current?.requestFullscreen) {
+      // 使用最内层的图形容器，而不是外层Card
+      const graphContainer = document.querySelector('.knowledge-graph-container');
+      if (graphContainer && graphContainer.requestFullscreen) {
+        graphContainer.requestFullscreen().then(() => {
+          console.log("进入全屏模式");
+        }).catch(err => {
+          console.error("全屏模式错误:", err);
+          // 回退到使用父容器
+          if (graphContainerRef.current?.requestFullscreen) {
+            graphContainerRef.current.requestFullscreen().catch(err2 => {
+              console.error("使用父容器全屏模式也失败:", err2);
+            });
+          }
+        });
+      } else if (graphContainerRef.current?.requestFullscreen) {
+        // 回退到使用父容器
         graphContainerRef.current.requestFullscreen().catch(err => {
           console.error("全屏模式错误:", err);
         });
@@ -263,6 +278,8 @@ export default function KnowledgeGraphDetail() {
                   height={isFullScreen ? window.innerHeight - 120 : 600}
                   width={isFullScreen ? window.innerWidth - 40 : window.innerWidth > 768 ? 800 : window.innerWidth - 40}
                   onNodeClick={onClickNode}
+                  zoomLevel={zoomLevel}
+                  isFullScreen={isFullScreen}
                 />
               </div>
             ) : (

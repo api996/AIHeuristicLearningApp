@@ -36,6 +36,8 @@ interface SimpleKnowledgeGraphProps {
   width?: number;
   height?: number;
   onNodeClick?: (nodeId: string) => void;
+  zoomLevel?: number; // 添加缩放级别属性
+  isFullScreen?: boolean; // 添加全屏状态属性
 }
 
 /**
@@ -47,7 +49,9 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
   links,
   width = 800,
   height = 600,
-  onNodeClick
+  onNodeClick,
+  zoomLevel = 1,
+  isFullScreen = false
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -132,6 +136,41 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       console.warn("拖拽结束事件处理错误:", err);
     }
   };
+
+  // 响应缩放级别和全屏状态变化
+  useEffect(() => {
+    if (!svgRef.current) return;
+    
+    console.log(`图谱更新: 缩放=${zoomLevel}, 全屏=${isFullScreen}`);
+    
+    // 获取SVG元素
+    const svg = d3.select(svgRef.current);
+    
+    // 根据全屏状态更新SVG尺寸
+    if (isFullScreen) {
+      svg.attr('width', window.innerWidth - 40)
+         .attr('height', window.innerHeight - 120);
+    } else {
+      svg.attr('width', width)
+         .attr('height', height);
+    }
+    
+    // 应用缩放级别（使用transform属性直接缩放容器）
+    try {
+      const g = svg.select('g');
+      if (!g.empty()) {
+        // 获取当前的transform属性
+        const currentTransform = g.attr('transform') || '';
+        // 提取平移部分，保留平移但更新缩放
+        const translateMatch = currentTransform.match(/translate\(([^)]+)\)/);
+        const translate = translateMatch ? translateMatch[1] : width/2 + ',' + height/2;
+        // 应用新的缩放
+        g.attr('transform', `translate(${translate}) scale(${zoomLevel})`);
+      }
+    } catch (err) {
+      console.warn("应用缩放级别时出错:", err);
+    }
+  }, [zoomLevel, isFullScreen, width, height]);
 
   useEffect(() => {
     if (!svgRef.current || !nodes.length) return;
