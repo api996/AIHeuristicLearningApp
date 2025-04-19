@@ -1,6 +1,13 @@
 import React, { useRef, useEffect, useState } from 'react';
-// @ts-ignore - 忽略d3的类型错误
+// @ts-ignore - 完全忽略d3的类型检查，避免TypeScript错误
 import * as d3 from 'd3';
+
+// 声明简化的d3类型，以便在代码中使用
+declare global {
+  interface Window {
+    d3: any;
+  }
+}
 
 interface Node {
   id: string;
@@ -41,6 +48,24 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // 拖拽事件处理函数（声明在外部以避免提前引用）
+  const handleDragStarted = (simulation: any) => (event: any, d: any) => {
+    if (!event.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+  };
+
+  const handleDragged = () => (event: any, d: any) => {
+    d.fx = event.x;
+    d.fy = event.y;
+  };
+
+  const handleDragEnded = (simulation: any) => (event: any, d: any) => {
+    if (!event.active) simulation.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
+  };
+
   useEffect(() => {
     if (!svgRef.current || !nodes.length) return;
 
@@ -65,17 +90,17 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         .attr('height', height)
         .style('background', 'transparent');
 
+      // 创建一个容器以支持缩放和平移
+      const container = svg.append('g');
+
       // 添加缩放行为
       const zoom = d3.zoom()
         .scaleExtent([0.1, 4])
-        .on('zoom', (event) => {
+        .on('zoom', (event: any) => {
           container.attr('transform', event.transform);
         });
 
       svg.call(zoom as any);
-
-      // 创建一个容器以支持缩放和平移
-      const container = svg.append('g');
 
       // 创建力导向模拟
       const simulation = d3.forceSimulation(nodes as any)
@@ -90,8 +115,8 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         .data(formattedLinks)
         .enter()
         .append('line')
-        .attr('stroke', d => d.color || 'rgba(59, 130, 246, 0.5)')
-        .attr('stroke-width', d => d.strokeWidth || 1.5);
+        .attr('stroke', (d: any) => d.color || 'rgba(59, 130, 246, 0.5)')
+        .attr('stroke-width', (d: any) => d.strokeWidth || 1.5);
 
       // 创建节点组
       const node = container.append('g')
@@ -100,50 +125,32 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         .enter()
         .append('g')
         .attr('class', 'node')
-        .on('click', function(event, d) {
+        .on('click', function(event: any, d: any) {
           if (onNodeClick) {
             event.stopPropagation();
             onNodeClick(d.id);
           }
         })
         .call(d3.drag()
-          .on('start', dragStarted)
-          .on('drag', dragged)
-          .on('end', dragEnded) as any
+          .on('start', handleDragStarted(simulation))
+          .on('drag', handleDragged())
+          .on('end', handleDragEnded(simulation)) as any
         );
 
       // 添加节点圆形
       node.append('circle')
-        .attr('r', d => (d.size || 15) / 15)
-        .attr('fill', d => d.color || '#3b82f6')
+        .attr('r', (d: any) => (d.size || 15) / 15)
+        .attr('fill', (d: any) => d.color || '#3b82f6')
         .attr('stroke', '#ffffff')
         .attr('stroke-width', 1.5);
 
       // 添加节点标签
       node.append('text')
-        .attr('dx', d => (d.size || 15) / 15 + 5)
+        .attr('dx', (d: any) => (d.size || 15) / 15 + 5)
         .attr('dy', '.35em')
         .attr('font-size', '10px')
         .attr('fill', '#ffffff')
-        .text(d => d.label || d.id);
-
-      // 拖拽事件处理函数（声明在外部以避免strict mode问题）
-      const dragStarted = (event: any, d: any) => {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-      };
-
-      const dragged = (event: any, d: any) => {
-        d.fx = event.x;
-        d.fy = event.y;
-      };
-
-      const dragEnded = (event: any, d: any) => {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-      };
+        .text((d: any) => d.label || d.id);
 
       // 更新力导向模拟
       simulation.on('tick', () => {
