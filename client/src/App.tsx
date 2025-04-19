@@ -28,7 +28,6 @@ import "@/components/ui/memory-space-fixes.css";
 import "@/components/ui/knowledge-graph-fixes.css";
 import "@/components/ui/learning-path-fixes.css";
 import "@/components/admin/admin-ipad-fixes.css";
-import "@/components/ui/dialog-fixes.css"; // 修复对话框在iPad上的问题
 
 function Router() {
   // 使用简单的路由配置，让各个组件内部自己处理授权逻辑
