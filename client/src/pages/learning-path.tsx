@@ -270,7 +270,7 @@ export default function LearningPath() {
                             <SimpleKnowledgeGraph
                               nodes={knowledgeGraph.nodes}
                               links={knowledgeGraph.links}
-                              width="100%"
+                              width={800}
                               height={400}
                             />
                             <div className="absolute top-4 right-4 flex gap-2">

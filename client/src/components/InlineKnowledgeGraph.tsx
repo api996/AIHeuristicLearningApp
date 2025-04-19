@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { X, RefreshCw } from "lucide-react";
 import StaticKnowledgeGraph from "./StaticKnowledgeGraph";
+import SimpleKnowledgeGraph from "./SimpleKnowledgeGraph";
 import { preloadKnowledgeGraphData, getKnowledgeGraphData, clearKnowledgeGraphCache } from '@/lib/knowledge-graph-preloader';
 
 interface KnowledgeNode {
