@@ -122,7 +122,7 @@ export default function AdminDashboard() {
       {/* Tabs Navigation */}
       <div className="border-b border-neutral-800 bg-neutral-900">
         <div className="container mx-auto px-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="admin-tabs">
             <TabsList className="bg-neutral-800 mt-2">
               <TabsTrigger value="dashboard">控制面板</TabsTrigger>
               <TabsTrigger value="security">安全设置</TabsTrigger>
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
             </TabsList>
 
             {/* Dashboard Tab */}
-            <TabsContent value="dashboard">
+            <TabsContent value="dashboard" className="admin-dashboard-tabs-content">
               {/* Main Content */}
               <main className="py-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -239,7 +239,7 @@ export default function AdminDashboard() {
             </TabsContent>
 
             {/* Prompts Templates Tab */}
-            <TabsContent value="prompts">
+            <TabsContent value="prompts" className="admin-dashboard-tabs-content">
               <div className="py-8">
                 <div className="container mx-auto px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
