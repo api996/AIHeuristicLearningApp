@@ -182,7 +182,7 @@ export default function LearningPath() {
                 </CardTitle>
                 <CardDescription>您的主要学习方向</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="card-content">
                 {learningPath?.topics && learningPath.topics.length > 0 ? (
                   <div className="space-y-4">
                     {learningPath.topics.map((topic: any) => (
@@ -220,7 +220,7 @@ export default function LearningPath() {
                 </CardTitle>
                 <CardDescription>您在各领域的学习深度</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="card-content">
                 {learningPath?.progress && learningPath.progress.length > 0 ? (
                   <div className="space-y-4">
                     {learningPath.progress.map((item: any, index: number) => {
@@ -439,7 +439,7 @@ export default function LearningPath() {
                 您的知识主题和它们之间的关联
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="card-content">
               {knowledgeGraph?.nodes && 
                knowledgeGraph.nodes.length > 0 ? (
                 <div className="h-[600px] rounded-lg border border-blue-900/50 bg-gradient-to-b from-blue-950/20 to-purple-950/10 p-6">
@@ -453,7 +453,7 @@ export default function LearningPath() {
                       <div className="flex flex-col h-[400px] w-full relative overflow-hidden border border-blue-900/50 rounded-lg p-4 bg-blue-950/30">
                         {knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
                           <>
-                            <div className="h-[350px] w-full">
+                            <div className="h-[350px] w-full knowledge-graph-container">
                               <SimpleKnowledgeGraph
                                 nodes={knowledgeGraph.nodes.map((node: KnowledgeNode) => ({
                                   id: node.id,
