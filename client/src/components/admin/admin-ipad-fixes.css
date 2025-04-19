@@ -4,130 +4,61 @@
  */
 
 /* 为整个模板编辑器添加触摸滚动支持 */
-.admin-template-editor,
-.ipad-device .min-h-screen,
-.tablet-device .min-h-screen,
-.min-h-screen {
-  -webkit-overflow-scrolling: touch !important;
-  overflow-y: auto !important; /* 允许整体滚动 */
-  min-height: 100vh !important;
-  height: auto !important;
-  max-height: none !important;
-  overscroll-behavior-y: contain !important;
-  touch-action: pan-y !important;
-  padding-bottom: 100px !important; /* 增加底部内边距 */
+.admin-template-editor {
+  -webkit-overflow-scrolling: touch;
+  min-height: 100vh;
+  overflow: auto; /* 允许整体滚动 */
 }
 
 /* 修复iPad上的网格布局 */
-.grid,
-.ipad-device .grid,
-.tablet-device .grid,
 .admin-template-editor-grid {
-  display: grid !important;
-  min-height: 0 !important;  /* 确保网格不会超出其容器 */
-  padding-bottom: 30px !important; /* 增加底部内边距 */
-  height: auto !important;
-  max-height: none !important;
+  display: grid;
+  min-height: 0;  /* 确保网格不会超出其容器 */
+  padding-bottom: 20px; /* 增加底部内边距 */
 }
 
 /* 提高模板编辑卡片的滚动可靠性 */
-.card,
-.ipad-device .card, 
-.tablet-device .card,
 .template-editor-card {
-  display: flex !important;
-  flex-direction: column !important;
-  height: auto !important; /* 自适应高度而不是固定高度 */
-  overflow: visible !important; /* 允许内容正常显示 */
-  max-height: none !important;
+  display: flex;
+  flex-direction: column;
+  height: auto; /* 自适应高度而不是固定高度 */
+  overflow: visible; /* 允许内容正常显示 */
 }
 
 /* 确保内容区域可以正常滚动 */
-.card-content,
-.ipad-device .card-content,
-.tablet-device .card-content,
 .template-editor-content {
-  -webkit-overflow-scrolling: touch !important;
-  overflow-y: auto !important;
-  flex: 1 !important;
-  padding: 1rem !important;
-  height: auto !important;
-  min-height: 200px !important;
-  max-height: none !important; /* 不限制高度，允许页面整体滚动 */
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  flex: 1;
+  padding: 1rem;
+  max-height: 50vh; /* 限制编辑内容区域的最大高度，允许页面整体滚动 */
 }
 
-/* 修复文本区域滚动问题 */
-.textarea,
-.ipad-device textarea,
-.tablet-device textarea,
-.ipad-device .textarea,
-.tablet-device .textarea,
+/* 提升文本区域的可用性 */
 .template-textarea-container {
-  position: relative !important;
-  min-height: 200px !important;
-  overflow: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  height: auto !important; 
-  max-height: none !important;
+  position: relative;
+  min-height: 200px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.textarea,
-.ipad-device textarea,
-.tablet-device textarea,
 .template-textarea {
-  width: 100% !important;
-  min-height: 200px !important;
-  resize: vertical !important;
-  -webkit-overflow-scrolling: touch !important;
-  touch-action: pan-y !important;
-  overscroll-behavior: contain !important;
-  font-family: monospace !important;
-  height: auto !important;
-  max-height: none !important;
-}
-
-/* 强制修复特定Tab内容容器的滚动问题 */
-.ipad-device [role="tabpanel"],
-.tablet-device [role="tabpanel"],
-[data-orientation="vertical"] > [data-state="active"] {
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  touch-action: pan-y !important;
-  height: auto !important;
-  min-height: 60vh !important;
-  display: block !important;
-  padding-bottom: 50px !important;
-}
-
-/* 强制显示滚动条 */
-.ipad-device [role="tabpanel"]::-webkit-scrollbar,
-.tablet-device [role="tabpanel"]::-webkit-scrollbar {
-  width: 6px !important;
-  height: 6px !important;
-  display: block !important;
-}
-
-.ipad-device [role="tabpanel"]::-webkit-scrollbar-thumb,
-.tablet-device [role="tabpanel"]::-webkit-scrollbar-thumb {
-  background-color: rgba(99, 102, 241, 0.3) !important;
-  border-radius: 8px !important;
+  width: 100%;
+  min-height: 200px;
+  resize: vertical;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  font-family: monospace;
 }
 
 /* 针对iOS Safari浏览器的特定修复 */
 @supports (-webkit-touch-callout: none) {
-  body,
-  .min-h-screen,
   .template-editor-content,
-  .template-textarea,
-  [role="tabpanel"],
-  .card,
-  .card-content,
-  .textarea {
+  .template-textarea {
     /* iOS Safari特定修复 */
-    -webkit-overflow-scrolling: touch !important;
-    overscroll-behavior-y: contain !important;
-    touch-action: manipulation !important;
-    height: auto !important;
-    max-height: none !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
   }
 }
