@@ -92,10 +92,12 @@ export default function LearningPath() {
   });
   
   // 获取知识图谱数据 - 使用预加载与缓存策略
+  const [isGraphLoading, setIsGraphLoading] = useState(false);
   const { data: knowledgeGraph } = useQuery({
     queryKey: ["/api/learning-path/knowledge-graph", user?.userId],
     queryFn: async () => {
       try {
+        setIsGraphLoading(true);
         // 优先使用已预加载的数据
         console.log("从预加载缓存获取知识图谱数据...");
         const cachedData = await preloadKnowledgeGraphData(user?.userId || 0);
@@ -108,6 +110,8 @@ export default function LearningPath() {
           throw new Error("获取知识图谱失败");
         }
         return response.json();
+      } finally {
+        setIsGraphLoading(false);
       }
     },
     enabled: !!user?.userId,
