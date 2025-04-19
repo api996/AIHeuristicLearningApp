@@ -344,12 +344,15 @@ export default function KnowledgeGraphDetail() {
 
   return (
     <div 
-      className="container mx-auto py-4 px-2 md:px-6 flex flex-col min-h-screen knowledge-graph-detail-page"
+      className="container mx-auto py-4 px-2 md:px-6 knowledge-graph-detail-page"
       style={{
-        height: '100vh',
-        overflowY: 'scroll', // 使用scroll而不是auto强制显示滚动条
-        WebkitOverflowScrolling: 'touch',
-        scrollbarWidth: 'thin', // Firefox
+        height: 'calc(100vh - 40px)', // 减去一些边距
+        overflowY: 'scroll', // 使用scroll而不是auto强制显示滚动条 
+        WebkitOverflowScrolling: 'touch', // iOS滚动优化
+        scrollbarWidth: 'thin', // Firefox优化
+        boxSizing: 'border-box',
+        padding: '16px',
+        position: 'relative',
         display: 'block' // 改为block布局
       }}
     >
