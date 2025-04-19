@@ -447,25 +447,47 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
   // 添加确认日志
   console.log("SimpleKnowledgeGraph: 准备渲染知识图谱，节点数=", nodes.length, "连接数=", links.length);
 
-  // 添加触摸事件处理，增强iPad兼容性
+  // 添加触摸事件处理，增强移动设备兼容性
   useEffect(() => {
     if (!svgRef.current) return;
     
     // 为SVG添加触摸事件处理
-    const handleTouchEvent = (e: TouchEvent) => {
+    const handleTouchStart = (e: TouchEvent) => {
       // 确保触摸事件不会导致页面滚动
-      if (e.touches.length > 0) {
+      if (e.touches.length === 1) {
         e.preventDefault();
+        // 在某些浏览器中，即使阻止了默认行为，仍需要返回false
+        return false;
       }
     };
     
+    const handleTouchMove = (e: TouchEvent) => {
+      // 阻止单指触摸时的页面滚动，但允许多指操作（如缩放）
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        return false;
+      }
+    };
+    
+    // 防止双击放大
+    const handleDoubleTap = (e: TouchEvent) => {
+      e.preventDefault();
+      return false;
+    };
+    
     const svgElement = svgRef.current;
-    svgElement.addEventListener('touchstart', handleTouchEvent, { passive: false });
-    svgElement.addEventListener('touchmove', handleTouchEvent, { passive: false });
+    svgElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+    svgElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+    svgElement.addEventListener('dblclick', handleDoubleTap as any, { passive: false });
+    
+    // 添加触摸样式类，以便应用CSS优化
+    svgElement.classList.add('touch-enabled-svg');
     
     return () => {
-      svgElement.removeEventListener('touchstart', handleTouchEvent);
-      svgElement.removeEventListener('touchmove', handleTouchEvent);
+      svgElement.removeEventListener('touchstart', handleTouchStart);
+      svgElement.removeEventListener('touchmove', handleTouchMove);
+      svgElement.removeEventListener('dblclick', handleDoubleTap as any);
+      svgElement.classList.remove('touch-enabled-svg');
     };
   }, []);
 
