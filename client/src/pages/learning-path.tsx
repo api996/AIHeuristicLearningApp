@@ -526,8 +526,8 @@ export default function LearningPath() {
                       onClick={() => {
                         if (user?.userId) {
                           setIsGraphLoading(true);
-                          // 刷新知识图谱数据
-                          fetch(`/api/learning-path/${user.userId}/knowledge-graph?refresh=true`, {
+                          // 刷新知识图谱数据 - 使用真实聚类结果
+                          fetch(`/api/learning-path/${user.userId}/knowledge-graph?refresh=true&use_real_clusters=true`, {
                             headers: { 'Cache-Control': 'no-cache' }
                           })
                             .then(res => res.json())
@@ -548,37 +548,8 @@ export default function LearningPath() {
                       }}
                     >
                       <RefreshCw className={`h-4 w-4 mr-1 ${isGraphLoading ? 'animate-spin' : ''}`} />
-                      刷新
+                      刷新数据
                     </Button>
-                    {user?.userId === 6 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-gray-800/70 text-white border-gray-700 hover:bg-gray-700"
-                        onClick={async () => {
-                          try {
-                            setIsGraphLoading(true);
-                            const response = await fetch(`/api/test-data/generate-graph/6?count=35`);
-                            const result = await response.json();
-                            if (result.success) {
-                              // 先更新缓存，再重新加载
-                              await preloadKnowledgeGraphData(user.userId as number, true);
-                              console.log(`测试数据生成成功：${result.message}`);
-                              window.location.reload();
-                            } else {
-                              alert(`测试数据生成失败：${result.message}`);
-                              setIsGraphLoading(false);
-                            }
-                          } catch (error) {
-                            console.error('生成测试数据失败:', error);
-                            alert('生成测试数据时发生错误，请稍后再试');
-                            setIsGraphLoading(false);
-                          }
-                        }}
-                      >
-                        生成测试数据
-                      </Button>
-                    )}
                   </div>
                 </div>
                 
