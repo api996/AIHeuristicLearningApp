@@ -276,9 +276,89 @@
   }
 }
 
+/* ===== iPad/iPhone通用滚动修复 - 确保所有页面都能滚动 ===== */
+/* 全局顶级滚动修复 - 应用于页面级别 */
+.ipad-device,
+.tablet-device,
+.iphone-device,
+.mobile-device {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  height: 100% !important;
+}
+
+/* 确保全局根元素可滚动 */
+.ipad-device #root,
+.tablet-device #root,
+.iphone-device #root,
+.mobile-device #root {
+  min-height: 100vh !important;
+  height: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* 全局页面容器滚动启用 */
+.page-container,
+.page-content,
+.page-wrapper,
+.page,
+.screen,
+.view,
+div[class*="page"],
+div[class*="Page"],
+div[class*="view"],
+div[class*="View"],
+div[class*="screen"],
+div[class*="Screen"],
+main {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  height: auto !important;
+  min-height: 80vh !important;
+  padding-bottom: 50px !important;
+}
+
 /* ===== 记忆空间、知识图谱和学习轨迹页面的iPad滚动修复 ===== */
 /* 支持所有屏幕尺寸，包括手机 */
 @media screen {
+
+  /* 高级提示词编辑器页面滚动修复 */
+  .ipad-device .prompt-editor-page,
+  .tablet-device .prompt-editor-page,
+  .iphone-device .prompt-editor-page,
+  .mobile-device .prompt-editor-page {
+    height: 100vh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 120px !important;
+  }
+  
+  /* 高级提示词编辑器内容区域滚动修复 */
+  .ipad-device .prompt-editor-container,
+  .tablet-device .prompt-editor-container,
+  .iphone-device .prompt-editor-container,
+  .mobile-device .prompt-editor-container,
+  .ipad-device [class*="prompt-template-editor"],
+  .tablet-device [class*="prompt-template-editor"],
+  .iphone-device [class*="prompt-template-editor"],
+  .mobile-device [class*="prompt-template-editor"],
+  .ipad-device .prompt-editor,
+  .tablet-device .prompt-editor,
+  .iphone-device .prompt-editor,
+  .mobile-device .prompt-editor,
+  /* 管理员页面提示词编辑器通用类 */
+  .ipad-device [class*="admin-prompt"],
+  .tablet-device [class*="admin-prompt"],
+  .iphone-device [class*="admin-prompt"],
+  .mobile-device [class*="admin-prompt"] {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-height: none !important;
+    height: auto !important;
+    min-height: 50vh !important;
+    padding-bottom: 100px !important;
+  }
   /* 全局页面容器滚动修复 */
   .ipad-device .container.mx-auto.py-6.flex-1.flex.flex-col,
   .tablet-device .container.mx-auto.py-6.flex-1.flex.flex-col,
@@ -460,6 +540,8 @@
     height: auto !important;
     min-height: 70vh !important;
     max-height: none !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
   
   /* 学习轨迹标签内容修复 - 特定针对无法滚动的内容 */
@@ -475,7 +557,28 @@
     -webkit-overflow-scrolling: touch !important;
     height: auto !important;
     min-height: 50vh !important;
-    padding-bottom: 50px !important;
+    padding-bottom: 80px !important;
+  }
+  
+  /* 提示词编辑器和学习轨迹页面特别修复 - 专用修复 */
+  .ipad-device .prompt-editor-form,
+  .tablet-device .prompt-editor-form,
+  .iphone-device .prompt-editor-form,
+  .mobile-device .prompt-editor-form,
+  .ipad-device .learning-path-container,
+  .tablet-device .learning-path-container,
+  .iphone-device .learning-path-container,
+  .mobile-device .learning-path-container,
+  .ipad-device [class*="learning-path"],
+  .tablet-device [class*="learning-path"],
+  .iphone-device [class*="learning-path"],
+  .mobile-device [class*="learning-path"] {
+    height: auto !important;
+    min-height: 80vh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 150px !important;
+    position: relative !important;
   }
 }
 
