@@ -355,24 +355,305 @@ export default function LearningPath() {
           
           {/* 其他标签页内容 */}
           <TabsContent value="overview">
-            {/* 现有总览内容 */}
-            <div className="text-center p-6">
-              <h2 className="text-xl">总览内容</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <BookOpen className="mr-2" /> 学习主题
+                  </CardTitle>
+                  <CardDescription>您的主要学习方向</CardDescription>
+                </CardHeader>
+                <CardContent className="card-content">
+                  {learningPath?.topics && learningPath.topics.length > 0 ? (
+                    <div className="space-y-4">
+                      {learningPath.topics.map((topic: any) => (
+                        <div 
+                          key={topic.id} 
+                          className="p-3 border rounded-md flex justify-between items-center hover:bg-neutral-800/30 transition-colors"
+                        >
+                          <div className="flex items-center">
+                            <div className={`w-3 h-3 rounded-full bg-blue-500 mr-3`}></div>
+                            <span className="font-medium">{topic.topic}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <div className={`px-2 py-1 text-xs rounded-full 
+                              ${topic.percentage > 50 ? 'bg-blue-900/30 text-blue-400' : 'bg-neutral-800 text-neutral-400'}`}>
+                              {topic.percentage}%
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 text-neutral-400">
+                      <BookOpen className="h-12 w-12 mb-3 opacity-20" />
+                      <p>暂无学习主题数据</p>
+                      <p className="text-sm mt-1">开始与AI对话，系统将自动分析您的学习主题</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <BarChart3 className="mr-2" /> 学习进度
+                  </CardTitle>
+                  <CardDescription>您在各领域的学习深度</CardDescription>
+                </CardHeader>
+                <CardContent className="card-content">
+                  {learningPath?.progress && learningPath.progress.length > 0 ? (
+                    <div className="space-y-4">
+                      {learningPath.progress.map((item: any, index: number) => {
+                        // 根据进度值确定颜色
+                        const value = item.percentage || item.score || 0;
+                        let color;
+                        if (value >= 75) color = "text-green-400 bg-green-900/30";
+                        else if (value >= 50) color = "text-blue-400 bg-blue-900/30";
+                        else if (value >= 25) color = "text-yellow-400 bg-yellow-900/30";
+                        else color = "text-neutral-400 bg-neutral-800";
+                        
+                        return (
+                          <div 
+                            key={index} 
+                            className="p-3 border rounded-md hover:bg-neutral-800/30 transition-colors"
+                          >
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="font-medium">{item.topic || item.category}</span>
+                              <div className={`px-2.5 py-1 text-xs rounded-full ${color}`}>
+                                {value}%
+                              </div>
+                            </div>
+                            {item.change !== undefined && (
+                              <div className="text-xs text-neutral-400 mt-1">
+                                较上次{item.change > 0 ? 
+                                  <span className="text-green-400">提升 {Math.abs(item.change)}%</span> : 
+                                  <span className="text-red-400">下降 {Math.abs(item.change)}%</span>
+                                }
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 text-neutral-400">
+                      <BarChart3 className="h-12 w-12 mb-3 opacity-20" />
+                      <p>暂无学习进度数据</p>
+                      <p className="text-sm mt-1">随着您的持续学习，这里将显示您的进度</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
+
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>学习建议</CardTitle>
+                <CardDescription>基于您的学习记录生成的个性化建议</CardDescription>
+              </CardHeader>
+              <CardContent className="card-content">
+                {learningPath?.suggestions && learningPath.suggestions.length > 0 ? (
+                  <div className="space-y-3">
+                    {learningPath.suggestions.map((suggestion: string, index: number) => (
+                      <div 
+                        key={index} 
+                        className="p-3 border rounded-md hover:bg-neutral-800/30 transition-colors flex items-start"
+                      >
+                        <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full mr-3 shrink-0 mt-0.5">
+                          <ArrowRight className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="text-neutral-200">{suggestion}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-6 text-neutral-400">
+                    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" className="mb-3 opacity-20">
+                      <path d="M12 16V10M12 8H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <p>暂无学习建议</p>
+                    <p className="text-sm mt-1">随着您的学习进展，系统将生成针对性的学习建议</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
           
           <TabsContent value="progress">
-            {/* 现有进度内容 */}
-            <div className="text-center p-6">
-              <h2 className="text-xl">进度内容</h2>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>详细学习进度</CardTitle>
+                <CardDescription>各主题学习深度分析</CardDescription>
+              </CardHeader>
+              <CardContent className="card-content">
+                {learningPath?.progress && learningPath.progress.length > 0 ? (
+                  <div className="space-y-6">
+                    {learningPath.progress.map((item: any, index: number) => {
+                      // 根据进度值确定颜色
+                      const value = item.percentage || item.score || 0;
+                      let color, bgColor;
+                      if (value >= 75) {
+                        color = "text-green-400";
+                        bgColor = "from-green-900/20 to-green-800/10";
+                      } else if (value >= 50) {
+                        color = "text-blue-400";
+                        bgColor = "from-blue-900/20 to-blue-800/10";
+                      } else if (value >= 25) {
+                        color = "text-yellow-400";
+                        bgColor = "from-yellow-900/20 to-yellow-800/10";
+                      } else {
+                        color = "text-neutral-400";
+                        bgColor = "from-neutral-800/20 to-neutral-700/10";
+                      }
+                      
+                      return (
+                        <div key={index} className="border rounded-lg overflow-hidden">
+                          <div className={`p-4 bg-gradient-to-b ${bgColor}`}>
+                            <div className="flex justify-between items-center">
+                              <h3 className="text-lg font-medium">{item.topic || item.category}</h3>
+                              <div className={`px-3 py-1 rounded-full text-sm ${color} bg-black/20`}>
+                                {value}% 掌握
+                              </div>
+                            </div>
+                            
+                            <div className="mt-4 relative">
+                              <div className="h-2 w-full bg-neutral-800 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${
+                                    value >= 75 ? "bg-green-500" :
+                                    value >= 50 ? "bg-blue-500" :
+                                    value >= 25 ? "bg-yellow-500" : "bg-neutral-500"
+                                  }`}
+                                  style={{ width: `${value}%` }}
+                                ></div>
+                              </div>
+                              
+                              {item.change !== undefined && (
+                                <div className="mt-3 flex items-center">
+                                  {item.change > 0 ? (
+                                    <div className="text-xs text-green-400 flex items-center">
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                                        <path d="m18 15-6-6-6 6"/>
+                                      </svg>
+                                      提升 {Math.abs(item.change)}%
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs text-red-400 flex items-center">
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                                        <path d="m6 9 6 6 6-6"/>
+                                      </svg>
+                                      下降 {Math.abs(item.change)}%
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {item.details && (
+                            <div className="p-4 border-t border-neutral-800">
+                              <h4 className="text-sm font-medium text-neutral-400 mb-3">知识点掌握情况</h4>
+                              <div className="space-y-3">
+                                {item.details.map((detail: any, i: number) => (
+                                  <div key={i} className="flex justify-between items-center">
+                                    <span className="text-sm text-neutral-300">{detail.name}</span>
+                                    <div className="flex items-center">
+                                      <div className="w-24 h-1.5 bg-neutral-800 rounded-full mr-3 overflow-hidden">
+                                        <div 
+                                          className={`h-full rounded-full ${
+                                            detail.score >= 75 ? "bg-green-500" :
+                                            detail.score >= 50 ? "bg-blue-500" :
+                                            detail.score >= 25 ? "bg-yellow-500" : "bg-neutral-500"
+                                          }`}
+                                          style={{ width: `${detail.score}%` }}
+                                        ></div>
+                                      </div>
+                                      <span className="text-xs text-neutral-400 w-8 text-right">{detail.score}%</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-10 text-neutral-400">
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" className="mb-4 opacity-20">
+                      <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <p className="text-lg">暂无学习进度数据</p>
+                    <p className="text-sm mt-1 max-w-md text-center">
+                      随着您的持续学习，系统将分析您的学习模式并展示您在各个领域的掌握程度
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
           
           <TabsContent value="suggestions">
-            {/* 现有建议内容 */}
-            <div className="text-center p-6">
-              <h2 className="text-xl">建议内容</h2>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>个性化学习建议</CardTitle>
+                <CardDescription>让您的学习更高效</CardDescription>
+              </CardHeader>
+              <CardContent className="card-content">
+                {learningPath?.suggestions && learningPath.suggestions.length > 0 ? (
+                  <div className="space-y-4">
+                    {learningPath.suggestions.map((suggestion: string, index: number) => (
+                      <div 
+                        key={index} 
+                        className="p-4 border rounded-lg hover:bg-neutral-800/30 transition-colors"
+                      >
+                        <div className="flex items-start">
+                          <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-full mr-4 shrink-0 mt-0.5">
+                            <Lightbulb className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-neutral-200">{suggestion}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {learningPath.nextSteps && (
+                      <div className="mt-8">
+                        <h3 className="text-lg font-medium mb-4 text-blue-300">推荐下一步</h3>
+                        <div className="space-y-3">
+                          {learningPath.nextSteps.map((step: any, index: number) => (
+                            <div key={index} className="p-3 border border-blue-900/40 rounded-md bg-blue-950/20">
+                              <div className="flex items-start">
+                                <div className="bg-blue-900/50 p-1.5 rounded-full mr-3 mt-0.5">
+                                  <ArrowRight className="h-4 w-4 text-blue-300" />
+                                </div>
+                                <div>
+                                  <p className="text-blue-200">{step.title || step}</p>
+                                  {step.description && (
+                                    <p className="text-sm text-blue-400/70 mt-1">{step.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
+                    <Lightbulb className="h-16 w-16 mb-4 opacity-20" />
+                    <p className="text-lg">暂无学习建议</p>
+                    <p className="text-sm mt-1 max-w-md text-center">
+                      随着您的学习进展，系统将分析您的学习行为和进度，为您提供个性化的学习建议
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
           
           {/* 知识图谱标签页 */}
