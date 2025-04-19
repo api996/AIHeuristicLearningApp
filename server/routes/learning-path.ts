@@ -13,9 +13,6 @@ import { memoryService } from '../services/learning/memory_service';
 import { generateUserKnowledgeGraph } from '../services/learning/knowledge_graph';
 import { log } from '../vite';
 import { utils } from '../utils';
-import { spawn } from 'child_process';
-import path from 'path';
-import fs from 'fs';
 
 // 创建路由
 const router = Router();
@@ -275,65 +272,26 @@ router.post('/:userId/repair-memories', async (req, res) => {
     
     log(`[API] 修复用户 ${userId} 的记忆文件`);
     
-    // 运行记忆文件修复脚本，仅处理该用户的文件
-    const scriptPath = path.join(process.cwd(), "scripts", "memory_cleanup.py");
-    
-    // 检查脚本是否存在
-    if (!fs.existsSync(scriptPath)) {
-      return res.status(500).json({ error: "记忆修复脚本不存在" });
+    try {
+      // 使用内置的记忆服务修复功能
+      // 不再调用Python脚本，改为使用纯JavaScript实现
+      const result = await memoryService.repairUserMemories(userId);
+      
+      log(`用户${userId}的记忆修复完成：修复了${result.repaired}条记忆`);
+      
+      res.json({
+        success: true,
+        message: `用户记忆修复成功`,
+        details: result
+      });
+    } catch (repairError) {
+      log(`用户${userId}的记忆修复失败: ${repairError}`);
+      res.status(500).json({
+        success: false,
+        error: "记忆修复失败",
+        details: utils.sanitizeErrorMessage(repairError)
+      });
     }
-    
-    return new Promise<void>((resolve, reject) => {
-      const cleanupProcess = spawn("python3", [scriptPath, "--user-id", userId.toString()], {
-        stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
-      });
-      
-      let output = '';
-      let errorOutput = '';
-      
-      cleanupProcess.stdout.on("data", (data) => {
-        const stdoutData = data.toString().trim();
-        if (stdoutData) {
-          output += stdoutData + '\n';
-          log(`[用户记忆修复] ${stdoutData}`);
-        }
-      });
-      
-      cleanupProcess.stderr.on("data", (data) => {
-        const stderrData = data.toString().trim();
-        if (stderrData) {
-          errorOutput += stderrData + '\n';
-          log(`[用户记忆修复错误] ${stderrData}`);
-        }
-      });
-      
-      cleanupProcess.on("close", (code) => {
-        if (code === 0) {
-          log(`用户${userId}的记忆文件修复完成`);
-          res.json({ 
-            success: true, 
-            message: `用户记忆文件修复成功`, 
-            details: output 
-          });
-          resolve();
-        } else {
-          log(`用户${userId}的记忆文件修复失败，退出码: ${code}`);
-          res.status(500).json({ 
-            success: false, 
-            error: "记忆文件修复失败", 
-            details: errorOutput || "未知错误" 
-          });
-          resolve();
-        }
-      });
-      
-      cleanupProcess.on("error", (err) => {
-        log(`启动记忆修复脚本出错: ${err.message}`);
-        res.status(500).json({ error: `启动记忆修复脚本出错: ${err.message}` });
-        reject(err);
-      });
-    });
   } catch (error) {
     log(`[API] 修复记忆文件出错: ${error}`);
     res.status(500).json({ error: utils.sanitizeErrorMessage(error) });
