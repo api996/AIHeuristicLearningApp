@@ -81,7 +81,9 @@ export async function generateKnowledgeGraph(
       // 计算关键词频率
       const keywordFrequency = new Map<string, number>();
       allKeywords.forEach(keyword => {
-        keywordFrequency.set(keyword, (keywordFrequency.get(keyword) || 0) + 1);
+        if (keyword && keyword.trim()) { // 只添加有效关键词
+          keywordFrequency.set(keyword, (keywordFrequency.get(keyword) || 0) + 1);
+        }
       });
       
       // 找出频率最高的关键词作为主题标签
@@ -104,7 +106,13 @@ export async function generateKnowledgeGraph(
         clusterId: `${centroid.id}`
       });
       
-      // 步骤2: 为每个聚类中的主要关键词创建节点
+      // 步骤2: 为每个聚类中的主要关键词创建节点和记忆节点
+      // 确定要显示的关键词数量（聚类大小越小，显示的关键词越多）
+      const keywordLimit = Math.max(3, Math.min(6, 10 - clusterPoints.length));
+      topKeywords = Array.from(keywordFrequency.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, keywordLimit);
+        
       topKeywords.forEach(([keyword, frequency], index) => {
         const keywordNodeId = `keyword_${centroid.id}_${index}`;
         
@@ -123,6 +131,52 @@ export async function generateKnowledgeGraph(
           target: keywordNodeId,
           value: 0.7,
           type: 'contains'
+        });
+      });
+      
+      // 添加最多3个代表性记忆节点到图谱
+      const clusterMemoryPoints = clusterPoints.slice(0, 3);
+      clusterMemoryPoints.forEach((point, index) => {
+        const memoryIndex = memoryMap.get(point.id);
+        if (memoryIndex === undefined) return;
+        
+        const memory = memories[memoryIndex];
+        if (!memory || !memory.summary) return;
+        
+        const shortSummary = memory.summary.substring(0, 15) + '...';
+        const memoryNodeId = `memory_${point.id}_${index}`;
+        
+        // 添加记忆节点
+        nodes.push({
+          id: memoryNodeId,
+          label: shortSummary,
+          size: 4, // 记忆节点较小
+          category: 'memory',
+          clusterId: `${centroid.id}`
+        });
+        
+        // 连接记忆节点到聚类节点
+        links.push({
+          source: clusterNodeId,
+          target: memoryNodeId,
+          value: 0.5,
+          type: 'contains'
+        });
+        
+        // 连接记忆到相关关键词
+        const memoryKeywords = keywordMap.get(point.id) || [];
+        topKeywords.forEach(([keyword, _]) => {
+          if (memoryKeywords.includes(keyword)) {
+            const kwNodeId = topKeywords.findIndex(k => k[0] === keyword);
+            if (kwNodeId >= 0) {
+              links.push({
+                source: memoryNodeId,
+                target: `keyword_${centroid.id}_${kwNodeId}`,
+                value: 0.3,
+                type: 'has_keyword'
+              });
+            }
+          }
         });
       });
     });
@@ -152,12 +206,19 @@ export async function generateKnowledgeGraph(
         const keywords1 = clusterKeywords.get(clusterId1) || new Set();
         const keywords2 = clusterKeywords.get(clusterId2) || new Set();
         
-        // 计算交集大小
-        const intersection = new Set([...keywords1].filter(x => keywords2.has(x)));
+        // 计算共同关键词数量
+        let commonKeywordsCount = 0;
+        const keywords1Array = Array.from(keywords1);
+        
+        for (const kw of keywords1Array) {
+          if (keywords2.has(kw)) {
+            commonKeywordsCount++;
+          }
+        }
         
         // 如果有共享关键词，添加连接
-        if (intersection.size > 0) {
-          const similarity = intersection.size / Math.min(keywords1.size, keywords2.size);
+        if (commonKeywordsCount > 0) {
+          const similarity = commonKeywordsCount / Math.min(keywords1.size, keywords2.size);
           
           links.push({
             source: `cluster_${clusterId1}`,
