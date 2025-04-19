@@ -61,6 +61,23 @@ export default function LearningPath() {
     }
   }, [setLocation]);
 
+  // 在页面加载后立即开始预加载知识图谱数据
+  useEffect(() => {
+    if (user?.userId) {
+      // 在组件挂载时开始预加载知识图谱数据，无需等待用户点击
+      console.log("学习轨迹页面预加载知识图谱数据...");
+      
+      // 立即开始异步预加载，不阻塞页面渲染
+      preloadKnowledgeGraphData(user.userId)
+        .then(data => {
+          console.log(`知识图谱数据预加载成功: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+        })
+        .catch(err => {
+          console.error("知识图谱数据预加载失败:", err);
+        });
+    }
+  }, [user?.userId]);
+
   // 获取学习轨迹数据
   const { data: learningPath, isLoading, error } = useQuery({
     queryKey: ["/api/learning-path", user?.userId, user?.role],
@@ -74,15 +91,24 @@ export default function LearningPath() {
     enabled: !!user?.userId,
   });
   
-  // 获取知识图谱数据
+  // 获取知识图谱数据 - 使用预加载与缓存策略
   const { data: knowledgeGraph } = useQuery({
     queryKey: ["/api/learning-path/knowledge-graph", user?.userId],
     queryFn: async () => {
-      const response = await fetch(`/api/learning-path/${user?.userId}/knowledge-graph`);
-      if (!response.ok) {
-        throw new Error("获取知识图谱失败");
+      try {
+        // 优先使用已预加载的数据
+        console.log("从预加载缓存获取知识图谱数据...");
+        const cachedData = await getKnowledgeGraphData(user?.userId || 0);
+        return cachedData;
+      } catch (err) {
+        // 回退到标准请求
+        console.log("缓存获取失败，直接请求知识图谱数据...");
+        const response = await fetch(`/api/learning-path/${user?.userId}/knowledge-graph`);
+        if (!response.ok) {
+          throw new Error("获取知识图谱失败");
+        }
+        return response.json();
       }
-      return response.json();
     },
     enabled: !!user?.userId,
   });

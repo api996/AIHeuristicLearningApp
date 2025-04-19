@@ -322,6 +322,21 @@ export default function KnowledgeGraphDetail() {
     };
   }, []);
 
+  // 自动开始预加载数据 - 作为备份确保数据已经加载
+  useEffect(() => {
+    if (user?.userId) {
+      // 强制立即发起预加载请求，覆盖学习轨迹页面可能的失败
+      console.log(`知识图谱详情页面强制预加载数据，用户ID: ${user.userId}`);
+      preloadKnowledgeGraphData(user.userId)
+        .then(data => {
+          console.log(`知识图谱详情页面预加载成功: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+        })
+        .catch(err => {
+          console.error('知识图谱详情页面预加载失败:', err);
+        });
+    }
+  }, [user?.userId]);
+
   // 适配移动设备的配置
   const isMobile = window.innerWidth < 768;
   const graphConfig = {
