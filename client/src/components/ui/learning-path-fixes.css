@@ -1,9 +1,10 @@
 /*
- * 学习轨迹页面在iPad上的滚动修复
- * 确保所有标签页内容都可以正常滚动
+ * 学习轨迹页面及子页面在iPad上的滚动修复
+ * 确保所有标签页内容和对话框都可以正常滚动
  */
 
-/* 整体页面滚动修复 */
+/* ===== 整体页面滚动修复 ===== */
+/* 标签页内容滚动修复 - 基础版 */
 .ipad-device [data-value="overview"],
 .ipad-device [data-value="progress"],
 .ipad-device [data-value="suggestions"],
@@ -19,15 +20,18 @@
   padding-bottom: 80px !important;
 }
 
-/* 标签内容容器修复 */
+/* 标签内容容器修复 - 增强版 */
 .ipad-device [data-radix-tabs-content-wrapper],
-.tablet-device [data-radix-tabs-content-wrapper] {
+.tablet-device [data-radix-tabs-content-wrapper],
+.ipad-device [data-orientation="horizontal"] > [data-state],
+.tablet-device [data-orientation="horizontal"] > [data-state] {
   height: auto !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
   min-height: 70vh !important;
 }
 
+/* ===== 知识图谱相关修复 ===== */
 /* 知识图谱容器修复 */
 .ipad-device .knowledge-graph-container,
 .tablet-device .knowledge-graph-container {
@@ -36,7 +40,51 @@
   overflow: visible !important;
 }
 
-/* 学习轨迹页面容器 */
+/* 知识图谱详情对话框修复 */
+.ipad-device .knowledge-graph-dialog-content,
+.tablet-device .knowledge-graph-dialog-content,
+.ipad-device [role="dialog"] .knowledge-graph-detail,
+.tablet-device [role="dialog"] .knowledge-graph-detail {
+  max-height: 85vh !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* ===== 记忆空间相关修复 ===== */
+/* 记忆空间对话框修复 */
+.ipad-device .memory-space-dialog,
+.tablet-device .memory-space-dialog,
+.ipad-device [role="dialog"] .memory-detail,
+.tablet-device [role="dialog"] .memory-detail {
+  max-height: 85vh !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: 16px !important;
+}
+
+/* 记忆卡片滚动修复 */
+.ipad-device .memory-card-content,
+.tablet-device .memory-card-content,
+.ipad-device .card-body,
+.tablet-device .card-body {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 60vh !important;
+}
+
+/* ===== 学习建议相关修复 ===== */
+/* 学习建议列表滚动修复 */
+.ipad-device .suggestion-list,
+.tablet-device .suggestion-list,
+.ipad-device [data-value="suggestions"] .card-content,
+.tablet-device [data-value="suggestions"] .card-content {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 60vh !important;
+}
+
+/* ===== 通用容器修复 ===== */
+/* 学习轨迹页面主容器 */
 .ipad-device .learning-path-container,
 .tablet-device .learning-path-container {
   height: 100vh !important;
@@ -45,10 +93,40 @@
   padding-bottom: 80px !important;
 }
 
+/* 通用卡片内容滚动修复 */
+.ipad-device .card-content,
+.tablet-device .card-content,
+.ipad-device .card > div:nth-child(2),
+.tablet-device .card > div:nth-child(2) {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: none !important;
+}
+
+/* ===== 对话框通用修复 ===== */
+/* 所有对话框内容修复 */
+.ipad-device [role="dialog"] > div,
+.tablet-device [role="dialog"] > div,
+.ipad-device [aria-modal="true"] > div,
+.tablet-device [aria-modal="true"] > div {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 85vh !important;
+}
+
 /* iOS Safari特定修复 */
 @supports (-webkit-touch-callout: none) {
+  /* 标签内容增强滚动 */
   .ipad-device [data-radix-tabs-content-wrapper],
   .tablet-device [data-radix-tabs-content-wrapper] {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+  }
+  
+  /* 对话框内容增强滚动 */
+  .ipad-device [role="dialog"] > div,
+  .tablet-device [role="dialog"] > div {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     touch-action: pan-y !important;
