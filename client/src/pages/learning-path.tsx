@@ -136,8 +136,30 @@ export default function LearningPath() {
   };
 
   return (
-    <div className="container mx-auto py-8 learning-path-container">
-      <div className="flex justify-between items-center mb-8">
+    <div 
+      className="container mx-auto py-8 learning-path-container"
+      style={{
+        height: 'calc(100vh - 80px)', // 减去导航栏高度
+        overflowY: 'scroll', // 强制使用滚动条
+        WebkitOverflowScrolling: 'touch', // iOS滚动优化
+        scrollbarWidth: 'thin', // Firefox
+        position: 'relative',
+        padding: '16px',
+        boxSizing: 'border-box'
+      }}
+    >
+      <div 
+        className="flex justify-between items-center mb-8"
+        style={{
+          position: 'sticky',
+          top: 0,
+          backgroundColor: 'rgba(13, 17, 23, 0.8)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          zIndex: 10,
+          padding: '10px 0'
+        }}
+      >
         <div className="flex items-center">
           <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg mr-3">
             <Brain className="h-7 w-7 text-white" />
