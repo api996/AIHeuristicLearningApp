@@ -4,8 +4,8 @@ import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ZoomIn, ZoomOut, Maximize, Minimize, RefreshCw } from "lucide-react";
-// 使用优化的知识图谱组件
-import KnowledgeGraphD3 from "@/components/KnowledgeGraphD3";
+// 使用不依赖D3的轻量级高性能图表组件
+import SimpleGraphChart from "@/components/SimpleGraphChart";
 // 导入iPad滚动修复CSS
 import '@/components/ui/knowledge-graph-fixes.css';
 // 导入知识图谱数据预加载器
@@ -589,7 +589,7 @@ export default function KnowledgeGraphDetail() {
                 }}
               >
                 {/* 确保 graphData 正确构建 */}
-                <SimpleKnowledgeGraph
+                <SimpleGraphChart
                   nodes={graphData.nodes}
                   links={graphData.links}
                   height={isFullScreen ? window.innerHeight - 80 : window.innerWidth < 768 ? window.innerHeight * 0.4 : 600}
