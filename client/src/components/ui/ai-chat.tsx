@@ -54,6 +54,7 @@ type Message = {
   is_edited?: boolean;            // 是否已编辑
   chat_id?: number;               // 所属对话ID
   model?: string;                 // 使用的模型，如"deep"、"gemini"等
+  hasError?: boolean;             // 标记消息是否包含错误信息
 };
 
 type Model = "deep" | "gemini" | "deepseek" | "grok";
@@ -441,11 +442,16 @@ export function AIChat({ userData }: AIChatProps) {
           
           console.log("更新消息内容:", newContent.substring(0, 50) + "...");
           
-          // 创建新消息对象，保留原有属性并更新内容
+          // 提取模型信息，确保更新为当前使用的模型
+          const modelSource = result.model || currentModel;
+          console.log("更新消息来源模型:", modelSource);
+          
+          // 创建新消息对象，保留原有属性并更新内容和模型信息
           newMessages[index] = {
             ...newMessages[index],
             content: newContent,
-            isRegenerating: false
+            isRegenerating: false,
+            model: modelSource  // 更新模型来源，确保显示正确的重新生成模型
           };
           
           return newMessages;
