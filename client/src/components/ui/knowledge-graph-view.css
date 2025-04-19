@@ -41,6 +41,13 @@
   color: rgba(219, 234, 254, 0.8);
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  font-size: 0.875rem;
+}
+
+/* 图标大小控制 */
+.graph-button svg {
+  width: 16px;
+  height: 16px;
 }
 
 .graph-button:hover {
