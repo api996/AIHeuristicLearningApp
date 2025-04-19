@@ -264,7 +264,7 @@ export default function AdminDashboard() {
 
             {/* Content Moderation Tab */}
             {/* Security Settings Tab */}
-            <TabsContent value="security">
+            <TabsContent value="security" className="admin-dashboard-tabs-content">
               <div className="py-8">
                 <div className="container mx-auto px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
@@ -283,7 +283,7 @@ export default function AdminDashboard() {
               </div>
             </TabsContent>
 
-            <TabsContent value="moderation">
+            <TabsContent value="moderation" className="admin-dashboard-tabs-content">
               <div className="py-8">
                 <div className="container mx-auto px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">

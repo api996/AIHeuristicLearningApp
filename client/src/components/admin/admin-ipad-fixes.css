@@ -161,11 +161,50 @@
   -webkit-overflow-scrolling: touch !important;
 }
 
+/* 系统设置面板修复 */
+.ipad-device .system-settings-grid,
+.tablet-device .system-settings-grid,
+.iphone-device .system-settings-grid,
+.mobile-device .system-settings-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1rem !important;
+}
+
+.ipad-device .system-settings-card,
+.tablet-device .system-settings-card,
+.iphone-device .system-settings-card,
+.mobile-device .system-settings-card {
+  width: 100% !important;
+  margin-bottom: 1rem !important;
+}
+
+/* 表格容器修复 */
+.ipad-device .table-container,
+.tablet-device .table-container,
+.iphone-device .table-container,
+.mobile-device .table-container {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-width: 100% !important;
+}
+
+/* 表格自动调整宽度 */
+.ipad-device table,
+.tablet-device table,
+.iphone-device table,
+.mobile-device table {
+  width: auto !important;
+  min-width: 100% !important;
+}
+
 /* 针对iOS Safari浏览器的特定修复 */
 @supports (-webkit-touch-callout: none) {
   .template-editor-content,
   .template-textarea,
-  [role="tabpanel"] {
+  [role="tabpanel"],
+  .table-container,
+  .scroll-area-viewport {
     /* iOS Safari特定修复 */
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: none;
