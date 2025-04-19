@@ -4,7 +4,7 @@ import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ZoomIn, ZoomOut, Maximize, Minimize } from "lucide-react";
-import KnowledgeGraphWrapper from "@/components/KnowledgeGraphWrapper";
+import SimpleKnowledgeGraph from "@/components/SimpleKnowledgeGraph";
 
 // 定义知识图谱节点类型
 interface KnowledgeNode {
@@ -243,12 +243,12 @@ export default function KnowledgeGraphDetail() {
                 className="w-full h-[70vh] relative overflow-hidden" 
                 style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center center' }}
               >
-                <KnowledgeGraphWrapper
-                  data={graphData}
+                <SimpleKnowledgeGraph
+                  nodes={graphData.nodes}
+                  links={graphData.links}
                   height={isFullScreen ? window.innerHeight - 120 : graphConfig.height}
                   width={isFullScreen ? window.innerWidth - 40 : graphConfig.width}
-                  isMobile={isMobile}
-                  onClickNode={onClickNode}
+                  onNodeClick={onClickNode}
                 />
               </div>
             ) : (
