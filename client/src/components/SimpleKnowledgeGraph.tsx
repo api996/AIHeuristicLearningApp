@@ -50,20 +50,34 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
 
   // 拖拽事件处理函数（声明在外部以避免提前引用）
   const handleDragStarted = (simulation: any) => (event: any, d: any) => {
-    if (!event.active) simulation.alphaTarget(0.3).restart();
-    d.fx = d.x;
-    d.fy = d.y;
+    try {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      // 确保d.x和d.y存在
+      d.fx = typeof d.x !== 'undefined' ? d.x : width / 2;
+      d.fy = typeof d.y !== 'undefined' ? d.y : height / 2;
+    } catch (err) {
+      console.warn("拖拽开始事件处理错误:", err);
+    }
   };
 
   const handleDragged = () => (event: any, d: any) => {
-    d.fx = event.x;
-    d.fy = event.y;
+    try {
+      // 确保event.x和event.y存在
+      d.fx = typeof event.x !== 'undefined' ? event.x : d.fx;
+      d.fy = typeof event.y !== 'undefined' ? event.y : d.fy;
+    } catch (err) {
+      console.warn("拖拽中事件处理错误:", err);
+    }
   };
 
   const handleDragEnded = (simulation: any) => (event: any, d: any) => {
-    if (!event.active) simulation.alphaTarget(0);
-    d.fx = null;
-    d.fy = null;
+    try {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    } catch (err) {
+      console.warn("拖拽结束事件处理错误:", err);
+    }
   };
 
   useEffect(() => {
