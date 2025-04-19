@@ -696,9 +696,10 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Insert keyword record
+      // 将 memoryId 转换为字符串，以匹配数据库定义
       const [memoryKeyword] = await db.insert(memoryKeywords)
         .values({
-          memoryId,
+          memoryId: memoryId.toString(), // 转换为字符串
           keyword: keyword.trim().toLowerCase()
         })
         .returning();
@@ -717,9 +718,10 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Get all keywords for a memory
+      // 将 memoryId 转换为字符串，以匹配数据库定义
       return await db.select()
         .from(memoryKeywords)
-        .where(eq(memoryKeywords.memoryId, memoryId));
+        .where(eq(memoryKeywords.memoryId, memoryId.toString()));
     } catch (error) {
       log(`Error getting keywords for memory ${memoryId}: ${error}`);
       throw error;
@@ -733,8 +735,9 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Delete all keywords for a memory
+      // 将 memoryId 转换为字符串，以匹配数据库定义
       await db.delete(memoryKeywords)
-        .where(eq(memoryKeywords.memoryId, memoryId));
+        .where(eq(memoryKeywords.memoryId, memoryId.toString()));
       
       log(`All keywords for memory ${memoryId} deleted`);
     } catch (error) {
@@ -759,17 +762,19 @@ export class DatabaseStorage implements IStorage {
       
       if (existing) {
         // Update existing embedding
+        // 将 memoryId 转换为字符串，以匹配数据库定义
         const [updatedEmbedding] = await db.update(memoryEmbeddings)
           .set({ vectorData })
-          .where(eq(memoryEmbeddings.memoryId, memoryId))
+          .where(eq(memoryEmbeddings.memoryId, memoryId.toString()))
           .returning();
         
         return updatedEmbedding;
       } else {
         // Insert new embedding
+        // 将 memoryId 转换为字符串，以匹配数据库定义
         const [embedding] = await db.insert(memoryEmbeddings)
           .values({
-            memoryId,
+            memoryId: memoryId.toString(), // 转换为字符串
             vectorData
           })
           .returning();
@@ -788,9 +793,10 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Invalid memory ID");
       }
       
+      // 将 memoryId 转换为字符串，以匹配数据库定义
       const [embedding] = await db.select()
         .from(memoryEmbeddings)
-        .where(eq(memoryEmbeddings.memoryId, memoryId));
+        .where(eq(memoryEmbeddings.memoryId, memoryId.toString()));
       
       return embedding;
     } catch (error) {
@@ -817,7 +823,7 @@ export class DatabaseStorage implements IStorage {
       .from(memories)
       .innerJoin(
         memoryEmbeddings,
-        eq(memories.id, memoryEmbeddings.memoryId)
+        eq(memories.id.toString(), memoryEmbeddings.memoryId)
       )
       .where(eq(memories.userId, userId));
       
