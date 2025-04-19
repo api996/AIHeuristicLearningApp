@@ -182,39 +182,44 @@ export default function LearningPath() {
         boxSizing: 'border-box'
       }}
     >
+      {/* 改进后的顶部布局 - 标题在最上方，按钮在下方 */}
       <div 
-        className="flex justify-between items-center mb-8"
+        className="sticky top-0 z-10 bg-opacity-80 backdrop-blur-md"
         style={{
-          position: 'sticky',
-          top: 0,
           backgroundColor: 'rgba(13, 17, 23, 0.8)',
           backdropFilter: 'blur(8px)',
           WebkitBackdropFilter: 'blur(8px)',
           zIndex: 10,
-          padding: '10px 0'
+          marginBottom: '16px',
+          padding: '8px 0'
         }}
       >
-        <div className="flex items-center">
-          <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg mr-3">
-            <Brain className="h-7 w-7 text-white" />
+        {/* 标题部分 - 水平布局 */}
+        <div className="flex items-center justify-center mb-2">
+          <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-lg mr-2">
+            <Brain className="h-5 w-5 text-white" />
           </div>
-          <h1 className="text-3xl font-bold">我的学习轨迹</h1>
+          <h1 className="text-xl font-bold">我的学习轨迹</h1>
         </div>
-        <div className="flex gap-2">
+        
+        {/* 按钮行 - 仅包含按钮 */}
+        <div className="flex gap-2 justify-center">
           <Button 
             variant="default" 
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            size="sm"
+            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white"
             onClick={() => setLocation(`/memory-space`)}
           >
-            <BookOpen size={18} />
-            <span>打开记忆空间</span>
+            <BookOpen size={16} />
+            <span>记忆空间</span>
           </Button>
           <Button 
             variant="outline" 
-            className="flex items-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700"
+            size="sm"
+            className="flex items-center gap-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700"
             onClick={navigateBack}
           >
-            <ArrowLeftCircle size={18} />
+            <ArrowLeftCircle size={16} />
             <span>返回聊天</span>
           </Button>
         </div>

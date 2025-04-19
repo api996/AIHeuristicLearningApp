@@ -926,7 +926,8 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
       ctx.restore();
       
       // 将控制按钮区域保存到组件实例，以供点击处理使用
-      canvas.zoomControls = controls;
+      // 使用类型断言来避免TypeScript错误
+      (canvas as any).zoomControls = controls;
     };
     
     // 启动渲染循环
