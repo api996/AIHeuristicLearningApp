@@ -316,14 +316,16 @@ export default function KnowledgeGraphDetail() {
           <Button variant="outline" size="icon" onClick={handleZoomOut}>
             <ZoomOut size={16} />
           </Button>
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={toggleFullScreen}
-            className="fullscreen-toggle"
-          >
-            {isFullScreen ? <Minimize size={16} /> : <Maximize size={16} />}
-          </Button>
+          <Link to={`/knowledge-graph-view/${user?.userId}`}>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="fullscreen-toggle"
+              title="打开专注查看模式"
+            >
+              <Maximize size={16} />
+            </Button>
+          </Link>
         </div>
       </div>
 
