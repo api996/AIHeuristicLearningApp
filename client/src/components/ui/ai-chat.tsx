@@ -2258,20 +2258,7 @@ export function AIChat({ userData }: AIChatProps) {
       </Dialog>
 
       {/* 偏好设置对话框 */}
-      <Dialog 
-        open={showPreferencesDialog} 
-        onOpenChange={(open) => {
-          setShowPreferencesDialog(open);
-          
-          // 导入并应用iPad设备上的特殊修复
-          if (open && (document.documentElement.classList.contains('ipad-device') || 
-                       document.documentElement.classList.contains('tablet-device'))) {
-            import('./preferences-dialog-override.js').then(module => {
-              module.fixPreferencesDialogOnIPad();
-            });
-          }
-        }}
-      >
+      <Dialog open={showPreferencesDialog} onOpenChange={setShowPreferencesDialog}>
         <DialogContent className="sm:max-w-md frosted-dialog preferences-dialog-content">
           <DialogHeader>
             <DialogTitle>偏好设置</DialogTitle>
