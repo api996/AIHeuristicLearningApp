@@ -591,12 +591,19 @@ ${searchResults}
           }
           
           // 构建Dify API请求格式
+          // 从basePrompt中提取实际问题，确保查询中包含完整的用户问题
+          const userQuestion = message.trim();
+          log(`Dify实际查询问题: "${userQuestion}"`);
+          
           const requestPayload = {
-            query: basePrompt,
+            query: userQuestion,  // 直接发送用户问题，而不是整个提示词
             response_mode: "blocking",
             conversation_id: null,
             user: "user",
-            inputs: {},
+            inputs: {
+              // 如果有记忆上下文，添加到inputs中
+              context: basePrompt
+            },
           };
           
           log(`Dify请求格式已构建完成，有效载荷大小: ${JSON.stringify(requestPayload).length}字节`);
