@@ -1,132 +1,96 @@
 /**
- * 知识图谱预加载器
- * 用于优化知识图谱数据的加载体验，提前获取数据并缓存
+ * 知识图谱数据预加载器
+ * 用于缓存和预加载知识图谱数据，提高渲染性能
  */
 
-// 定义知识图谱数据类型
-export interface KnowledgeGraphNode {
+interface KnowledgeNode {
   id: string;
   label: string;
   size: number;
-  category: string;
+  category?: string;
   clusterId?: string;
   color?: string;
 }
 
-export interface KnowledgeGraphLink {
+interface KnowledgeLink {
   source: string;
   target: string;
   value: number;
-  type: string;
-  color?: string;
+  type?: string;
 }
 
-export interface KnowledgeGraphData {
-  nodes: KnowledgeGraphNode[];
-  links: KnowledgeGraphLink[];
+interface KnowledgeGraph {
+  nodes: KnowledgeNode[];
+  links: KnowledgeLink[];
+  version?: number;
 }
 
 // 内存缓存
-let cachedGraphData: Map<number, KnowledgeGraphData> = new Map();
-let pendingPromises: Map<number, Promise<KnowledgeGraphData>> = new Map();
+const graphCache: Record<number, KnowledgeGraph> = {};
 
 /**
- * 预加载知识图谱数据
+ * 预加载并缓存知识图谱数据
  * @param userId 用户ID
- * @returns 承诺知识图谱数据
+ * @returns 知识图谱数据
  */
-export async function preloadKnowledgeGraphData(userId: number): Promise<KnowledgeGraphData> {
-  console.log("预加载知识图谱数据...");
-  
-  // 检查是否已经有正在进行的请求
-  if (pendingPromises.has(userId)) {
-    return pendingPromises.get(userId)!;
+export async function preloadKnowledgeGraphData(userId: number): Promise<KnowledgeGraph> {
+  if (graphCache[userId]) {
+    console.log('预加载知识图谱数据...');
+    console.log('从预加载缓存获取知识图谱数据...');
+    return graphCache[userId];
   }
-  
-  // 创建新的获取请求
-  const promise = fetchKnowledgeGraphData(userId);
-  pendingPromises.set(userId, promise);
-  
-  try {
-    const data = await promise;
-    // 成功后更新缓存并移除进行中的请求
-    cachedGraphData.set(userId, data);
-    pendingPromises.delete(userId);
-    console.log(`知识图谱数据加载完成: ${data.nodes.length}个节点, ${data.links.length}个连接`);
-    return data;
-  } catch (error) {
-    // 请求失败时也移除进行中的请求，允许重试
-    pendingPromises.delete(userId);
-    console.error("预加载图谱数据失败:", error);
-    throw error;
-  }
-}
 
-/**
- * 获取已缓存的知识图谱数据
- * @param userId 用户ID
- * @returns 承诺知识图谱数据
- */
-export async function getKnowledgeGraphData(userId: number): Promise<KnowledgeGraphData> {
-  console.log("获取知识图谱数据，用户ID:", userId);
-  
-  // 如果有缓存，直接返回
-  if (cachedGraphData.has(userId)) {
-    console.log("使用缓存的知识图谱数据");
-    return cachedGraphData.get(userId)!;
-  }
-  
-  // 如果有正在进行的请求，等待它完成
-  if (pendingPromises.has(userId)) {
-    return pendingPromises.get(userId)!;
-  }
-  
-  // 如果没有缓存也没有进行中的请求，开始新的请求
-  return preloadKnowledgeGraphData(userId);
-}
-
-/**
- * 清除缓存的知识图谱数据
- * @param userId 用户ID，不提供则清除所有用户的缓存
- */
-export function clearKnowledgeGraphCache(userId?: number): void {
-  if (userId !== undefined) {
-    cachedGraphData.delete(userId);
-    pendingPromises.delete(userId);
-    console.log(`已清除用户${userId}的知识图谱缓存`);
-  } else {
-    cachedGraphData.clear();
-    pendingPromises.clear();
-    console.log("已清除所有知识图谱缓存");
-  }
-}
-
-/**
- * 实际获取知识图谱数据的函数
- * @param userId 用户ID
- * @returns 承诺知识图谱数据
- */
-async function fetchKnowledgeGraphData(userId: number): Promise<KnowledgeGraphData> {
+  console.log('预加载知识图谱数据...');
   try {
     const response = await fetch(`/api/learning-path/${userId}/knowledge-graph`);
+    
     if (!response.ok) {
-      throw new Error(`获取知识图谱失败: ${response.status} ${response.statusText}`);
+      throw new Error(`获取知识图谱数据失败: ${response.status}`);
     }
     
     const data = await response.json();
-    console.log("预加载知识图谱数据成功:", data.nodes.length, "个节点,", data.links.length, "个连接");
     
-    // 检查数据示例
-    if (data.nodes.length > 0) {
-      console.log("节点示例:", data.nodes[0]);
+    if (!data || !data.nodes || !Array.isArray(data.nodes)) {
+      throw new Error('无效的知识图谱数据');
     }
-    if (data.links.length > 0) {
-      console.log("连接示例:", data.links[0]);
-    }
+    
+    // 缓存数据
+    graphCache[userId] = data;
+    
+    console.log(`预加载知识图谱数据成功:`, data.nodes.length, '个节点,', data.links.length, '个连接');
+    console.log('节点示例:', data.nodes[0]);
+    console.log('连接示例:', data.links[0]);
     
     return data;
   } catch (error) {
-    console.error("预加载知识图谱数据失败:", error);
-    throw error;
+    console.error('预加载知识图谱数据失败:', error);
+    // 创建一个空的图谱数据作为默认值
+    return { nodes: [], links: [] };
+  }
+}
+
+/**
+ * 获取知识图谱数据（优先从缓存获取）
+ * @param userId 用户ID
+ * @returns 知识图谱数据
+ */
+export async function getKnowledgeGraphData(userId: number): Promise<KnowledgeGraph> {
+  // 如果缓存中有数据，直接返回
+  if (graphCache[userId]) {
+    return graphCache[userId];
+  }
+  
+  // 否则预加载并返回
+  return await preloadKnowledgeGraphData(userId);
+}
+
+/**
+ * 清除知识图谱缓存
+ * @param userId 用户ID
+ */
+export function clearKnowledgeGraphCache(userId: number): void {
+  if (graphCache[userId]) {
+    delete graphCache[userId];
+    console.log(`已清除用户${userId}的知识图谱缓存`);
   }
 }
