@@ -220,16 +220,50 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
     try {
       // 清除之前的SVG内容
       d3.select(svgRef.current).selectAll("*").remove();
+      console.log(`开始重新渲染图谱: ${nodes.length}个节点, ${links.length}个连接`);
 
-      // 创建一个包含ID映射的节点数组，以便正确关联链接
-      const nodeMap = new Map<string, Node>();
-      nodes.forEach(node => nodeMap.set(node.id, { ...node }));
+      // 预处理数据
+      // 使用深拷贝确保不修改原始数据
+      const nodesCopy = JSON.parse(JSON.stringify(nodes));
+      const linksCopy = JSON.parse(JSON.stringify(links));
+      
+      // 为节点添加初始位置 - 使用极坐标分布让它们更均匀
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = Math.min(width, height) * 0.35; // 使用画布尺寸的35%作为分布半径
+      
+      // 将不同类别的节点分开放置
+      nodesCopy.forEach((node: any, i: number) => {
+        // 基于节点类别和索引计算角度
+        let angleOffset = 0;
+        if (node.category === 'cluster') angleOffset = 0;
+        else if (node.category === 'keyword') angleOffset = 2;
+        else angleOffset = 4;
+        
+        // 使用黄金角分布法获得更均匀的分布
+        const angle = (i * 0.618033988749895 + angleOffset) * Math.PI * 2;
+        
+        // 计算节点初始位置，根据类型略微调整距离
+        let distance = radius;
+        if (node.category === 'cluster') distance *= 0.5; // 集群靠近中心
+        
+        node.x = centerX + Math.cos(angle) * distance;
+        node.y = centerY + Math.sin(angle) * distance;
+        
+        // 添加初始速度以减少启动时的混乱
+        node.vx = 0;
+        node.vy = 0;
+      });
 
-      // 格式化链接数据，确保source和target指向节点对象
-      const formattedLinks = links.map(link => ({
+      // 创建一个包含ID映射的节点数组
+      const nodeMap = new Map<string, any>();
+      nodesCopy.forEach((node: any) => nodeMap.set(node.id, node));
+
+      // 格式化链接数据
+      const formattedLinks = linksCopy.map((link: any) => ({
         ...link,
-        source: typeof link.source === 'string' ? nodeMap.get(link.source) || link.source : link.source,
-        target: typeof link.target === 'string' ? nodeMap.get(link.target) || link.target : link.target,
+        source: typeof link.source === 'string' ? nodeMap.get(link.source) : link.source,
+        target: typeof link.target === 'string' ? nodeMap.get(link.target) : link.target,
       }));
 
       // 创建SVG元素
@@ -241,27 +275,71 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       // 创建一个容器以支持缩放和平移
       const container = svg.append('g');
 
-      // 性能优化：减少迭代次数，提高初始alpha值
-      const simulation = d3.forceSimulation(nodes as any)
-        // 设置更高的alpha值和较低的衰减率，加速收敛
-        .alpha(0.8)
-        .alphaDecay(0.05)
-        // 链接距离更大，使节点分布更开
-        .force('link', d3.forceLink(formattedLinks).id((d: any) => d.id).distance(120))
-        // 降低排斥力，提高性能
-        .force('charge', d3.forceManyBody().strength(-150).distanceMax(300))
-        // 保持在中心位置
+      // 优化力导向参数 - 使用更分散的布局
+      const simulation = d3.forceSimulation(nodesCopy)
+        // 使用高初始alpha值但较快的衰减，快速达到稳定状态
+        .alpha(0.5)
+        .alphaDecay(0.04)
+        .alphaMin(0.001)
+        // 使用更长的链接距离，让节点分布更开
+        .force('link', d3.forceLink(formattedLinks)
+          .id((d: any) => d.id)
+          .distance((d: any) => {
+            // 根据节点类型和大小动态调整链接长度
+            const baseDistance = 100;
+            const sourceSize = d.source.size || 10;
+            const targetSize = d.target.size || 10;
+            // 主题节点有更长的连接
+            const typeMultiplier = (d.source.category === 'cluster' || d.target.category === 'cluster') ? 1.5 : 1;
+            return baseDistance * typeMultiplier * (1 + Math.log10((sourceSize + targetSize) / 20));
+          })
+          .strength(0.2) // 使用较弱的连接强度，允许更大的灵活性
+        )
+        // 添加较强的节点间斥力
+        .force('charge', d3.forceManyBody()
+          .strength((d: any) => {
+            // 集群节点有更强的斥力
+            return d.category === 'cluster' ? -500 : -200;
+          })
+          .distanceMax(500) // 限制斥力最大距离以提高性能
+        )
+        // 使用画布中心作为重力中心
         .force('center', d3.forceCenter(width / 2, height / 2))
-        // 使用较小的碰撞半径，提高性能
-        .force('collision', d3.forceCollide().radius((d: any) => Math.max(8, (d.size || 10) / 5) + 5))
-        // 弱化X、Y方向的力，减少计算量
-        .force('x', d3.forceX(width / 2).strength(0.03))
-        .force('y', d3.forceY(height / 2).strength(0.03))
-        // 减少迭代次数，大幅提高性能
-        .velocityDecay(0.4)
-        .stop()
-        // 手动控制迭代，而不是连续模拟
-        .tick(30);
+        // 添加碰撞检测，避免节点重叠
+        .force('collision', d3.forceCollide()
+          .radius((d: any) => {
+            // 根据节点类型和大小动态调整碰撞半径
+            const baseRadius = Math.max(5, (d.size || 15) / 8);
+            return d.category === 'cluster' ? baseRadius * 2 : baseRadius * 1.2;
+          })
+          .strength(0.8) // 使用较强的碰撞强度
+        )
+        // 添加X、Y方向的力，确保节点保持在可见区域内
+        .force('x', d3.forceX(width / 2).strength(0.05))
+        .force('y', d3.forceY(height / 2).strength(0.05))
+        // 添加自定义力，使不同类型的节点有不同的位置偏好
+        .force('category', () => {
+          for (let i = 0, n = nodesCopy.length; i < n; ++i) {
+            const curr = nodesCopy[i];
+            if (curr.category === 'cluster') {
+              // 集群节点朝向中心
+              const dx = centerX - curr.x;
+              const dy = centerY - curr.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist > 0) {
+                curr.vx += dx * 0.01;
+                curr.vy += dy * 0.01;
+              }
+            } else if (curr.category === 'keyword') {
+              // 关键词节点位于中间区域
+              const dist = Math.sqrt(Math.pow(curr.x - centerX, 2) + Math.pow(curr.y - centerY, 2));
+              if (dist > radius * 0.5) {
+                curr.vx += (centerX - curr.x) * 0.005;
+                curr.vy += (centerY - curr.y) * 0.005;
+              }
+            }
+          }
+        });
 
       // 增强版缩放行为 - 完全重写以提供更好的用户体验
       try {
