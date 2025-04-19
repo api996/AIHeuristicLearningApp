@@ -26,85 +26,18 @@ export async function analyzeLearningPath(userId: number): Promise<LearningPathR
   try {
     log(`[trajectory] 开始分析用户 ${userId} 的学习轨迹`);
     
-    // 调用Python服务分析学习轨迹
-    const pythonProcess = spawn('python3', ['-c', `
-import asyncio
-import sys
-import json
-sys.path.append('server')
-from services.learning_memory import learning_memory_service
-
-async def analyze_path():
-    # 分析学习轨迹
-    result = await learning_memory_service.analyze_learning_path(${userId})
-    # 转换为JSON输出
-    print(json.dumps(result, ensure_ascii=False))
-
-asyncio.run(analyze_path())
-    `]);
-    
-    let output = '';
-    pythonProcess.stdout.on('data', (data) => {
-      output += data.toString();
-    });
-    
-    return new Promise((resolve, reject) => {
-      pythonProcess.on('close', async (code) => {
-        if (code !== 0) {
-          log(`[trajectory] 分析学习轨迹失败，Python进程退出码: ${code}`);
-          // 使用备用方法生成学习轨迹
-          const fallbackResult = await generateLearningPathFromMemories(userId);
-          resolve(fallbackResult);
-        } else {
-          try {
-            const result = JSON.parse(output.trim());
-            log(`[trajectory] 成功获取学习轨迹分析结果，包含 ${result.topics?.length || 0} 个主题`);
-            
-            // 转换Python返回的结果为我们的LearningPathResult接口
-            const formattedResult: LearningPathResult = {
-              nodes: [],
-              links: [],
-              progress: [],
-              suggestions: result.suggestions || [],
-              topics: result.topics || []
-            };
-            
-            // 处理进度数据
-            if (result.progress) {
-              formattedResult.progress = result.progress.map((p: any) => ({
-                category: p.topic,
-                score: p.percentage,
-                change: p.change || 0
-              }));
-            }
-            
-            // 处理知识图谱
-            if (result.knowledge_graph) {
-              formattedResult.nodes = result.knowledge_graph.nodes || [];
-              formattedResult.links = result.knowledge_graph.links || [];
-            }
-            
-            resolve(formattedResult);
-          } catch (error) {
-            log(`[trajectory] 解析学习轨迹结果失败: ${error}`);
-            // 使用备用方法生成学习轨迹
-            const fallbackResult = await generateLearningPathFromMemories(userId);
-            resolve(fallbackResult);
-          }
-        }
-      });
-      
-      pythonProcess.stderr.on('data', (data) => {
-        log(`[trajectory] Python错误: ${data}`);
-      });
-      
-      pythonProcess.on('error', async (error) => {
-        log(`[trajectory] 启动Python进程失败: ${error}`);
-        // 使用备用方法生成学习轨迹
-        const fallbackResult = await generateLearningPathFromMemories(userId);
-        resolve(fallbackResult);
-      });
-    });
+    // 直接使用JavaScript实现，不再尝试调用Python服务
+    try {
+      // 使用备用方法生成学习轨迹
+      log(`[trajectory] 直接使用JS生成学习轨迹，不再调用Python服务`);
+      const result = await generateLearningPathFromMemories(userId);
+      return result;
+    } catch (error) {
+      log(`[trajectory] 生成学习轨迹失败: ${error}`);
+      // 使用备用方法生成学习轨迹
+      const fallbackResult = await getDefaultLearningPath(userId);
+      return fallbackResult;
+    }
   } catch (error) {
     log(`[trajectory] 分析学习轨迹时遇到错误: ${error}`);
     return generateLearningPathFromMemories(userId);

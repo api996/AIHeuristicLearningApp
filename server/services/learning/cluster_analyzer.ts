@@ -209,17 +209,88 @@ export class ClusterAnalyzerService {
         return "空内容";
       }
       
-      // 使用GenAI服务生成主题
-      const topic = await genAiService.generateTopicForMemories(contentSamples);
-      if (!topic) {
-        // 后备方案：使用第一个记忆的摘要
-        return memories[0].summary || "未分类主题";
+      // 尝试使用GenAI服务生成主题
+      try {
+        const topic = await genAiService.generateTopicForMemories(contentSamples);
+        if (topic) {
+          log(`[cluster_analyzer] AI成功生成主题: ${topic}`);
+          return topic;
+        }
+      } catch (aiError) {
+        log(`[cluster_analyzer] AI生成主题失败: ${aiError}`, "warn");
+        // AI服务失败，继续使用关键词统计方法
       }
       
-      return topic;
+      // 后备方案1：使用关键词频率统计生成主题
+      log(`[cluster_analyzer] 使用关键词频率统计生成主题`);
+      const keywordCounts = new Map<string, number>();
+      
+      // 收集所有记忆的关键词
+      for (const memory of memories) {
+        try {
+          // 从storage获取关键词
+          const keywords = await this.getKeywordsForMemory(memory.id);
+          
+          if (keywords && keywords.length > 0) {
+            for (const keyword of keywords) {
+              const count = keywordCounts.get(keyword) || 0;
+              keywordCounts.set(keyword, count + 1);
+            }
+          }
+        } catch (e) {
+          // 忽略单个记忆的关键词获取失败
+        }
+      }
+      
+      // 如果找到了关键词，使用最频繁的几个作为主题
+      if (keywordCounts.size > 0) {
+        // 按频率排序关键词
+        const sortedKeywords = Array.from(keywordCounts.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)  // 取前3个最常见的关键词
+          .map(entry => entry[0]);
+        
+        if (sortedKeywords.length > 0) {
+          const topicFromKeywords = sortedKeywords.join("、");
+          log(`[cluster_analyzer] 从关键词生成主题: ${topicFromKeywords}`);
+          return topicFromKeywords;
+        }
+      }
+      
+      // 后备方案2：使用记忆摘要
+      if (memories[0].summary) {
+        const summary = memories[0].summary;
+        // 截取摘要的前15个字符作为主题
+        const shortSummary = summary.length > 15 ? summary.substring(0, 15) + "..." : summary;
+        log(`[cluster_analyzer] 使用记忆摘要生成主题: ${shortSummary}`);
+        return shortSummary;
+      }
+      
+      // 最后的后备方案：使用记忆内容的前几个字
+      const firstContent = contentSamples[0];
+      const shortContent = firstContent.length > 10 ? firstContent.substring(0, 10) + "..." : firstContent;
+      log(`[cluster_analyzer] 使用记忆内容生成主题: ${shortContent}`);
+      return shortContent;
     } catch (error) {
       log(`[cluster_analyzer] 生成主题时出错: ${error}`, "error");
       return "未分类主题";
+    }
+  }
+  
+  /**
+   * 获取记忆的关键词
+   * @param memoryId 记忆ID
+   * @returns 关键词数组
+   */
+  private async getKeywordsForMemory(memoryId: number): Promise<string[]> {
+    try {
+      // 从storage导入，确保避免循环引用
+      const { storage } = await import('../../storage');
+      const keywords = await storage.getKeywordsByMemoryId(memoryId);
+      return keywords.map(k => k.keyword);
+    } catch (error) {
+      log(`[cluster_analyzer] 获取记忆#${memoryId}的关键词失败: ${error}`, "warn");
+      return [];
     }
   }
   
