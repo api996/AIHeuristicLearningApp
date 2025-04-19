@@ -239,74 +239,188 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       // 创建一个容器以支持缩放和平移
       const container = svg.append('g');
 
-      // 添加缩放行为 - 使用内联处理而不依赖外部补丁
+      // 增强版缩放行为 - 完全重写以提供更好的用户体验
       try {
-        // 创建自定义缩放行为
-        const defaultTransform = { k: 1, x: 0, y: 0 };
+        // 定义默认和当前变换
+        const defaultTransform = { k: 1, x: width / 2, y: height / 2 };
         let currentTransform = { ...defaultTransform };
         
-        // 手动创建缩放函数
+        // 创建缩放控制器
         const zoom = d3.zoom()
-          .scaleExtent([0.1, 4])
+          .scaleExtent([0.1, 8]) // 更大的缩放范围
           .on('zoom', function(event: any) {
+            // 处理缩放事件
             try {
-              // 直接从事件参数中获取变换信息
-              if (event) {
-                // 检查事件中是否有transform对象
-                if (event.transform) {
-                  currentTransform = event.transform;
-                } 
-                // 回退到获取事件中的scale和translate属性（旧版D3）
-                else if (typeof event.scale === 'number') {
-                  currentTransform = {
-                    k: event.scale || 1,
-                    x: event.translate ? event.translate[0] : 0,
-                    y: event.translate ? event.translate[1] : 0
-                  };
-                }
+              if (event && event.transform) {
+                // 保存当前变换
+                currentTransform = event.transform;
                 
-                // 应用变换
+                // 应用变换到容器
                 container.attr('transform', 
                   `translate(${currentTransform.x},${currentTransform.y}) scale(${currentTransform.k})`
                 );
                 
-                // 在控制台记录变换信息用于调试
-                if (currentTransform !== defaultTransform) {
-                  console.log("图谱缩放变换:", currentTransform);
+                // 在全屏模式下显示缩放级别指示器
+                if (isFullScreen) {
+                  const indicator = svg.select('#zoom-indicator');
+                  if (!indicator.empty()) {
+                    indicator.text(`缩放: ${currentTransform.k.toFixed(1)}x`);
+                  }
                 }
               }
             } catch (err) {
               console.warn("缩放事件处理错误:", err);
-              // 在出错时应用默认变换
-              container.attr('transform', 
-                `translate(${defaultTransform.x},${defaultTransform.y}) scale(${defaultTransform.k})`
-              );
+              // 如果发生错误，恢复默认变换
+              container.attr('transform', `translate(0,0) scale(1)`);
             }
           });
         
         // 应用缩放行为
         svg.call(zoom as any);
+        
+        // 添加缩放按钮和指示器（仅在全屏模式下）
+        if (isFullScreen) {
+          // 添加缩放级别指示器
+          svg.append('text')
+            .attr('id', 'zoom-indicator')
+            .attr('x', 10)
+            .attr('y', 25)
+            .attr('font-size', '12px')
+            .attr('fill', 'rgba(255,255,255,0.7)')
+            .text(`缩放: 1.0x`);
+            
+          // 添加控制按钮组
+          const controlsGroup = svg.append('g')
+            .attr('transform', 'translate(10, 50)')
+            .attr('class', 'zoom-controls');
+            
+          // 放大按钮
+          controlsGroup.append('circle')
+            .attr('cx', 15)
+            .attr('cy', 15)
+            .attr('r', 15)
+            .attr('fill', 'rgba(59, 130, 246, 0.5)')
+            .attr('stroke', 'white')
+            .attr('stroke-width', 1)
+            .attr('cursor', 'pointer')
+            .on('click', () => {
+              svg.transition().duration(300).call(
+                zoom.scaleBy as any, 1.3
+              );
+            });
+            
+          // 放大符号
+          controlsGroup.append('text')
+            .attr('x', 15)
+            .attr('y', 20)
+            .attr('text-anchor', 'middle')
+            .attr('fill', 'white')
+            .attr('font-size', '18px')
+            .attr('cursor', 'pointer')
+            .text('+');
+            
+          // 缩小按钮
+          controlsGroup.append('circle')
+            .attr('cx', 15)
+            .attr('cy', 55)
+            .attr('r', 15)
+            .attr('fill', 'rgba(59, 130, 246, 0.5)')
+            .attr('stroke', 'white')
+            .attr('stroke-width', 1)
+            .attr('cursor', 'pointer')
+            .on('click', () => {
+              svg.transition().duration(300).call(
+                zoom.scaleBy as any, 0.7
+              );
+            });
+            
+          // 缩小符号
+          controlsGroup.append('text')
+            .attr('x', 15)
+            .attr('y', 60)
+            .attr('text-anchor', 'middle')
+            .attr('fill', 'white')
+            .attr('font-size', '18px')
+            .attr('cursor', 'pointer')
+            .text('-');
+            
+          // 重置按钮
+          controlsGroup.append('circle')
+            .attr('cx', 15)
+            .attr('cy', 95)
+            .attr('r', 15)
+            .attr('fill', 'rgba(59, 130, 246, 0.5)')
+            .attr('stroke', 'white')
+            .attr('stroke-width', 1)
+            .attr('cursor', 'pointer')
+            .on('click', () => {
+              svg.transition().duration(500).call(
+                zoom.transform as any, d3.zoomIdentity.translate(width/2, height/2).scale(1)
+              );
+            });
+            
+          // 重置符号
+          controlsGroup.append('text')
+            .attr('x', 15)
+            .attr('y', 100)
+            .attr('text-anchor', 'middle')
+            .attr('fill', 'white')
+            .attr('font-size', '14px')
+            .attr('cursor', 'pointer')
+            .text('R');
+        }
+        
+        // 预热力学模拟以获得更好的初始布局
+        for (let i = 0; i < 100; ++i) simulation.tick();
+        
+        // 应用初始缩放级别
+        if (zoomLevel && zoomLevel !== 1) {
+          // 使用平滑过渡动画
+          svg.transition().duration(750)
+            .call((zoom as any).transform, d3.zoomIdentity.translate(width/2, height/2).scale(zoomLevel));
+        } else {
+          // 初始化适当的缩放和位置，让整个图谱可见
+          setTimeout(() => {
+            try {
+              // 计算自动缩放级别，确保图谱完全可见
+              const autoZoom = nodes.length > 15 ? 0.8 : nodes.length > 8 ? 0.9 : 1.0;
+              svg.transition().duration(750)
+                .call((zoom as any).transform, d3.zoomIdentity.translate(width/2, height/2).scale(autoZoom));
+            } catch (e) {
+              console.warn("应用自动缩放失败:", e);
+            }
+          }, 300);
+        }
       } catch (err) {
-        console.warn("应用缩放行为时出错:", err);
+        console.warn("设置增强缩放行为时出错:", err);
       }
 
-      // 创建力导向模拟
+      // 创建力导向模拟 - 改进力参数
       const simulation = d3.forceSimulation(nodes as any)
-        .force('link', d3.forceLink(formattedLinks).id((d: any) => d.id).distance(100))
-        .force('charge', d3.forceManyBody().strength(-150))
+        // 链接距离更大，使节点分布更开
+        .force('link', d3.forceLink(formattedLinks).id((d: any) => d.id).distance(150))
+        // 增加排斥力，使节点更加分散
+        .force('charge', d3.forceManyBody().strength(-300))
+        // 保持在中心位置
         .force('center', d3.forceCenter(width / 2, height / 2))
-        .force('collision', d3.forceCollide().radius((d: any) => (d.size || 15) / 2 + 5));
+        // 增加碰撞半径，防止节点重叠
+        .force('collision', d3.forceCollide().radius((d: any) => Math.max(10, (d.size || 15) / 5) + 10))
+        // 增加X、Y方向的力，使图谱更加展开
+        .force('x', d3.forceX(width / 2).strength(0.05))
+        .force('y', d3.forceY(height / 2).strength(0.05));
 
-      // 绘制链接
+      // 绘制连接线 - 增强版
       const link = container.append('g')
         .selectAll('line')
         .data(formattedLinks)
         .enter()
         .append('line')
-        .attr('stroke', (d: any) => d.color || 'rgba(59, 130, 246, 0.5)')
-        .attr('stroke-width', (d: any) => d.strokeWidth || 1.5);
+        .attr('stroke', (d: any) => d.color || 'rgba(100, 180, 255, 0.7)') // 更亮更明显的颜色
+        .attr('stroke-width', (d: any) => d.strokeWidth || 2.5) // 增加线宽
+        .attr('stroke-opacity', 0.8) // 增加不透明度
+        .attr('stroke-linecap', 'round'); // 圆角线帽
 
-      // 创建节点组
+      // 创建节点组 - 增强版
       const node = container.append('g')
         .selectAll('.node')
         .data(nodes)
@@ -325,19 +439,21 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           .on('end', handleDragEnded(simulation)) as any
         );
 
-      // 添加节点圆形
+      // 添加节点圆形 - 调整大小使其更明显
       node.append('circle')
-        .attr('r', (d: any) => (d.size || 15) / 15)
+        .attr('r', (d: any) => Math.max(5, (d.size || 15) / 10)) // 最小半径为5px，更大的节点
         .attr('fill', (d: any) => d.color || '#3b82f6')
         .attr('stroke', '#ffffff')
         .attr('stroke-width', 1.5);
 
-      // 添加节点标签
+      // 添加节点标签 - 改进显示
       node.append('text')
-        .attr('dx', (d: any) => (d.size || 15) / 15 + 5)
+        .attr('dx', (d: any) => Math.max(5, (d.size || 15) / 10) + 5) // 与圆形大小匹配
         .attr('dy', '.35em')
-        .attr('font-size', '10px')
+        .attr('font-size', '12px') // 增大字体
         .attr('fill', '#ffffff')
+        .attr('stroke', 'rgba(0,0,0,0.5)') // 添加描边使文字更清晰
+        .attr('stroke-width', 0.3)
         .text((d: any) => d.label || d.id);
 
       // 更新力导向模拟
