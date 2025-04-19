@@ -10,6 +10,7 @@ import ChatDetails from "@/pages/chat-details";
 import LearningPath from "@/pages/learning-path";
 import MemorySpace from "@/pages/memory-space";
 import KnowledgeGraphDetail from "@/pages/knowledge-graph-detail";
+import KnowledgeGraphView from "@/pages/knowledge-graph-view";
 import PromptEditor from "@/pages/prompt-editor";
 import NotFound from "@/pages/not-found";
 // 导入D3补丁文件，修复D3兼容性问题
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/learning-path" component={LearningPath} />
       <Route path="/memory-space" component={MemorySpace} />
       <Route path="/knowledge-graph-detail" component={KnowledgeGraphDetail} />
+      <Route path="/knowledge-graph-view/:userId" component={KnowledgeGraphView} />
       <Route path="/" component={Home} />
       <Route component={NotFound} />
     </Switch>
