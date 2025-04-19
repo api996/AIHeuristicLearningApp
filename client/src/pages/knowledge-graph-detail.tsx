@@ -143,14 +143,49 @@ export default function KnowledgeGraphDetail() {
     enabled: !!user?.userId,
   });
   
-  // 添加刷新图谱的处理函数
-  const handleRefreshGraph = () => {
+  // 添加刷新图谱的处理函数 - 使用预加载功能彻底刷新
+  const handleRefreshGraph = async () => {
     if (user?.userId) {
-      // 清除缓存
-      clearKnowledgeGraphCache(user.userId);
-      console.log("已清除知识图谱缓存，重新获取数据...");
-      // 重新获取数据
-      refetch();
+      try {
+        // 清除缓存
+        clearKnowledgeGraphCache(user.userId);
+        console.log("已清除知识图谱缓存，开始重新获取数据...");
+        
+        // 显示加载状态
+        setIsLoading(true);
+        
+        // 强制从服务器获取新数据 (不使用缓存)
+        const response = await fetch(`/api/learning-path/${user.userId}/knowledge-graph`, {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`获取知识图谱失败: ${response.status}`);
+        }
+        
+        // 解析新数据
+        const freshData = await response.json();
+        console.log(`获取到新数据: ${freshData.nodes.length}个节点, ${freshData.links.length}个连接`);
+        
+        // 缓存新数据并更新状态
+        setKnowledgeGraph(freshData);
+        
+        // 使用预加载器缓存数据，以便其他组件使用
+        await preloadKnowledgeGraphData(user.userId);
+        
+        // 清除加载状态
+        setIsLoading(false);
+      } catch (error) {
+        console.error("刷新知识图谱数据失败:", error);
+        // 重置加载状态
+        setIsLoading(false);
+        // 如果失败，回退到使用refetch
+        refetch();
+      }
     }
   };
 
