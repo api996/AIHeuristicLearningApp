@@ -62,6 +62,37 @@
   font-family: monospace;
 }
 
+/* 修复iPad和手机上的标签显示问题 */
+.ipad-device [data-orientation="vertical"] > [role="tablist"],
+.tablet-device [data-orientation="vertical"] > [role="tablist"],
+.iphone-device [data-orientation="vertical"] > [role="tablist"],
+.mobile-device [data-orientation="vertical"] > [role="tablist"] {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  border-right: 1px solid #333 !important;
+  padding-right: 0.5rem !important;
+  margin-bottom: 1rem !important;
+  height: auto !important;
+}
+
+/* 确保标签触发器具有正确的外观 */
+.ipad-device [role="tablist"] [role="tab"],
+.tablet-device [role="tablist"] [role="tab"],
+.iphone-device [role="tablist"] [role="tab"],
+.mobile-device [role="tablist"] [role="tab"] {
+  white-space: nowrap !important;
+  padding: 0.5rem !important;
+  border-radius: 0.25rem !important;
+  display: flex !important;
+  align-items: center !important;
+  margin-bottom: 0.25rem !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+}
+
 /* 针对iOS Safari浏览器的特定修复 */
 @supports (-webkit-touch-callout: none) {
   .template-editor-content,
