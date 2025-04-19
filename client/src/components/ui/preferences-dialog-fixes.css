@@ -1,47 +1,71 @@
 /*
- * 偏好设置对话框在iPad上的滚动修复
- * 确保偏好设置对话框在iPad上可以正常滚动，防止内容溢出
+ * iPad设备上的对话框紧急修复
+ * 完全重写对话框样式，防止黑色阴影覆盖和交互问题
  */
 
-/* 核心修复: 修正覆盖层pointer-events */
+/* 第一步：完全阻止原始对话框覆盖层(黑色背景)的显示 */
 .ipad-device [data-radix-dialog-overlay],
 .tablet-device [data-radix-dialog-overlay] {
-  pointer-events: none !important; /* 允许点击事件穿透到对话框 */
+  opacity: 0 !important;
+  background: transparent !important;
+  display: none !important; /* 强制隐藏覆盖层 */
 }
 
-/* 确保对话框内容接收点击事件 */
+/* 第二步：确保对话框内容正常显示并可交互 */
 .ipad-device [data-radix-dialog-content],
-.tablet-device [data-radix-dialog-content] {
-  pointer-events: auto !important; /* 保证对话框可以接收点击事件 */
-}
-
-/* iPad设备上的偏好设置对话框滚动修复 */
+.tablet-device [data-radix-dialog-content],
 .ipad-device .preferences-dialog-content,
 .tablet-device .preferences-dialog-content {
-  max-height: 85vh !important;
+  background: rgba(24, 24, 28, 0.92) !important; /* 暗黑半透明背景 */
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  max-height: 90vh !important;
+  width: 90% !important;
+  max-width: 500px !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
-  padding-bottom: 20px !important;
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 9999 !important; /* 确保在最顶层 */
 }
 
-/* 对话框内容区域滚动修复 */
-.ipad-device .preferences-dialog-content > div,
-.tablet-device .preferences-dialog-content > div {
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  max-height: 70vh !important;
+/* 浅色模式的对话框 */
+:root.light .ipad-device .preferences-dialog-content,
+:root.light .tablet-device .preferences-dialog-content {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
 }
 
-/* 修复颜色选择部分在iPad上的显示 */
+/* 确保所有对话框内容可交互 */
+.ipad-device .preferences-dialog-content *,
+.tablet-device .preferences-dialog-content * {
+  pointer-events: auto !important;
+}
+
+/* 修复对话框内的按钮 */
+.ipad-device .preferences-dialog-content button,
+.tablet-device .preferences-dialog-content button {
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+}
+
+/* 颜色选择器修复 */
 .ipad-device .preferences-theme-color-section,
 .tablet-device .preferences-theme-color-section {
+  display: flex !important;
   flex-wrap: wrap !important;
-  gap: 8px !important;
+  gap: 12px !important;
 }
 
-/* 修复背景图片上传区域在iPad上的触摸交互 */
-.ipad-device .preferences-background-upload,
-.tablet-device .preferences-background-upload {
-  min-height: 120px !important;
-  touch-action: manipulation !important;
+.ipad-device .preferences-theme-color-section > div,
+.tablet-device .preferences-theme-color-section > div {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  position: relative !important;
+  z-index: 10 !important;
 }
