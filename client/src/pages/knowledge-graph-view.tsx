@@ -3,9 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import SimpleKnowledgeGraph from '@/components/SimpleKnowledgeGraph';
-import { ArrowLeft, ZoomIn, ZoomOut, Sun, Moon, RotateCw } from 'lucide-react';
+import { ArrowLeft, ZoomIn, ZoomOut, Sun, Moon, RotateCw, RefreshCw, Maximize, Minimize } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import '../components/ui/knowledge-graph-view.css';
+// 导入知识图谱修复和优化样式
+import '@/components/ui/knowledge-graph-fixes.css';
 
 interface KnowledgeGraphViewProps {}
 
@@ -109,17 +111,25 @@ export default function KnowledgeGraphView({}: KnowledgeGraphViewProps) {
         </Link>
         
         <div className="flex gap-2">
-          <button className="graph-button" onClick={handleZoomIn}>
+          <button className="graph-button" onClick={handleZoomIn} title="放大">
             <ZoomIn size={14} />
           </button>
-          <button className="graph-button" onClick={handleZoomOut}>
+          <button className="graph-button" onClick={handleZoomOut} title="缩小">
             <ZoomOut size={14} />
           </button>
           <button 
             className="graph-button" 
             onClick={() => setColorScheme(prev => prev === 'dark' ? 'light' : 'dark')}
+            title={colorScheme === 'light' ? "暗色模式" : "亮色模式"}
           >
             {colorScheme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+          </button>
+          <button 
+            className="graph-button" 
+            onClick={() => window.location.reload()}
+            title="刷新图谱"
+          >
+            <RefreshCw size={14} />
           </button>
         </div>
       </div>
