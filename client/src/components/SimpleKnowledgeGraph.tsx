@@ -1,4 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
+// 导入Lucide图标，用于控制按钮
+import { ZoomIn, ZoomOut, RefreshCw, Maximize2, Minimize2, Home } from 'lucide-react';
 // 直接导入d3作为any类型以避免TypeScript错误
 import * as d3Raw from 'd3';
 // 类型转换为any，解决TypeScript类型检查错误
@@ -408,15 +410,29 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         console.warn("设置增强缩放行为时出错:", err);
       }
 
-      // 绘制连接线 - 增强版
-      const link = container.append('g')
-        .selectAll('line')
+      // 绘制连接线 - 明显增强版
+      // 先添加较粗但透明的辅助线，使线条显得更宽更醒目
+      container.append('g')
+        .selectAll('.link-highlight')
         .data(formattedLinks)
         .enter()
         .append('line')
-        .attr('stroke', (d: any) => d.color || 'rgba(100, 180, 255, 0.7)') // 更亮更明显的颜色
-        .attr('stroke-width', (d: any) => d.strokeWidth || 2.5) // 增加线宽
-        .attr('stroke-opacity', 0.8) // 增加不透明度
+        .attr('class', 'link-highlight')
+        .attr('stroke', 'rgba(100, 180, 255, 0.3)')
+        .attr('stroke-width', (d: any) => (d.strokeWidth || 2.5) * 3)
+        .attr('stroke-linecap', 'round')
+        .attr('filter', 'blur(3px)');
+        
+      // 主连接线
+      const link = container.append('g')
+        .selectAll('.link-main')
+        .data(formattedLinks)
+        .enter()
+        .append('line')
+        .attr('class', 'link-main')
+        .attr('stroke', (d: any) => d.color || 'rgba(150, 200, 255, 0.8)') // 更亮的颜色
+        .attr('stroke-width', (d: any) => d.strokeWidth || 3) // 更粗的线宽
+        .attr('stroke-opacity', 0.9) // 几乎不透明
         .attr('stroke-linecap', 'round'); // 圆角线帽
 
       // 创建节点组 - 增强版
@@ -457,12 +473,21 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
 
       // 更新力导向模拟
       simulation.on('tick', () => {
+        // 更新主连接线
         link
           .attr('x1', (d: any) => d.source.x)
           .attr('y1', (d: any) => d.source.y)
           .attr('x2', (d: any) => d.target.x)
           .attr('y2', (d: any) => d.target.y);
+          
+        // 更新辅助高亮线条
+        container.selectAll('.link-highlight')
+          .attr('x1', (d: any) => d.source.x)
+          .attr('y1', (d: any) => d.source.y)
+          .attr('x2', (d: any) => d.target.x)
+          .attr('y2', (d: any) => d.target.y);
 
+        // 更新节点位置
         node
           .attr('transform', (d: any) => `translate(${d.x},${d.y})`);
       });
@@ -530,6 +555,115 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
   const adjustedHeight = isFullScreen ? height : Math.min(height, window.innerHeight * 0.7);
   const adjustedWidth = isFullScreen ? width : Math.min(width, window.innerWidth - 20);
   
+  // 添加刷新图谱的函数
+  const refreshGraph = () => {
+    if (!svgRef.current || !nodes.length) return;
+    
+    // 重新渲染图谱
+    console.log("手动刷新知识图谱...");
+    d3.select(svgRef.current).selectAll("*").remove();
+    
+    // 重新触发useEffect渲染
+    setError(null);
+    
+    // 模拟状态变化，强制重新渲染
+    const svgElement = svgRef.current;
+    setTimeout(() => {
+      if (svgElement) {
+        // 重绘图谱的核心逻辑
+        const nodeMap = new Map();
+        nodes.forEach(node => nodeMap.set(node.id, { ...node }));
+        
+        const formattedLinks = links.map(link => ({
+          ...link,
+          source: typeof link.source === 'string' ? nodeMap.get(link.source) || link.source : link.source,
+          target: typeof link.target === 'string' ? nodeMap.get(link.target) || link.target : link.target,
+        }));
+        
+        // 创建SVG元素
+        const svg = d3.select(svgElement);
+        const container = svg.append('g');
+        
+        // 绘制连接线 - 明显增强版
+        // 先添加较粗但透明的辅助线，使线条显得更宽更醒目
+        container.append('g')
+          .selectAll('.link-highlight')
+          .data(formattedLinks)
+          .enter()
+          .append('line')
+          .attr('class', 'link-highlight')
+          .attr('stroke', 'rgba(100, 180, 255, 0.3)')
+          .attr('stroke-width', (d: any) => (d.strokeWidth || 2.5) * 3)
+          .attr('stroke-linecap', 'round')
+          .attr('filter', 'blur(3px)');
+          
+        // 主连接线
+        const link = container.append('g')
+          .selectAll('.link-main')
+          .data(formattedLinks)
+          .enter()
+          .append('line')
+          .attr('class', 'link-main')
+          .attr('stroke', (d: any) => d.color || 'rgba(150, 200, 255, 0.8)')
+          .attr('stroke-width', (d: any) => d.strokeWidth || 3)
+          .attr('stroke-opacity', 0.9)
+          .attr('stroke-linecap', 'round');
+          
+        // 创建节点
+        const node = container.append('g')
+          .selectAll('.node')
+          .data(nodes)
+          .enter()
+          .append('g')
+          .attr('class', 'node')
+          .attr('data-category', (d: any) => d.category || 'default');
+          
+        // 添加节点圆形
+        node.append('circle')
+          .attr('r', (d: any) => Math.max(5, (d.size || 15) / 10))
+          .attr('fill', (d: any) => d.color || '#3b82f6')
+          .attr('stroke', '#ffffff')
+          .attr('stroke-width', 1.5);
+          
+        // 添加节点标签
+        node.append('text')
+          .attr('dx', (d: any) => Math.max(5, (d.size || 15) / 10) + 5)
+          .attr('dy', '.35em')
+          .attr('font-size', '12px')
+          .attr('fill', '#ffffff')
+          .attr('stroke', 'rgba(0,0,0,0.5)')
+          .attr('stroke-width', 0.3)
+          .text((d: any) => d.label || d.id);
+          
+        // 启动力导向图计算
+        const simulation = d3.forceSimulation(nodes as any)
+          .force('link', d3.forceLink(formattedLinks).id((d: any) => d.id).distance(150))
+          .force('charge', d3.forceManyBody().strength(-300))
+          .force('center', d3.forceCenter(adjustedWidth / 2, adjustedHeight / 2))
+          .force('collision', d3.forceCollide().radius((d: any) => Math.max(10, (d.size || 15) / 5) + 10))
+          .on('tick', () => {
+            // 更新主连接线
+            link
+              .attr('x1', (d: any) => d.source.x)
+              .attr('y1', (d: any) => d.source.y)
+              .attr('x2', (d: any) => d.target.x)
+              .attr('y2', (d: any) => d.target.y);
+              
+            // 更新辅助高亮线条
+            container.selectAll('.link-highlight')
+              .attr('x1', (d: any) => d.source.x)
+              .attr('y1', (d: any) => d.source.y)
+              .attr('x2', (d: any) => d.target.x)
+              .attr('y2', (d: any) => d.target.y);
+    
+            // 更新节点位置
+            node
+              .attr('transform', (d: any) => `translate(${d.x},${d.y})`);
+          });
+      }
+    }, 50);
+  };
+
   return (
     <div 
       className={`knowledge-graph-container ${isFullScreen ? 'fullscreened-graph' : ''}`}
@@ -556,6 +690,22 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           touchAction: 'manipulation'
         }}
       />
+      
+      {/* 添加图谱控制按钮 */}
+      <div className="graph-controls">
+        <button 
+          className="graph-control-button" 
+          onClick={refreshGraph}
+          title="刷新图谱"
+        >
+          <RefreshCw size={18} />
+        </button>
+      </div>
+      
+      {/* 缩放级别指示器 */}
+      <div className="zoom-level-indicator">
+        缩放: {(zoomLevel || 1).toFixed(1)}x
+      </div>
     </div>
   );
 };
