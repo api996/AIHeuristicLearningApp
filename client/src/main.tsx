@@ -8,6 +8,9 @@ import "./components/ui/ipad-fixes.css";
 import "./components/ui/button-styles.css";
 import "./components/ui/icon-fixes.css"; // 导入图标大小修复
 
+// 导入D3补丁以修复知识图谱中的D3相关问题
+import "./lib/d3-patch.js";
+
 // 预加载管理员组件，确保它们被包含在构建中
 import { preloadAdminComponents } from "./admin-components";
 

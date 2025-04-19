@@ -498,7 +498,7 @@ export default function LearningPath() {
                             </div>
                             <div className="mt-4 flex justify-center gap-2 flex-wrap">
                               <Button
-                                onClick={() => setLocation('/knowledge-graph-detail')}
+                                onClick={() => setLocation(`/knowledge-graph-detail?userId=${user?.userId}`)}
                                 className="bg-blue-600 hover:bg-blue-700 text-white"
                               >
                                 查看完整知识图谱

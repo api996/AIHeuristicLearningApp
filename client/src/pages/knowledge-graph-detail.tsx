@@ -34,26 +34,45 @@ interface KnowledgeGraph {
 }
 
 export default function KnowledgeGraphDetail() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [user, setUser] = useState<{userId: number; role: string; username?: string} | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   const graphContainerRef = useRef<HTMLDivElement>(null);
 
-  // 从localStorage获取用户信息
+  // 从URL参数和localStorage获取用户信息
   useEffect(() => {
     try {
+      // 首先检查URL参数中是否有userId
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlUserId = urlParams.get('userId');
+      console.log("从URL参数获取用户ID:", urlUserId);
+
+      // 从localStorage获取完整用户信息
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        
+        // 如果URL有userId参数且与当前登录用户不同，使用URL中的userId
+        if (urlUserId && parseInt(urlUserId) !== parsedUser.userId) {
+          console.log("使用URL参数中的用户ID:", urlUserId);
+          setUser({...parsedUser, userId: parseInt(urlUserId)});
+        } else {
+          setUser(parsedUser);
+        }
+      } else if (urlUserId) {
+        // 如果没有登录用户但有URL参数，创建临时用户对象
+        console.log("创建临时用户对象，使用URL参数中的用户ID:", urlUserId);
+        setUser({userId: parseInt(urlUserId), role: 'user'});
       } else {
-        // 如果用户未登录，重定向到登录页面
+        // 如果用户未登录且没有URL参数，重定向到登录页面
+        console.log("用户未登录且没有URL参数，重定向到登录页面");
         setLocation("/login");
       }
     } catch (error) {
       console.error("获取用户信息失败:", error);
     }
-  }, [setLocation]);
+  }, [setLocation, location]);
 
   // 获取知识图谱数据
   const { data: knowledgeGraph, isLoading, error } = useQuery<KnowledgeGraph>({
