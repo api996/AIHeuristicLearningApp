@@ -1365,7 +1365,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const response = await chatService.sendMessage(message, Number(userId), Number(chatId), shouldUseSearch);
+      // 特殊处理Deep模型，直接发送消息，不传入记忆和搜索参数，让工作流来处理所有内容
+      let response;
+      if (chat.model === "deep") {
+        log(`使用Deep模型，简化请求，直接传递用户查询`);
+        response = await chatService.sendMessage(message);
+      } else {
+        // 其他模型使用正常的处理流程，包含记忆和搜索功能
+        response = await chatService.sendMessage(message, Number(userId), Number(chatId), shouldUseSearch);
+      }
 
       // 存储消息到数据库
       try {
