@@ -463,19 +463,30 @@
   }
   
   /* 学习轨迹标签内容修复 - 特定针对无法滚动的内容 */
-  .ipad-device [data-orientation="horizontal"] > [data-state],
-  .tablet-device [data-orientation="horizontal"] > [data-state],
-  .iphone-device [data-orientation="horizontal"] > [data-state],
-  .mobile-device [data-orientation="horizontal"] > [data-state],
-  .ipad-device [data-orientation="horizontal"] > div,
-  .tablet-device [data-orientation="horizontal"] > div,
-  .iphone-device [data-orientation="horizontal"] > div,
-  .mobile-device [data-orientation="horizontal"] > div {
+  .ipad-device [data-orientation="horizontal"] > [data-state="active"],
+  .tablet-device [data-orientation="horizontal"] > [data-state="active"],
+  .iphone-device [data-orientation="horizontal"] > [data-state="active"],
+  .mobile-device [data-orientation="horizontal"] > [data-state="active"] {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     height: auto !important;
     min-height: 50vh !important;
     padding-bottom: 50px !important;
+  }
+  
+  /* 修复管理员页面标签样式 */
+  .ipad-device [data-orientation="horizontal"],
+  .tablet-device [data-orientation="horizontal"],
+  .iphone-device [data-orientation="horizontal"],
+  .mobile-device [data-orientation="horizontal"] {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    height: auto !important;
+    width: 100% !important;
   }
 }
 
