@@ -1,136 +1,99 @@
-/* 知识图谱样式修复 */
+/**
+ * 知识图谱UI修复样式
+ * 优化触摸和拖拽交互体验
+ */
 
+/* 容器基础样式 */
 .knowledge-graph-container {
-  position: relative;
-  border-radius: 8px;
-  overflow: visible;
-  padding: 8px;
-}
-
-/* 修复iPad上的缩放和触摸行为 */
-.knowledge-graph-container svg {
-  touch-action: manipulation;
-  -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  cursor: grab;
   overflow: visible !important;
+  position: relative;
 }
 
-/* 增强节点圆圈的视觉效果 */
-.knowledge-graph-container circle {
-  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
-  transition: r 0.2s ease-in-out;
+/* 拖拽时的光标 */
+.knowledge-graph-container:active {
+  cursor: grabbing;
 }
 
-/* 为节点标签添加阴影 */
-.knowledge-graph-container text {
-  paint-order: stroke;
-  stroke: rgba(0, 0, 0, 0.7);
-  stroke-width: 3px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  font-weight: 600;
-  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
-}
-
-/* 增强节点交互效果 */
-.knowledge-graph-container .node:hover circle {
-  filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.8));
-  r: calc(var(--r) * 1.2); /* 增大悬停节点尺寸 */
-}
-
-/* 控制按钮样式 */
-.graph-controls {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 10;
-}
-
-.graph-control-button {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid rgba(100, 116, 139, 0.5);
-  color: rgba(226, 232, 240, 0.9);
+/* 节点基础样式 */
+.node {
   cursor: pointer;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(8px);
+  transition: transform 0.1s ease;
 }
 
-.graph-control-button:hover {
-  background: rgba(51, 65, 85, 0.9);
-  transform: scale(1.05);
+/* 节点悬停效果 */
+.node:hover circle {
+  stroke: white;
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
 }
 
-/* 缩放指示器 */
-.zoom-level-indicator {
-  position: absolute;
-  bottom: 12px;
-  left: 12px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: rgba(30, 41, 59, 0.7);
-  color: rgba(226, 232, 240, 0.9);
-  font-size: 12px;
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(100, 116, 139, 0.4);
+/* 提升连接线可见性 */
+.link-main {
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 1px rgba(100, 180, 255, 0.3));
 }
 
-/* 添加主题颜色的辉光效果 */
-.knowledge-graph-container .node[data-category="cluster"] circle {
-  filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.5));
+.link-highlight {
+  stroke-linecap: round;
 }
 
-.knowledge-graph-container .node[data-category="keyword"] circle {
-  filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.5));
+/* SVG交互优化 */
+svg {
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.knowledge-graph-container .node[data-category="memory"] circle {
-  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.5));
-}
-
-/* 为全屏模式添加样式 */
+/* 全屏模式下的样式 */
 .fullscreened-graph {
-  position: fixed !important;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100vw !important;
   height: 100vh !important;
   max-width: 100vw !important;
   max-height: 100vh !important;
-  z-index: 50;
-  background: rgba(15, 23, 42, 0.95);
-  padding: 16px;
+  background-color: rgba(13, 17, 23, 0.95);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
-/* iPad优化 */
-@media (max-width: 1024px) {
+/* 适配移动设备 */
+@media (max-width: 768px) {
+  .node text {
+    font-size: 10px;
+  }
+  
   .knowledge-graph-container {
     touch-action: manipulation;
   }
-  
-  .graph-controls {
-    bottom: 24px;
-    right: 24px;
-  }
-  
-  .graph-control-button {
-    width: 48px;
-    height: 48px;
-  }
 }
 
-/* 移动设备优化 */
-@media (max-width: 640px) {
-  .knowledge-graph-container text {
-    font-size: 10px !important;
-  }
+/* 触摸滚动优化 */
+.card-container-for-fullscreen {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* 节点类型不同颜色 */
+.node[data-category="cluster"] circle {
+  fill: #3b82f6;
+}
+
+.node[data-category="keyword"] circle {
+  fill: #10b981;
+}
+
+.node[data-category="memory"] circle {
+  fill: #f59e0b;
 }

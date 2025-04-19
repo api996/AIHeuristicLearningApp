@@ -1,132 +1,132 @@
 /**
- * 知识图谱数据预加载器
- * 用于提前加载知识图谱数据，减少用户等待时间
+ * 知识图谱预加载器
+ * 用于优化知识图谱数据的加载体验，提前获取数据并缓存
  */
 
-import { 
-  GraphNode, 
-  GraphLink, 
-  KnowledgeGraphData, 
-  KnowledgeGraphCacheItem
-} from '@/types/knowledge-graph';
+// 定义知识图谱数据类型
+export interface KnowledgeGraphNode {
+  id: string;
+  label: string;
+  size: number;
+  category: string;
+  clusterId?: string;
+  color?: string;
+}
 
-// 缓存对象
-const graphDataCache: Record<string, KnowledgeGraphCacheItem> = {};
+export interface KnowledgeGraphLink {
+  source: string;
+  target: string;
+  value: number;
+  type: string;
+  color?: string;
+}
 
-// 缓存有效期（10分钟）
-const CACHE_TTL = 10 * 60 * 1000;
+export interface KnowledgeGraphData {
+  nodes: KnowledgeGraphNode[];
+  links: KnowledgeGraphLink[];
+}
+
+// 内存缓存
+let cachedGraphData: Map<number, KnowledgeGraphData> = new Map();
+let pendingPromises: Map<number, Promise<KnowledgeGraphData>> = new Map();
 
 /**
  * 预加载知识图谱数据
  * @param userId 用户ID
- * @returns 加载Promise
+ * @returns 承诺知识图谱数据
  */
-export async function preloadKnowledgeGraphData(userId: number | string): Promise<KnowledgeGraphData> {
-  const cacheKey = `user_${userId}`;
+export async function preloadKnowledgeGraphData(userId: number): Promise<KnowledgeGraphData> {
+  console.log("预加载知识图谱数据...");
   
-  // 检查缓存是否有效
-  if (
-    graphDataCache[cacheKey] && 
-    graphDataCache[cacheKey].data && 
-    Date.now() - graphDataCache[cacheKey].timestamp < CACHE_TTL
-  ) {
-    console.log('使用缓存的知识图谱数据');
-    return graphDataCache[cacheKey].data;
+  // 检查是否已经有正在进行的请求
+  if (pendingPromises.has(userId)) {
+    return pendingPromises.get(userId)!;
   }
   
-  // 如果已经有加载中的请求，直接返回该Promise
-  if (graphDataCache[cacheKey]?.isLoading && graphDataCache[cacheKey]?.loadPromise) {
-    console.log('正在加载知识图谱数据，使用现有请求');
-    return graphDataCache[cacheKey].loadPromise as Promise<KnowledgeGraphData>;
+  // 创建新的获取请求
+  const promise = fetchKnowledgeGraphData(userId);
+  pendingPromises.set(userId, promise);
+  
+  try {
+    const data = await promise;
+    // 成功后更新缓存并移除进行中的请求
+    cachedGraphData.set(userId, data);
+    pendingPromises.delete(userId);
+    console.log(`知识图谱数据加载完成: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+    return data;
+  } catch (error) {
+    // 请求失败时也移除进行中的请求，允许重试
+    pendingPromises.delete(userId);
+    console.error("预加载图谱数据失败:", error);
+    throw error;
   }
-  
-  // 创建新的加载Promise
-  console.log('预加载知识图谱数据...');
-  
-  // 使用fetch替代有类型问题的apiRequest
-  const loadPromise = fetch(`/api/learning-path/${userId}/knowledge-graph`)
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('获取知识图谱数据失败');
-      }
-      return response.json();
-    })
-    .then((data: any) => {
-      // 如果数据为空或无效，返回空结构
-      if (!data || !data.nodes || !data.links) {
-        return { nodes: [], links: [] };
-      }
-      
-      // 处理和格式化数据
-      const formattedData = {
-        nodes: data.nodes.map((node: any) => ({
-          ...node,
-          // 确保节点大小合适
-          size: node.category === 'cluster' ? 15 : 
-                node.category === 'keyword' ? 10 : 8,
-          color: node.category === 'cluster' ? '#3b82f6' : 
-                node.category === 'keyword' ? '#10b981' : 
-                '#eab308'
-        })),
-        links: data.links.map((link: any) => ({
-          ...link,
-          // 确保线条可见
-          value: link.value || 1,
-          color: 'rgba(100, 180, 255, 0.7)'
-        }))
-      };
-      
-      // 更新缓存
-      graphDataCache[cacheKey] = {
-        data: formattedData,
-        timestamp: Date.now(),
-        isLoading: false,
-        loadPromise: null
-      };
-      
-      console.log(`知识图谱数据加载完成: ${formattedData.nodes.length}个节点, ${formattedData.links.length}个连接`);
-      return formattedData;
-    })
-    .catch((error) => {
-      console.error('加载知识图谱数据失败:', error);
-      if (graphDataCache[cacheKey]) {
-        graphDataCache[cacheKey].isLoading = false;
-        graphDataCache[cacheKey].loadPromise = null;
-      }
-      throw error;
-    });
-    
-  // 更新缓存状态
-  graphDataCache[cacheKey] = {
-    data: { nodes: [], links: [] },
-    timestamp: 0,
-    isLoading: true,
-    loadPromise
-  };
-  
-  return loadPromise;
 }
 
 /**
- * 获取知识图谱数据（如果已预加载则立即返回）
+ * 获取已缓存的知识图谱数据
  * @param userId 用户ID
- * @returns 知识图谱数据或Promise
+ * @returns 承诺知识图谱数据
  */
-export function getKnowledgeGraphData(userId: number | string): Promise<KnowledgeGraphData> {
+export async function getKnowledgeGraphData(userId: number): Promise<KnowledgeGraphData> {
+  console.log("获取知识图谱数据，用户ID:", userId);
+  
+  // 如果有缓存，直接返回
+  if (cachedGraphData.has(userId)) {
+    console.log("使用缓存的知识图谱数据");
+    return cachedGraphData.get(userId)!;
+  }
+  
+  // 如果有正在进行的请求，等待它完成
+  if (pendingPromises.has(userId)) {
+    return pendingPromises.get(userId)!;
+  }
+  
+  // 如果没有缓存也没有进行中的请求，开始新的请求
   return preloadKnowledgeGraphData(userId);
 }
 
 /**
- * 清除知识图谱缓存
- * @param userId 用户ID，如果不指定则清除所有缓存
+ * 清除缓存的知识图谱数据
+ * @param userId 用户ID，不提供则清除所有用户的缓存
  */
-export function clearKnowledgeGraphCache(userId?: number | string): void {
-  if (userId) {
-    const cacheKey = `user_${userId}`;
-    delete graphDataCache[cacheKey];
-    console.log(`已清除用户 ${userId} 的知识图谱缓存`);
+export function clearKnowledgeGraphCache(userId?: number): void {
+  if (userId !== undefined) {
+    cachedGraphData.delete(userId);
+    pendingPromises.delete(userId);
+    console.log(`已清除用户${userId}的知识图谱缓存`);
   } else {
-    Object.keys(graphDataCache).forEach(key => delete graphDataCache[key]);
-    console.log('已清除所有知识图谱缓存');
+    cachedGraphData.clear();
+    pendingPromises.clear();
+    console.log("已清除所有知识图谱缓存");
+  }
+}
+
+/**
+ * 实际获取知识图谱数据的函数
+ * @param userId 用户ID
+ * @returns 承诺知识图谱数据
+ */
+async function fetchKnowledgeGraphData(userId: number): Promise<KnowledgeGraphData> {
+  try {
+    const response = await fetch(`/api/learning-path/${userId}/knowledge-graph`);
+    if (!response.ok) {
+      throw new Error(`获取知识图谱失败: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log("预加载知识图谱数据成功:", data.nodes.length, "个节点,", data.links.length, "个连接");
+    
+    // 检查数据示例
+    if (data.nodes.length > 0) {
+      console.log("节点示例:", data.nodes[0]);
+    }
+    if (data.links.length > 0) {
+      console.log("连接示例:", data.links[0]);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("预加载知识图谱数据失败:", error);
+    throw error;
   }
 }

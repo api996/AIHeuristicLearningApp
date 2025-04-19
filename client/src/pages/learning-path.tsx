@@ -98,7 +98,7 @@ export default function LearningPath() {
       try {
         // 优先使用已预加载的数据
         console.log("从预加载缓存获取知识图谱数据...");
-        const cachedData = await getKnowledgeGraphData(user?.userId || 0);
+        const cachedData = await preloadKnowledgeGraphData(user?.userId || 0);
         return cachedData;
       } catch (err) {
         // 回退到标准请求
