@@ -66,14 +66,28 @@ export default function KnowledgeGraphDetail() {
     enabled: !!user?.userId,
   });
 
-  // 放大图谱
+  // 放大图谱 - 使用一个全局变量存储当前的缩放级别
   const handleZoomIn = () => {
-    setZoomLevel(prev => Math.min(prev + 0.2, 3));
+    setZoomLevel(prev => {
+      const newLevel = Math.min(prev + 0.2, 3);
+      // 设置CSS变量，让组件使用
+      if (graphContainerRef.current) {
+        graphContainerRef.current.style.setProperty('--graph-scale', newLevel.toString());
+      }
+      return newLevel;
+    });
   };
 
   // 缩小图谱
   const handleZoomOut = () => {
-    setZoomLevel(prev => Math.max(prev - 0.2, 0.5));
+    setZoomLevel(prev => {
+      const newLevel = Math.max(prev - 0.2, 0.5);
+      // 设置CSS变量，让组件使用
+      if (graphContainerRef.current) {
+        graphContainerRef.current.style.setProperty('--graph-scale', newLevel.toString());
+      }
+      return newLevel;
+    });
   };
 
   // 切换全屏模式
