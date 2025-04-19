@@ -518,92 +518,16 @@ ${searchResults}
         },
         isSimulated: !difyApiKey,
         transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
-          // 获取Deep的提示词模板（如果有）
-          let basePrompt = '';
-          try {
-            const templateRecord = await storage.getPromptTemplate('deep');
-            if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
-              log('使用自定义模板处理Dify请求');
-              basePrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
-              
-              // 执行模板变量替换
-              basePrompt = basePrompt
-                .replace(/{{user_input}}/g, message)
-                .replace(/{{date}}/g, new Date().toLocaleString())
-                .replace(/{{memory}}/g, contextMemories || "")
-                .replace(/{{search}}/g, searchResults || "");
-              
-              // 处理条件部分
-              basePrompt = basePrompt.replace(
-                /{{#if\s+memory}}([\s\S]*?){{\/if}}/g,
-                contextMemories ? "$1" : ""
-              );
-              
-              basePrompt = basePrompt.replace(
-                /{{#if\s+search}}([\s\S]*?){{\/if}}/g,
-                searchResults ? "$1" : ""
-              );
-            }
-          } catch (error) {
-            log(`获取Dify模板出错: ${error}`);
-          }
-          
-          // 如果没有自定义提示词模板，使用默认模板
-          if (!basePrompt) {
-            basePrompt = `你是一个多语言AI学习助手，专注于提供深入的学习体验和知识分析。`;
-            
-            // 添加记忆上下文（如果有）
-            if (contextMemories) {
-              basePrompt += `
-              
-以下是用户的历史学习记忆和对话上下文:
-${contextMemories}
-
-请在回答时自然地融入这些上下文信息，使回答更加连贯和个性化。避免明确提及这些记忆，而是像熟悉用户的专业导师一样利用这些信息提供帮助。`;
-            }
-            
-            // 添加搜索结果（如果有）
-            if (searchResults) {
-              basePrompt += `
-              
-以下是与用户问题相关的网络搜索结果:
-${searchResults}
-
-请根据这些搜索结果为用户提供最新、最准确的信息。`;
-            }
-            
-            // 添加用户问题和回答指导
-            basePrompt += `
-
-用户当前问题: ${message}
-
-请提供详细、有深度的回答，体现出专业的分析和洞察。回答应当逻辑清晰、内容准确、分析深入`;
-            
-            if (contextMemories) {
-              basePrompt += `，同时与用户之前的学习内容保持连贯性`;
-            }
-            
-            if (searchResults) {
-              basePrompt += `。引用网络搜索结果时，可以标注来源编号[1],[2]等`;
-            }
-            
-            basePrompt += `。`;
-          }
-          
-          // 构建Dify API请求格式
-          // 从basePrompt中提取实际问题，确保查询中包含完整的用户问题
+          // Deep模型是一个工作流，直接发送用户查询而不需要复杂的提示词模板
           const userQuestion = message.trim();
-          log(`Dify实际查询问题: "${userQuestion}"`);
           
+          // 构建最简单的Dify API请求格式
           const requestPayload = {
-            query: userQuestion,  // 直接发送用户问题，而不是整个提示词
+            query: userQuestion,     // 用户原始问题，不加任何修饰
             response_mode: "blocking",
             conversation_id: null,
             user: "user",
-            inputs: {
-              // 如果有记忆上下文，添加到inputs中
-              context: basePrompt
-            },
+            inputs: {}               // 空的inputs，让工作流自己处理一切
           };
           
           log(`Dify请求格式已构建完成，有效载荷大小: ${JSON.stringify(requestPayload).length}字节`);

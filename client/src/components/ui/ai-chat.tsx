@@ -694,8 +694,13 @@ export function AIChat({ userData }: AIChatProps) {
       const containsError = aiResponse.includes("模型暂时无法使用") || 
                            aiResponse.includes("DeepSeek模型无法生成回应") || 
                            aiResponse.includes("Dify模型暂时无法使用") || 
+                           aiResponse.includes("模型认证失败") || 
+                           aiResponse.includes("API密钥") || 
+                           aiResponse.includes("API调用次数已达上限") || 
+                           aiResponse.includes("频率限制") || 
                            aiResponse.includes("服务响应超时") || 
-                           aiResponse.includes("连接服务失败");
+                           aiResponse.includes("连接服务失败") ||
+                           aiResponse.includes("无法回应");
       
       // 更新现有的思考消息为真实响应
       setMessages(prev => {
@@ -718,6 +723,16 @@ export function AIChat({ userData }: AIChatProps) {
       if (currentModel === "deepseek" && containsError) {
         toast({
           title: "DeepSeek模型暂时不可用",
+          description: "请尝试使用Gemini或Grok模型，或稍后再试",
+          variant: "destructive",
+          duration: 5000
+        });
+      }
+      
+      // 如果是Deep模型且响应中包含错误信息，显示提示
+      if (currentModel === "deep" && containsError) {
+        toast({
+          title: "Deep模型暂时不可用",
           description: "请尝试使用Gemini或Grok模型，或稍后再试",
           variant: "destructive",
           duration: 5000
