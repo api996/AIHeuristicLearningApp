@@ -265,8 +265,30 @@ const MemorySpace: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-background">
       <Navbar />
       
-      <div className="container mx-auto py-6 flex-1 flex flex-col memory-space-container">
-        <div className="flex justify-between items-center mb-6">
+      <div 
+        className="container mx-auto py-6 flex-1 memory-space-container"
+        style={{
+          height: '90vh', // 设置高度，留出底部空间
+          overflowY: 'scroll', // 强制使用滚动条
+          WebkitOverflowScrolling: 'touch', // iOS滚动优化
+          scrollbarWidth: 'thin', // Firefox
+          padding: '16px',
+          boxSizing: 'border-box',
+          display: 'block' // 使用block布局
+        }}
+      >
+        <div 
+          className="flex justify-between items-center mb-6"
+          style={{
+            position: 'sticky',
+            top: 0,
+            backgroundColor: 'rgba(13, 17, 23, 0.8)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            zIndex: 10,
+            padding: '10px 0'
+          }}
+        >
           <h1 className="text-3xl font-bold">记忆空间</h1>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleRepairMemories} disabled={isRepairing}>
