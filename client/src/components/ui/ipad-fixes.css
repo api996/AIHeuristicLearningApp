@@ -373,7 +373,9 @@
   
   /* 知识图谱详情页面特定修复 */
   .ipad-device .knowledge-graph-container,
-  .tablet-device .knowledge-graph-container {
+  .tablet-device .knowledge-graph-container,
+  .iphone-device .knowledge-graph-container,
+  .mobile-device .knowledge-graph-container {
     width: 100% !important;
     height: auto !important;
     min-height: 70vh !important;
@@ -384,7 +386,13 @@
   
   /* 确保知识图谱详情页的卡片内容可滚动 */
   .ipad-device .flex-1.overflow-hidden,
-  .tablet-device .flex-1.overflow-hidden {
+  .tablet-device .flex-1.overflow-hidden,
+  .iphone-device .flex-1.overflow-hidden,
+  .mobile-device .flex-1.overflow-hidden,
+  .ipad-device .card-container-for-fullscreen,
+  .tablet-device .card-container-for-fullscreen,
+  .iphone-device .card-container-for-fullscreen,
+  .mobile-device .card-container-for-fullscreen {
     overflow: auto !important;
     -webkit-overflow-scrolling: touch !important;
     height: auto !important;
@@ -393,7 +401,9 @@
   
   /* 强制启用触摸滑动 */
   .ipad-device .knowledge-graph-container svg, 
-  .tablet-device .knowledge-graph-container svg {
+  .tablet-device .knowledge-graph-container svg,
+  .iphone-device .knowledge-graph-container svg,
+  .mobile-device .knowledge-graph-container svg {
     touch-action: manipulation !important;
     -webkit-user-select: none !important;
     user-select: none !important;
@@ -402,8 +412,37 @@
   
   /* 知识图谱SVG内部元素样式 */
   .ipad-device .knowledge-graph-container g,
-  .tablet-device .knowledge-graph-container g {
+  .tablet-device .knowledge-graph-container g,
+  .iphone-device .knowledge-graph-container g,
+  .mobile-device .knowledge-graph-container g {
     touch-action: manipulation !important;
+  }
+  
+  /* 知识图谱详情页独立修复 - 添加高优先级修复 */
+  .knowledge-graph-detail-page {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    min-height: 100vh !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+  
+  /* 针对全屏模式的额外处理 */
+  .fullscreened-graph,
+  .card-container-for-fullscreen:fullscreen,
+  .knowledge-graph-container:fullscreen,
+  :fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: auto !important;
+    background: rgba(3, 7, 18, 0.95) !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 9999 !important;
+    padding: 1rem !important;
+    touch-action: manipulation !important;
+    -webkit-overflow-scrolling: touch !important;
   }
   
   /* 缩放按钮和全屏按钮修复 */

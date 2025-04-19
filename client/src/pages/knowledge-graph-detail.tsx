@@ -90,35 +90,95 @@ export default function KnowledgeGraphDetail() {
     });
   };
 
-  // 切换全屏模式
+  // 切换全屏模式 - 改进的移动设备兼容版本
   const toggleFullScreen = () => {
     if (!isFullScreen) {
-      // 使用最内层的图形容器，而不是外层Card
-      const graphContainer = document.querySelector('.knowledge-graph-container');
-      if (graphContainer && graphContainer.requestFullscreen) {
-        graphContainer.requestFullscreen().then(() => {
-          console.log("进入全屏模式");
-        }).catch(err => {
-          console.error("全屏模式错误:", err);
-          // 回退到使用父容器
-          if (graphContainerRef.current?.requestFullscreen) {
-            graphContainerRef.current.requestFullscreen().catch(err2 => {
-              console.error("使用父容器全屏模式也失败:", err2);
+      // 先尝试使用标准方法进入全屏
+      try {
+        // 获取更大的父容器来确保全屏模式工作
+        const cardContainer = document.querySelector('.card-container-for-fullscreen');
+        if (cardContainer instanceof HTMLElement && cardContainer.requestFullscreen) {
+          cardContainer.requestFullscreen()
+            .then(() => {
+              console.log("进入全屏模式");
+              setIsFullScreen(true);
+            })
+            .catch(err => {
+              console.error("全屏模式错误 (卡片容器):", err);
+              tryFallbackFullscreen();
             });
-          }
-        });
-      } else if (graphContainerRef.current?.requestFullscreen) {
-        // 回退到使用父容器
-        graphContainerRef.current.requestFullscreen().catch(err => {
-          console.error("全屏模式错误:", err);
-        });
+          return;
+        } else {
+          tryFallbackFullscreen();
+        }
+      } catch (err) {
+        console.error("全屏模式初始尝试错误:", err);
+        tryFallbackFullscreen();
       }
     } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(err => {
-          console.error("退出全屏模式错误:", err);
-        });
+      try {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+          console.log("退出全屏模式");
+        }
+        // 无论成功与否都更新状态
+        setIsFullScreen(false);
+      } catch (error) {
+        console.error("退出全屏错误:", error);
+        setIsFullScreen(false); // 强制状态更新
       }
+    }
+  };
+
+  // 回退全屏策略
+  const tryFallbackFullscreen = () => {
+    // 尝试最内层图形容器
+    const graphContainer = document.querySelector('.knowledge-graph-container');
+    if (graphContainer instanceof HTMLElement && graphContainer.requestFullscreen) {
+      graphContainer.requestFullscreen()
+        .then(() => {
+          console.log("使用图形容器进入全屏模式");
+          setIsFullScreen(true);
+        })
+        .catch(err => {
+          console.error("图形容器全屏模式错误:", err);
+          // 尝试使用引用的容器
+          if (graphContainerRef.current?.requestFullscreen) {
+            graphContainerRef.current.requestFullscreen()
+              .then(() => {
+                console.log("使用引用容器进入全屏模式");
+                setIsFullScreen(true);
+              })
+              .catch(err2 => {
+                console.error("引用容器全屏模式错误:", err2);
+                // 最后尝试使用最外层容器
+                const outerContainer = document.querySelector('.container');
+                if (outerContainer instanceof HTMLElement && outerContainer.requestFullscreen) {
+                  outerContainer.requestFullscreen()
+                    .catch(err3 => {
+                      console.error("最外层容器全屏模式错误:", err3);
+                      // 手动设置全屏状态
+                      setIsFullScreen(true);
+                    });
+                } else {
+                  // 手动设置全屏状态
+                  setIsFullScreen(true);
+                }
+              });
+          }
+        });
+    } else if (graphContainerRef.current?.requestFullscreen) {
+      // 回退到graphContainerRef
+      graphContainerRef.current.requestFullscreen()
+        .catch(err => {
+          console.error("引用容器全屏模式错误:", err);
+          // 手动设置全屏状态
+          setIsFullScreen(true);
+        });
+    } else {
+      // 如果所有方法都失败，手动切换全屏状态
+      console.log("所有全屏方法都失败，手动设置全屏状态");
+      setIsFullScreen(true);
     }
   };
 
@@ -241,7 +301,7 @@ export default function KnowledgeGraphDetail() {
   };
 
   return (
-    <div className="container mx-auto py-4 px-2 md:px-6 flex flex-col min-h-screen">
+    <div className="container mx-auto py-4 px-2 md:px-6 flex flex-col min-h-screen overflow-y-auto knowledge-graph-detail-page">
       <div className="flex justify-between items-center mb-4">
         <Link to="/learning-path">
           <Button variant="outline" className="flex items-center gap-2">
@@ -256,26 +316,42 @@ export default function KnowledgeGraphDetail() {
           <Button variant="outline" size="icon" onClick={handleZoomOut}>
             <ZoomOut size={16} />
           </Button>
-          <Button variant="outline" size="icon" onClick={toggleFullScreen}>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={toggleFullScreen}
+            className="fullscreen-toggle"
+          >
             {isFullScreen ? <Minimize size={16} /> : <Maximize size={16} />}
           </Button>
         </div>
       </div>
 
-      <Card className="flex-1 overflow-hidden">
-        <CardContent className="p-2 md:p-6 h-full" ref={graphContainerRef}>
-          <div className="rounded-lg border border-blue-900/50 bg-gradient-to-b from-blue-950/30 to-purple-950/20 p-2 md:p-6 h-full">
+      {/* 给Card添加card-container-for-fullscreen类，作为高优先级全屏容器 */}
+      <Card className="flex-1 overflow-auto card-container-for-fullscreen">
+        <CardContent 
+          className="p-2 md:p-6 h-full overflow-auto" 
+          ref={graphContainerRef}
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <div className="rounded-lg border border-blue-900/50 bg-gradient-to-b from-blue-950/30 to-purple-950/20 p-2 md:p-6 h-full overflow-visible">
             <h1 className="text-xl font-bold mb-4 text-blue-300">我的知识图谱</h1>
             
             {knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
               <div 
-                className="w-full h-[70vh] relative" 
-                /* 移除此处的缩放，由组件内部缩放控制 */
+                className="w-full h-[70vh] relative overflow-visible touch-manipulation" 
+                style={{
+                  touchAction: 'manipulation',
+                  WebkitUserSelect: 'none',
+                  userSelect: 'none',
+                  WebkitTouchCallout: 'none',
+                  height: isFullScreen ? '90vh' : '70vh'
+                }}
               >
                 <SimpleKnowledgeGraph
                   nodes={graphData.nodes}
                   links={graphData.links}
-                  height={isFullScreen ? window.innerHeight - 120 : 600}
+                  height={isFullScreen ? window.innerHeight - 120 : window.innerWidth < 768 ? window.innerHeight * 0.6 : 600}
                   width={isFullScreen ? window.innerWidth - 40 : window.innerWidth > 768 ? 800 : window.innerWidth - 40}
                   onNodeClick={onClickNode}
                   zoomLevel={zoomLevel}
@@ -292,14 +368,14 @@ export default function KnowledgeGraphDetail() {
             )}
             
             {knowledgeGraph && knowledgeGraph.nodes.length > 0 && (
-              <div className="flex justify-between items-center mt-4 pt-4 border-t border-blue-900/30">
-                <div className="text-sm text-neutral-300">
+              <div className="flex flex-col md:flex-row flex-wrap justify-between items-start md:items-center mt-4 pt-4 border-t border-blue-900/30">
+                <div className="text-sm text-neutral-300 mb-2 md:mb-0">
                   <span className="font-medium">节点数:</span> {knowledgeGraph.nodes.length}
                   <span className="mx-2">|</span>
                   <span className="font-medium">关联数:</span> {knowledgeGraph.links.length}
                 </div>
                 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {['cluster', 'keyword', 'memory'].map(category => (
                     <div key={category} className="flex items-center gap-1">
                       <div className={`w-3 h-3 rounded-full ${
