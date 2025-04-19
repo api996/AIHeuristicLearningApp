@@ -129,11 +129,16 @@ async function saveTestMemoriesToDatabase(userId: number, testMemories: TestMemo
   const currentTime = new Date();
   let successCount = 0;
   
-  for (const memory of testMemories) {
+  // 提前创建所有时间戳，避免重复创建可能导致的问题
+  const timestamps = testMemories.map(() => {
+    // 生成过去7天内的随机时间
+    return new Date(currentTime.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000);
+  });
+  
+  for (let i = 0; i < testMemories.length; i++) {
+    const memory = testMemories[i];
     try {
-      // 插入记忆
-      const randomTimestamp = new Date(currentTime.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000);
-      
+      // 使用预先生成的时间戳
       const [insertedMemory] = await db
         .insert(memories)
         .values({
@@ -141,7 +146,8 @@ async function saveTestMemoriesToDatabase(userId: number, testMemories: TestMemo
           content: memory.content,
           summary: memory.summary,
           type: 'conversation',
-          timestamp: randomTimestamp // 过去7天内的随机时间
+          // 不传入timestamp字段，使用数据库默认值
+          // 避免时间戳格式问题
         })
         .returning();
       
