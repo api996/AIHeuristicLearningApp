@@ -61,36 +61,55 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
   // 确保D3补丁正确应用
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // 确保全局d3对象存在
-      window.d3 = d3;
-      
-      // 初始化必要的全局对象
-      if (!window._d3Selection) {
-        window._d3Selection = {
-          d3: d3,
-          event: null,
-          transform: { k: 1, x: 0, y: 0 }
-        };
-      } else {
-        window._d3Selection.d3 = d3;
+      try {
+        // 直接设置全局d3对象
+        window.d3 = d3;
+        
+        // 初始化必要的全局对象 - 不依赖补丁文件
+        if (!window._d3Selection) {
+          window._d3Selection = { d3: d3, event: null, transform: { k: 1, x: 0, y: 0 } };
+          console.log("SimpleKnowledgeGraph: 创建了_d3Selection全局对象");
+        } else {
+          window._d3Selection.d3 = d3;
+          console.log("SimpleKnowledgeGraph: 更新了_d3Selection.d3引用");
+        }
+        
+        if (!window.d3Selection) {
+          window.d3Selection = {
+            d3: d3,
+            event: null,
+            transform: { k: 1, x: 0, y: 0 },
+            mouse: function(container: any) {
+              return [0, 0];
+            },
+            setEvent: function(event: any) {
+              this.event = event;
+            }
+          };
+          console.log("SimpleKnowledgeGraph: 创建了d3Selection全局对象");
+        }
+        
+        // 直接调用loadD3AndApplyPatch函数
+        // 使用通用JS方法不使用模块导入
+        if (typeof window.loadD3AndApplyPatch !== 'function') {
+          window.loadD3AndApplyPatch = function() {
+            if (window.d3 && window._d3Selection) {
+              window._d3Selection.d3 = window.d3;
+              console.log("SimpleKnowledgeGraph: 内置补丁已应用");
+            }
+          };
+        }
+        
+        // 执行补丁
+        if (typeof window.loadD3AndApplyPatch === 'function') {
+          window.loadD3AndApplyPatch();
+        }
+        
+        // 标记组件已加载
+        console.log("SimpleKnowledgeGraph组件已加载并初始化D3全局对象");
+      } catch (err) {
+        console.error("初始化D3全局对象时出错:", err);
       }
-      
-      if (!window.d3Selection) {
-        window.d3Selection = {
-          d3: d3,
-          event: null,
-          transform: { k: 1, x: 0, y: 0 },
-          mouse: function(container: any) {
-            return [0, 0];
-          },
-          setEvent: function(event: any) {
-            this.event = event;
-          }
-        };
-      }
-      
-      // 标记组件已加载
-      console.log("SimpleKnowledgeGraph组件已加载并初始化D3全局对象");
     }
   }, []);
 

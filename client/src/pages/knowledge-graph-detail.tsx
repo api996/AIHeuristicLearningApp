@@ -76,13 +76,17 @@ export default function KnowledgeGraphDetail() {
 
   // 获取知识图谱数据
   const { data: knowledgeGraph, isLoading, error } = useQuery<KnowledgeGraph>({
-    queryKey: ["/api/learning-path/knowledge-graph", user?.userId],
+    queryKey: [`/api/learning-path/${user?.userId}/knowledge-graph`],
     queryFn: async () => {
+      console.log(`正在获取知识图谱数据，用户ID: ${user?.userId}`);
       const response = await fetch(`/api/learning-path/${user?.userId}/knowledge-graph`);
       if (!response.ok) {
+        console.error(`获取知识图谱失败: ${response.status} ${response.statusText}`);
         throw new Error("获取知识图谱失败");
       }
-      return response.json();
+      const data = await response.json();
+      console.log(`成功获取知识图谱数据: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+      return data;
     },
     enabled: !!user?.userId,
   });
