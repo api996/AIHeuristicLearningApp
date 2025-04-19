@@ -103,7 +103,7 @@ export default function KnowledgeGraphView({}: KnowledgeGraphViewProps) {
       <div className="graph-control-bar">
         <Link to="/learning-path">
           <button className="graph-button">
-            <ArrowLeft size={16} className="mr-1" />
+            <ArrowLeft className="mr-1" />
             <span className="text-sm">返回</span>
           </button>
         </Link>

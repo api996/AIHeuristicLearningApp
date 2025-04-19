@@ -448,7 +448,7 @@
   /* 缩放按钮和全屏按钮修复 */
   .ipad-device button[size="icon"],
   .tablet-device button[size="icon"] {
-    transform: scale(1.2) !important;
+    transform: scale(1.0) !important;
     margin: 0 4px !important;
   }
   
