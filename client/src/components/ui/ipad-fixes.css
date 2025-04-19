@@ -277,10 +277,13 @@
 }
 
 /* ===== 记忆空间、知识图谱和学习轨迹页面的iPad滚动修复 ===== */
-@media screen and (min-width: 768px) and (max-width: 1366px) {
+/* 支持所有屏幕尺寸，包括手机 */
+@media screen {
   /* 全局页面容器滚动修复 */
   .ipad-device .container.mx-auto.py-6.flex-1.flex.flex-col,
-  .tablet-device .container.mx-auto.py-6.flex-1.flex.flex-col {
+  .tablet-device .container.mx-auto.py-6.flex-1.flex.flex-col,
+  .iphone-device .container.mx-auto.py-6.flex-1.flex.flex-col,
+  .mobile-device .container.mx-auto.py-6.flex-1.flex.flex-col {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     padding-bottom: 120px !important;
@@ -292,7 +295,9 @@
   
   /* 确保主要容器的内部可滚动 */
   .ipad-device .flex.flex-col.min-h-screen.bg-background, 
-  .tablet-device .flex.flex-col.min-h-screen.bg-background {
+  .tablet-device .flex.flex-col.min-h-screen.bg-background,
+  .iphone-device .flex.flex-col.min-h-screen.bg-background,
+  .mobile-device .flex.flex-col.min-h-screen.bg-background {
     position: relative !important;
     height: 100% !important;
     min-height: 100vh !important;
@@ -303,10 +308,16 @@
   /* 修复选项卡内容区域滚动问题 */
   .ipad-device .tabs-content,
   .tablet-device .tabs-content,
+  .iphone-device .tabs-content,
+  .mobile-device .tabs-content,
   .ipad-device [role="tabpanel"],
   .tablet-device [role="tabpanel"],
+  .iphone-device [role="tabpanel"],
+  .mobile-device [role="tabpanel"],
   .ipad-device [data-state="active"],
-  .tablet-device [data-state="active"] {
+  .tablet-device [data-state="active"],
+  .iphone-device [data-state="active"],
+  .mobile-device [data-state="active"] {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     height: auto !important;
@@ -404,7 +415,9 @@
   
   /* 学习轨迹标签页内容修复 */
   .ipad-device [data-radix-tabs-content-wrapper],
-  .tablet-device [data-radix-tabs-content-wrapper] {
+  .tablet-device [data-radix-tabs-content-wrapper],
+  .iphone-device [data-radix-tabs-content-wrapper],
+  .mobile-device [data-radix-tabs-content-wrapper] {
     height: auto !important;
     min-height: 70vh !important;
     max-height: none !important;
@@ -413,8 +426,12 @@
   /* 学习轨迹标签内容修复 - 特定针对无法滚动的内容 */
   .ipad-device [data-orientation="horizontal"] > [data-state],
   .tablet-device [data-orientation="horizontal"] > [data-state],
+  .iphone-device [data-orientation="horizontal"] > [data-state],
+  .mobile-device [data-orientation="horizontal"] > [data-state],
   .ipad-device [data-orientation="horizontal"] > div,
-  .tablet-device [data-orientation="horizontal"] > div {
+  .tablet-device [data-orientation="horizontal"] > div,
+  .iphone-device [data-orientation="horizontal"] > div,
+  .mobile-device [data-orientation="horizontal"] > div {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     height: auto !important;
