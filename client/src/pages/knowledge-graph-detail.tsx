@@ -198,7 +198,7 @@ export default function KnowledgeGraphDetail() {
       color: node.category === 'cluster' ? '#3b82f6' : 
              node.category === 'keyword' ? '#10b981' : 
              node.category === 'memory' ? '#f59e0b' : '#6366f1',
-      size: node.size * 300 * zoomLevel, // 应用缩放级别
+      size: node.size * 5, // 使用固定倍率，缩放由组件内部控制
       symbolType: "circle",
       label: node.label,
       category: node.category
@@ -240,14 +240,14 @@ export default function KnowledgeGraphDetail() {
             
             {knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
               <div 
-                className="w-full h-[70vh] relative overflow-hidden" 
-                style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center center' }}
+                className="w-full h-[70vh] relative" 
+                /* 移除此处的缩放，由组件内部缩放控制 */
               >
                 <SimpleKnowledgeGraph
                   nodes={graphData.nodes}
                   links={graphData.links}
-                  height={isFullScreen ? window.innerHeight - 120 : graphConfig.height}
-                  width={isFullScreen ? window.innerWidth - 40 : graphConfig.width}
+                  height={isFullScreen ? window.innerHeight - 120 : 600}
+                  width={isFullScreen ? window.innerWidth - 40 : window.innerWidth > 768 ? 800 : window.innerWidth - 40}
                   onNodeClick={onClickNode}
                 />
               </div>
