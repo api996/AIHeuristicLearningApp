@@ -24,6 +24,18 @@
   position: fixed !important;
   /* 提高z-index确保在最上层 */
   z-index: 50 !important;
+  /* 关键：确保遮罩不可见 */
+  visibility: hidden !important;
+  /* 确保即使在iPad上也不显示 */
+  display: none !important;
+}
+
+/* 特别针对个人资料、修改密码、学习轨迹对话框的修复 */
+.ipad-device [data-state="open"] [data-radix-dialog-overlay],
+.tablet-device [data-state="open"] [data-radix-dialog-overlay],
+.iphone-device [data-state="open"] [data-radix-dialog-overlay],
+.mobile-device [data-state="open"] [data-radix-dialog-overlay] {
+  opacity: 0 !important;
 }
 
 /* 修复对话框内容在iPad上的显示 */
