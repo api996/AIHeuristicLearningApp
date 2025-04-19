@@ -92,46 +92,35 @@ export default function KnowledgeGraphDetail() {
     });
   };
 
-  // 切换全屏模式 - 改进的移动设备兼容版本
-  const toggleFullScreen = () => {
-    if (!isFullScreen) {
-      // 先尝试使用标准方法进入全屏
-      try {
-        // 获取更大的父容器来确保全屏模式工作
-        const cardContainer = document.querySelector('.card-container-for-fullscreen');
-        if (cardContainer instanceof HTMLElement && cardContainer.requestFullscreen) {
-          cardContainer.requestFullscreen()
-            .then(() => {
-              console.log("进入全屏模式");
-              setIsFullScreen(true);
-            })
-            .catch(err => {
-              console.error("全屏模式错误 (卡片容器):", err);
-              tryFallbackFullscreen();
-            });
-          return;
-        } else {
-          tryFallbackFullscreen();
-        }
-      } catch (err) {
-        console.error("全屏模式初始尝试错误:", err);
-        tryFallbackFullscreen();
-      }
-    } else {
-      try {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-          console.log("退出全屏模式");
-        }
-        // 无论成功与否都更新状态
-        setIsFullScreen(false);
-      } catch (error) {
-        console.error("退出全屏错误:", error);
-        setIsFullScreen(false); // 强制状态更新
-      }
+  // 切换全屏模式 - 改进的移动设备与iPad兼容版本
+  // CSS全屏回退方案
+  const useCSSFullscreenFallback = () => {
+    console.log("使用CSS回退全屏模式");
+    
+    // 获取图形容器
+    const graphContainer = document.querySelector('.knowledge-graph-container');
+    const cardContainer = document.querySelector('.card-container-for-fullscreen');
+    
+    // 添加自定义全屏类
+    if (graphContainer instanceof HTMLElement) {
+      graphContainer.classList.add('fullscreen');
     }
+    
+    if (cardContainer instanceof HTMLElement) {
+      cardContainer.classList.add('fullscreen');
+    }
+    
+    // 保存原始滚动位置
+    document.documentElement.dataset.originalScrollY = window.scrollY.toString();
+    document.documentElement.dataset.originalBodyScroll = document.body.style.overflow;
+    
+    // 防止背景滚动
+    document.body.style.overflow = 'hidden';
+    
+    // 设置状态
+    setIsFullScreen(true);
   };
-
+  
   // 回退全屏策略
   const tryFallbackFullscreen = () => {
     // 尝试最内层图形容器
@@ -144,43 +133,94 @@ export default function KnowledgeGraphDetail() {
         })
         .catch(err => {
           console.error("图形容器全屏模式错误:", err);
-          // 尝试使用引用的容器
-          if (graphContainerRef.current?.requestFullscreen) {
-            graphContainerRef.current.requestFullscreen()
-              .then(() => {
-                console.log("使用引用容器进入全屏模式");
-                setIsFullScreen(true);
-              })
-              .catch(err2 => {
-                console.error("引用容器全屏模式错误:", err2);
-                // 最后尝试使用最外层容器
-                const outerContainer = document.querySelector('.container');
-                if (outerContainer instanceof HTMLElement && outerContainer.requestFullscreen) {
-                  outerContainer.requestFullscreen()
-                    .catch(err3 => {
-                      console.error("最外层容器全屏模式错误:", err3);
-                      // 手动设置全屏状态
-                      setIsFullScreen(true);
-                    });
-                } else {
-                  // 手动设置全屏状态
-                  setIsFullScreen(true);
-                }
-              });
-          }
-        });
-    } else if (graphContainerRef.current?.requestFullscreen) {
-      // 回退到graphContainerRef
-      graphContainerRef.current.requestFullscreen()
-        .catch(err => {
-          console.error("引用容器全屏模式错误:", err);
-          // 手动设置全屏状态
-          setIsFullScreen(true);
+          useCSSFullscreenFallback();
         });
     } else {
-      // 如果所有方法都失败，手动切换全屏状态
-      console.log("所有全屏方法都失败，手动设置全屏状态");
-      setIsFullScreen(true);
+      // 如果所有方法都失败，使用CSS回退方案
+      useCSSFullscreenFallback();
+    }
+  };
+
+  // 切换全屏模式 - 改进的移动设备与iPad兼容版本
+  const toggleFullScreen = () => {
+    // 检测是否为iPad或其他触摸设备
+    const isIPad = /iPad/.test(navigator.userAgent) || 
+                  (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
+    const isTablet = isIPad || (window.innerWidth >= 768 && window.innerWidth <= 1366 && 'ontouchend' in document);
+    const isTouch = isIPad || isTablet || 'ontouchend' in document;
+    
+    // 针对特定设备使用自定义全屏模式
+    const useCustomFullscreen = isIPad || isTablet || (isTouch && !/Chrome/.test(navigator.userAgent));
+    
+    if (!isFullScreen) {
+      if (useCustomFullscreen) {
+        // iPad和平板使用自定义全屏模式（CSS控制）
+        useCSSFullscreenFallback();
+      } else {
+        // 如果不是iPad等设备，使用标准全屏API
+        try {
+          // 获取更大的父容器来确保全屏模式工作
+          const cardContainer = document.querySelector('.card-container-for-fullscreen');
+          if (cardContainer instanceof HTMLElement && cardContainer.requestFullscreen) {
+            cardContainer.requestFullscreen()
+              .then(() => {
+                console.log("进入标准全屏模式");
+                setIsFullScreen(true);
+              })
+              .catch(err => {
+                console.error("全屏模式错误 (卡片容器):", err);
+                tryFallbackFullscreen();
+              });
+          } else {
+            tryFallbackFullscreen();
+          }
+        } catch (err) {
+          console.error("全屏模式初始尝试错误:", err);
+          tryFallbackFullscreen();
+        }
+      }
+    } else {
+      // 退出全屏模式
+      if (useCustomFullscreen) {
+        console.log("退出CSS自定义全屏模式");
+        
+        // 移除自定义全屏类
+        const graphContainer = document.querySelector('.knowledge-graph-container');
+        const cardContainer = document.querySelector('.card-container-for-fullscreen');
+        
+        if (graphContainer instanceof HTMLElement) {
+          graphContainer.classList.remove('fullscreen');
+        }
+        
+        if (cardContainer instanceof HTMLElement) {
+          cardContainer.classList.remove('fullscreen');
+        }
+        
+        // 恢复原始滚动状态
+        document.body.style.overflow = document.documentElement.dataset.originalBodyScroll || '';
+        
+        // 尝试恢复滚动位置
+        const originalScrollY = parseInt(document.documentElement.dataset.originalScrollY || '0');
+        if (!isNaN(originalScrollY)) {
+          window.scrollTo(0, originalScrollY);
+        }
+        
+        // 更新状态
+        setIsFullScreen(false);
+      } else {
+        // 标准API退出全屏
+        try {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+            console.log("退出标准全屏模式");
+          }
+          // 无论成功与否都更新状态
+          setIsFullScreen(false);
+        } catch (error) {
+          console.error("退出全屏错误:", error);
+          setIsFullScreen(false); // 强制状态更新
+        }
+      }
     }
   };
 
