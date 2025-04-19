@@ -3,33 +3,15 @@
  * 用于提前加载知识图谱数据，减少用户等待时间
  */
 
-import { apiRequest } from '@/lib/queryClient';
-
-interface GraphNode {
-  id: string;
-  label: string;
-  size: number;
-  category: string;
-}
-
-interface GraphLink {
-  source: string;
-  target: string;
-  value?: number;
-}
-
-interface KnowledgeGraphData {
-  nodes: GraphNode[];
-  links: GraphLink[];
-}
+import { 
+  GraphNode, 
+  GraphLink, 
+  KnowledgeGraphData, 
+  KnowledgeGraphCacheItem
+} from '@/types/knowledge-graph';
 
 // 缓存对象
-const graphDataCache: Record<string, {
-  data: KnowledgeGraphData;
-  timestamp: number;
-  isLoading: boolean;
-  loadPromise: Promise<KnowledgeGraphData> | null;
-}> = {};
+const graphDataCache: Record<string, KnowledgeGraphCacheItem> = {};
 
 // 缓存有效期（10分钟）
 const CACHE_TTL = 10 * 60 * 1000;
@@ -61,8 +43,15 @@ export async function preloadKnowledgeGraphData(userId: number | string): Promis
   // 创建新的加载Promise
   console.log('预加载知识图谱数据...');
   
-  const loadPromise = apiRequest<KnowledgeGraphData>(`/api/learning-path/${userId}/knowledge-graph`)
-    .then((data) => {
+  // 使用fetch替代有类型问题的apiRequest
+  const loadPromise = fetch(`/api/learning-path/${userId}/knowledge-graph`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('获取知识图谱数据失败');
+      }
+      return response.json();
+    })
+    .then((data: any) => {
       // 如果数据为空或无效，返回空结构
       if (!data || !data.nodes || !data.links) {
         return { nodes: [], links: [] };
@@ -70,7 +59,7 @@ export async function preloadKnowledgeGraphData(userId: number | string): Promis
       
       // 处理和格式化数据
       const formattedData = {
-        nodes: data.nodes.map(node => ({
+        nodes: data.nodes.map((node: any) => ({
           ...node,
           // 确保节点大小合适
           size: node.category === 'cluster' ? 15 : 
@@ -79,7 +68,7 @@ export async function preloadKnowledgeGraphData(userId: number | string): Promis
                 node.category === 'keyword' ? '#10b981' : 
                 '#eab308'
         })),
-        links: data.links.map(link => ({
+        links: data.links.map((link: any) => ({
           ...link,
           // 确保线条可见
           value: link.value || 1,
@@ -100,8 +89,10 @@ export async function preloadKnowledgeGraphData(userId: number | string): Promis
     })
     .catch((error) => {
       console.error('加载知识图谱数据失败:', error);
-      graphDataCache[cacheKey].isLoading = false;
-      graphDataCache[cacheKey].loadPromise = null;
+      if (graphDataCache[cacheKey]) {
+        graphDataCache[cacheKey].isLoading = false;
+        graphDataCache[cacheKey].loadPromise = null;
+      }
       throw error;
     });
     
