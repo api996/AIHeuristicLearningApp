@@ -1045,7 +1045,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 重新生成AI回复
   app.post("/api/messages/:messageId/regenerate", async (req, res) => {
     try {
-      const { userId, userRole, chatId } = req.body;
+      const { userId, userRole, chatId, model } = req.body;
       const messageId = parseInt(req.params.messageId, 10);
 
       if (isNaN(messageId) || !userId || !chatId) {
@@ -1057,7 +1057,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 记录关键信息，用于调试
-      log(`开始重新生成消息: messageId=${messageId}, userId=${userId}, chatId=${chatId}`);
+      log(`开始重新生成消息: messageId=${messageId}, userId=${userId}, chatId=${chatId}, model=${model}`);
 
       // 验证用户对此聊天的访问权限
       const isAdmin = userRole === "admin";
@@ -1067,8 +1067,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Chat not found or access denied" });
       }
 
-      // 初始化聊天服务使用对应模型
-      chatService.setModel(chat.model || "deep");
+      // 使用请求中指定的模型，如果没有则使用聊天中的模型，都没有则使用默认模型
+      const modelToUse = model || chat.model || "deep";
+      log(`重新生成将使用模型: ${modelToUse}`);
+      chatService.setModel(modelToUse);
 
       try {
         // 尝试直接获取消息
