@@ -1,0 +1,147 @@
+/**
+ * Dialog组件在iPad和移动设备上的修复样式
+ * 解决Dialog弹窗的重叠遮罩和交互失效问题
+ */
+
+/* 修复Dialog弹窗背景层z-index问题 */
+.ipad-device [data-radix-popper-content-wrapper],
+.tablet-device [data-radix-popper-content-wrapper],
+.iphone-device [data-radix-popper-content-wrapper],
+.mobile-device [data-radix-popper-content-wrapper] {
+  z-index: 999999 !important; /* 确保弹窗内容在最顶层 */
+  pointer-events: auto !important;
+}
+
+/* 修复Dialog Overlay遮罩层 */
+.ipad-device [data-radix-dialog-overlay],
+.tablet-device [data-radix-dialog-overlay],
+.iphone-device [data-radix-dialog-overlay],
+.mobile-device [data-radix-dialog-overlay] {
+  position: fixed !important;
+  inset: 0 !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  z-index: 999990 !important;
+  pointer-events: auto !important;
+}
+
+/* 移除重复的遮罩层 */
+.ipad-device [data-radix-dialog-overlay] + [data-radix-dialog-overlay],
+.tablet-device [data-radix-dialog-overlay] + [data-radix-dialog-overlay],
+.iphone-device [data-radix-dialog-overlay] + [data-radix-dialog-overlay],
+.mobile-device [data-radix-dialog-overlay] + [data-radix-dialog-overlay] {
+  display: none !important;
+}
+
+/* 修复Dialog内容容器 */
+.ipad-device [data-radix-dialog-content],
+.tablet-device [data-radix-dialog-content],
+.iphone-device [data-radix-dialog-content],
+.mobile-device [data-radix-dialog-content] {
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: calc(100% - 32px) !important;
+  max-width: 500px !important;
+  max-height: 85vh !important;
+  padding: 1.5rem !important;
+  background-color: #1a1a1a !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+  z-index: 999995 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  pointer-events: auto !important;
+}
+
+/* 修复特定的Dialog弹窗 */
+.ipad-device [role="dialog"],
+.tablet-device [role="dialog"],
+.iphone-device [role="dialog"],
+.mobile-device [role="dialog"] {
+  z-index: 999998 !important; /* 确保弹窗在最顶层 */
+  pointer-events: auto !important; /* 确保交互事件正常工作 */
+}
+
+/* 修复个人设置弹窗的特殊处理 */
+.ipad-device .user-profile-dialog,
+.tablet-device .user-profile-dialog,
+.iphone-device .user-profile-dialog,
+.mobile-device .user-profile-dialog {
+  z-index: 1000000 !important;
+  background-color: #1a1a1a !important;
+  width: 90vw !important;
+  max-width: 480px !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2) !important;
+  overflow: visible !important;
+  margin: 0 auto !important;
+  position: relative !important;
+}
+
+/* 修复Dialog弹窗关闭按钮 */
+.ipad-device [data-radix-dialog-close],
+.tablet-device [data-radix-dialog-close],
+.iphone-device [data-radix-dialog-close],
+.mobile-device [data-radix-dialog-close] {
+  position: absolute !important;
+  top: 0.75rem !important;
+  right: 0.75rem !important;
+  z-index: 999999 !important;
+  background: rgba(50, 50, 50, 0.3) !important;
+  border-radius: 50% !important;
+  width: 2rem !important;
+  height: 2rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* 确保所有弹窗内部元素都具有交互能力 */
+.ipad-device [data-radix-dialog-content] *,
+.tablet-device [data-radix-dialog-content] *,
+.iphone-device [data-radix-dialog-content] *,
+.mobile-device [data-radix-dialog-content] * {
+  pointer-events: auto !important;
+}
+
+/* 确保表单元素可点击 */
+.ipad-device [data-radix-dialog-content] button,
+.ipad-device [data-radix-dialog-content] input,
+.ipad-device [data-radix-dialog-content] select,
+.ipad-device [data-radix-dialog-content] textarea,
+.tablet-device [data-radix-dialog-content] button,
+.tablet-device [data-radix-dialog-content] input,
+.tablet-device [data-radix-dialog-content] select,
+.tablet-device [data-radix-dialog-content] textarea,
+.iphone-device [data-radix-dialog-content] button,
+.iphone-device [data-radix-dialog-content] input,
+.iphone-device [data-radix-dialog-content] select,
+.iphone-device [data-radix-dialog-content] textarea,
+.mobile-device [data-radix-dialog-content] button,
+.mobile-device [data-radix-dialog-content] input,
+.mobile-device [data-radix-dialog-content] select,
+.mobile-device [data-radix-dialog-content] textarea {
+  touch-action: manipulation !important;
+  pointer-events: auto !important;
+}
+
+/* 滚动修复 */
+.ipad-device [data-radix-dialog-content],
+.tablet-device [data-radix-dialog-content],
+.iphone-device [data-radix-dialog-content],
+.mobile-device [data-radix-dialog-content] {
+  overscroll-behavior: contain !important;
+  -ms-overflow-style: none !important;
+  scrollbar-width: thin !important;
+}
+
+/* 避免滚动时出现回弹效果 - 仅针对打开弹窗时应用 */
+.ipad-device [data-state="open"] ~ body,
+.tablet-device [data-state="open"] ~ body,
+.iphone-device [data-state="open"] ~ body,
+.mobile-device [data-state="open"] ~ body {
+  overflow: hidden !important;
+}

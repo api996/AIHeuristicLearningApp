@@ -2259,7 +2259,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* 偏好设置对话框 */}
       <Dialog open={showPreferencesDialog} onOpenChange={setShowPreferencesDialog}>
-        <DialogContent className="sm:max-w-md frosted-dialog preferences-dialog-content">
+        <DialogContent className="sm:max-w-md frosted-dialog preferences-dialog-content user-profile-dialog">
           <DialogHeader>
             <DialogTitle>偏好设置</DialogTitle>
           </DialogHeader>

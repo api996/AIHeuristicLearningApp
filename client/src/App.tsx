@@ -28,6 +28,8 @@ import "@/components/ui/memory-space-fixes.css";
 import "@/components/ui/knowledge-graph-fixes.css";
 import "@/components/ui/learning-path-fixes.css";
 import "@/components/admin/admin-ipad-fixes.css";
+// 导入Dialog弹窗修复样式
+import "@/components/ui/dialog-fixes.css";
 
 function Router() {
   // 使用简单的路由配置，让各个组件内部自己处理授权逻辑
