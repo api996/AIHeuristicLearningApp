@@ -303,17 +303,9 @@
   border: 1px solid rgba(96, 165, 250, 0.3) !important;
 }
 
-/* 对话框阴影效果 - 普通设备 */
+/* 对话框保留阴影效果 */
 div[role="dialog"] {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
-}
-
-/* iPad设备上的对话框覆盖层优化 - 防止交互问题 */
-.ipad-device [data-radix-dialog-overlay],
-.tablet-device [data-radix-dialog-overlay] {
-  pointer-events: none !important; /* 始终允许点击事件穿透到内容 */
-  opacity: 0.5 !important; /* 降低黑色背景的不透明度 */
-  background: rgba(0, 0, 0, 0.5) !important; /* 使用半透明黑色背景 */
 }
 
 /**
