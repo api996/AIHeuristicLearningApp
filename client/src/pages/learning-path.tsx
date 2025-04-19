@@ -480,121 +480,134 @@ export default function LearningPath() {
           </Card>
         </TabsContent>
 
-        {/* 知识图谱标签页 */}
+        {/* 知识图谱标签页 - 全屏化增强版 */}
         <TabsContent value="knowledge-graph">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Network className="mr-2" /> 知识关联图谱
-              </CardTitle>
-              <CardDescription>
-                您的知识主题和它们之间的关联
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="card-content">
-              {knowledgeGraph?.nodes && 
-               knowledgeGraph.nodes.length > 0 ? (
-                <div className="h-[600px] rounded-lg border border-blue-900/50 bg-gradient-to-b from-blue-950/20 to-purple-950/10 p-6">
-                  <div className="space-y-4">
-                    <h3 className="text-lg text-blue-300 flex items-center">
-                      <Network className="h-5 w-5 mr-2 text-blue-400" />
-                      知识图谱可视化
-                    </h3>
-                    
-                    <div className="relative">
-                      <div className="flex flex-col h-[400px] w-full relative overflow-hidden border border-blue-900/50 rounded-lg p-4 bg-blue-950/30">
-                        {knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
-                          <>
-                            <div className="h-[350px] w-full knowledge-graph-container">
-                              <SimpleKnowledgeGraph
-                                nodes={knowledgeGraph.nodes.map((node: KnowledgeNode) => ({
-                                  id: node.id,
-                                  color: node.category === 'cluster' ? '#3b82f6' : 
-                                        node.category === 'keyword' ? '#10b981' : 
-                                        node.category === 'memory' ? '#f59e0b' : '#6366f1',
-                                  size: node.size * 200, // 预览图尺寸小一些
-                                  label: node.label,
-                                  category: node.category
-                                }))}
-                                links={knowledgeGraph.links.map((link: KnowledgeLink) => ({
-                                  source: link.source,
-                                  target: link.target,
-                                  strokeWidth: link.value * 2,
-                                  color: 'rgba(59, 130, 246, 0.5)'
-                                }))}
-                                height={350}
-                                width={window.innerWidth > 768 ? 800 : window.innerWidth - 60}
-                              />
-                            </div>
-                            <div className="mt-4 flex justify-center gap-2 flex-wrap">
-                              <Button
-                                onClick={() => setLocation(`/knowledge-graph-view?userId=${user?.userId}`)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                              >
-                                查看优化版知识图谱
-                              </Button>
-                              {user?.userId === 6 && (
-                                <Button
-                                  onClick={async () => {
-                                    try {
-                                      const response = await fetch(`/api/test-data/generate-graph/6?count=35`);
-                                      const result = await response.json();
-                                      if (result.success) {
-                                        alert(`测试数据生成成功：${result.message}`);
-                                        // 刷新页面以加载新数据
-                                        window.location.reload();
-                                      } else {
-                                        alert(`测试数据生成失败：${result.message}`);
-                                      }
-                                    } catch (error) {
-                                      console.error('生成测试数据失败:', error);
-                                      alert('生成测试数据时发生错误，请查看控制台');
-                                    }
-                                  }}
-                                  variant="secondary"
-                                >
-                                  生成测试数据
-                                </Button>
-                              )}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-full w-full">
-                            <p className="text-lg text-neutral-400">知识图谱数据不足</p>
-                            <p className="text-sm text-neutral-500 max-w-md mx-auto mt-2 text-center">
-                              继续与AI对话，系统将自动分析您的学习主题并构建知识图谱
-                            </p>
-                          </div>
-                        )}
-                      </div>
+          {knowledgeGraph?.nodes && knowledgeGraph.nodes.length > 0 ? (
+            <div className="relative h-[calc(100vh-200px)] w-full">
+              {/* 全屏模式下的知识图谱 */}
+              <div className="absolute inset-0 bg-gradient-to-b from-blue-950/60 to-purple-950/40 rounded-lg border border-blue-900/30 p-4">
+                {/* 顶部操作栏 */}
+                <div className="flex justify-between items-center mb-3 p-2 bg-gray-900/80 rounded-md backdrop-blur-sm">
+                  <div className="flex items-center">
+                    <Network className="h-5 w-5 mr-2 text-blue-400" />
+                    <h3 className="text-lg font-medium text-white">知识连接图谱</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="bg-gray-800/70 text-white border-gray-700 hover:bg-gray-700"
+                      onClick={() => {
+                        if (user?.userId) {
+                          // 刷新知识图谱数据
+                          fetch(`/api/learning-path/${user.userId}/knowledge-graph?refresh=true`, {
+                            headers: { 'Cache-Control': 'no-cache' }
+                          })
+                            .then(res => res.json())
+                            .then(data => {
+                              console.log(`知识图谱数据刷新成功: ${data.nodes.length}个节点`);
+                              // 强制刷新页面以显示新数据
+                              window.location.reload();
+                            })
+                            .catch(err => {
+                              console.error("知识图谱数据刷新失败:", err);
+                              alert("刷新知识图谱失败，请稍后再试");
+                            });
+                        }
+                      }}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      刷新
+                    </Button>
+                    {user?.userId === 6 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-gray-800/70 text-white border-gray-700 hover:bg-gray-700"
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(`/api/test-data/generate-graph/6?count=35`);
+                            const result = await response.json();
+                            if (result.success) {
+                              alert(`测试数据生成成功：${result.message}`);
+                              // 刷新页面以加载新数据
+                              window.location.reload();
+                            } else {
+                              alert(`测试数据生成失败：${result.message}`);
+                            }
+                          } catch (error) {
+                            console.error('生成测试数据失败:', error);
+                            alert('生成测试数据时发生错误，请查看控制台');
+                          }
+                        }}
+                      >
+                        生成测试数据
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* 知识图谱可视化区域 */}
+                <div className="h-[calc(100%-60px)] w-full relative overflow-hidden rounded-lg">
+                  <StaticKnowledgeGraph
+                    nodes={knowledgeGraph.nodes}
+                    links={knowledgeGraph.links}
+                    width={window.innerWidth - 80} // 留出边距
+                    height={window.innerHeight - 280} // 留出页面头部和底部的空间
+                    onNodeClick={(nodeId) => {
+                      const node = knowledgeGraph.nodes.find(n => n.id === nodeId);
+                      if (node) {
+                        console.log(`点击了节点: ${node.label || nodeId}`);
+                        
+                        // 提供节点类型和标签的弹窗
+                        const nodeType = node.category === 'cluster' ? '主题' : 
+                                       node.category === 'keyword' ? '关键词' : '记忆';
+                        alert(`${nodeType}: ${node.label}`);
+                      }
+                    }}
+                  />
+                </div>
+                
+                {/* 图例说明 */}
+                <div className="absolute bottom-4 left-4 z-10 bg-gray-900/60 p-3 rounded-lg">
+                  <p className="text-sm font-medium mb-2 text-white">图例</p>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+                      <span className="text-xs text-gray-300">主题</span>
                     </div>
-                    
-                    <div className="flex justify-between items-center border-t border-blue-900/30 pt-4 mt-2">
-                      <div className="text-sm text-neutral-300">
-                        <span className="font-medium">节点数:</span> {knowledgeGraph.nodes.length}
-                        <span className="mx-2">|</span>
-                        <span className="font-medium">关联数:</span> {knowledgeGraph.links.length}
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        {['cluster', 'keyword', 'memory'].map(category => (
-                          <div key={category} className="flex items-center gap-1">
-                            <div className={`w-3 h-3 rounded-full ${
-                              category === 'cluster' ? 'bg-blue-500' : 
-                              category === 'keyword' ? 'bg-green-500' : 
-                              'bg-yellow-500'
-                            }`}></div>
-                            <span className="text-xs text-neutral-400">
-                              {category === 'cluster' ? '主题' : 
-                               category === 'keyword' ? '关键词' : '记忆'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                      <span className="text-xs text-gray-300">关键词</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+                      <span className="text-xs text-gray-300">记忆</span>
                     </div>
                   </div>
                 </div>
-              ) : (
+                
+                {/* 统计信息 */}
+                <div className="absolute bottom-4 right-4 z-10 bg-gray-900/60 p-3 rounded-lg">
+                  <div className="text-sm text-gray-300">
+                    <span className="font-medium">节点数:</span> {knowledgeGraph.nodes.length}
+                    <span className="mx-2">|</span>
+                    <span className="font-medium">关联数:</span> {knowledgeGraph.links.length}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Network className="mr-2" /> 知识关联图谱
+                </CardTitle>
+                <CardDescription>
+                  您的知识主题和它们之间的关联
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="h-[400px] rounded-lg border border-neutral-800 flex items-center justify-center">
                   <div className="text-center space-y-4">
                     <svg width="80" height="80" viewBox="0 0 24 24" fill="none" className="mx-auto opacity-20">
@@ -606,9 +619,9 @@ export default function LearningPath() {
                     </p>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>
