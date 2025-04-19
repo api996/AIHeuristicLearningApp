@@ -196,11 +196,11 @@ export class DatabaseStorage implements IStorage {
         // 5. 删除所有记忆关键词
         for (const memory of userMemories) {
           log(`删除记忆 ${memory.id} 的关键词`);
-          await tx.delete(memoryKeywords).where(eq(memoryKeywords.memoryId, memory.id));
+          await tx.delete(memoryKeywords).where(eq(memoryKeywords.memoryId, memory.id.toString()));
           
           // 6. 删除所有记忆嵌入
           log(`删除记忆 ${memory.id} 的嵌入向量`);
-          await tx.delete(memoryEmbeddings).where(eq(memoryEmbeddings.memoryId, memory.id));
+          await tx.delete(memoryEmbeddings).where(eq(memoryEmbeddings.memoryId, memory.id.toString()));
         }
         
         // 7. 删除所有记忆
