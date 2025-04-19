@@ -4,10 +4,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle, RefreshCw } from "lucide-react";
+import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle, RefreshCw, Maximize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
 import SimpleKnowledgeGraph from "@/components/SimpleKnowledgeGraph";
+import KnowledgeGraphModal from "@/components/KnowledgeGraphModal";
 // 导入学习轨迹页面的iPad滚动修复CSS
 import "@/components/ui/learning-path-fixes.css";
 // 导入知识图谱样式
@@ -45,6 +46,7 @@ interface KnowledgeGraph {
 export default function LearningPath() {
   const [, setLocation] = useLocation();
   const [user, setUser] = useState<{userId: number; role: string; username?: string} | null>(null);
+  const [isGraphModalOpen, setIsGraphModalOpen] = useState(false);
 
   // 从localStorage获取用户信息
   useEffect(() => {
