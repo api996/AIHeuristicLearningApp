@@ -1,12 +1,16 @@
 /*
- * 学习路径页面在iPad上的滚动修复 - 强化版
- * 确保学习路径页面在iPad上可以正常滚动，防止内容溢出
- * 适配各种屏幕尺寸和方向
+ * 学习路径页面在iPad上的滚动修复 - 强化版 2.0
+ * 确保学习路径页面及其所有子页面在iPad上可以正常滚动，防止内容溢出
+ * 适配各种屏幕尺寸和方向，注重iPad体验优化
  */
 
 /* iPad设备上的学习路径页面滚动修复 - 强化版 */
 .ipad-device .learning-path-container,
-.tablet-device .learning-path-container {
+.tablet-device .learning-path-container,
+.ipad-device .knowledge-graph-detail-page,
+.tablet-device .knowledge-graph-detail-page,
+.ipad-device .memory-space-container,
+.tablet-device .memory-space-container {
   max-height: 100vh !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
@@ -19,6 +23,9 @@
   touch-action: pan-y !important; /* 允许垂直触摸滑动 */
   display: flex !important;
   flex-direction: column !important;
+  transform: translateZ(0) !important; /* 提升为合成层，优化渲染性能 */
+  will-change: transform !important; /* 提前告知浏览器元素将要改变 */
+  -webkit-backface-visibility: hidden !important; /* 提升iOS渲染性能 */
 }
 
 /* 页面标题区域修复 */
