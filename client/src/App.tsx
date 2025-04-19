@@ -1,3 +1,4 @@
+import React, { useEffect } from "react";
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -17,6 +18,8 @@ import NotFound from "@/pages/not-found";
 import "./lib/d3-patch";
 // 导入直接补丁文件，确保_d3Selection全局对象可用
 import "./lib/d3-direct-patch";
+// 导入视口工具，检测设备类型并设置CSS变量
+import { setupViewportHeightListeners } from "@/lib/viewportUtils";
 
 function Router() {
   // 使用简单的路由配置，让各个组件内部自己处理授权逻辑
@@ -40,6 +43,16 @@ function Router() {
 function App() {
   // 在应用启动时清除查询缓存，防止未登录状态下的缓存数据
   queryClient.clear();
+  
+  // 在应用启动时设置视口监听器，检测设备类型并设置相应的CSS类和变量
+  useEffect(() => {
+    // 初始化设备检测并返回清理函数
+    const cleanup = setupViewportHeightListeners();
+    console.log("已启动全局视口监听器，进行设备识别和CSS优化");
+    
+    // 组件卸载时清理
+    return cleanup;
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
