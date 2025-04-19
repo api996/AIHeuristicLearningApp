@@ -249,11 +249,109 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
     // 导入K-means聚类算法
     const { simpleClustering } = await import('./kmeans_clustering');
     
-    // 执行聚类
-    const clusterResult = simpleClustering(memoryVectors);
-    
-    // 基于聚类结果生成知识图谱
-    return generateKnowledgeGraph(clusterResult, memories, memoryKeywords);
+    try {
+      // 检查向量维度是否一致
+      let vectorDimension = -1;
+      const filteredMemoryVectors = memoryVectors.filter(memoryVec => {
+        if (vectorDimension === -1) {
+          // 设置第一个有效向量的维度作为标准
+          vectorDimension = memoryVec.vector.length;
+          return true;
+        }
+        // 只保留维度匹配的向量
+        return memoryVec.vector.length === vectorDimension;
+      });
+      
+      if (filteredMemoryVectors.length < 2) {
+        log(`用户${userId}的有效向量数据不足，无法进行聚类`);
+        return { nodes: [], links: [] };
+      }
+      
+      log(`为用户${userId}执行聚类，使用${filteredMemoryVectors.length}条有效记忆向量，维度=${vectorDimension}`);
+      
+      // 执行聚类
+      const clusterResult = simpleClustering(filteredMemoryVectors);
+      
+      // 基于聚类结果生成知识图谱
+      return generateKnowledgeGraph(clusterResult, memories, memoryKeywords);
+    } catch (clusterError) {
+      log(`聚类过程出错: ${clusterError}`);
+      
+      // 创建简单的知识图谱，不依赖聚类
+      const fallbackNodes: KnowledgeNode[] = [];
+      const fallbackLinks: KnowledgeLink[] = [];
+      
+      // 提取所有关键词，创建简单图谱
+      const allKeywords = new Set<string>();
+      const keywordMap = new Map<string, string[]>(); // memoryId -> keywords
+      
+      memoryKeywords.forEach(([memoryId, keywords]) => {
+        keywordMap.set(memoryId, keywords);
+        keywords.forEach(kw => allKeywords.add(kw));
+      });
+      
+      // 创建关键词节点
+      const keywordNodes = Array.from(allKeywords).slice(0, 10).map((keyword, index) => ({
+        id: `keyword_${index}`,
+        label: keyword,
+        size: 5,
+        category: 'keyword'
+      }));
+      
+      fallbackNodes.push(...keywordNodes);
+      
+      // 创建记忆节点（最多5个）
+      const memoryNodes = memories.slice(0, 5).map(memory => ({
+        id: `memory_${memory.id}`,
+        label: memory.summary?.substring(0, 20) + '...' || '记忆片段',
+        size: 3,
+        category: 'memory'
+      }));
+      
+      fallbackNodes.push(...memoryNodes);
+      
+      // 创建记忆与关键词的连接
+      memoryNodes.forEach(memoryNode => {
+        const memoryId = memoryNode.id.replace('memory_', '');
+        const keywords = keywordMap.get(memoryId) || [];
+        
+        keywords.forEach(keyword => {
+          const keywordNode = keywordNodes.find(n => n.label === keyword);
+          if (keywordNode) {
+            fallbackLinks.push({
+              source: memoryNode.id,
+              target: keywordNode.id,
+              value: 0.5
+            });
+          }
+        });
+      });
+      
+      // 创建关键词之间的连接
+      for (let i = 0; i < keywordNodes.length; i++) {
+        for (let j = i + 1; j < keywordNodes.length; j++) {
+          // 只连接有共同记忆的关键词
+          let hasCommonMemory = false;
+          memoryKeywords.forEach(([, keywords]) => {
+            if (keywords.includes(keywordNodes[i].label) && 
+                keywords.includes(keywordNodes[j].label)) {
+              hasCommonMemory = true;
+            }
+          });
+          
+          if (hasCommonMemory) {
+            fallbackLinks.push({
+              source: keywordNodes[i].id,
+              target: keywordNodes[j].id,
+              value: 0.3
+            });
+          }
+        }
+      }
+      
+      log(`创建了备用知识图谱，包含${fallbackNodes.length}个节点和${fallbackLinks.length}个连接`);
+      return { nodes: fallbackNodes, links: fallbackLinks };
+    }
     
   } catch (error) {
     log(`生成用户知识图谱时出错: ${error}`);
