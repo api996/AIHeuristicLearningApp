@@ -44,14 +44,19 @@
   width: calc(100% - 32px) !important;
   max-width: 500px !important;
   max-height: 85vh !important;
+  min-height: 200px !important;
   padding: 1.5rem !important;
   background-color: #1a1a1a !important;
   border-radius: 0.5rem !important;
+  border: 1px solid #333 !important;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
   z-index: 999995 !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
   pointer-events: auto !important;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 /* 修复特定的Dialog弹窗 */
@@ -77,6 +82,29 @@
   overflow: visible !important;
   margin: 0 auto !important;
   position: relative !important;
+}
+
+/* 修复偏好设置弹窗的特殊问题 */
+.ipad-device .preferences-dialog-content,
+.tablet-device .preferences-dialog-content,
+.iphone-device .preferences-dialog-content,
+.mobile-device .preferences-dialog-content {
+  background-color: #1a1a1a !important; 
+  border: 1px solid #333 !important;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* 专门修复磨砂玻璃效果弹窗 */
+.ipad-device .frosted-dialog,
+.tablet-device .frosted-dialog,
+.iphone-device .frosted-dialog,
+.mobile-device .frosted-dialog {
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  background-color: rgba(20, 20, 20, 0.85) !important;
+  border: 1px solid rgba(50, 50, 50, 0.5) !important;
 }
 
 /* 修复Dialog弹窗关闭按钮 */
@@ -136,6 +164,23 @@
   overscroll-behavior: contain !important;
   -ms-overflow-style: none !important;
   scrollbar-width: thin !important;
+}
+
+/* 强制修复透明问题 - 确保iPad上的Dialog内容始终可见 */
+.preferences-dialog-content[style*="opacity: 0"],
+.ipad-device [data-radix-dialog-content][style*="opacity: 0"],
+.tablet-device [data-radix-dialog-content][style*="opacity: 0"],
+.iphone-device [data-radix-dialog-content][style*="opacity: 0"],
+.mobile-device [data-radix-dialog-content][style*="opacity: 0"] {
+  opacity: 1 !important;
+}
+
+.preferences-dialog-content[style*="visibility: hidden"],
+.ipad-device [data-radix-dialog-content][style*="visibility: hidden"],
+.tablet-device [data-radix-dialog-content][style*="visibility: hidden"],
+.iphone-device [data-radix-dialog-content][style*="visibility: hidden"],
+.mobile-device [data-radix-dialog-content][style*="visibility: hidden"] {
+  visibility: visible !important;
 }
 
 /* 避免滚动时出现回弹效果 - 仅针对打开弹窗时应用 */
