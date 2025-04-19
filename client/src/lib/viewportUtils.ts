@@ -208,6 +208,21 @@ export function isNearBottom(element: HTMLElement | null, threshold = 100): bool
 }
 
 /**
+ * 判断当前设备是否为iPad
+ * @returns 如果是iPad返回true，否则返回false
+ */
+export function isIpadDevice(): boolean {
+  // 检测是否为iPad
+  const isIPad = /iPad/.test(navigator.userAgent) || 
+                 (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
+  
+  // 额外检查：如果设备标记了iPad专用CSS类
+  const hasIpadClass = document.documentElement.classList.contains('ipad-device');
+  
+  return isIPad || hasIpadClass;
+}
+
+/**
  * 优化触摸交互的辅助函数，特别适用于iPad等移动设备
  * @param element 需要优化触摸交互的元素
  */

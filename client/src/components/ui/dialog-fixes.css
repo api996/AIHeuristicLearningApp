@@ -1,192 +1,78 @@
-/**
- * Dialog组件在iPad和移动设备上的修复样式
- * 解决Dialog弹窗的重叠遮罩和交互失效问题
- */
+/* 
+  dialog-fixes.css - 解决iPad和其他移动设备上弹窗渲染问题
+*/
 
-/* 修复Dialog弹窗背景层z-index问题 */
-.ipad-device [data-radix-popper-content-wrapper],
-.tablet-device [data-radix-popper-content-wrapper],
-.iphone-device [data-radix-popper-content-wrapper],
-.mobile-device [data-radix-popper-content-wrapper] {
-  z-index: 999999 !important; /* 确保弹窗内容在最顶层 */
-  pointer-events: auto !important;
+/* 全局对话框样式修复 */
+.preferences-dialog-content {
+  z-index: 9999 !important;
+  position: relative;
 }
 
-/* 修复Dialog Overlay遮罩层 */
-.ipad-device [data-radix-dialog-overlay],
-.tablet-device [data-radix-dialog-overlay],
-.iphone-device [data-radix-dialog-overlay],
-.mobile-device [data-radix-dialog-overlay] {
+/* iPad专用样式 - 添加到设备根元素上的.ipad-device类 */
+:root.ipad-device .preferences-dialog-content {
   position: fixed !important;
   inset: 0 !important;
-  background-color: rgba(0, 0, 0, 0.5) !important;
-  z-index: 999990 !important;
-  pointer-events: auto !important;
-}
-
-/* 移除重复的遮罩层 */
-.ipad-device [data-radix-dialog-overlay] + [data-radix-dialog-overlay],
-.tablet-device [data-radix-dialog-overlay] + [data-radix-dialog-overlay],
-.iphone-device [data-radix-dialog-overlay] + [data-radix-dialog-overlay],
-.mobile-device [data-radix-dialog-overlay] + [data-radix-dialog-overlay] {
-  display: none !important;
-}
-
-/* 修复Dialog内容容器 */
-.ipad-device [data-radix-dialog-content],
-.tablet-device [data-radix-dialog-content],
-.iphone-device [data-radix-dialog-content],
-.mobile-device [data-radix-dialog-content] {
-  position: fixed !important;
-  left: 50% !important;
-  top: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  width: calc(100% - 32px) !important;
-  max-width: 500px !important;
-  max-height: 85vh !important;
-  min-height: 200px !important;
-  padding: 1.5rem !important;
+  margin: auto !important;
+  max-width: 400px !important;
+  max-height: 80vh !important;
+  width: 90% !important;
   background-color: #1a1a1a !important;
-  border-radius: 0.5rem !important;
-  border: 1px solid #333 !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
-  z-index: 999995 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 12px !important;
+  z-index: 9999999 !important; /* 确保在所有元素之上 */
+  transform: none !important; /* 防止可能的3D变换问题 */
+  opacity: 1 !important;
+  visibility: visible !important;
+  animation: none !important; /* 禁用可能导致问题的动画 */
+}
+
+/* 对话框背景 */
+:root.ipad-device .dialog-backdrop {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999999 !important;
+}
+
+/* 优化iPad上的对话框内容布局 */
+:root.ipad-device .preferences-dialog-content .preferences-background-upload {
+  margin-bottom: 12px !important;
+}
+
+:root.ipad-device .preferences-dialog-content .preferences-theme-color-section {
+  display: grid !important;
+  grid-template-columns: repeat(6, 1fr) !important;
+  gap: 8px !important;
+}
+
+/* 触摸交互优化 */
+:root.ipad-device .dialog-content button,
+:root.ipad-device .dialog-content input,
+:root.ipad-device .dialog-content .dialog-close {
+  min-height: 44px !important; /* 确保符合iOS触摸标准 */
+  touch-action: manipulation !important;
+}
+
+/* 修复iPad上对话框可能出现的滚动问题 */
+:root.ipad-device .dialog-content {
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
-  pointer-events: auto !important;
-  display: block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
+  max-height: 80vh !important;
+  padding: 20px !important;
 }
 
-/* 修复特定的Dialog弹窗 */
-.ipad-device [role="dialog"],
-.tablet-device [role="dialog"],
-.iphone-device [role="dialog"],
-.mobile-device [role="dialog"] {
-  z-index: 999998 !important; /* 确保弹窗在最顶层 */
-  pointer-events: auto !important; /* 确保交互事件正常工作 */
-}
-
-/* 修复个人设置弹窗的特殊处理 */
-.ipad-device .user-profile-dialog,
-.tablet-device .user-profile-dialog,
-.iphone-device .user-profile-dialog,
-.mobile-device .user-profile-dialog {
-  z-index: 1000000 !important;
-  background-color: #1a1a1a !important;
-  width: 90vw !important;
-  max-width: 480px !important;
-  border-radius: 0.75rem !important;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2) !important;
-  overflow: visible !important;
-  margin: 0 auto !important;
-  position: relative !important;
-}
-
-/* 修复偏好设置弹窗的特殊问题 */
-.ipad-device .preferences-dialog-content,
-.tablet-device .preferences-dialog-content,
-.iphone-device .preferences-dialog-content,
-.mobile-device .preferences-dialog-content {
-  background-color: #1a1a1a !important; 
-  border: 1px solid #333 !important;
-  display: block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-/* 专门修复磨砂玻璃效果弹窗 */
-.ipad-device .frosted-dialog,
-.tablet-device .frosted-dialog,
-.iphone-device .frosted-dialog,
-.mobile-device .frosted-dialog {
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-  background-color: rgba(20, 20, 20, 0.85) !important;
-  border: 1px solid rgba(50, 50, 50, 0.5) !important;
-}
-
-/* 修复Dialog弹窗关闭按钮 */
-.ipad-device [data-radix-dialog-close],
-.tablet-device [data-radix-dialog-close],
-.iphone-device [data-radix-dialog-close],
-.mobile-device [data-radix-dialog-close] {
+/* 确保对话框关闭按钮正常工作 */
+:root.ipad-device .dialog-close-button {
   position: absolute !important;
-  top: 0.75rem !important;
-  right: 0.75rem !important;
+  right: 10px !important;
+  top: 10px !important;
   z-index: 999999 !important;
-  background: rgba(50, 50, 50, 0.3) !important;
+  width: 44px !important;
+  height: 44px !important;
   border-radius: 50% !important;
-  width: 2rem !important;
-  height: 2rem !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  pointer-events: auto !important;
-  cursor: pointer !important;
-}
-
-/* 确保所有弹窗内部元素都具有交互能力 */
-.ipad-device [data-radix-dialog-content] *,
-.tablet-device [data-radix-dialog-content] *,
-.iphone-device [data-radix-dialog-content] *,
-.mobile-device [data-radix-dialog-content] * {
-  pointer-events: auto !important;
-}
-
-/* 确保表单元素可点击 */
-.ipad-device [data-radix-dialog-content] button,
-.ipad-device [data-radix-dialog-content] input,
-.ipad-device [data-radix-dialog-content] select,
-.ipad-device [data-radix-dialog-content] textarea,
-.tablet-device [data-radix-dialog-content] button,
-.tablet-device [data-radix-dialog-content] input,
-.tablet-device [data-radix-dialog-content] select,
-.tablet-device [data-radix-dialog-content] textarea,
-.iphone-device [data-radix-dialog-content] button,
-.iphone-device [data-radix-dialog-content] input,
-.iphone-device [data-radix-dialog-content] select,
-.iphone-device [data-radix-dialog-content] textarea,
-.mobile-device [data-radix-dialog-content] button,
-.mobile-device [data-radix-dialog-content] input,
-.mobile-device [data-radix-dialog-content] select,
-.mobile-device [data-radix-dialog-content] textarea {
-  touch-action: manipulation !important;
-  pointer-events: auto !important;
-}
-
-/* 滚动修复 */
-.ipad-device [data-radix-dialog-content],
-.tablet-device [data-radix-dialog-content],
-.iphone-device [data-radix-dialog-content],
-.mobile-device [data-radix-dialog-content] {
-  overscroll-behavior: contain !important;
-  -ms-overflow-style: none !important;
-  scrollbar-width: thin !important;
-}
-
-/* 强制修复透明问题 - 确保iPad上的Dialog内容始终可见 */
-.preferences-dialog-content[style*="opacity: 0"],
-.ipad-device [data-radix-dialog-content][style*="opacity: 0"],
-.tablet-device [data-radix-dialog-content][style*="opacity: 0"],
-.iphone-device [data-radix-dialog-content][style*="opacity: 0"],
-.mobile-device [data-radix-dialog-content][style*="opacity: 0"] {
-  opacity: 1 !important;
-}
-
-.preferences-dialog-content[style*="visibility: hidden"],
-.ipad-device [data-radix-dialog-content][style*="visibility: hidden"],
-.tablet-device [data-radix-dialog-content][style*="visibility: hidden"],
-.iphone-device [data-radix-dialog-content][style*="visibility: hidden"],
-.mobile-device [data-radix-dialog-content][style*="visibility: hidden"] {
-  visibility: visible !important;
-}
-
-/* 避免滚动时出现回弹效果 - 仅针对打开弹窗时应用 */
-.ipad-device [data-state="open"] ~ body,
-.tablet-device [data-state="open"] ~ body,
-.iphone-device [data-state="open"] ~ body,
-.mobile-device [data-state="open"] ~ body {
-  overflow: hidden !important;
+  background-color: rgba(60, 60, 60, 0.5) !important;
 }
