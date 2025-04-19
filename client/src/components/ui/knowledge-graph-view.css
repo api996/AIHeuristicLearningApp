@@ -15,7 +15,7 @@
 /* iPad设备上的特殊处理 */
 .ipad-device .knowledge-graph-view-page,
 .tablet-device .knowledge-graph-view-page {
-  overflow-y: auto !important;
+  overflow-y: scroll !important; /* 使用scroll强制显示滚动条而不是auto */
   -webkit-overflow-scrolling: touch !important;
   height: 100% !important;
   position: fixed !important;
@@ -27,6 +27,7 @@
   transform: translateZ(0) !important; /* 启用硬件加速 */
   will-change: transform !important; /* 提前告知浏览器元素将要改变 */
   -webkit-backface-visibility: hidden !important; /* 提升iOS渲染性能 */
+  scrollbar-width: thin !important; /* Firefox滚动条 */
 }
 
 /* 顶部控制栏 */
@@ -187,6 +188,17 @@
   justify-content: center;
   align-items: center;
   touch-action: manipulation;
+}
+
+/* iPad设备上的图表容器 */
+.ipad-device .fullscreen-graph-container,
+.tablet-device .fullscreen-graph-container {
+  overflow-y: scroll !important; /* 强制显示滚动条 */
+  -webkit-overflow-scrolling: touch !important;
+  padding-top: 70px !important; /* 为顶部导航条留出空间 */
+  padding-bottom: 60px !important; /* 为底部图例留出空间 */
+  height: 100vh !important;
+  box-sizing: border-box !important;
 }
 
 /* 节点点击信息提示 */
