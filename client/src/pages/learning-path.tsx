@@ -7,10 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-// @ts-ignore 忽略类型检查
-import { Graph } from "react-d3-graph";
-// @ts-ignore 忽略类型检查
-import * as d3 from "d3";
+import KnowledgeGraphWrapper from "@/components/KnowledgeGraphWrapper";
 
 // 定义知识图谱节点类型
 interface KnowledgeNode {
@@ -455,8 +452,7 @@ export default function LearningPath() {
                         {knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
                           <>
                             <div className="h-[350px] w-full">
-                              <Graph
-                                id="knowledge-graph-preview"
+                              <KnowledgeGraphWrapper
                                 data={{
                                   nodes: knowledgeGraph.nodes.map((node: KnowledgeNode) => ({
                                     id: node.id,
@@ -475,32 +471,9 @@ export default function LearningPath() {
                                     color: 'rgba(59, 130, 246, 0.5)'
                                   }))
                                 }}
-                                config={{
-                                  nodeHighlightBehavior: true,
-                                  directed: true,
-                                  d3: {
-                                    gravity: -80,
-                                    linkLength: 100,
-                                    disableLinkForce: false,
-                                    useWindowScale: false
-                                  },
-                                  node: {
-                                    color: "#3b82f6",
-                                    size: 200,
-                                    highlightStrokeColor: 'white',
-                                    fontSize: 10,
-                                    fontColor: 'white',
-                                    labelProperty: "label",
-                                    renderLabel: window.innerWidth > 768 // 只在桌面端显示标签
-                                  },
-                                  link: {
-                                    highlightColor: 'white',
-                                    color: 'rgba(59, 130, 246, 0.5)',
-                                    strokeWidth: 1.5
-                                  },
-                                  height: 350,
-                                  width: window.innerWidth > 768 ? 800 : window.innerWidth - 60
-                                }}
+                                height={350}
+                                width={window.innerWidth > 768 ? 800 : window.innerWidth - 60}
+                                isMobile={window.innerWidth <= 768}
                               />
                             </div>
                             <div className="mt-4 flex justify-center gap-2 flex-wrap">
