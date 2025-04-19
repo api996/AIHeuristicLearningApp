@@ -1,48 +1,122 @@
 /*
- * 记忆空间页面在iPad上的滚动修复
+ * 记忆空间页面在iPad上的滚动修复 
  * 确保记忆空间页面在iPad上可以正常滚动，防止内容溢出
+ * 注意：重要！添加 !important 确保这些样式优先级高于其他样式
  */
 
-/* iPad设备上的记忆空间页面滚动修复 */
+/* iPad设备上的记忆空间页面滚动修复 - 强化版 */
 .ipad-device .memory-space-container,
 .tablet-device .memory-space-container {
   max-height: 100vh !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
-  padding-bottom: 80px !important;
+  padding-bottom: 120px !important; /* 增加底部空间 */
+  position: relative !important; /* 确保相对定位 */
+  height: auto !important; /* 确保高度自动 */
+  min-height: 100vh !important; /* 保证至少填充视窗高度 */
+  width: 100% !important; /* 确保宽度100% */
+  overscroll-behavior: contain !important; /* 防止过度滚动 */
+  touch-action: pan-y !important; /* 允许垂直触摸滑动 */
 }
 
-/* 标签内容区域滚动修复 */
+/* 顶部内容区域滚动修复 */
+.ipad-device .memory-space-container .flex.justify-between.items-center.mb-6,
+.tablet-device .memory-space-container .flex.justify-between.items-center.mb-6 {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background-color: rgba(17, 17, 24, 0.8) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  margin-bottom: 1rem !important;
+  padding: 1rem 0 !important;
+}
+
+/* 标签内容区域滚动修复 - 强化版 */
 .ipad-device .memory-space-container [data-state="active"],
 .tablet-device .memory-space-container [data-state="active"] {
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
-  max-height: 75vh !important;
-  min-height: 75vh !important;
+  max-height: 80vh !important; /* 增加最大高度占比 */
+  min-height: 60vh !important; /* 确保最小高度 */
+  position: relative !important; /* 确保相对定位 */
+  overscroll-behavior: contain !important; /* 防止过度滚动 */
+  padding-bottom: 3rem !important; /* 底部留出更多空间 */
 }
 
-/* 卡片网格容器滚动修复 */
+/* 选项卡列表修复 */
+.ipad-device .memory-space-container .tabs-list,
+.tablet-device .memory-space-container .tabs-list {
+  position: sticky !important;
+  top: 1rem !important;
+  z-index: 5 !important;
+  margin-bottom: 1rem !important;
+}
+
+/* 卡片网格容器滚动修复 - 强化版 */
+.ipad-device .memory-space-container .grid.gap-4,
+.tablet-device .memory-space-container .grid.gap-4,
 .ipad-device .memory-space-container .grid,
 .tablet-device .memory-space-container .grid {
+  display: grid !important; /* 确保网格显示 */
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important; /* 响应式网格 */
   overflow: visible !important;
   height: auto !important;
   min-height: 300px !important;
+  width: 100% !important;
+  gap: 1rem !important;
+  position: relative !important;
+  margin-bottom: 2rem !important;
+  transform: translateZ(0) !important; /* 启用硬件加速 */
 }
 
-/* 记忆卡片修复 */
+/* 记忆卡片修复 - 强化版 */
 .ipad-device .memory-space-container .card,
 .tablet-device .memory-space-container .card {
   height: auto !important;
   overflow: visible !important;
   transform: translateZ(0) !important; /* 启用硬件加速 */
+  border-radius: 0.5rem !important;
+  transition: transform 0.2s ease, border-color 0.2s ease !important;
+  will-change: transform, border-color !important; /* 优化性能 */
 }
 
-/* iOS Safari特定修复 */
+/* 搜索框修复 */
+.ipad-device .memory-space-container .search-container,
+.tablet-device .memory-space-container .search-container {
+  width: 100% !important;
+  max-width: 400px !important;
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+/* 选中的记忆详情修复 */
+.ipad-device .memory-space-container .selected-memory,
+.tablet-device .memory-space-container .selected-memory {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  height: auto !important;
+  min-height: 50vh !important;
+  max-height: 80vh !important;
+  position: relative !important;
+  padding: 1rem !important;
+}
+
+/* iOS Safari特定修复 - 强化版 */
 @supports (-webkit-touch-callout: none) {
   .memory-space-container {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     touch-action: pan-y !important;
     overscroll-behavior-y: contain !important;
+    -webkit-tap-highlight-color: transparent !important; /* 移除点击高亮 */
+  }
+  
+  /* 针对iOS的额外修复 */
+  .ipad-device .memory-space-container .card-container,
+  .tablet-device .memory-space-container .card-container {
+    transform: translateZ(0) !important; /* 启用硬件加速 */
+    backface-visibility: hidden !important; /* 提高渲染性能 */
+    perspective: 1000px !important; /* 提高3D性能 */
   }
 }
