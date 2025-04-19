@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, ZoomIn, ZoomOut, Maximize, Minimize, RefreshCw } from "lucide-react";
-// 使用不依赖D3的轻量级高性能图表组件
-import SimpleGraphChart from "@/components/SimpleGraphChart";
+import { ArrowLeft, RefreshCw } from "lucide-react";
+// 使用新的静态知识图谱组件
+import StaticKnowledgeGraph from "@/components/StaticKnowledgeGraph";
 // 导入iPad滚动修复CSS
 import '@/components/ui/knowledge-graph-fixes.css';
 // 导入知识图谱数据预加载器
