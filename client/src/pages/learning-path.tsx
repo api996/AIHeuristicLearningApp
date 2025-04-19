@@ -271,7 +271,7 @@ export default function LearningPath() {
               <CardTitle>学习建议</CardTitle>
               <CardDescription>基于您的学习记录生成的个性化建议</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="card-content">
               {learningPath?.suggestions && learningPath.suggestions.length > 0 ? (
                 <div className="space-y-3">
                   {learningPath.suggestions.map((suggestion: string, index: number) => (
@@ -306,7 +306,7 @@ export default function LearningPath() {
               <CardTitle>详细学习进度</CardTitle>
               <CardDescription>各主题学习深度分析</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="card-content">
               {learningPath?.progress && learningPath.progress.length > 0 ? (
                 <div className="space-y-6">
                   {learningPath.progress.map((item: any, index: number) => {
@@ -392,7 +392,7 @@ export default function LearningPath() {
               <CardTitle>个性化学习建议</CardTitle>
               <CardDescription>基于您的学习模式生成的建议</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="card-content">
               {learningPath?.suggestions && learningPath.suggestions.length > 0 ? (
                 <div className="space-y-5">
                   {learningPath.suggestions.map((suggestion: string, index: number) => (
