@@ -5,6 +5,7 @@ import { ChatMessage } from "@/components/chat-message";
 import { setupViewportHeightListeners, scrollToBottom, isNearBottom } from "@/lib/viewportUtils";
 import "./ipad-fixes.css"; // 导入iPad专用修复样式
 import "./mobile-fixes.css"; // 导入手机设备专用修复样式
+import "./preferences-dialog-fixes.css"; // 导入偏好设置对话框的iPad滚动修复样式
 import { useLocation } from "wouter";
 import {
   Search,
@@ -2189,7 +2190,7 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* 偏好设置对话框 */}
       <Dialog open={showPreferencesDialog} onOpenChange={setShowPreferencesDialog}>
-        <DialogContent className="sm:max-w-md frosted-dialog">
+        <DialogContent className="sm:max-w-md frosted-dialog preferences-dialog-content">
           <DialogHeader>
             <DialogTitle>偏好设置</DialogTitle>
           </DialogHeader>
@@ -2325,7 +2326,7 @@ export function AIChat({ userData }: AIChatProps) {
                       </Button>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="flex flex-wrap gap-2 mt-2 preferences-theme-color-section">
                     <div 
                       className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
                       style={{ backgroundColor: "#0deae4" }}
@@ -2373,7 +2374,7 @@ export function AIChat({ userData }: AIChatProps) {
                 </p>
                 <div className="flex flex-col gap-2">
                   <div 
-                    className="border-2 border-dashed border-blue-300 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:bg-blue-100/50 dark:hover:bg-gray-800 transition-colors"
+                    className="border-2 border-dashed border-blue-300 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:bg-blue-100/50 dark:hover:bg-gray-800 transition-colors preferences-background-upload"
                     onClick={() => backgroundInputRef.current?.click()}
                   >
                     <div className="py-4 flex flex-col items-center">
