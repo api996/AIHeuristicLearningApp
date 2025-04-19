@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import KnowledgeGraphWrapper from "@/components/KnowledgeGraphWrapper";
+import SimpleKnowledgeGraph from "@/components/SimpleKnowledgeGraph";
 
 // 定义知识图谱节点类型
 interface KnowledgeNode {
@@ -452,28 +452,24 @@ export default function LearningPath() {
                         {knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
                           <>
                             <div className="h-[350px] w-full">
-                              <KnowledgeGraphWrapper
-                                data={{
-                                  nodes: knowledgeGraph.nodes.map((node: KnowledgeNode) => ({
-                                    id: node.id,
-                                    color: node.category === 'cluster' ? '#3b82f6' : 
-                                          node.category === 'keyword' ? '#10b981' : 
-                                          node.category === 'memory' ? '#f59e0b' : '#6366f1',
-                                    size: node.size * 200, // 预览图尺寸小一些
-                                    symbolType: "circle",
-                                    label: node.label,
-                                    category: node.category
-                                  })),
-                                  links: knowledgeGraph.links.map((link: KnowledgeLink) => ({
-                                    source: link.source,
-                                    target: link.target,
-                                    strokeWidth: link.value * 2,
-                                    color: 'rgba(59, 130, 246, 0.5)'
-                                  }))
-                                }}
+                              <SimpleKnowledgeGraph
+                                nodes={knowledgeGraph.nodes.map((node: KnowledgeNode) => ({
+                                  id: node.id,
+                                  color: node.category === 'cluster' ? '#3b82f6' : 
+                                        node.category === 'keyword' ? '#10b981' : 
+                                        node.category === 'memory' ? '#f59e0b' : '#6366f1',
+                                  size: node.size * 200, // 预览图尺寸小一些
+                                  label: node.label,
+                                  category: node.category
+                                }))}
+                                links={knowledgeGraph.links.map((link: KnowledgeLink) => ({
+                                  source: link.source,
+                                  target: link.target,
+                                  strokeWidth: link.value * 2,
+                                  color: 'rgba(59, 130, 246, 0.5)'
+                                }))}
                                 height={350}
                                 width={window.innerWidth > 768 ? 800 : window.innerWidth - 60}
-                                isMobile={window.innerWidth <= 768}
                               />
                             </div>
                             <div className="mt-4 flex justify-center gap-2 flex-wrap">
