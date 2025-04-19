@@ -359,20 +359,36 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
     };
   }, []);
 
+  // 适应移动端的尺寸计算
+  const adjustedHeight = isFullScreen ? height : Math.min(height, window.innerHeight * 0.7);
+  const adjustedWidth = isFullScreen ? width : Math.min(width, window.innerWidth - 20);
+  
   return (
     <div 
-      className="knowledge-graph-container" 
+      className={`knowledge-graph-container ${isFullScreen ? 'fullscreened-graph' : ''}`}
       // 添加触摸操作CSS支持
       style={{
-        width, 
-        height,
+        width: adjustedWidth, 
+        height: adjustedHeight,
+        maxWidth: '100%',
+        maxHeight: isFullScreen ? '100vh' : '70vh',
         touchAction: 'manipulation',
         WebkitUserSelect: 'none',
         userSelect: 'none',
-        WebkitTouchCallout: 'none'
+        WebkitTouchCallout: 'none',
+        overflow: 'visible',
+        position: 'relative'
       }}
     >
-      <svg ref={svgRef} />
+      <svg 
+        ref={svgRef} 
+        style={{
+          width: '100%',
+          height: '100%',
+          overflow: 'visible',
+          touchAction: 'manipulation'
+        }}
+      />
     </div>
   );
 };

@@ -339,20 +339,26 @@ export default function KnowledgeGraphDetail() {
             
             {knowledgeGraph && knowledgeGraph.nodes.length > 0 ? (
               <div 
-                className="w-full h-[70vh] relative overflow-visible touch-manipulation" 
+                className="w-full relative overflow-visible touch-manipulation" 
                 style={{
                   touchAction: 'manipulation',
                   WebkitUserSelect: 'none',
                   userSelect: 'none',
                   WebkitTouchCallout: 'none',
-                  height: isFullScreen ? '90vh' : '70vh'
+                  height: isFullScreen ? '90vh' : window.innerWidth < 768 ? '45vh' : '70vh',
+                  minHeight: isFullScreen ? '90vh' : '300px',
+                  maxHeight: isFullScreen ? '90vh' : '800px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center'
                 }}
               >
                 <SimpleKnowledgeGraph
                   nodes={graphData.nodes}
                   links={graphData.links}
-                  height={isFullScreen ? window.innerHeight - 120 : window.innerWidth < 768 ? window.innerHeight * 0.6 : 600}
-                  width={isFullScreen ? window.innerWidth - 40 : window.innerWidth > 768 ? 800 : window.innerWidth - 40}
+                  height={isFullScreen ? window.innerHeight - 80 : window.innerWidth < 768 ? window.innerHeight * 0.4 : 600}
+                  width={isFullScreen ? window.innerWidth - 40 : window.innerWidth > 768 ? 800 : window.innerWidth - 20}
                   onNodeClick={onClickNode}
                   zoomLevel={zoomLevel}
                   isFullScreen={isFullScreen}
