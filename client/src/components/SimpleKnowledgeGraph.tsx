@@ -208,7 +208,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         // 手动创建缩放函数
         const zoom = d3.zoom()
           .scaleExtent([0.1, 4])
-          .on('zoom', function(event) {
+          .on('zoom', function(event: any) {
             try {
               // 直接从事件参数中获取变换信息
               if (event) {
@@ -273,7 +273,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         .enter()
         .append('g')
         .attr('class', 'node')
-        .on('click', function(event: any, d: any) {
+        .on('click', function(event: MouseEvent, d: any) {
           if (onNodeClick) {
             event.stopPropagation();
             onNodeClick(d.id);
@@ -337,8 +337,41 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
     );
   }
 
+  // 添加触摸事件处理，增强iPad兼容性
+  useEffect(() => {
+    if (!svgRef.current) return;
+    
+    // 为SVG添加触摸事件处理
+    const handleTouchEvent = (e: TouchEvent) => {
+      // 确保触摸事件不会导致页面滚动
+      if (e.touches.length > 0) {
+        e.preventDefault();
+      }
+    };
+    
+    const svgElement = svgRef.current;
+    svgElement.addEventListener('touchstart', handleTouchEvent, { passive: false });
+    svgElement.addEventListener('touchmove', handleTouchEvent, { passive: false });
+    
+    return () => {
+      svgElement.removeEventListener('touchstart', handleTouchEvent);
+      svgElement.removeEventListener('touchmove', handleTouchEvent);
+    };
+  }, []);
+
   return (
-    <div className="knowledge-graph-container" style={{ width, height }}>
+    <div 
+      className="knowledge-graph-container" 
+      // 添加触摸操作CSS支持
+      style={{
+        width, 
+        height,
+        touchAction: 'manipulation',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        WebkitTouchCallout: 'none'
+      }}
+    >
       <svg ref={svgRef} />
     </div>
   );

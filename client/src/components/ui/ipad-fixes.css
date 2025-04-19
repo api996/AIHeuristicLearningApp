@@ -276,6 +276,153 @@
   }
 }
 
+/* ===== 记忆空间、知识图谱和学习轨迹页面的iPad滚动修复 ===== */
+@media screen and (min-width: 768px) and (max-width: 1366px) {
+  /* 全局页面容器滚动修复 */
+  .ipad-device .container.mx-auto.py-6.flex-1.flex.flex-col,
+  .tablet-device .container.mx-auto.py-6.flex-1.flex.flex-col {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 120px !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* 确保主要容器的内部可滚动 */
+  .ipad-device .flex.flex-col.min-h-screen.bg-background, 
+  .tablet-device .flex.flex-col.min-h-screen.bg-background {
+    position: relative !important;
+    height: 100% !important;
+    min-height: 100vh !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* 修复选项卡内容区域滚动问题 */
+  .ipad-device .tabs-content,
+  .tablet-device .tabs-content,
+  .ipad-device [role="tabpanel"],
+  .tablet-device [role="tabpanel"],
+  .ipad-device [data-state="active"],
+  .tablet-device [data-state="active"] {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    height: auto !important;
+    min-height: 500px !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* 修复网格列表滚动问题 */
+  .ipad-device .grid.gap-4,
+  .tablet-device .grid.gap-4 {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 300px !important;
+  }
+  
+  /* 知识图谱和d3图表区域修复 */
+  .ipad-device .h-\[600px\],
+  .tablet-device .h-\[600px\],
+  .ipad-device .h-\[400px\],
+  .tablet-device .h-\[400px\],
+  .ipad-device .h-\[350px\],
+  .tablet-device .h-\[350px\],
+  .ipad-device .h-\[70vh\],
+  .tablet-device .h-\[70vh\] {
+    height: auto !important;
+    min-height: 400px !important;
+    max-height: 600px !important;
+    overflow: visible !important;
+    position: relative !important;
+    touch-action: pan-x pan-y !important;
+  }
+  
+  /* 确保图表容器不会被隐藏或裁剪 */
+  .ipad-device svg,
+  .tablet-device svg,
+  .ipad-device svg.d3-graph,
+  .tablet-device svg.d3-graph,
+  .ipad-device .relative svg,
+  .tablet-device .relative svg {
+    touch-action: pan-x pan-y !important;
+    overflow: visible !important;
+    height: 100% !important;
+    width: 100% !important;
+  }
+
+  /* 记忆空间页面卡片修复 */
+  .ipad-device .grid.gap-4.md\:grid-cols-2.lg\:grid-cols-3 > .card,
+  .tablet-device .grid.gap-4.md\:grid-cols-2.lg\:grid-cols-3 > .card {
+    height: auto !important;
+    overflow: visible !important;
+    transform: translateZ(0) !important; /* 启用硬件加速 */
+  }
+  
+  /* 知识图谱详情页面特定修复 */
+  .ipad-device .knowledge-graph-container,
+  .tablet-device .knowledge-graph-container {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 70vh !important;
+    position: relative !important;
+    overflow: visible !important;
+    touch-action: manipulation !important;
+  }
+  
+  /* 确保知识图谱详情页的卡片内容可滚动 */
+  .ipad-device .flex-1.overflow-hidden,
+  .tablet-device .flex-1.overflow-hidden {
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    height: auto !important;
+    min-height: 70vh !important;
+  }
+  
+  /* 强制启用触摸滑动 */
+  .ipad-device .knowledge-graph-container svg, 
+  .tablet-device .knowledge-graph-container svg {
+    touch-action: manipulation !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+  }
+  
+  /* 知识图谱SVG内部元素样式 */
+  .ipad-device .knowledge-graph-container g,
+  .tablet-device .knowledge-graph-container g {
+    touch-action: manipulation !important;
+  }
+  
+  /* 缩放按钮和全屏按钮修复 */
+  .ipad-device button[size="icon"],
+  .tablet-device button[size="icon"] {
+    transform: scale(1.2) !important;
+    margin: 0 4px !important;
+  }
+  
+  /* 学习轨迹标签页内容修复 */
+  .ipad-device [data-radix-tabs-content-wrapper],
+  .tablet-device [data-radix-tabs-content-wrapper] {
+    height: auto !important;
+    min-height: 70vh !important;
+    max-height: none !important;
+  }
+  
+  /* 学习轨迹标签内容修复 - 特定针对无法滚动的内容 */
+  .ipad-device [data-orientation="horizontal"] > [data-state],
+  .tablet-device [data-orientation="horizontal"] > [data-state],
+  .ipad-device [data-orientation="horizontal"] > div,
+  .tablet-device [data-orientation="horizontal"] > div {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    height: auto !important;
+    min-height: 50vh !important;
+    padding-bottom: 50px !important;
+  }
+}
+
 /* ===== 处理iPad横屏/竖屏特定情况 ===== */
 /* 横屏模式 - 布局更宽 */
 @media screen and (min-width: 768px) and (max-width: 1366px) and (orientation: landscape) {
