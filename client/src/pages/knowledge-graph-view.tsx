@@ -66,12 +66,14 @@ export default function KnowledgeGraphView() {
         
         // 先尝试获取预加载数据
         try {
-          const data = await getKnowledgeGraphData(userId);
-          if (data && Array.isArray(data.nodes)) {
-            console.log(`已获取缓存的知识图谱数据: ${data.nodes.length}个节点`);
-            setGraphData(data);
-            setIsLoading(false);
-            return;
+          if (userId !== null) {
+            const data = await getKnowledgeGraphData(userId);
+            if (data && Array.isArray(data.nodes)) {
+              console.log(`已获取缓存的知识图谱数据: ${data.nodes.length}个节点`);
+              setGraphData(data);
+              setIsLoading(false);
+              return;
+            }
           }
         } catch (e) {
           console.warn('无法获取预加载数据:', e);
@@ -89,7 +91,9 @@ export default function KnowledgeGraphView() {
         setGraphData(data);
         
         // 更新缓存
-        await preloadKnowledgeGraphData(userId);
+        if (userId !== null) {
+          await preloadKnowledgeGraphData(userId);
+        }
       } catch (err) {
         console.error('加载知识图谱失败:', err);
         setError('无法加载知识图谱数据');
@@ -128,7 +132,9 @@ export default function KnowledgeGraphView() {
       setGraphData(data);
       
       // 更新缓存
-      await preloadKnowledgeGraphData(userId);
+      if (userId !== null) {
+        await preloadKnowledgeGraphData(userId);
+      }
     } catch (err) {
       console.error('刷新知识图谱失败:', err);
       setError('刷新数据失败');
