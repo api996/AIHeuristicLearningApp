@@ -1,0 +1,48 @@
+/*
+ * 记忆空间页面在iPad上的滚动修复
+ * 确保记忆空间页面在iPad上可以正常滚动，防止内容溢出
+ */
+
+/* iPad设备上的记忆空间页面滚动修复 */
+.ipad-device .memory-space-container,
+.tablet-device .memory-space-container {
+  max-height: 100vh !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: 80px !important;
+}
+
+/* 标签内容区域滚动修复 */
+.ipad-device .memory-space-container [data-state="active"],
+.tablet-device .memory-space-container [data-state="active"] {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 75vh !important;
+  min-height: 75vh !important;
+}
+
+/* 卡片网格容器滚动修复 */
+.ipad-device .memory-space-container .grid,
+.tablet-device .memory-space-container .grid {
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 300px !important;
+}
+
+/* 记忆卡片修复 */
+.ipad-device .memory-space-container .card,
+.tablet-device .memory-space-container .card {
+  height: auto !important;
+  overflow: visible !important;
+  transform: translateZ(0) !important; /* 启用硬件加速 */
+}
+
+/* iOS Safari特定修复 */
+@supports (-webkit-touch-callout: none) {
+  .memory-space-container {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    overscroll-behavior-y: contain !important;
+  }
+}

@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { Navbar } from '@/components/ui/navbar';
+// 导入iPad滚动修复CSS
+import '@/components/ui/memory-space-fixes.css';
 
 // 类型定义
 interface Memory {
@@ -263,7 +265,7 @@ const MemorySpace: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-background">
       <Navbar />
       
-      <div className="container mx-auto py-6 flex-1 flex flex-col">
+      <div className="container mx-auto py-6 flex-1 flex flex-col memory-space-container">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">记忆空间</h1>
           <div className="flex gap-2">

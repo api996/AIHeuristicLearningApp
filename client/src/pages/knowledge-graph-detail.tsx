@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ZoomIn, ZoomOut, Maximize, Minimize } from "lucide-react";
 import SimpleKnowledgeGraph from "@/components/SimpleKnowledgeGraph";
+// 导入iPad滚动修复CSS
+import '@/components/ui/knowledge-graph-fixes.css';
 
 // 定义知识图谱节点类型
 interface KnowledgeNode {

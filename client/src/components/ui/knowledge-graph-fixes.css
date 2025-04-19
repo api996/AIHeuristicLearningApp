@@ -1,0 +1,78 @@
+/*
+ * 知识图谱页面在iPad上的滚动和交互修复
+ * 确保知识图谱页面在iPad上可以正常滚动和交互，防止内容溢出
+ */
+
+/* iPad设备上的知识图谱页面滚动修复 */
+.ipad-device .knowledge-graph-container,
+.tablet-device .knowledge-graph-container {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 70vh !important;
+  position: relative !important;
+  overflow: visible !important;
+  touch-action: manipulation !important;
+}
+
+/* 图谱详情页面容器修复 */
+.ipad-device .knowledge-graph-detail-page,
+.tablet-device .knowledge-graph-detail-page {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 100vh !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  padding-bottom: 50px !important;
+}
+
+/* 确保图谱容器不会被隐藏或裁剪 */
+.ipad-device .knowledge-graph-container svg,
+.tablet-device .knowledge-graph-container svg {
+  touch-action: manipulation !important;
+  overflow: visible !important;
+  height: 100% !important;
+  width: 100% !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+/* 控制按钮区域修复 */
+.ipad-device .graph-controls,
+.tablet-device .graph-controls {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 50 !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-radius: 8px !important;
+  padding: 5px !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 图例区域修复 */
+.ipad-device .graph-legend,
+.tablet-device .graph-legend {
+  position: absolute !important;
+  bottom: 10px !important;
+  left: 10px !important;
+  z-index: 50 !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-radius: 8px !important;
+  padding: 8px !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* iOS Safari特定修复 */
+@supports (-webkit-touch-callout: none) {
+  .knowledge-graph-container {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: manipulation !important;
+    overscroll-behavior-y: contain !important;
+  }
+  
+  .knowledge-graph-container svg {
+    touch-action: manipulation !important;
+  }
+}
