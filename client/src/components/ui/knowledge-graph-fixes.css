@@ -190,17 +190,23 @@
   overflow: hidden !important;
 }
 
-/* iOS Safari特定修复 - 强化版 */
+/* iOS Safari特定修复 - 强化版 2.0 */
 @supports (-webkit-touch-callout: none) {
-  .knowledge-graph-container {
+  .knowledge-graph-container,
+  .knowledge-graph-detail-page,
+  .knowledge-graph-view-page {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     touch-action: manipulation !important;
     overscroll-behavior: contain !important;
     -webkit-tap-highlight-color: transparent !important; /* 移除高亮 */
+    height: auto !important;
+    max-height: 100vh !important;
   }
   
-  .knowledge-graph-container svg {
+  .knowledge-graph-container svg,
+  .knowledge-graph-detail-page svg,
+  .knowledge-graph-view-page svg {
     touch-action: manipulation !important;
     transform: translateZ(0) !important;
     -webkit-user-select: none !important;
@@ -209,7 +215,11 @@
   
   /* 额外的iOS修复 */
   .ipad-device .knowledge-graph-container div,
-  .tablet-device .knowledge-graph-container div {
+  .tablet-device .knowledge-graph-container div,
+  .ipad-device .knowledge-graph-detail-page div,
+  .tablet-device .knowledge-graph-detail-page div,
+  .ipad-device .knowledge-graph-view-page div,
+  .tablet-device .knowledge-graph-view-page div {
     transform: translateZ(0) !important;
     backface-visibility: hidden !important;
     perspective: 1000px !important;
@@ -223,5 +233,26 @@
     -webkit-overflow-scrolling: touch !important;
     touch-action: manipulation !important;
     z-index: 100 !important;
+  }
+  
+  /* 知识图谱详情页面内的所有卡片 */
+  .ipad-device .knowledge-graph-detail-page .card,
+  .tablet-device .knowledge-graph-detail-page .card {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-height: 70vh !important;
+    height: auto !important;
+    transform: translateZ(0) !important; /* 启用硬件加速 */
+  }
+  
+  /* 知识图谱的子组件 */
+  .ipad-device .tabs-content,
+  .tablet-device .tabs-content,
+  .ipad-device [data-state="active"],
+  .tablet-device [data-state="active"] {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-height: none !important;
+    height: auto !important;
   }
 }
