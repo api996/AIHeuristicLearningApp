@@ -10,6 +10,14 @@
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
   padding-bottom: 20px !important;
+  box-shadow: none !important; /* 移除可能的额外阴影 */
+  background: rgba(17, 17, 17, 0.95) !important; /* 确保背景色正确 */
+}
+
+/* 为iPad设备上的对话框移除多余阴影 */
+.ipad-device [role="dialog"],
+.tablet-device [role="dialog"] {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important; /* 使用单一简单阴影 */
 }
 
 /* 对话框内容区域滚动修复 */
@@ -18,6 +26,10 @@
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
   max-height: 70vh !important;
+  touch-action: pan-y !important; /* 启用垂直滚动触摸操作 */
+  pointer-events: auto !important; /* 确保触摸事件能够正常响应 */
+  z-index: 1 !important; /* 确保内容在正确的层级上 */
+  position: relative !important; /* 防止绝对定位问题 */
 }
 
 /* 修复颜色选择部分在iPad上的显示 */
@@ -25,6 +37,20 @@
 .tablet-device .preferences-theme-color-section {
   flex-wrap: wrap !important;
   gap: 8px !important;
+  position: relative !important;
+  z-index: 2 !important; /* 确保颜色选择区域在正确的层级 */
+}
+
+/* 颜色选择器各颜色按钮优化 */
+.ipad-device .preferences-theme-color-section > div,
+.tablet-device .preferences-theme-color-section > div {
+  width: 28px !important;
+  height: 28px !important; /* 稍微放大触摸区域 */
+  margin: 2px !important;
+  position: relative !important;
+  z-index: 3 !important;
+  touch-action: manipulation !important;
+  pointer-events: auto !important;
 }
 
 /* 修复背景图片上传区域在iPad上的触摸交互 */
@@ -32,6 +58,9 @@
 .tablet-device .preferences-background-upload {
   min-height: 120px !important;
   touch-action: manipulation !important;
+  position: relative !important;
+  z-index: 2 !important;
+  pointer-events: auto !important;
 }
 
 /* iOS Safari特定修复 */
@@ -41,5 +70,28 @@
     -webkit-overflow-scrolling: touch !important;
     touch-action: pan-y !important;
     overscroll-behavior-y: contain !important;
+    backdrop-filter: none !important; /* 移除可能导致触摸问题的滤镜 */
+    -webkit-backdrop-filter: none !important;
+    background: rgba(15, 15, 15, 0.95) !important; /* 确保有背景色 */
+  }
+  
+  /* 进一步强化iOS触摸事件 */
+  .preferences-dialog-content * {
+    pointer-events: auto !important; /* 确保所有子元素都能正确接收触摸事件 */
+  }
+  
+  /* 修复iOS上的按钮触摸区域 */
+  .preferences-dialog-content button,
+  .preferences-dialog-content [role="button"] {
+    position: relative !important;
+    z-index: 5 !important; /* 提高按钮层级 */
+    touch-action: manipulation !important;
+  }
+  
+  /* 确保对话框覆盖层不阻止触摸事件 */
+  [data-radix-dialog-overlay],
+  [data-radix-popper-content-wrapper] {
+    pointer-events: auto !important;
+    touch-action: auto !important;
   }
 }
