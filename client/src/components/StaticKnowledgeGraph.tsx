@@ -783,14 +783,25 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
+            // 检测设备尺寸并调整文本显示策略
+            const isMobile = window.innerWidth <= 768;
+            
             // 根据节点类型调整文本渲染
             if (node.category === 'cluster') {
               // 给主题节点文本添加暗色背景使文字更易读
-              const textWidth = ctx.measureText(node.label).width;
+              // 确保文本宽度不超过一个合理的范围，特别是在移动设备上
+              let displayLabel = node.label;
+              if (isMobile && displayLabel.length > 8) {
+                // 在移动设备上，如果标签太长就缩短它
+                displayLabel = displayLabel.substring(0, 7) + '…';
+              }
+              
+              const textWidth = ctx.measureText(displayLabel).width;
               const padding = 6;
               const bgHeight = fontSize * 1.4;
               
-              ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+              // 使用半透明黑色背景
+              ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
               ctx.fillRect(
                 pos.x - textWidth/2 - padding, 
                 pos.y - bgHeight/2, 
@@ -798,9 +809,24 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
                 bgHeight
               );
               
-              // 绘制文本主体
+              // 绘制文本主体 - 确保文本总是横向显示
               ctx.fillStyle = 'white';
-              ctx.fillText(node.label, pos.x, pos.y);
+              ctx.fillText(displayLabel, pos.x, pos.y);
+              
+              // 在移动设备上，如果原标签被缩短，则在悬停时显示完整标签
+              if (isHovered && displayLabel !== node.label) {
+                const fullTextWidth = ctx.measureText(node.label).width;
+                // 显示完整标签的提示框
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(
+                  pos.x - fullTextWidth/2 - padding, 
+                  pos.y + size + padding, 
+                  fullTextWidth + padding*2, 
+                  bgHeight
+                );
+                ctx.fillStyle = 'white';
+                ctx.fillText(node.label, pos.x, pos.y + size + padding + bgHeight/2);
+              }
             } else if (isHovered || node.category === 'keyword') {
               // 对悬停节点和关键词绘制标签 - 显示在节点旁边
               ctx.textAlign = 'left';
