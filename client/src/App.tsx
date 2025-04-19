@@ -22,6 +22,12 @@ import "./lib/d3-direct-patch";
 import { setupViewportHeightListeners } from "@/lib/viewportUtils";
 // 导入全局触摸交互优化样式
 import "@/components/ui/touch-interaction.css";
+// 导入iPad和移动设备相关的修复样式
+import "@/components/ui/ipad-fixes.css";
+import "@/components/ui/memory-space-fixes.css";
+import "@/components/ui/knowledge-graph-fixes.css";
+import "@/components/ui/learning-path-fixes.css";
+import "@/components/admin/admin-ipad-fixes.css";
 
 function Router() {
   // 使用简单的路由配置，让各个组件内部自己处理授权逻辑

@@ -62,7 +62,18 @@
   font-family: monospace;
 }
 
-/* 修复iPad和手机上的标签显示问题 */
+/* 修复iPad和手机上的标签显示问题 - 通用修复 */
+.ipad-device [role="tablist"],
+.tablet-device [role="tablist"],
+.iphone-device [role="tablist"],
+.mobile-device [role="tablist"] {
+  height: auto !important;
+  max-height: none !important;
+  width: auto !important;
+  background-color: transparent !important;
+}
+
+/* 垂直标签专门修复（提示词编辑器）*/
 .ipad-device [data-orientation="vertical"] > [role="tablist"],
 .tablet-device [data-orientation="vertical"] > [role="tablist"],
 .iphone-device [data-orientation="vertical"] > [role="tablist"],
@@ -74,6 +85,25 @@
   padding-right: 0.5rem !important;
   margin-bottom: 1rem !important;
   height: auto !important;
+}
+
+/* 水平标签专门修复（管理员面板顶部标签）*/
+.ipad-device [data-orientation="horizontal"] > [role="tablist"],
+.tablet-device [data-orientation="horizontal"] > [role="tablist"],
+.iphone-device [data-orientation="horizontal"] > [role="tablist"],
+.mobile-device [data-orientation="horizontal"] > [role="tablist"] {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 4px !important;
+  background-color: #222 !important;
+  border-radius: 0.5rem !important;
+  margin-bottom: 1rem !important;
+  border: 1px solid #333 !important;
+  position: relative !important;
+  top: 0 !important;
+  left: 0 !important;
 }
 
 /* 确保标签触发器具有正确的外观 */
@@ -88,15 +118,54 @@
   align-items: center !important;
   margin-bottom: 0.25rem !important;
   max-width: 100% !important;
-  width: 100% !important;
+  width: auto !important;
   text-align: left !important;
   justify-content: flex-start !important;
+}
+
+/* 水平标签触发器特殊样式 */
+.ipad-device [data-orientation="horizontal"] > [role="tablist"] [role="tab"],
+.tablet-device [data-orientation="horizontal"] > [role="tablist"] [role="tab"],
+.iphone-device [data-orientation="horizontal"] > [role="tablist"] [role="tab"],
+.mobile-device [data-orientation="horizontal"] > [role="tablist"] [role="tab"] {
+  margin: 0 4px !important;
+  border-radius: 0.25rem !important;
+  padding: 0.5rem 1rem !important;
+  white-space: nowrap !important;
+  height: auto !important;
+  min-height: 2.5rem !important;
+}
+
+/* 修复标签内容面板的显示问题 */
+.ipad-device [role="tabpanel"],
+.tablet-device [role="tabpanel"],
+.iphone-device [role="tabpanel"],
+.mobile-device [role="tabpanel"] {
+  height: auto !important;
+  min-height: 200px !important;
+  width: 100% !important;
+  padding: 1rem !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* 管理员面板标签内容容器修复 */
+.ipad-device .admin-dashboard-tabs-content,
+.tablet-device .admin-dashboard-tabs-content,
+.iphone-device .admin-dashboard-tabs-content,
+.mobile-device .admin-dashboard-tabs-content {
+  height: auto !important;
+  min-height: 70vh !important;
+  overflow-y: auto !important;
+  padding-bottom: 2rem !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 /* 针对iOS Safari浏览器的特定修复 */
 @supports (-webkit-touch-callout: none) {
   .template-editor-content,
-  .template-textarea {
+  .template-textarea,
+  [role="tabpanel"] {
     /* iOS Safari特定修复 */
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: none;
