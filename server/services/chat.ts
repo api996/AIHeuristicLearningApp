@@ -523,7 +523,7 @@ ${searchResults}
           try {
             const templateRecord = await storage.getPromptTemplate('deep');
             if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
-              log('Using custom template for Deep model');
+              log('使用自定义模板处理Dify请求');
               basePrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
               
               // 执行模板变量替换
@@ -545,7 +545,7 @@ ${searchResults}
               );
             }
           } catch (error) {
-            log(`Error getting Deep template: ${error}`);
+            log(`获取Dify模板出错: ${error}`);
           }
           
           // 如果没有自定义提示词模板，使用默认模板
@@ -589,28 +589,32 @@ ${searchResults}
             
             basePrompt += `。`;
           }
-            
-          return {
+          
+          // 构建Dify API请求格式
+          const requestPayload = {
             query: basePrompt,
             response_mode: "blocking",
             conversation_id: null,
             user: "user",
             inputs: {},
           };
+          
+          log(`Dify请求格式已构建完成，有效载荷大小: ${JSON.stringify(requestPayload).length}字节`);
+          return requestPayload;
         },
         getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
           // 如果没有API密钥，返回模拟响应
           if (!difyApiKey) {
-            log(`No Dify API key found, returning simulated response`);
+            log(`未找到Dify API密钥，返回模拟响应`);
             const memoryInfo = contextMemories ? `[使用了${contextMemories.split('\n').length}条相关记忆]` : '';
             const searchInfo = (searchResults) ? `[使用了网络搜索结果]` : '';
             
-            let responseText = `[Deep模型-模拟] `;
+            let responseText = `[Dify模型-模拟] `;
             if (memoryInfo) responseText += memoryInfo + ' ';
             if (searchInfo) responseText += searchInfo + ' ';
             
             responseText += `分析您的问题："${message}"...\n\n`;
-            responseText += `这是一个模拟的Deep响应，因为尚未配置有效的Dify API密钥。当API密钥配置后，此处将显示真实的Dify AI生成内容。`;
+            responseText += `这是一个模拟的Dify响应，因为尚未配置有效的Dify API密钥。请在.env文件中添加DIFY_API_KEY以启用实际的Dify服务。`;
             
             return {
               text: responseText,
@@ -619,46 +623,86 @@ ${searchResults}
           }
           
           try {
+            // 构建转换后的消息
             const transformedMessage = await this.modelConfigs.deep.transformRequest!(message, contextMemories, searchResults);
-            log(`Calling Dify API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
             
+            // 记录API密钥前几个字符（安全日志）
+            const apiKeyPrefix = difyApiKey.substring(0, 4) + '...' + difyApiKey.substring(difyApiKey.length - 4);
+            log(`调用Dify API，使用密钥: ${apiKeyPrefix}，消息长度: ${JSON.stringify(transformedMessage).length}字节`);
+            log(`Dify请求: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
+            
+            const headers = {
+              "Authorization": `Bearer ${difyApiKey}`,
+              "Content-Type": "application/json",
+            };
+            log(`Dify请求头: ${JSON.stringify(headers)}`);
+            
+            // 添加更多的重试次数和更长的超时时间
             const response = await fetchWithRetry(this.modelConfigs.deep.endpoint!, {
               method: "POST",
-              headers: this.modelConfigs.deep.headers!,
+              headers: headers,
               body: JSON.stringify(transformedMessage),
-              timeout: 30000, // 30秒超时
-            }, 3, 500);
+              timeout: 60000, // 增加到60秒超时
+            }, 5, 1000); // 5次重试，初始间隔1秒
 
+            // 详细记录API响应状态
+            log(`Dify API响应状态: ${response.status} ${response.statusText}`);
+            
             if (!response.ok) {
               const errorText = await response.text();
-              log(`Dify API error: ${response.status} - ${errorText}`);
-              throw new Error(`Dify API error: ${response.status} - ${errorText}`);
+              log(`Dify API错误: ${response.status} - ${errorText}`);
+              
+              // 根据不同错误代码提供更具体的错误信息
+              if (response.status === 401) {
+                throw new Error(`Dify API认证失败: API密钥可能无效或已过期`);
+              } else if (response.status === 429) {
+                throw new Error(`Dify API请求过多: 已超出API调用频率限制`);
+              } else {
+                throw new Error(`Dify API错误: ${response.status} - ${errorText}`);
+              }
             }
 
-            const data: any = await response.json();
-            log(`Received Dify API response`);
-            
-            // 过滤Deep模型输出中的思考过程
-            let responseText = data.answer || "Deep模型暂时无法回应";
+            // 尝试解析JSON响应
+            let data;
             try {
-              const { removeThinkingProcess } = require('./genai/genai_service');
-              if (typeof removeThinkingProcess === 'function') {
-                responseText = removeThinkingProcess(responseText);
-              }
-            } catch (error) {
-              log(`Error filtering Deep thinking process: ${error}`);
+              data = await response.json();
+              log(`已接收Dify API响应: ${JSON.stringify(data).substring(0, 200)}...`);
+            } catch (parseError) {
+              log(`Dify API响应JSON解析失败: ${parseError}`);
+              throw new Error(`Dify API响应格式错误: ${parseError}`);
             }
+            
+            // 检查响应中是否包含answer字段
+            if (!data.answer && data.answer !== "") {
+              log(`警告: Dify响应中没有answer字段: ${JSON.stringify(data).substring(0, 200)}...`);
+            }
+            
+            // 获取响应文本
+            let responseText = data.answer || "Dify模型暂时无法回应";
+            
+            // 不再使用思考过程过滤函数，直接返回原始响应
+            log(`Dify响应长度: ${responseText.length}字符`);
             
             return {
               text: responseText,
               model: "deep"
             };
           } catch (error) {
-            log(`Error calling Dify API: ${error}`);
+            log(`调用Dify API出错: ${error}`);
             
-            // 给用户一个友好的错误信息
+            // 给用户一个详细的错误信息
             const errorMessage = (error instanceof Error) ? error.message : String(error);
-            const friendlyMessage = `Deep模型暂时无法使用：${errorMessage.includes('timeout') ? '服务响应超时' : '连接服务失败'}。请尝试使用Gemini或其他模型，或稍后再试。`;
+            let friendlyMessage;
+            
+            if (errorMessage.includes('timeout')) {
+              friendlyMessage = `Dify模型暂时无法使用：服务响应超时。请检查您的网络连接和Dify服务状态，或尝试使用其他模型。`;
+            } else if (errorMessage.includes('认证失败') || errorMessage.includes('API密钥')) {
+              friendlyMessage = `Dify模型认证失败：请检查您的DIFY_API_KEY是否正确。可能需要在Dify平台上重新生成API密钥。`;
+            } else if (errorMessage.includes('频率限制')) {
+              friendlyMessage = `Dify API调用次数已达上限：已超出API调用频率限制，请稍后再试。`;
+            } else {
+              friendlyMessage = `Dify模型暂时无法使用：${errorMessage}。请尝试使用Gemini或其他模型，或稍后再试。`;
+            }
             
             return {
               text: friendlyMessage,
