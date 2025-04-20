@@ -4,9 +4,13 @@
  */
 
 // 使用drizzle-orm和PostgreSQL客户端
-const { drizzle } = require('drizzle-orm/neon-serverless');
-const { Pool } = require('@neondatabase/serverless');
-const { sql } = require('drizzle-orm');
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import { sql } from 'drizzle-orm';
+import ws from 'ws';
+
+// 配置NeonDB以使用WebSocket
+neonConfig.webSocketConstructor = ws;
 
 // 创建数据库连接
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -35,20 +39,24 @@ async function checkTableExists(tableName) {
 async function backupMemoriesTable() {
   console.log('创建memories表备份...');
   
-  // 检查备份表是否已存在
-  const backupExists = await checkTableExists('memories_backup');
-  if (backupExists) {
-    console.log('备份表已存在，跳过备份步骤');
-    return;
+  try {
+    // 检查备份表是否已存在
+    const backupExists = await checkTableExists('memories_backup');
+    if (backupExists) {
+      console.log('备份表已存在，跳过备份步骤');
+      return;
+    }
+    
+    // 创建备份表
+    await db.execute(sql`
+      CREATE TABLE memories_backup AS 
+      SELECT * FROM memories;
+    `);
+    
+    console.log('备份完成: memories_backup 表已创建');
+  } catch (error) {
+    console.log('备份表可能已存在，继续执行后续步骤');
   }
-  
-  // 创建备份表
-  await db.execute(sql`
-    CREATE TABLE memories_backup AS 
-    SELECT * FROM memories;
-  `);
-  
-  console.log('备份完成: memories_backup 表已创建');
 }
 
 /**
@@ -58,27 +66,32 @@ async function backupMemoriesTable() {
 async function createNewMemoriesTable() {
   console.log('创建新的memories表结构...');
   
-  // 检查临时表是否已存在
-  const tempExists = await checkTableExists('memories_new');
-  if (tempExists) {
-    console.log('删除旧的临时表');
-    await db.execute(sql`DROP TABLE memories_new CASCADE;`);
+  try {
+    // 检查临时表是否已存在
+    const tempExists = await checkTableExists('memories_new');
+    if (tempExists) {
+      console.log('删除旧的临时表');
+      await db.execute(sql`DROP TABLE memories_new CASCADE;`);
+    }
+    
+    // 创建新表，ID为text类型
+    await db.execute(sql`
+      CREATE TABLE memories_new (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        content TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'chat',
+        timestamp TIMESTAMP DEFAULT NOW(),
+        summary TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    
+    console.log('新表结构创建完成');
+  } catch (error) {
+    console.error('创建新表时出错:', error);
+    throw error;
   }
-  
-  // 创建新表，ID为text类型
-  await db.execute(sql`
-    CREATE TABLE memories_new (
-      id TEXT PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id),
-      content TEXT NOT NULL,
-      type TEXT NOT NULL DEFAULT 'chat',
-      timestamp TIMESTAMP DEFAULT NOW(),
-      summary TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
-  
-  console.log('新表结构创建完成');
 }
 
 /**
@@ -100,8 +113,8 @@ async function migrateData() {
   `);
   
   // 获取当前迁移的记录数
-  const countResult = await db.execute(sql`SELECT COUNT(*) FROM memories_new;`);
-  console.log(`迁移完成：${countResult[0].count} 条记录已迁移`);
+  const countResult = await db.execute(sql`SELECT COUNT(*) as count FROM memories_new;`);
+  console.log(`迁移完成：${countResult[0]?.count || 0} 条记录已迁移`);
 }
 
 /**
@@ -180,11 +193,14 @@ async function validateMigration() {
     }
     
     // 验证数据数量
-    const backupCount = await db.execute(sql`SELECT COUNT(*) FROM memories_backup;`);
-    const newCount = await db.execute(sql`SELECT COUNT(*) FROM memories;`);
+    const backupCount = await db.execute(sql`SELECT COUNT(*) as count FROM memories_backup;`);
+    const newCount = await db.execute(sql`SELECT COUNT(*) as count FROM memories;`);
     
-    if (backupCount[0].count !== newCount[0].count) {
-      console.error(`验证失败：数据数量不匹配！备份: ${backupCount[0].count}, 新表: ${newCount[0].count}`);
+    const backupTotal = backupCount[0]?.count || 0;
+    const newTotal = newCount[0]?.count || 0;
+    
+    if (backupTotal !== newTotal) {
+      console.error(`验证失败：数据数量不匹配！备份: ${backupTotal}, 新表: ${newTotal}`);
       return false;
     }
     
