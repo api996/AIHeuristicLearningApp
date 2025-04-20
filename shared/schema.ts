@@ -86,7 +86,8 @@ export const messagesRelations = relations(messages, ({ one }) => ({
 
 // 记忆表：存储用户的学习记忆
 export const memories = pgTable("memories", {
-  id: serial("id").primaryKey(),
+  // 使用文本类型作为ID，兼容时间戳格式ID
+  id: text("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
   content: text("content").notNull(),
   type: text("type").notNull().default("chat"),
