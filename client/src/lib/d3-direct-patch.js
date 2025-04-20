@@ -13,7 +13,20 @@ window._d3Selection = window._d3Selection || {
 // 默认transform参数
 const defaultTransform = { k: 1, x: 0, y: 0 };
 
-console.log("D3直接补丁已加载 - 全局_d3Selection对象已创建");
+// 延迟执行，确保在d3加载后执行补丁
+setTimeout(() => {
+  // 尝试加载D3库并应用补丁
+  try {
+    // 确保d3全局对象存在
+    if (typeof window.d3 === 'undefined' && typeof d3 !== 'undefined') {
+      window.d3 = d3;
+    }
+    
+    console.log("D3直接补丁已加载 - 全局_d3Selection对象已创建");
+  } catch (err) {
+    console.warn("D3补丁加载失败:", err);
+  }
+}, 500);
 
 // 添加一个延迟检查，确保d3对象加载完成
 setTimeout(() => {
