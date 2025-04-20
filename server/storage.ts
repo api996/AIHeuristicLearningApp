@@ -195,12 +195,15 @@ export class DatabaseStorage implements IStorage {
         
         // 5. 删除所有记忆关键词
         for (const memory of userMemories) {
-          log(`删除记忆 ${memory.id} 的关键词`);
-          await tx.delete(memoryKeywords).where(eq(memoryKeywords.memoryId, memory.id));
+          // 将记忆ID转换为字符串
+          const memoryIdStr = String(memory.id);
+          
+          log(`删除记忆 ${memoryIdStr} 的关键词`);
+          await tx.delete(memoryKeywords).where(eq(memoryKeywords.memoryId, memoryIdStr));
           
           // 6. 删除所有记忆嵌入
-          log(`删除记忆 ${memory.id} 的嵌入向量`);
-          await tx.delete(memoryEmbeddings).where(eq(memoryEmbeddings.memoryId, memory.id));
+          log(`删除记忆 ${memoryIdStr} 的嵌入向量`);
+          await tx.delete(memoryEmbeddings).where(eq(memoryEmbeddings.memoryId, memoryIdStr));
         }
         
         // 7. 删除所有记忆
@@ -685,11 +688,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Memory keywords methods
-  async addKeywordToMemory(memoryId: number, keyword: string): Promise<MemoryKeyword> {
+  async addKeywordToMemory(memoryId: number | string, keyword: string): Promise<MemoryKeyword> {
     try {
-      if (!memoryId || isNaN(memoryId)) {
-        throw new Error("Invalid memory ID");
-      }
+      // 确保memoryId是字符串类型，与数据库表schema定义一致
+      const memoryIdStr = String(memoryId);
       
       if (!keyword || typeof keyword !== 'string') {
         throw new Error("Invalid keyword");
@@ -698,7 +700,7 @@ export class DatabaseStorage implements IStorage {
       // Insert keyword record
       const [memoryKeyword] = await db.insert(memoryKeywords)
         .values({
-          memoryId,
+          memoryId: memoryIdStr,
           keyword: keyword.trim().toLowerCase()
         })
         .returning();
@@ -710,31 +712,29 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getKeywordsByMemoryId(memoryId: number): Promise<MemoryKeyword[]> {
+  async getKeywordsByMemoryId(memoryId: number | string): Promise<MemoryKeyword[]> {
     try {
-      if (!memoryId || isNaN(memoryId)) {
-        throw new Error("Invalid memory ID");
-      }
+      // 确保memoryId是字符串类型，与数据库表schema定义一致
+      const memoryIdStr = String(memoryId);
       
       // Get all keywords for a memory
       return await db.select()
         .from(memoryKeywords)
-        .where(eq(memoryKeywords.memoryId, memoryId));
+        .where(eq(memoryKeywords.memoryId, memoryIdStr));
     } catch (error) {
       log(`Error getting keywords for memory ${memoryId}: ${error}`);
       throw error;
     }
   }
 
-  async deleteKeywordsByMemoryId(memoryId: number): Promise<void> {
+  async deleteKeywordsByMemoryId(memoryId: number | string): Promise<void> {
     try {
-      if (!memoryId || isNaN(memoryId)) {
-        throw new Error("Invalid memory ID");
-      }
+      // 确保memoryId是字符串类型，与数据库表schema定义一致
+      const memoryIdStr = String(memoryId);
       
       // Delete all keywords for a memory
       await db.delete(memoryKeywords)
-        .where(eq(memoryKeywords.memoryId, memoryId));
+        .where(eq(memoryKeywords.memoryId, memoryIdStr));
       
       log(`All keywords for memory ${memoryId} deleted`);
     } catch (error) {
