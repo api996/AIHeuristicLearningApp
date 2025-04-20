@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, RefreshCw, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 // 使用组件
 import StaticKnowledgeGraph from "@/components/StaticKnowledgeGraph";
-import BasicKnowledgeGraph from "@/components/BasicKnowledgeGraph";
+import SimpleD3Graph from "@/components/SimpleD3Graph";
 // 导入iPad滚动修复CSS
 import '@/components/ui/knowledge-graph-fixes.css';
 // 导入知识图谱数据预加载器
@@ -613,7 +613,7 @@ export default function KnowledgeGraphDetail() {
                   alignItems: 'center'
                 }}
               >
-                <BasicKnowledgeGraph 
+                <SimpleD3Graph 
                   nodes={graphData.nodes}
                   links={graphData.links}
                   width={isFullScreen ? window.innerWidth - 40 : window.innerWidth > 768 ? 800 : window.innerWidth - 20}

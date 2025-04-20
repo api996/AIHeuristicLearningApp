@@ -1,9 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-// 使用d3加载器来确保d3正确加载
-import d3Instance, { loadD3AndApplyPatch } from '@/lib/d3-loader';
-
-// 确保d3在全局可用
-const d3 = d3Instance || loadD3AndApplyPatch();
 
 interface Node {
   id: string;
@@ -22,7 +17,7 @@ interface Link {
   strokeWidth?: number;
 }
 
-interface BasicKnowledgeGraphProps {
+interface SimpleD3GraphProps {
   nodes: Node[];
   links: Link[];
   width?: number;
@@ -33,10 +28,10 @@ interface BasicKnowledgeGraphProps {
 }
 
 /**
- * 简化版本的知识图谱组件
- * 专注于基本的D3渲染，降低复杂性
+ * 简单D3图谱组件
+ * 不依赖于TypeScript类型定义
  */
-const BasicKnowledgeGraph: React.FC<BasicKnowledgeGraphProps> = ({
+const SimpleD3Graph: React.FC<SimpleD3GraphProps> = ({
   nodes,
   links,
   width = 800,
@@ -51,56 +46,68 @@ const BasicKnowledgeGraph: React.FC<BasicKnowledgeGraphProps> = ({
   // 主要渲染函数
   useEffect(() => {
     if (!svgRef.current || nodes.length === 0) return;
-
+    
+    // 确保d3可用
+    if (typeof window === 'undefined' || !window.d3) {
+      console.error('D3不可用，无法渲染图谱');
+      setError('D3库未加载，请刷新页面');
+      return;
+    }
+    
+    // 使用全局d3对象
+    const d3 = window.d3;
+    
     try {
-      // 清除所有现有内容
-      const svg = d3.select(svgRef.current);
-      svg.selectAll('*').remove();
-
+      // 清除之前的内容
+      d3.select(svgRef.current).selectAll('*').remove();
+      
       // 创建节点数据副本
       const nodesCopy = JSON.parse(JSON.stringify(nodes));
       const linksCopy = JSON.parse(JSON.stringify(links));
-
+      
       // 创建节点映射
       const nodeMap = new Map();
-      nodesCopy.forEach((node: any) => nodeMap.set(node.id, node));
-
+      nodesCopy.forEach((node) => nodeMap.set(node.id, node));
+      
       // 格式化连接
-      const formattedLinks = linksCopy.map((link: any) => ({
+      const formattedLinks = linksCopy.map((link) => ({
         ...link,
         source: typeof link.source === 'string' ? nodeMap.get(link.source) || link.source : link.source,
         target: typeof link.target === 'string' ? nodeMap.get(link.target) || link.target : link.target
       }));
-
-      // 创建容器
+      
+      // 创建SVG容器
+      const svg = d3.select(svgRef.current);
       const container = svg.append('g');
-
+      
       // 设置缩放
       const zoom = d3.zoom()
         .scaleExtent([0.1, 5])
-        .on('zoom', (event: any) => {
+        .on('zoom', function(event) {
           container.attr('transform', event.transform);
         });
-
-      svg.call(zoom as any);
-      svg.call((zoom as any).transform, d3.zoomIdentity.translate(width/2, height/2).scale(zoomLevel));
-
-      // 创建力导向图模拟
-      const simulation = d3.forceSimulation(nodesCopy as any)
-        .force('link', d3.forceLink(formattedLinks).id((d: any) => d.id).distance(100))
+      
+      svg.call(zoom);
+      
+      // 设置初始缩放
+      svg.call(zoom.transform, d3.zoomIdentity.translate(width/2, height/2).scale(zoomLevel));
+      
+      // 创建力导向图
+      const simulation = d3.forceSimulation(nodesCopy)
+        .force('link', d3.forceLink(formattedLinks).id(d => d.id).distance(100))
         .force('charge', d3.forceManyBody().strength(-200))
         .force('center', d3.forceCenter(width / 2, height / 2))
         .force('collision', d3.forceCollide().radius(25));
-
+      
       // 绘制连接线
       const link = container.append('g')
         .selectAll('line')
         .data(formattedLinks)
         .enter()
         .append('line')
-        .attr('stroke', (d: any) => d.color || '#aabbcc')
-        .attr('stroke-width', (d: any) => d.strokeWidth || 1.5);
-
+        .attr('stroke', d => d.color || '#aabbcc')
+        .attr('stroke-width', d => d.strokeWidth || 1.5);
+      
       // 绘制节点
       const node = container.append('g')
         .selectAll('.node')
@@ -109,58 +116,60 @@ const BasicKnowledgeGraph: React.FC<BasicKnowledgeGraphProps> = ({
         .append('g')
         .attr('class', 'node')
         .call(d3.drag()
-          .on('start', (event, d: any) => {
+          .on('start', function(event, d) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
             d.fy = d.y;
           })
-          .on('drag', (event, d: any) => {
+          .on('drag', function(event, d) {
             d.fx = event.x;
             d.fy = event.y;
           })
-          .on('end', (event, d: any) => {
+          .on('end', function(event, d) {
             if (!event.active) simulation.alphaTarget(0);
             d.fx = null;
             d.fy = null;
-          }) as any)
-        .on('click', (event, d: any) => {
+          }))
+        .on('click', function(event, d) {
           if (onNodeClick) {
             event.stopPropagation();
             onNodeClick(d.id);
           }
         });
-
+      
       // 添加节点圆形
       node.append('circle')
-        .attr('r', (d: any) => Math.max(5, (d.size || 15) / 10))
-        .attr('fill', (d: any) => d.color || '#3b82f6')
+        .attr('r', d => Math.max(5, (d.size || 15) / 10))
+        .attr('fill', d => d.color || '#3b82f6')
         .attr('stroke', '#ffffff')
         .attr('stroke-width', 1);
-
+      
       // 添加标签
       node.append('text')
         .attr('dx', 10)
         .attr('dy', '.35em')
-        .text((d: any) => d.label || d.id)
-        .attr('fill', '#ffffff');
-
+        .text(d => d.label || d.id)
+        .attr('fill', '#ffffff')
+        .attr('font-size', '12px');
+      
       // 更新布局
-      simulation.on('tick', () => {
+      simulation.on('tick', function() {
         link
-          .attr('x1', (d: any) => d.source.x)
-          .attr('y1', (d: any) => d.source.y)
-          .attr('x2', (d: any) => d.target.x)
-          .attr('y2', (d: any) => d.target.y);
-
+          .attr('x1', d => d.source.x)
+          .attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x)
+          .attr('y2', d => d.target.y);
+        
         node
-          .attr('transform', (d: any) => `translate(${d.x},${d.y})`);
+          .attr('transform', d => `translate(${d.x},${d.y})`);
       });
-    } catch (err: any) {
+      
+    } catch (err) {
       console.error('知识图谱渲染错误:', err);
       setError(err.message || '图谱渲染失败');
     }
   }, [nodes, links, width, height, onNodeClick, zoomLevel]);
-
+  
   // 错误显示
   if (error) {
     return (
@@ -182,11 +191,11 @@ const BasicKnowledgeGraph: React.FC<BasicKnowledgeGraphProps> = ({
       </div>
     );
   }
-
-  // 计算合适的尺寸
+  
+  // 计算适合的尺寸
   const adjustedHeight = isFullScreen ? height : Math.min(height, window.innerHeight * 0.7);
   const adjustedWidth = isFullScreen ? width : Math.min(width, window.innerWidth - 20);
-
+  
   return (
     <div 
       className={`knowledge-graph-container ${isFullScreen ? 'fullscreened-graph' : ''}`}
@@ -215,4 +224,4 @@ const BasicKnowledgeGraph: React.FC<BasicKnowledgeGraphProps> = ({
   );
 };
 
-export default BasicKnowledgeGraph;
+export default SimpleD3Graph;
