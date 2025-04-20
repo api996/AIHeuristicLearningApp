@@ -124,12 +124,28 @@ export function clearKnowledgeGraphCache(userId?: number): void {
  */
 async function fetchKnowledgeGraphData(userId: number): Promise<KnowledgeGraphData> {
   try {
-    const response = await fetch(`/api/learning-path/${userId}/knowledge-graph`);
+    // 添加时间戳参数避免浏览器缓存
+    const timestamp = Date.now();
+    const response = await fetch(`/api/learning-path/${userId}/knowledge-graph?t=${timestamp}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+    
     if (!response.ok) {
       throw new Error(`获取知识图谱失败: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json();
+    
+    // 验证数据结构有效性
+    if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
+      console.error("收到无效的知识图谱数据格式:", data);
+      throw new Error("知识图谱数据格式无效");
+    }
+    
     console.log("预加载知识图谱数据成功:", data.nodes.length, "个节点,", data.links.length, "个连接");
     
     // 检查数据示例
