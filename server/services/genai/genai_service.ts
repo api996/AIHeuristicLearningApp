@@ -195,9 +195,9 @@ class GeminiService implements GenAIService {
  */
 class FallbackService implements GenAIService {
   async generateEmbedding(text: string): Promise<number[] | null> {
-    // 生成一个随机向量作为后备
-    log("[genai_service] 使用随机向量作为后备嵌入", "warn");
-    return Array.from({ length: 768 }, () => (Math.random() * 2 - 1) * 0.01);
+    // 生成一个随机向量作为后备，使用3072维度以匹配高质量文本嵌入
+    log("[genai_service] 使用3072维随机向量作为后备嵌入", "warn");
+    return Array.from({ length: 3072 }, () => (Math.random() * 2 - 1) * 0.01);
   }
 
   async generateSummary(text: string): Promise<string | null> {
