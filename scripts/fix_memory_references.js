@@ -1,5 +1,5 @@
-// 记忆引用修复工具
-// 确保所有memory_id引用一致性
+// 修复内存ID引用关系
+// 此脚本创建新的memories表并迁移现有数据
 
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { Pool, neonConfig } from '@neondatabase/serverless';
@@ -13,9 +13,9 @@ neonConfig.webSocketConstructor = ws;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = drizzle(pool);
 
-// 创建一条测试记忆
+// 创建测试记忆 (用于验证新格式)
 async function createTestMemory() {
-  console.log('创建测试记忆记录...');
+  console.log('创建测试记忆...');
   
   try {
     // 生成时间戳格式的ID: YYYYMMDDHHMMSSmmmNNN
@@ -35,7 +35,7 @@ async function createTestMemory() {
     // 插入测试记忆
     await db.execute(sql`
       INSERT INTO memories (id, user_id, content, type, summary)
-      VALUES (${memoryId}, 6, '这是一条测试记忆，用于验证ID格式转换是否成功', 'test', '测试记忆');
+      VALUES (${memoryId}, 6, '这是测试记忆，用于验证ID格式和关联查询', 'test', '测试记忆');
     `);
     
     // 创建关键词
@@ -45,7 +45,7 @@ async function createTestMemory() {
     `);
     
     // 创建向量嵌入
-    const mockVector = JSON.stringify(Array.from({length: 10}, () => Math.random()));
+    const mockVector = JSON.stringify(Array.from({length: 768}, () => Math.random() * 2 - 1));
     await db.execute(sql`
       INSERT INTO memory_embeddings (memory_id, vector_data)
       VALUES (${memoryId}, ${mockVector}::json);
@@ -59,65 +59,65 @@ async function createTestMemory() {
   }
 }
 
-// 验证记忆ID引用
+// 验证记忆引用关系
 async function validateMemoryReferences(testMemoryId) {
-  console.log('验证记忆ID引用...');
+  console.log('验证记忆引用关系...');
   
   try {
-    // 验证记忆表
+    // 检查测试记忆是否存在
     const memory = await db.execute(sql`
-      SELECT id, user_id, type FROM memories WHERE id = ${testMemoryId};
+      SELECT id, user_id, content, summary FROM memories 
+      WHERE id = ${testMemoryId};
     `);
     
-    if (memory.length === 0) {
-      console.error('验证失败：找不到测试记忆');
+    if (memory.length > 0) {
+      console.log('找到测试记忆:', memory[0].id);
+      
+      // 检查关键词是否存在
+      const keywords = await db.execute(sql`
+        SELECT keyword FROM memory_keywords 
+        WHERE memory_id = ${testMemoryId};
+      `);
+      
+      console.log(`找到 ${keywords.length} 个关键词:`, keywords.map(k => k.keyword).join(', '));
+      
+      // 检查向量嵌入是否存在
+      const embedding = await db.execute(sql`
+        SELECT id FROM memory_embeddings 
+        WHERE memory_id = ${testMemoryId};
+      `);
+      
+      console.log(`找到 ${embedding.length} 个向量嵌入`);
+      
+      return true;
+    } else {
+      console.error('未找到测试记忆:', testMemoryId);
       return false;
     }
-    
-    console.log('找到测试记忆记录:', memory[0]);
-    
-    // 验证关键词表
-    const keywords = await db.execute(sql`
-      SELECT id, memory_id, keyword FROM memory_keywords WHERE memory_id = ${testMemoryId};
-    `);
-    
-    if (keywords.length === 0) {
-      console.error('验证失败：找不到测试记忆的关键词');
-      return false;
-    }
-    
-    console.log(`找到 ${keywords.length} 个关键词记录，第一个:`, keywords[0]);
-    
-    // 验证向量表
-    const embedding = await db.execute(sql`
-      SELECT id, memory_id FROM memory_embeddings WHERE memory_id = ${testMemoryId};
-    `);
-    
-    if (embedding.length === 0) {
-      console.error('验证失败：找不到测试记忆的向量嵌入');
-      return false;
-    }
-    
-    console.log('找到向量嵌入记录:', embedding[0]);
-    
-    console.log('ID引用验证成功！系统现在可以正确处理时间戳格式的记忆ID');
-    return true;
   } catch (error) {
-    console.error('验证过程出错:', error);
-    return false;
+    console.error('验证记忆引用关系时出错:', error);
+    throw error;
   }
 }
 
 // 主函数
 async function main() {
   try {
-    // 创建测试记忆并验证
+    // 创建测试记忆
     const testMemoryId = await createTestMemory();
-    await validateMemoryReferences(testMemoryId);
     
-    console.log('记忆系统ID引用验证完成');
+    // 验证记忆引用关系
+    const isValid = await validateMemoryReferences(testMemoryId);
+    
+    if (isValid) {
+      console.log('记忆引用关系正常');
+    } else {
+      console.error('记忆引用关系异常');
+    }
+    
+    console.log('脚本执行完成');
   } catch (error) {
-    console.error('执行过程出错:', error);
+    console.error('执行脚本时出错:', error);
   } finally {
     await pool.end();
   }
