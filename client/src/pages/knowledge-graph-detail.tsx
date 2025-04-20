@@ -620,10 +620,8 @@ export default function KnowledgeGraphDetail() {
                   width={isFullScreen ? window.innerWidth - 40 : window.innerWidth > 768 ? 800 : window.innerWidth - 20}
                   height={isFullScreen ? window.innerHeight - 80 : window.innerWidth < 768 ? window.innerHeight * 0.4 : 600}
                   onNodeClick={onClickNode}
-                  enableZoom={true}
-                  enableDrag={true}
-                  enableNodeDrag={true}
                   zoomLevel={zoomLevel}
+                  isFullScreen={isFullScreen}
                 />
               </div>
             ) : (
