@@ -60,23 +60,60 @@ async def generate_content_summary(content):
     try:
         logger.info(f"生成内容摘要，文本长度: {len(content)}")
         
-        # 如果内容太短，直接返回原文
+        # 预处理：移除系统标记和特殊格式
+        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)  # 移除思考标记
+        content = re.sub(r'<.*?>', '', content)  # 移除其他HTML标记
+        content = re.sub(r'\s+', ' ', content).strip()  # 规范化空白字符
+        
+        # 如果内容太短，直接返回处理后的原文
         if len(content) < 50:
             return content
         
-        # 简单的摘要生成方法：取第一句话，如果它足够短的话
-        # 否则截取前50个字符
-        first_sentence_match = re.search(r'^([^.!?。！？]+[.!?。！？])', content)
-        if first_sentence_match:
-            first_sentence = first_sentence_match.group(1)
-            if len(first_sentence) <= 100:
-                return first_sentence
+        # 尝试提取有意义的首个句子
+        # 匹配中英文的句子结束标志
+        sentence_pattern = r'([^.!?。！？\n]+[.!?。！？\n])'
+        sentences = re.findall(sentence_pattern, content)
         
-        # 如果没有找到第一句话或者第一句话太长，截取开头
-        return content[:50] + ('...' if len(content) > 50 else '')
+        if sentences:
+            # 过滤掉太短或无意义的句子
+            meaningful_sentences = [s for s in sentences if len(s) > 10 and not re.match(r'^[0-9\s,.]+$', s.strip())]
+            
+            if meaningful_sentences:
+                first_sentence = meaningful_sentences[0].strip()
+                # 如果首句足够短，则直接使用
+                if len(first_sentence) <= 100:
+                    return first_sentence
+                
+                # 否则裁剪并添加省略号
+                return first_sentence[:100] + '...'
+        
+        # 如果无法提取有意义的句子，则尝试寻找内容中的关键信息段落
+        paragraphs = content.split('\n')
+        for para in paragraphs:
+            # 跳过空段落和只有数字的段落
+            if len(para.strip()) > 20 and not re.match(r'^[0-9\s,.]+$', para.strip()):
+                # 返回有意义段落的开头
+                meaningful_para = para.strip()
+                return meaningful_para[:100] + ('...' if len(meaningful_para) > 100 else '')
+        
+        # 最后的后备策略：清理并返回前100个字符
+        cleaned_content = re.sub(r'^\s*[0-9]+\s*', '', content)  # 移除开头的纯数字
+        if len(cleaned_content.strip()) > 0:
+            return cleaned_content.strip()[:100] + ('...' if len(cleaned_content) > 100 else '')
+        else:
+            return "未分类主题"  # 完全无法提取有意义内容时的兜底文本
     except Exception as e:
         logger.error(f"生成内容摘要时出错: {e}")
-        return content[:50] + ('...' if len(content) > 50 else '')
+        # 错误情况的兜底策略
+        try:
+            # 尝试清理并返回前50个字符
+            cleaned_content = re.sub(r'^\s*[0-9]+\s*', '', content)
+            if len(cleaned_content.strip()) > 0:
+                return cleaned_content.strip()[:50] + '...'
+            else:
+                return "未分类主题"
+        except:
+            return "未分类主题"
 
 async def extract_keywords(content):
     """
@@ -91,31 +128,118 @@ async def extract_keywords(content):
     try:
         logger.info(f"提取关键词，文本长度: {len(content)}")
         
-        # 这里只是一个简单示例实现，实际应用中应该使用NLP库
-        common_words = {'的', '是', '在', '了', '和', '有', '与', '又', '也', 
-                        'the', 'is', 'a', 'an', 'of', 'to', 'in', 'for', 'with'}
+        # 预处理文本：清理标记和噪音
+        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)  # 移除思考标记
+        content = re.sub(r'<.*?>', '', content)  # 移除其他HTML标记
+        content = re.sub(r'\s+', ' ', content).strip()  # 规范化空白字符
         
-        # 分词 - 中文按字符，英文按空格
+        # 如果内容太短或只有数字，使用默认关键词
+        if len(content) < 10 or re.match(r'^[0-9\s,.]+$', content.strip()):
+            return ["未分类", "主题"]
+        
+        # 扩展停用词列表 - 常见但不带有特定含义的词汇
+        stop_words = {
+            # 中文常见停用词
+            '的', '是', '在', '了', '和', '有', '与', '又', '也', '这', '那', '都', '要', '就', 
+            '我', '你', '他', '她', '它', '们', '对', '以', '及', '很', '但', '如果', '因为',
+            # 英文常见停用词
+            'the', 'is', 'a', 'an', 'of', 'to', 'in', 'for', 'with', 'on', 'at', 'from', 'by',
+            'about', 'as', 'into', 'like', 'through', 'after', 'over', 'between', 'out', 'up',
+            'down', 'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', 'your',
+            'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', 'her', 'hers',
+            'herself', 'it', 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves',
+            'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'am', 'are', 'was',
+            'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did',
+            'doing', 'can', 'will', 'would', 'should', 'could', 'ought', 'not', 'and', 'but',
+            'if', 'or', 'because', 'as', 'until', 'while', 'of', 'when', 'where', 'why', 'how',
+            'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such'
+        }
+        
+        # 提取潜在的关键词短语 - 捕获可能的专业术语或多词组合
+        phrases = []
+        
+        # 中文2-4词组合
+        cn_phrases = re.findall(r'[\u4e00-\u9fa5]{2,8}', content)
+        phrases.extend(cn_phrases)
+        
+        # 英文词组 (2-3个词)
+        en_content = content
+        # 先提取可能的英文短语
+        en_phrase_pattern = r'\b[A-Za-z][A-Za-z\s]{2,20}[A-Za-z]\b'
+        en_phrases = re.findall(en_phrase_pattern, en_content)
+        meaningful_phrases = []
+        for phrase in en_phrases:
+            if 3 <= len(phrase) <= 25 and ' ' in phrase:  # 确保是多词短语
+                words = phrase.split()
+                if len(words) <= 3 and all(len(w) > 1 for w in words):  # 最多3个词，每个词至少2个字符
+                    meaningful_phrases.append(phrase)
+        phrases.extend(meaningful_phrases)
+        
+        # 提取单个词
+        # 中文单词
         chinese_words = re.findall(r'[\u4e00-\u9fa5]{2,6}', content)
-        english_words = re.findall(r'[a-zA-Z]{3,15}', content)
+        # 英文单词 (更关注专业术语，通常更长)
+        english_words = re.findall(r'\b[A-Za-z][a-z]{2,14}\b', content)
         
-        # 过滤常用词和短单词
-        filtered_words = [word for word in chinese_words + english_words 
-                         if word.lower() not in common_words and len(word) >= 2]
+        # 过滤停用词和无意义词
+        filtered_words = []
+        # 首先添加短语，它们通常更有意义
+        for phrase in phrases:
+            phrase = phrase.strip()
+            if len(phrase) >= 4 and not any(phrase.lower() == w.lower() for w in filtered_words):
+                filtered_words.append(phrase)
+                
+        # 再添加单词
+        for word in chinese_words + english_words:
+            word = word.strip()
+            word_lower = word.lower()
+            if (word_lower not in stop_words and 
+                len(word) >= 2 and 
+                not word.isdigit() and
+                not any(word_lower == w.lower() for w in filtered_words)):
+                filtered_words.append(word)
         
-        # 计算频率
-        word_freq = {}
-        for word in filtered_words:
-            word_freq[word] = word_freq.get(word, 0) + 1
+        # 评分系统：结合频率、词长和位置（文档开头的词通常更重要）
+        word_scores = {}
+        sentences = content.split('.')
+        position_weight = 1.5  # 位置权重因子
         
-        # 取频率最高的8个关键词
-        sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
-        keywords = [word for word, freq in sorted_words[:8]]
+        for idx, sentence in enumerate(sentences):
+            # 随着句子位置后移，降低权重
+            sentence_position_factor = position_weight * (1 - idx / len(sentences) * 0.5) 
+            for word in filtered_words:
+                if word.lower() in sentence.lower():
+                    # 计算词得分: 基础分 + 长度加权 + 位置加权
+                    base_score = 1.0
+                    length_factor = min(len(word) / 3, 2.0)  # 较长的词分数更高，但有上限
+                    
+                    # 短语得分更高
+                    phrase_bonus = 1.5 if ' ' in word else 1.0
+                    
+                    total_score = base_score * length_factor * sentence_position_factor * phrase_bonus
+                    word_scores[word] = word_scores.get(word, 0) + total_score
         
-        return keywords if keywords else ["未知主题"]
+        # 排序并选择最佳关键词
+        sorted_words = sorted(word_scores.items(), key=lambda x: x[1], reverse=True)
+        top_keywords = [word for word, score in sorted_words[:8]]  # 最多8个关键词
+        
+        # 如果没有找到足够的关键词，添加一些备选关键词
+        if len(top_keywords) < 3:
+            # 提取一些重要的名词
+            important_nouns = re.findall(r'\b[A-Z][a-z]{2,15}\b', content)  # 专有名词
+            important_nouns = [noun for noun in important_nouns if noun.lower() not in stop_words]
+            top_keywords.extend(important_nouns[:5])
+            
+        # 去重并限制数量
+        unique_keywords = []
+        for kw in top_keywords:
+            if kw not in unique_keywords and len(unique_keywords) < 8:
+                unique_keywords.append(kw)
+        
+        return unique_keywords if unique_keywords else ["未分类主题"]
     except Exception as e:
         logger.error(f"提取关键词时出错: {e}")
-        return ["未知主题"]
+        return ["未分类主题"]
 
 # 为了兼容性添加此别名函数
 async def extract_keywords_from_text(content):
@@ -271,11 +395,22 @@ async def vector_based_clustering(memories_with_embeddings: List[Dict[str, Any]]
             
             combined_content = " ".join(contents)
             
-            # 生成摘要
+            # 生成摘要和有意义的主题
             if combined_content:
                 summary = await generate_content_summary(combined_content)
                 cluster_data["summary"] = summary
-                cluster_data["topic"] = summary[:50]  # 主题使用摘要的前50个字符
+                
+                # 生成更有描述性的主题：使用关键词与摘要结合的方式
+                if cluster_data["keywords"]:
+                    # 关键词优先 - 使用前两个主要关键词
+                    primary_keywords = cluster_data["keywords"][:2]
+                    if len(primary_keywords) >= 2:
+                        cluster_data["topic"] = f"{primary_keywords[0]} 与 {primary_keywords[1]}"
+                    else:
+                        cluster_data["topic"] = primary_keywords[0]
+                else:
+                    # 如果没有关键词，使用摘要
+                    cluster_data["topic"] = summary[:50]
             
             # 如果没有关键词，生成关键词
             if not cluster_data["keywords"] and combined_content:
@@ -373,9 +508,23 @@ async def time_based_clustering(memories: List[Dict[str, Any]]) -> Dict[str, Any
                 if valid_embeddings:
                     centroid = np.mean(valid_embeddings, axis=0).tolist()
             
-            # 创建聚类
+            # 创建聚类并生成更有描述性的主题
+            topic = f"时间段 {i+1}"
+            
+            # 如果有关键词，尝试使用关键词构建主题
+            if keywords:
+                # 关键词优先 - 使用前两个主要关键词
+                primary_keywords = keywords[:2]
+                if len(primary_keywords) >= 2:
+                    topic = f"{primary_keywords[0]} 与 {primary_keywords[1]}"
+                else:
+                    topic = primary_keywords[0]
+            # 如果有摘要但没有关键词，使用摘要
+            elif summary:
+                topic = summary[:50]
+                
             clusters[cluster_id] = {
-                "topic": summary[:50] if summary else f"时间段 {i+1}",
+                "topic": topic,
                 "memory_ids": memory_ids,
                 "keywords": keywords,
                 "summary": summary,
