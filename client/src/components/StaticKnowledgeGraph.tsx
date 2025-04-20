@@ -694,8 +694,9 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     
     // 创建渲染函数 - 支持变换和缩放
     const render = () => {
-      // 如果在初始化状态，绘制加载动画
-      if (isInitializing) {
+      // 如果在初始化状态，绘制加载动画，但只显示2秒后强制显示图谱
+      // 确保即使动画代码有问题也能显示图谱
+      if (isInitializing && loadingProgress < 95) {
         drawLoadingIndicator();
         return;
       }
