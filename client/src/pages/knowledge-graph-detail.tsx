@@ -7,6 +7,7 @@ import { ArrowLeft, RefreshCw, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 // 使用组件
 import StaticKnowledgeGraph from "@/components/StaticKnowledgeGraph";
 import SimpleGraphChart from "@/components/SimpleGraphChart";
+import SimpleKnowledgeGraph from "@/components/SimpleKnowledgeGraph";
 // 导入iPad滚动修复CSS
 import '@/components/ui/knowledge-graph-fixes.css';
 // 导入知识图谱数据预加载器
@@ -613,12 +614,16 @@ export default function KnowledgeGraphDetail() {
                   alignItems: 'center'
                 }}
               >
-                <StaticKnowledgeGraph
+                <SimpleKnowledgeGraph 
                   nodes={graphData.nodes}
                   links={graphData.links}
                   width={isFullScreen ? window.innerWidth - 40 : window.innerWidth > 768 ? 800 : window.innerWidth - 20}
                   height={isFullScreen ? window.innerHeight - 80 : window.innerWidth < 768 ? window.innerHeight * 0.4 : 600}
                   onNodeClick={onClickNode}
+                  enableZoom={true}
+                  enableDrag={true}
+                  enableNodeDrag={true}
+                  zoomLevel={zoomLevel}
                 />
               </div>
             ) : (
