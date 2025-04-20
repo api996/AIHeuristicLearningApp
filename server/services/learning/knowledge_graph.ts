@@ -384,17 +384,35 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
         dimensionCounts.set(dimension, (dimensionCounts.get(dimension) || 0) + 1);
       });
       
-      // 找出拥有最多向量的维度
-      let maxCount = 0;
+      // 维度选择逻辑：优先考虑3072维向量，其次是768维
+      // 如果这些高质量向量不足5个，才考虑数量最多的向量维度
+      const highQualityDimensions = [3072, 768];
       let optimalDimension = -1;
+      let maxCount = 0;
       
-      dimensionCounts.forEach((count, dimension) => {
-        log(`[知识图谱] 维度=${dimension}的向量数量: ${count}`);
-        if (count > maxCount) {
-          maxCount = count;
+      // 首先检查高质量维度
+      for (const dimension of highQualityDimensions) {
+        const count = dimensionCounts.get(dimension) || 0;
+        log(`[知识图谱] 高质量维度=${dimension}的向量数量: ${count}`);
+        if (count >= 5) {
           optimalDimension = dimension;
+          maxCount = count;
+          log(`[知识图谱] 选择高质量维度=${dimension}，拥有${count}个向量`);
+          break;
         }
-      });
+      }
+      
+      // 如果没有足够的高质量维度向量，退回到选择数量最多的维度
+      if (optimalDimension === -1) {
+        dimensionCounts.forEach((count, dimension) => {
+          log(`[知识图谱] 维度=${dimension}的向量数量: ${count}`);
+          if (count > maxCount) {
+            maxCount = count;
+            optimalDimension = dimension;
+          }
+        });
+        log(`[知识图谱] 未找到足够的高质量维度向量，退回到数量最多的维度=${optimalDimension}`);
+      }
       
       log(`[知识图谱] 选择最优维度=${optimalDimension}，拥有${maxCount}个向量`);
       
