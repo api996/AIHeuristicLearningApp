@@ -43,9 +43,6 @@ interface SimpleKnowledgeGraphProps {
   onNodeClick?: (nodeId: string) => void;
   zoomLevel?: number; // 添加缩放级别属性
   isFullScreen?: boolean; // 添加全屏状态属性
-  enableZoom?: boolean; // 是否启用缩放功能
-  enableDrag?: boolean; // 是否启用整体拖拽
-  enableNodeDrag?: boolean; // 是否启用节点拖拽
 }
 
 /**
@@ -59,10 +56,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
   height = 600,
   onNodeClick,
   zoomLevel = 1,
-  isFullScreen = false,
-  enableZoom = true,
-  enableDrag = true,
-  enableNodeDrag = true
+  isFullScreen = false
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -347,38 +341,69 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           }
         });
 
-      // 设置缩放功能
-      if (enableZoom) {
-        try {
-          // 简化的缩放处理函数
-          function setupZoom() {
-            const zoom = d3.zoom()
-              .scaleExtent([0.1, 5])
-              .on('zoom', (event: any) => {
-                if (event && event.transform) {
-                  container.attr('transform', 
-                    `translate(${event.transform.x}, ${event.transform.y}) scale(${event.transform.k})`
-                  );
-                }
-              });
-            
-            svg.call(zoom as any);
-            
-            // 设置初始缩放级别
-            setTimeout(() => {
-              // 使用节点数量来确定合适的缩放级别
-              const scale = zoomLevel || 0.9;
-              svg.transition().duration(500)
-                .call((zoom as any).transform, 
-                  d3.zoomIdentity.translate(width/2, height/2).scale(scale)
+      // 增强版缩放行为 - 完全重写以提供更好的用户体验
+      try {
+        // 定义默认和当前变换
+        const defaultTransform = { k: 1, x: width / 2, y: height / 2 };
+        let currentTransform = { ...defaultTransform };
+        
+        // 创建缩放控制器
+        const zoom = d3.zoom()
+          .scaleExtent([0.1, 8]) // 更大的缩放范围
+          .on('zoom', function(event: any) {
+            // 处理缩放事件
+            try {
+              if (event && event.transform) {
+                // 保存当前变换
+                currentTransform = event.transform;
+                
+                // 应用变换到容器
+                container.attr('transform', 
+                  `translate(${currentTransform.x},${currentTransform.y}) scale(${currentTransform.k})`
                 );
-            }, 200);
-          }
-          
-          setupZoom();
-        } catch (err) {
-          console.warn("设置缩放功能时出错:", err);
+                
+                // 在全屏模式下显示缩放级别指示器
+                if (isFullScreen) {
+                  const indicator = svg.select('#zoom-indicator');
+                  if (!indicator.empty()) {
+                    indicator.text(`缩放: ${currentTransform.k.toFixed(1)}x`);
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn("缩放事件处理错误:", err);
+              // 如果发生错误，恢复默认变换
+              container.attr('transform', `translate(0,0) scale(1)`);
+            }
+          });
+        
+        // 应用缩放行为
+        svg.call(zoom as any);
+        
+        // 简化界面，不添加额外按钮和指示器，专注于提升触摸和拖拽体验
+        
+        // 不再需要预热，删除此部分
+        
+        // 应用初始缩放级别
+        if (zoomLevel && zoomLevel !== 1) {
+          // 使用平滑过渡动画
+          svg.transition().duration(750)
+            .call((zoom as any).transform, d3.zoomIdentity.translate(width/2, height/2).scale(zoomLevel));
+        } else {
+          // 初始化适当的缩放和位置，让整个图谱可见
+          setTimeout(() => {
+            try {
+              // 计算自动缩放级别，确保图谱完全可见
+              const autoZoom = nodes.length > 15 ? 0.8 : nodes.length > 8 ? 0.9 : 1.0;
+              svg.transition().duration(750)
+                .call((zoom as any).transform, d3.zoomIdentity.translate(width/2, height/2).scale(autoZoom));
+            } catch (e) {
+              console.warn("应用自动缩放失败:", e);
+            }
+          }, 300);
         }
+      } catch (err) {
+        console.warn("设置增强缩放行为时出错:", err);
       }
 
       // 绘制连接线 - 明显增强版
