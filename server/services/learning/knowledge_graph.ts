@@ -38,7 +38,8 @@ export interface KnowledgeGraph {
 }
 
 /**
- * 基于聚类结果生成知识图谱
+ * 基于聚类结果生成简化版知识图谱
+ * 只包含聚类主题节点，不再包含单个记忆和关键词节点
  * @param clusterResult K-means聚类结果
  * @param memories 记忆数据
  * @param keywords 关键词数据 [记忆ID, 关键词数组]
@@ -53,12 +54,6 @@ export async function generateKnowledgeGraph(
   const nodes: KnowledgeNode[] = [];
   const links: KnowledgeLink[] = [];
   
-  // 记忆ID与数组索引的映射
-  const memoryMap = new Map<string | number, number>();
-  memories.forEach((memory, index) => {
-    memoryMap.set(memory.id, index);
-  });
-  
   // 关键词映射
   const keywordMap = new Map<string | number, string[]>();
   keywords.forEach(([memoryId, wordList]) => {
@@ -66,7 +61,7 @@ export async function generateKnowledgeGraph(
   });
 
   try {
-    // 步骤1: 为每个聚类创建主题节点
+    // 步骤1: 只为每个聚类创建主题节点
     clusterResult.centroids.forEach(centroid => {
       const clusterPoints = centroid.points;
       if (clusterPoints.length === 0) return;
@@ -87,101 +82,27 @@ export async function generateKnowledgeGraph(
       });
       
       // 找出频率最高的关键词作为主题标签
-      let topKeywords: [string, number][] = Array.from(keywordFrequency.entries())
+      const topKeywords = Array.from(keywordFrequency.entries())
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 3);
+        .slice(0, 5);
       
       // 如果没有关键词，使用默认标签
-      const clusterLabel = topKeywords.length > 0 
+      const mainKeywords = topKeywords.length > 0 
         ? topKeywords.map(k => k[0]).join('、')
         : `主题${centroid.id + 1}`;
       
-      // 创建聚类主题节点
+      // 创建聚类主题节点（大尺寸）
       const clusterNodeId = `cluster_${centroid.id}`;
       nodes.push({
         id: clusterNodeId,
-        label: clusterLabel,
-        size: 10 + clusterPoints.length, // 大小与包含的记忆数量相关
+        label: mainKeywords,
+        size: 20 + clusterPoints.length * 2, // 更大的主题节点
         category: 'cluster',
         clusterId: `${centroid.id}`
       });
-      
-      // 步骤2: 为每个聚类中的主要关键词创建节点和记忆节点
-      // 确定要显示的关键词数量（聚类大小越小，显示的关键词越多）
-      const keywordLimit = Math.max(3, Math.min(6, 10 - clusterPoints.length));
-      topKeywords = Array.from(keywordFrequency.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, keywordLimit);
-        
-      topKeywords.forEach(([keyword, frequency], index) => {
-        const keywordNodeId = `keyword_${centroid.id}_${index}`;
-        
-        // 添加关键词节点
-        nodes.push({
-          id: keywordNodeId,
-          label: keyword,
-          size: 5 + Math.min(frequency, 5), // 大小与频率相关
-          category: 'keyword',
-          clusterId: `${centroid.id}`
-        });
-        
-        // 连接关键词节点到聚类节点
-        links.push({
-          source: clusterNodeId,
-          target: keywordNodeId,
-          value: 0.7,
-          type: 'contains'
-        });
-      });
-      
-      // 添加最多3个代表性记忆节点到图谱
-      const clusterMemoryPoints = clusterPoints.slice(0, 3);
-      clusterMemoryPoints.forEach((point, index) => {
-        const memoryIndex = memoryMap.get(point.id);
-        if (memoryIndex === undefined) return;
-        
-        const memory = memories[memoryIndex];
-        if (!memory || !memory.summary) return;
-        
-        const shortSummary = memory.summary.substring(0, 15) + '...';
-        const memoryNodeId = `memory_${point.id}_${index}`;
-        
-        // 添加记忆节点
-        nodes.push({
-          id: memoryNodeId,
-          label: shortSummary,
-          size: 4, // 记忆节点较小
-          category: 'memory',
-          clusterId: `${centroid.id}`
-        });
-        
-        // 连接记忆节点到聚类节点
-        links.push({
-          source: clusterNodeId,
-          target: memoryNodeId,
-          value: 0.5,
-          type: 'contains'
-        });
-        
-        // 连接记忆到相关关键词
-        const memoryKeywords = keywordMap.get(point.id) || [];
-        topKeywords.forEach(([keyword, _]) => {
-          if (memoryKeywords.includes(keyword)) {
-            const kwNodeId = topKeywords.findIndex(k => k[0] === keyword);
-            if (kwNodeId >= 0) {
-              links.push({
-                source: memoryNodeId,
-                target: `keyword_${centroid.id}_${kwNodeId}`,
-                value: 0.3,
-                type: 'has_keyword'
-              });
-            }
-          }
-        });
-      });
     });
     
-    // 步骤3: 增加聚类间的连接，基于共享关键词
+    // 步骤2: 直接计算聚类间的连接，基于共享关键词
     const clusterKeywords = new Map<number, Set<string>>();
     
     // 收集每个聚类的所有关键词
@@ -216,7 +137,7 @@ export async function generateKnowledgeGraph(
           }
         }
         
-        // 如果有共享关键词，添加连接
+        // 使用较低的阈值，确保图谱连通性
         if (commonKeywordsCount > 0) {
           const similarity = commonKeywordsCount / Math.min(keywords1.size, keywords2.size);
           
@@ -230,7 +151,27 @@ export async function generateKnowledgeGraph(
       }
     }
     
-    log(`知识图谱生成完成，包含${nodes.length}个节点和${links.length}个连接`);
+    // 如果连接太少，添加额外连接确保图谱连通性
+    if (nodes.length > 1 && links.length < nodes.length - 1) {
+      // 至少需要n-1个连接才能保证所有节点连通
+      for (let i = 0; i < nodes.length - 1; i++) {
+        const existingLink = links.find(
+          link => (link.source === nodes[i].id && link.target === nodes[i+1].id) ||
+                 (link.source === nodes[i+1].id && link.target === nodes[i].id)
+        );
+        
+        if (!existingLink) {
+          links.push({
+            source: nodes[i].id,
+            target: nodes[i+1].id,
+            value: 0.1, // 低相似度
+            type: 'proximity'
+          });
+        }
+      }
+    }
+    
+    log(`简化知识图谱生成完成，包含${nodes.length}个主题节点和${links.length}个连接`);
     return { nodes, links };
     
   } catch (error) {
@@ -238,11 +179,11 @@ export async function generateKnowledgeGraph(
     
     // 返回最小化的图谱
     return {
-      nodes: memories.slice(0, 5).map((memory, index) => ({
-        id: `memory_${memory.id}`,
-        label: memory.summary || '记忆项',
-        size: 5,
-        category: 'memory'
+      nodes: clusterResult.centroids.slice(0, 5).map((centroid, index) => ({
+        id: `cluster_${centroid.id}`,
+        label: `主题${centroid.id + 1}`,
+        size: 25,
+        category: 'cluster'
       })),
       links: []
     };
