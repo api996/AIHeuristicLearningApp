@@ -91,9 +91,9 @@ export async function generateKnowledgeGraph(
         ? topKeyword[0][0]  // 只使用单一关键词
         : `主题${centroid.id + 1}`;
       
-      // 限制标签长度，防止显示问题
-      if (mainKeyword.length > 10) {
-        mainKeyword = mainKeyword.substring(0, 10);
+      // 限制标签长度，防止显示问题，允许更长的标签（最多20字符）
+      if (mainKeyword.length > 20) {
+        mainKeyword = mainKeyword.substring(0, 20);
       }
       
       // 创建聚类主题节点（大尺寸）
@@ -182,30 +182,10 @@ export async function generateKnowledgeGraph(
   } catch (error) {
     log(`知识图谱生成错误: ${error}`);
     
-    // 返回最小化的图谱 (使用简短标签)
+    // 返回空图谱，不使用默认节点
     return {
-      nodes: [
-        {
-          id: 'cluster_0',
-          label: '主要学习主题',
-          size: 30,
-          category: 'cluster'
-        },
-        {
-          id: 'cluster_1',
-          label: '辅助学习主题',
-          size: 25,
-          category: 'cluster'
-        }
-      ],
-      links: [
-        {
-          source: 'cluster_0',
-          target: 'cluster_1',
-          value: 0.5,
-          type: 'related'
-        }
-      ]
+      nodes: [],
+      links: []
     };
   }
 }
@@ -391,31 +371,11 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
       );
       
       if (filteredMemoryVectors.length < 5) {
-        log(`[知识图谱] 用户${userId}的有效向量数据不足5条（只有${filteredMemoryVectors.length}条），使用默认知识图谱`);
-        // 使用默认节点，而不是返回空图谱
+        log(`[知识图谱] 用户${userId}的有效向量数据不足5条（只有${filteredMemoryVectors.length}条），返回空知识图谱`);
+        // 返回空图谱，不使用默认节点
         return {
-          nodes: [
-            {
-              id: 'cluster_0',
-              label: '学习主题一',
-              size: 30,
-              category: 'cluster'
-            },
-            {
-              id: 'cluster_1',
-              label: '学习主题二',
-              size: 25,
-              category: 'cluster'
-            }
-          ],
-          links: [
-            {
-              source: 'cluster_0',
-              target: 'cluster_1',
-              value: 0.5,
-              type: 'related'
-            }
-          ]
+          nodes: [],
+          links: []
         };
       }
       
@@ -507,30 +467,10 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
     
   } catch (error) {
     log(`生成用户知识图谱时出错: ${error}`);
-    // 使用默认节点，而不是返回空图谱
+    // 返回空图谱，不使用默认节点
     return {
-      nodes: [
-        {
-          id: 'cluster_0',
-          label: '学习主题一',
-          size: 30,
-          category: 'cluster'
-        },
-        {
-          id: 'cluster_1',
-          label: '学习主题二',
-          size: 25,
-          category: 'cluster'
-        }
-      ],
-      links: [
-        {
-          source: 'cluster_0',
-          target: 'cluster_1',
-          value: 0.5,
-          type: 'related'
-        }
-      ]
+      nodes: [],
+      links: []
     };
   }
 }
