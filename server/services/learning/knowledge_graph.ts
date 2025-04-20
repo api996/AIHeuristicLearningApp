@@ -320,8 +320,8 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
       }
     }
     
-    // 导入K-means聚类算法
-    const { simpleClustering } = await import('./kmeans_clustering');
+    // 导入Python K-means聚类服务
+    const { pythonClusteringService } = await import('./python_clustering');
     
     try {
       // 检查向量维度，并选择拥有最多向量的维度
@@ -381,8 +381,21 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
       
       log(`为用户${userId}执行聚类，使用${filteredMemoryVectors.length}条有效记忆向量，维度=${optimalDimension}`);
       
-      // 执行聚类
-      const clusterResult = simpleClustering(filteredMemoryVectors);
+      // 使用Python执行高性能聚类
+      log(`使用Python高性能聚类服务处理${filteredMemoryVectors.length}条${optimalDimension}维向量`);
+      const clusterResult = await pythonClusteringService.clusterVectors(filteredMemoryVectors);
+      
+      // 检查聚类结果是否有效
+      if (!clusterResult || !clusterResult.centroids || clusterResult.centroids.length === 0) {
+        log(`Python聚类返回空结果，可能是scikit-learn未安装或出现异常`);
+        // 返回空图谱，而不是使用备用聚类方法
+        return {
+          nodes: [],
+          links: []
+        };
+      }
+      
+      log(`Python聚类成功完成，找到${clusterResult.centroids.length}个聚类`);
       
       // 基于聚类结果生成知识图谱
       return generateKnowledgeGraph(clusterResult, memories, memoryKeywords);
