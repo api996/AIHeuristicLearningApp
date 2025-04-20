@@ -580,18 +580,33 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Invalid memory content");
       }
       
-      // Insert memory record
+      // 生成时间戳格式的ID: YYYYMMDDHHMMSSmmmNNN (年月日时分秒毫秒+3位随机数)
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+      const randomSuffix = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+      
+      // 格式: YYYYMMDDHHMMSSmmmNNN
+      const memoryId = `${year}${month}${day}${hours}${minutes}${seconds}${milliseconds}${randomSuffix}`;
+      
+      // Insert memory record with custom ID
       const [memory] = await db.insert(memories)
         .values({
+          id: memoryId,
           userId,
           content,
           type,
           summary,
-          timestamp: timestamp || new Date()
+          timestamp: timestamp || now
         })
         .returning();
       
-      log(`Memory created for user ${userId}, id: ${memory.id}`);
+      log(`Memory created for user ${userId}, id: ${memory.id} (timestamp format)`);
       return memory;
     } catch (error) {
       log(`Error creating memory: ${error}`);
@@ -618,15 +633,18 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getMemoryById(memoryId: number): Promise<Memory | undefined> {
+  async getMemoryById(memoryId: number | string): Promise<Memory | undefined> {
     try {
-      if (!memoryId || isNaN(memoryId)) {
+      if (!memoryId) {
         throw new Error("Invalid memory ID");
       }
       
+      // 使用字符串类型的ID
+      const memoryIdStr = String(memoryId);
+      
       const [memory] = await db.select()
         .from(memories)
-        .where(eq(memories.id, memoryId));
+        .where(eq(memories.id, memoryIdStr));
       
       return memory;
     } catch (error) {
@@ -635,11 +653,14 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateMemory(memoryId: number, content?: string, summary?: string): Promise<Memory> {
+  async updateMemory(memoryId: number | string, content?: string, summary?: string): Promise<Memory> {
     try {
-      if (!memoryId || isNaN(memoryId)) {
+      if (!memoryId) {
         throw new Error("Invalid memory ID");
       }
+      
+      // 使用字符串类型的ID
+      const memoryIdStr = String(memoryId);
       
       // Prepare update data
       const updateData: Partial<InsertMemory> = {};
@@ -653,7 +674,7 @@ export class DatabaseStorage implements IStorage {
       // Update memory
       const [updatedMemory] = await db.update(memories)
         .set(updateData)
-        .where(eq(memories.id, memoryId))
+        .where(eq(memories.id, memoryIdStr))
         .returning();
       
       if (!updatedMemory) {
@@ -669,15 +690,15 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMemory(memoryId: number | string): Promise<void> {
     try {
-      // 确保将memoryId转换为正确的类型
+      // 确保将memoryId转换为字符串类型
       const memoryIdStr = String(memoryId);
       
       // First delete related records in other tables
       await db.delete(memoryKeywords).where(eq(memoryKeywords.memoryId, memoryIdStr));
       await db.delete(memoryEmbeddings).where(eq(memoryEmbeddings.memoryId, memoryIdStr));
       
-      // Then delete the memory itself - 注意这里使用原始类型，因为memories.id是数字类型
-      await db.delete(memories).where(eq(memories.id, typeof memoryId === 'string' ? parseInt(memoryId) : memoryId));
+      // 然后删除记忆本身 - 注意现在memories.id是文本类型
+      await db.delete(memories).where(eq(memories.id, memoryIdStr));
       
       log(`Memory ${memoryId} deleted successfully`);
     } catch (error) {
@@ -822,8 +843,8 @@ export class DatabaseStorage implements IStorage {
       .from(memories)
       .innerJoin(
         memoryEmbeddings,
-        // 将memories.id转换为字符串，以匹配memoryEmbeddings.memoryId的字符串类型
-        eq(memoryEmbeddings.memoryId, sql`${memories.id}::text`)
+        // 两者都是字符串类型，直接比较即可
+        eq(memoryEmbeddings.memoryId, memories.id)
       )
       .where(eq(memories.userId, userId));
       
