@@ -8,6 +8,113 @@ import { storage } from "../storage";
 import { type Message } from "../../shared/schema";
 import fetch from "node-fetch";
 
+/**
+ * 日志级别枚举
+ */
+enum LogLevel {
+  DEBUG = 'debug',
+  INFO = 'info',
+  WARN = 'warn',
+  ERROR = 'error'
+}
+
+/**
+ * 增强型日志函数
+ * @param message 日志消息
+ * @param level 日志级别
+ * @param context 上下文信息
+ */
+function enhancedLog(message: string, level: LogLevel = LogLevel.INFO, context: Record<string, any> = {}): void {
+  // 添加时间戳
+  const timestamp = new Date().toISOString();
+  const prefix = `[${timestamp}] [${level.toUpperCase()}] [ConversationAnalytics] `;
+  
+  // 基本日志
+  log(`${prefix}${message}`);
+  
+  // 对于错误级别，记录更多上下文信息
+  if (level === LogLevel.ERROR || level === LogLevel.WARN) {
+    if (Object.keys(context).length > 0) {
+      let contextStr = '';
+      try {
+        // 处理可能的循环引用
+        contextStr = JSON.stringify(context, (key, value) => {
+          if (key === 'stack' || key === 'body') {
+            return String(value).substring(0, 500) + (String(value).length > 500 ? '...' : '');
+          }
+          if (typeof value === 'object' && value !== null) {
+            if (seen.has(value)) {
+              return '[循环引用]';
+            }
+            seen.add(value);
+          }
+          return value;
+        }, 2);
+      } catch (e) {
+        contextStr = `[无法序列化上下文: ${e}]`;
+      }
+      log(`${prefix}上下文: ${contextStr}`);
+    }
+  }
+  
+  // 用于跟踪JSON序列化中的循环引用
+  const seen = new Set();
+}
+
+/**
+ * 请求和响应追踪工具
+ */
+class ApiTracer {
+  static requestCount: number = 0;
+  static successCount: number = 0;
+  static errorCount: number = 0;
+  static timeoutCount: number = 0;
+  
+  /**
+   * 记录API请求开始
+   * @returns 请求ID
+   */
+  static startRequest(): number {
+    this.requestCount++;
+    return this.requestCount;
+  }
+  
+  /**
+   * 记录API请求成功
+   */
+  static logSuccess(): void {
+    this.successCount++;
+    this.logStats();
+  }
+  
+  /**
+   * 记录API请求失败
+   * @param isTimeout 是否是超时错误
+   */
+  static logError(isTimeout: boolean = false): void {
+    if (isTimeout) {
+      this.timeoutCount++;
+    }
+    this.errorCount++;
+    this.logStats();
+  }
+  
+  /**
+   * 输出统计信息
+   */
+  private static logStats(): void {
+    // 每10次请求输出一次统计信息
+    if (this.requestCount % 10 === 0) {
+      const successRate = ((this.successCount / this.requestCount) * 100).toFixed(1);
+      enhancedLog(
+        `API统计: 总请求=${this.requestCount}, 成功=${this.successCount}, ` + 
+        `失败=${this.errorCount}, 超时=${this.timeoutCount}, 成功率=${successRate}%`,
+        LogLevel.INFO
+      );
+    }
+  }
+}
+
 export type ConversationPhase = "K" | "W" | "L" | "Q";
 
 export interface PhaseAnalysisResult {
