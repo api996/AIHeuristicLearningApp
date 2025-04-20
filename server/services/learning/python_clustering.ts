@@ -50,15 +50,24 @@ export class PythonClusteringService {
    * @returns Python代码字符串
    */
   private generatePythonClusteringCode(vectors: { id: string | number; vector: number[] }[]): string {
-    // 安全处理向量数据的JSON表示
-    const safeVectorsJson = JSON.stringify(vectors)
-      .replace(/"/g, '\\"')  // 避免字符串中的引号导致的语法错误
-      .replace(/\n/g, ' ');  // 移除换行符
-      
+    // 将向量数据写入到临时文件中处理
     return `
 import sys
+import os
 import json
+import traceback
+
+# 添加server目录到Python路径
 sys.path.append('server')
+
+# 获取命令行参数：输出文件路径
+if len(sys.argv) < 2:
+    output_file = "tmp/clustering_output.json"
+else:
+    output_file = sys.argv[1]
+
+# 向量数据直接硬编码到脚本中，避免命令行参数过大问题
+vectors_data = ${JSON.stringify(vectors)}
 
 try:
     from services.clustering import clustering_service
@@ -66,27 +75,40 @@ try:
     
     async def cluster_data():
         try:
-            # 解析输入向量数据
-            vectors = json.loads("""${safeVectorsJson}""")
+            # 使用聚类服务处理向量数据
+            result = await clustering_service.cluster_vectors(vectors_data, use_cosine_distance=True)
             
-            # 使用聚类服务
-            result = await clustering_service.cluster_vectors(vectors, use_cosine_distance=True)
-            
-            # 输出结果
-            print(json.dumps(result))
-            
+            # 将结果写入到输出文件
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(result, f)
+                
         except Exception as e:
-            import traceback
-            print(json.dumps({"error": str(e), "traceback": traceback.format_exc()}))
+            # 将错误信息写入到输出文件
+            with open(output_file, 'w', encoding='utf-8') as f:
+                error_data = {
+                    "error": str(e),
+                    "traceback": traceback.format_exc()
+                }
+                json.dump(error_data, f)
 
     # 运行异步函数
     asyncio.run(cluster_data())
     
 except ImportError as e:
-    print(json.dumps({"error": f"Python模块导入错误: {str(e)}"}))
+    # 将导入错误信息写入到输出文件
+    with open(output_file, 'w', encoding='utf-8') as f:
+        error_data = {
+            "error": f"Python模块导入错误: {str(e)}"
+        }
+        json.dump(error_data, f)
 except Exception as e:
-    import traceback
-    print(json.dumps({"error": f"Python执行错误: {str(e)}", "traceback": traceback.format_exc()}))
+    # 将一般错误信息写入到输出文件
+    with open(output_file, 'w', encoding='utf-8') as f:
+        error_data = {
+            "error": f"Python执行错误: {str(e)}",
+            "traceback": traceback.format_exc()
+        }
+        json.dump(error_data, f)
 `;
   }
   
@@ -96,49 +118,104 @@ except Exception as e:
    * @returns 执行结果
    */
   private async executePythonCode(pythonCode: string): Promise<any> {
-    return new Promise((resolve, reject) => {
-      // 使用Node.js的child_process执行Python代码
-      const pythonProcess = exec('python -c \'' + pythonCode + '\'', {
-        maxBuffer: 10 * 1024 * 1024 // 10MB buffer
-      });
+    // 引入fs模块以写入临时文件
+    import * as fs from 'fs';
+    import * as path from 'path';
+    import { v4 as uuidv4 } from 'uuid';
+    import { promisify } from 'util';
+    
+    const writeFileAsync = promisify(fs.writeFile);
+    const readFileAsync = promisify(fs.readFile);
+    
+    // 创建唯一的临时文件名
+    const tempScriptPath = path.join('tmp', `clustering_script_${uuidv4()}.py`);
+    const tempOutputPath = path.join('tmp', `clustering_output_${uuidv4()}.json`);
+    
+    try {
+      // 确保tmp目录存在
+      if (!fs.existsSync('tmp')) {
+        fs.mkdirSync('tmp', { recursive: true });
+      }
       
-      let output = '';
-      let errorOutput = '';
+      // 将Python代码写入临时文件
+      await writeFileAsync(tempScriptPath, pythonCode);
       
-      // 收集标准输出
-      pythonProcess.stdout?.on('data', (data: Buffer) => {
-        output += data.toString();
-      });
-      
-      // 收集标准错误
-      pythonProcess.stderr?.on('data', (data: Buffer) => {
-        errorOutput += data.toString();
-      });
-      
-      // 进程结束处理
-      pythonProcess.on('close', (code: number | null) => {
-        if (code !== 0) {
-          log(`[python_clustering] Python进程异常退出，代码: ${code}, 错误: ${errorOutput}`, 'error');
-          resolve({ error: errorOutput || "Python进程异常退出" });
-          return;
-        }
+      // 返回Promise，以便异步执行
+      return new Promise((resolve, reject) => {
+        // 使用Node.js的child_process执行Python脚本文件，而不是通过命令行参数
+        const pythonProcess = exec(`python ${tempScriptPath} ${tempOutputPath}`, {
+          maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+        });
         
-        try {
-          // 解析Python输出的JSON
-          const result = JSON.parse(output.trim());
-          resolve(result);
-        } catch (error: any) {
-          log(`[python_clustering] 解析Python输出失败: ${error}, 输出: ${output.substring(0, 200)}...`, 'error');
-          resolve({ error: "无法解析Python输出" });
-        }
+        let errorOutput = '';
+        
+        // 收集标准错误
+        pythonProcess.stderr?.on('data', (data: Buffer) => {
+          errorOutput += data.toString();
+        });
+        
+        // 进程结束处理
+        pythonProcess.on('close', async (code: number | null) => {
+          try {
+            // 清理临时脚本文件
+            if (fs.existsSync(tempScriptPath)) {
+              fs.unlinkSync(tempScriptPath);
+            }
+            
+            if (code !== 0) {
+              log(`[python_clustering] Python进程异常退出，代码: ${code}, 错误: ${errorOutput}`, 'error');
+              resolve({ error: errorOutput || "Python进程异常退出" });
+              return;
+            }
+            
+            // 读取Python输出的JSON结果文件
+            if (fs.existsSync(tempOutputPath)) {
+              const outputData = await readFileAsync(tempOutputPath, 'utf8');
+              
+              // 清理临时输出文件
+              fs.unlinkSync(tempOutputPath);
+              
+              try {
+                // 解析JSON结果
+                const result = JSON.parse(outputData.trim());
+                resolve(result);
+              } catch (parseError: any) {
+                log(`[python_clustering] 解析Python输出失败: ${parseError}, 输出: ${outputData.substring(0, 200)}...`, 'error');
+                resolve({ error: "无法解析Python输出" });
+              }
+            } else {
+              log(`[python_clustering] 输出文件未找到: ${tempOutputPath}`, 'error');
+              resolve({ error: "Python输出文件未找到" });
+            }
+          } catch (fileError: any) {
+            log(`[python_clustering] 文件操作错误: ${fileError}`, 'error');
+            resolve({ error: `文件操作错误: ${fileError.message}` });
+          }
+        });
+        
+        // 处理进程错误
+        pythonProcess.on('error', (err: Error) => {
+          log(`[python_clustering] 执行Python失败: ${err}`, 'error');
+          
+          // 清理临时文件
+          try {
+            if (fs.existsSync(tempScriptPath)) {
+              fs.unlinkSync(tempScriptPath);
+            }
+            if (fs.existsSync(tempOutputPath)) {
+              fs.unlinkSync(tempOutputPath);
+            }
+          } catch (cleanupError) {
+            log(`[python_clustering] 清理临时文件失败: ${cleanupError}`, 'error');
+          }
+          
+          resolve({ error: err.message });
+        });
       });
-      
-      // 处理进程错误
-      pythonProcess.on('error', (err: Error) => {
-        log(`[python_clustering] 执行Python失败: ${err}`, 'error');
-        resolve({ error: err.message });
-      });
-    });
+    } catch (error: any) {
+      log(`[python_clustering] 准备Python执行环境失败: ${error}`, 'error');
+      return { error: `准备Python执行环境失败: ${error.message}` };
+    }
   }
   
   /**
