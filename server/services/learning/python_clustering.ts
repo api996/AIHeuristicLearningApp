@@ -56,28 +56,37 @@ export class PythonClusteringService {
       .replace(/\n/g, ' ');  // 移除换行符
       
     return `
-from services.clustering import clustering_service
-import asyncio
-import json
 import sys
+import json
+sys.path.append('server')
 
-async def cluster_data():
-    try:
-        # 解析输入向量数据
-        vectors = json.loads("""${safeVectorsJson}""")
-        
-        # 使用聚类服务
-        result = await clustering_service.cluster_vectors(vectors, use_cosine_distance=True)
-        
-        # 输出结果
-        print(json.dumps(result))
-        
-    except Exception as e:
-        import traceback
-        print(json.dumps({"error": str(e), "traceback": traceback.format_exc()}))
+try:
+    from services.clustering import clustering_service
+    import asyncio
+    
+    async def cluster_data():
+        try:
+            # 解析输入向量数据
+            vectors = json.loads("""${safeVectorsJson}""")
+            
+            # 使用聚类服务
+            result = await clustering_service.cluster_vectors(vectors, use_cosine_distance=True)
+            
+            # 输出结果
+            print(json.dumps(result))
+            
+        except Exception as e:
+            import traceback
+            print(json.dumps({"error": str(e), "traceback": traceback.format_exc()}))
 
-# 运行异步函数
-asyncio.run(cluster_data())
+    # 运行异步函数
+    asyncio.run(cluster_data())
+    
+except ImportError as e:
+    print(json.dumps({"error": f"Python模块导入错误: {str(e)}"}))
+except Exception as e:
+    import traceback
+    print(json.dumps({"error": f"Python执行错误: {str(e)}", "traceback": traceback.format_exc()}))
 `;
   }
   
@@ -88,23 +97,26 @@ asyncio.run(cluster_data())
    */
   private async executePythonCode(pythonCode: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      const process = exec('python -c \'' + pythonCode + '\'', {
-        cwd: process.cwd(),
+      // 使用Node.js的child_process执行Python代码
+      const pythonProcess = exec('python -c \'' + pythonCode + '\'', {
         maxBuffer: 10 * 1024 * 1024 // 10MB buffer
       });
       
       let output = '';
       let errorOutput = '';
       
-      process.stdout.on('data', (data) => {
+      // 收集标准输出
+      pythonProcess.stdout?.on('data', (data: Buffer) => {
         output += data.toString();
       });
       
-      process.stderr.on('data', (data) => {
+      // 收集标准错误
+      pythonProcess.stderr?.on('data', (data: Buffer) => {
         errorOutput += data.toString();
       });
       
-      process.on('close', (code) => {
+      // 进程结束处理
+      pythonProcess.on('close', (code: number | null) => {
         if (code !== 0) {
           log(`[python_clustering] Python进程异常退出，代码: ${code}, 错误: ${errorOutput}`, 'error');
           resolve({ error: errorOutput || "Python进程异常退出" });
@@ -115,13 +127,14 @@ asyncio.run(cluster_data())
           // 解析Python输出的JSON
           const result = JSON.parse(output.trim());
           resolve(result);
-        } catch (error) {
+        } catch (error: any) {
           log(`[python_clustering] 解析Python输出失败: ${error}, 输出: ${output.substring(0, 200)}...`, 'error');
           resolve({ error: "无法解析Python输出" });
         }
       });
       
-      process.on('error', (err) => {
+      // 处理进程错误
+      pythonProcess.on('error', (err: Error) => {
         log(`[python_clustering] 执行Python失败: ${err}`, 'error');
         resolve({ error: err.message });
       });
