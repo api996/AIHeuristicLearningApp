@@ -744,9 +744,9 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Memory embeddings methods
-  async saveMemoryEmbedding(memoryId: number, vectorData: number[]): Promise<MemoryEmbedding> {
+  async saveMemoryEmbedding(memoryId: number | string, vectorData: number[]): Promise<MemoryEmbedding> {
     try {
-      if (!memoryId || isNaN(memoryId)) {
+      if (!memoryId) {
         throw new Error("Invalid memory ID");
       }
       
@@ -754,14 +754,17 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Invalid vector data");
       }
 
+      // 确保将memoryId转换为字符串
+      const memoryIdStr = String(memoryId);
+
       // Check if embedding already exists
-      const existing = await this.getEmbeddingByMemoryId(memoryId);
+      const existing = await this.getEmbeddingByMemoryId(memoryIdStr);
       
       if (existing) {
         // Update existing embedding
         const [updatedEmbedding] = await db.update(memoryEmbeddings)
           .set({ vectorData })
-          .where(eq(memoryEmbeddings.memoryId, memoryId))
+          .where(eq(memoryEmbeddings.memoryId, memoryIdStr))
           .returning();
         
         return updatedEmbedding;
@@ -769,7 +772,7 @@ export class DatabaseStorage implements IStorage {
         // Insert new embedding
         const [embedding] = await db.insert(memoryEmbeddings)
           .values({
-            memoryId,
+            memoryId: memoryIdStr,
             vectorData
           })
           .returning();
@@ -782,20 +785,23 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getEmbeddingByMemoryId(memoryId: number): Promise<MemoryEmbedding | undefined> {
+  async getEmbeddingByMemoryId(memoryId: number | string): Promise<MemoryEmbedding | undefined> {
     try {
-      if (!memoryId || isNaN(memoryId)) {
+      if (!memoryId) {
         throw new Error("Invalid memory ID");
       }
       
+      // 确保将memoryId转换为字符串
+      const memoryIdStr = String(memoryId);
+      
       const [embedding] = await db.select()
         .from(memoryEmbeddings)
-        .where(eq(memoryEmbeddings.memoryId, memoryId));
+        .where(eq(memoryEmbeddings.memoryId, memoryIdStr));
       
       return embedding;
     } catch (error) {
       log(`Error getting embedding for memory ${memoryId}: ${error}`);
-      throw error;
+      return undefined;
     }
   }
 
