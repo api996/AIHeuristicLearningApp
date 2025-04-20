@@ -4,34 +4,76 @@
  */
 
 import { log } from "../../vite";
-import { exec } from "child_process";
+import { execFile } from "child_process";
+import * as fs from 'fs';
+import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { promisify } from 'util';
 import { ClusterResult } from "./kmeans_clustering";
 
+const writeFileAsync = promisify(fs.writeFile);
+const readFileAsync = promisify(fs.readFile);
+const unlinkAsync = promisify(fs.unlink);
+const mkdirAsync = promisify(fs.mkdir);
+
 export class PythonClusteringService {
+  private readonly scriptPath: string;
+  private readonly tmpDir: string;
+
+  constructor() {
+    // 设置脚本路径和临时目录
+    this.scriptPath = path.join("server", "scripts", "run_clustering.py");
+    this.tmpDir = path.join("tmp");
+    
+    // 确保临时目录存在
+    this.ensureTmpDir();
+  }
+
+  /**
+   * 确保临时目录存在
+   */
+  private async ensureTmpDir(): Promise<void> {
+    try {
+      if (!fs.existsSync(this.tmpDir)) {
+        await mkdirAsync(this.tmpDir, { recursive: true });
+        log(`[python_clustering] 已创建临时目录: ${this.tmpDir}`);
+      }
+    } catch (error) {
+      log(`[python_clustering] 创建临时目录失败: ${error}`, 'error');
+    }
+  }
+
   /**
    * 使用Python的scikit-learn进行高效聚类
    * @param memoryVectors 向量数据，包含id和vector
    * @returns 聚类结果，与TypeScript实现兼容的格式
    */
   async clusterVectors(memoryVectors: { id: string | number; vector: number[] }[]): Promise<ClusterResult> {
+    if (!memoryVectors || memoryVectors.length < 2) {
+      log('[python_clustering] 向量数量不足，无法进行聚类', 'warn');
+      return this.createEmptyClusterResult();
+    }
+
+    log(`[python_clustering] 准备进行Python聚类，处理${memoryVectors.length}条向量，维度=${memoryVectors[0]?.vector?.length || '未知'}`);
+    
+    // 创建唯一的临时文件名
+    const inputFilePath = path.join(this.tmpDir, `vectors_${uuidv4()}.json`);
+    const outputFilePath = path.join(this.tmpDir, `result_${uuidv4()}.json`);
+    
     try {
-      log(`[python_clustering] 使用Python聚类服务处理${memoryVectors.length}条向量，维度=${memoryVectors[0]?.vector.length || '未知'}`);
+      // 将向量数据写入临时JSON文件
+      await writeFileAsync(inputFilePath, JSON.stringify(memoryVectors), 'utf-8');
+      log(`[python_clustering] 已将向量数据写入: ${inputFilePath}`);
       
-      // 确保有足够的数据进行聚类
-      if (!memoryVectors || memoryVectors.length < 2) {
-        log('[python_clustering] 向量数量不足，无法进行聚类', 'warn');
-        return this.createEmptyClusterResult();
-      }
+      // 执行Python聚类脚本
+      const result = await this.executePythonScript(inputFilePath, outputFilePath);
       
-      // 调用Python脚本执行聚类
-      const pythonCode = this.generatePythonClusteringCode(memoryVectors);
+      // 清理临时文件
+      await this.cleanupTempFiles(inputFilePath, outputFilePath);
       
-      // 执行Python代码并获取结果
-      const result = await this.executePythonCode(pythonCode);
-      
+      // 处理结果
       if (!result || result.error) {
         log(`[python_clustering] Python聚类失败: ${result?.error || '未知错误'}`, 'error');
-        // 聚类失败时返回空结果，确保上层服务可以继续工作
         return this.createEmptyClusterResult();
       }
       
@@ -40,181 +82,100 @@ export class PythonClusteringService {
       
     } catch (error) {
       log(`[python_clustering] 聚类处理错误: ${error}`, 'error');
+      
+      // 尝试清理临时文件
+      await this.cleanupTempFiles(inputFilePath, outputFilePath);
+      
       return this.createEmptyClusterResult();
     }
   }
   
   /**
-   * 生成Python聚类代码
-   * @param vectors 向量数据
-   * @returns Python代码字符串
+   * 执行Python聚类脚本
+   * @param inputFilePath 输入文件路径
+   * @param outputFilePath 输出文件路径
+   * @returns 聚类结果
    */
-  private generatePythonClusteringCode(vectors: { id: string | number; vector: number[] }[]): string {
-    // 将向量数据写入到临时文件中处理
-    return `
-import sys
-import os
-import json
-import traceback
-
-# 添加server目录到Python路径
-sys.path.append('server')
-
-# 获取命令行参数：输出文件路径
-if len(sys.argv) < 2:
-    output_file = "tmp/clustering_output.json"
-else:
-    output_file = sys.argv[1]
-
-# 向量数据直接硬编码到脚本中，避免命令行参数过大问题
-vectors_data = ${JSON.stringify(vectors)}
-
-try:
-    from services.clustering import clustering_service
-    import asyncio
-    
-    async def cluster_data():
-        try:
-            # 使用聚类服务处理向量数据
-            result = await clustering_service.cluster_vectors(vectors_data, use_cosine_distance=True)
-            
-            # 将结果写入到输出文件
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(result, f)
-                
-        except Exception as e:
-            # 将错误信息写入到输出文件
-            with open(output_file, 'w', encoding='utf-8') as f:
-                error_data = {
-                    "error": str(e),
-                    "traceback": traceback.format_exc()
-                }
-                json.dump(error_data, f)
-
-    # 运行异步函数
-    asyncio.run(cluster_data())
-    
-except ImportError as e:
-    # 将导入错误信息写入到输出文件
-    with open(output_file, 'w', encoding='utf-8') as f:
-        error_data = {
-            "error": f"Python模块导入错误: {str(e)}"
+  private async executePythonScript(inputFilePath: string, outputFilePath: string): Promise<any> {
+    return new Promise((resolve) => {
+      log(`[python_clustering] 执行Python聚类脚本: ${this.scriptPath}`);
+      
+      const pythonProcess = execFile('python', [
+        this.scriptPath,
+        inputFilePath,
+        outputFilePath
+      ], {
+        maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+      });
+      
+      let scriptOutput = '';
+      let errorOutput = '';
+      
+      // 收集标准输出
+      pythonProcess.stdout?.on('data', (data: Buffer) => {
+        scriptOutput += data.toString();
+        log(`[python_clustering] 脚本输出: ${data.toString().trim()}`);
+      });
+      
+      // 收集标准错误
+      pythonProcess.stderr?.on('data', (data: Buffer) => {
+        errorOutput += data.toString();
+        log(`[python_clustering] 脚本错误: ${data.toString().trim()}`, 'error');
+      });
+      
+      // 进程结束处理
+      pythonProcess.on('close', async (code: number | null) => {
+        if (code !== 0) {
+          log(`[python_clustering] Python进程异常退出，代码: ${code}, 错误: ${errorOutput}`, 'error');
+          resolve({ error: errorOutput || "Python进程异常退出" });
+          return;
         }
-        json.dump(error_data, f)
-except Exception as e:
-    # 将一般错误信息写入到输出文件
-    with open(output_file, 'w', encoding='utf-8') as f:
-        error_data = {
-            "error": f"Python执行错误: {str(e)}",
-            "traceback": traceback.format_exc()
+        
+        try {
+          // 读取输出文件
+          if (fs.existsSync(outputFilePath)) {
+            const outputData = await readFileAsync(outputFilePath, 'utf8');
+            const result = JSON.parse(outputData);
+            log(`[python_clustering] 成功读取聚类结果`);
+            resolve(result);
+          } else {
+            log(`[python_clustering] 输出文件未找到: ${outputFilePath}`, 'error');
+            resolve({ error: "Python输出文件未找到" });
+          }
+        } catch (error) {
+          log(`[python_clustering] 读取或解析输出失败: ${error}`, 'error');
+          resolve({ error: `读取或解析输出失败: ${error}` });
         }
-        json.dump(error_data, f)
-`;
+      });
+      
+      // 处理进程错误
+      pythonProcess.on('error', (err: Error) => {
+        log(`[python_clustering] 启动Python进程失败: ${err}`, 'error');
+        resolve({ error: `启动Python进程失败: ${err.message}` });
+      });
+    });
   }
   
   /**
-   * 执行Python代码
-   * @param pythonCode 要执行的Python代码
-   * @returns 执行结果
+   * 清理临时文件
+   * @param inputFilePath 输入文件路径
+   * @param outputFilePath 输出文件路径
    */
-  private async executePythonCode(pythonCode: string): Promise<any> {
-    // 引入fs模块以写入临时文件
-    import * as fs from 'fs';
-    import * as path from 'path';
-    import { v4 as uuidv4 } from 'uuid';
-    import { promisify } from 'util';
-    
-    const writeFileAsync = promisify(fs.writeFile);
-    const readFileAsync = promisify(fs.readFile);
-    
-    // 创建唯一的临时文件名
-    const tempScriptPath = path.join('tmp', `clustering_script_${uuidv4()}.py`);
-    const tempOutputPath = path.join('tmp', `clustering_output_${uuidv4()}.json`);
-    
+  private async cleanupTempFiles(inputFilePath: string, outputFilePath: string): Promise<void> {
     try {
-      // 确保tmp目录存在
-      if (!fs.existsSync('tmp')) {
-        fs.mkdirSync('tmp', { recursive: true });
+      // 删除输入文件
+      if (fs.existsSync(inputFilePath)) {
+        await unlinkAsync(inputFilePath);
+        log(`[python_clustering] 已删除临时输入文件: ${inputFilePath}`);
       }
       
-      // 将Python代码写入临时文件
-      await writeFileAsync(tempScriptPath, pythonCode);
-      
-      // 返回Promise，以便异步执行
-      return new Promise((resolve, reject) => {
-        // 使用Node.js的child_process执行Python脚本文件，而不是通过命令行参数
-        const pythonProcess = exec(`python ${tempScriptPath} ${tempOutputPath}`, {
-          maxBuffer: 10 * 1024 * 1024 // 10MB buffer
-        });
-        
-        let errorOutput = '';
-        
-        // 收集标准错误
-        pythonProcess.stderr?.on('data', (data: Buffer) => {
-          errorOutput += data.toString();
-        });
-        
-        // 进程结束处理
-        pythonProcess.on('close', async (code: number | null) => {
-          try {
-            // 清理临时脚本文件
-            if (fs.existsSync(tempScriptPath)) {
-              fs.unlinkSync(tempScriptPath);
-            }
-            
-            if (code !== 0) {
-              log(`[python_clustering] Python进程异常退出，代码: ${code}, 错误: ${errorOutput}`, 'error');
-              resolve({ error: errorOutput || "Python进程异常退出" });
-              return;
-            }
-            
-            // 读取Python输出的JSON结果文件
-            if (fs.existsSync(tempOutputPath)) {
-              const outputData = await readFileAsync(tempOutputPath, 'utf8');
-              
-              // 清理临时输出文件
-              fs.unlinkSync(tempOutputPath);
-              
-              try {
-                // 解析JSON结果
-                const result = JSON.parse(outputData.trim());
-                resolve(result);
-              } catch (parseError: any) {
-                log(`[python_clustering] 解析Python输出失败: ${parseError}, 输出: ${outputData.substring(0, 200)}...`, 'error');
-                resolve({ error: "无法解析Python输出" });
-              }
-            } else {
-              log(`[python_clustering] 输出文件未找到: ${tempOutputPath}`, 'error');
-              resolve({ error: "Python输出文件未找到" });
-            }
-          } catch (fileError: any) {
-            log(`[python_clustering] 文件操作错误: ${fileError}`, 'error');
-            resolve({ error: `文件操作错误: ${fileError.message}` });
-          }
-        });
-        
-        // 处理进程错误
-        pythonProcess.on('error', (err: Error) => {
-          log(`[python_clustering] 执行Python失败: ${err}`, 'error');
-          
-          // 清理临时文件
-          try {
-            if (fs.existsSync(tempScriptPath)) {
-              fs.unlinkSync(tempScriptPath);
-            }
-            if (fs.existsSync(tempOutputPath)) {
-              fs.unlinkSync(tempOutputPath);
-            }
-          } catch (cleanupError) {
-            log(`[python_clustering] 清理临时文件失败: ${cleanupError}`, 'error');
-          }
-          
-          resolve({ error: err.message });
-        });
-      });
-    } catch (error: any) {
-      log(`[python_clustering] 准备Python执行环境失败: ${error}`, 'error');
-      return { error: `准备Python执行环境失败: ${error.message}` };
+      // 删除输出文件
+      if (fs.existsSync(outputFilePath)) {
+        await unlinkAsync(outputFilePath);
+        log(`[python_clustering] 已删除临时输出文件: ${outputFilePath}`);
+      }
+    } catch (error) {
+      log(`[python_clustering] 清理临时文件失败: ${error}`, 'warn');
     }
   }
   
@@ -282,6 +243,7 @@ except Exception as e:
       });
     }
     
+    log(`[python_clustering] 成功将Python聚类结果转换为TypeScript格式: ${result.centroids.length}个聚类`);
     return result;
   }
   
