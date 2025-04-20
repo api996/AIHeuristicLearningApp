@@ -14,6 +14,8 @@ import KnowledgeGraphDetail from "@/pages/knowledge-graph-detail";
 import KnowledgeGraphView from "@/pages/knowledge-graph-view";
 import PromptEditor from "@/pages/prompt-editor";
 import NotFound from "@/pages/not-found";
+// 导入D3初始化器，确保D3全局可用
+import D3Initializer from "@/components/D3Initializer";
 // 导入D3补丁文件，修复D3兼容性问题
 import "./lib/d3-patch";
 // 导入直接补丁文件，确保_d3Selection全局对象可用
@@ -73,6 +75,8 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      {/* D3初始化器不渲染任何内容，但确保D3全局可用 */}
+      <D3Initializer />
       <Router />
       <Toaster />
     </QueryClientProvider>
