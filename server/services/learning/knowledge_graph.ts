@@ -382,22 +382,73 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
       log(`为用户${userId}执行聚类，使用${filteredMemoryVectors.length}条有效记忆向量，维度=${optimalDimension}`);
       
       // 使用Python执行高性能聚类
-      log(`使用Python高性能聚类服务处理${filteredMemoryVectors.length}条${optimalDimension}维向量`);
-      const clusterResult = await pythonClusteringService.clusterVectors(filteredMemoryVectors);
-      
-      // 检查聚类结果是否有效
-      if (!clusterResult || !clusterResult.centroids || clusterResult.centroids.length === 0) {
-        log(`Python聚类返回空结果，可能是scikit-learn未安装或出现异常`);
-        // 返回空图谱，而不是使用备用聚类方法
+      let clusterResult;
+      try {
+        log(`[知识图谱] 使用Python高性能聚类服务处理${filteredMemoryVectors.length}条${optimalDimension}维向量`);
+        clusterResult = await pythonClusteringService.clusterVectors(filteredMemoryVectors);
+        
+        // 检查聚类结果是否有效
+        if (!clusterResult || !clusterResult.centroids || clusterResult.centroids.length === 0) {
+          log(`[知识图谱] Python聚类返回空结果，可能是scikit-learn未安装或出现异常`);
+          
+          // 如果聚类失败，使用基于关键词的简单知识图谱方案
+          log(`[知识图谱] 回退到基于关键词的简单图谱生成方式`);
+          
+          // 找出最常见的关键词作为主题
+          const keywordCounts = new Map<string, number>();
+          memoryKeywords.forEach(([_, keywords]) => {
+            keywords.forEach(keyword => {
+              keywordCounts.set(keyword, (keywordCounts.get(keyword) || 0) + 1);
+            });
+          });
+          
+          // 选择出现频率最高的前5个关键词作为主题
+          const topKeywords = Array.from(keywordCounts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([keyword, count]) => ({ 
+              keyword,
+              count,
+              percentage: Math.round((count / memoryKeywords.length) * 100)
+            }));
+            
+          // 创建主题节点和连接
+          const nodes: KnowledgeNode[] = topKeywords.map((item, index) => ({
+            id: `cluster_${index}`,
+            label: item.keyword,
+            size: Math.max(10, item.percentage),
+            category: 'cluster',
+            clusterId: `${index}`
+          }));
+          
+          // 创建主题间的连接（仅连接频率最高的2-3个主题）
+          const links: KnowledgeLink[] = [];
+          for (let i = 0; i < Math.min(3, nodes.length); i++) {
+            for (let j = i + 1; j < Math.min(3, nodes.length); j++) {
+              links.push({
+                source: nodes[i].id,
+                target: nodes[j].id,
+                value: 0.1, // 低相关性
+                type: 'proximity'
+              });
+            }
+          }
+          
+          log(`[知识图谱] 创建了基于关键词的简单图谱，包含${nodes.length}个节点和${links.length}个连接`);
+          return { nodes, links };
+        }
+        
+        log(`[知识图谱] Python聚类成功完成，找到${clusterResult.centroids.length}个聚类`);
+        
+        // 基于聚类结果生成知识图谱
+      } catch (error) {
+        log(`[知识图谱] Python聚类处理出错: ${error}`);
+        // 返回空图谱
         return {
           nodes: [],
           links: []
         };
       }
-      
-      log(`Python聚类成功完成，找到${clusterResult.centroids.length}个聚类`);
-      
-      // 基于聚类结果生成知识图谱
       return generateKnowledgeGraph(clusterResult, memories, memoryKeywords);
     } catch (clusterError) {
       log(`聚类过程出错: ${clusterError}`);
