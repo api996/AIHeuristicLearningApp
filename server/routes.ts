@@ -440,8 +440,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // 使用更新版的服务处理数据
         try {
-          // 导入并使用trajectory服务中的analyzeLearningPath函数
-          const { analyzeLearningPath } = require('./services/learning/trajectory');
+          // 导入并使用trajectory服务中的analyzeLearningPath函数 (使用ESM导入)
+          const { analyzeLearningPath } = await import('./services/learning/trajectory');
           const result = await analyzeLearningPath(Number(userId));
 
           // 添加时间戳版本以确保每次返回的数据不一样，避免浏览器缓存
