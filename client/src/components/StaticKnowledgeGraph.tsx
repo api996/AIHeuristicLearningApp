@@ -73,6 +73,37 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   
+  // 加载状态
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  
+  // 在初始渲染后平滑过渡到显示图谱
+  useEffect(() => {
+    // 创建进度动画
+    const progressInterval = setInterval(() => {
+      setLoadingProgress(prev => {
+        const newProgress = prev + 2;
+        return newProgress > 100 ? 100 : newProgress;
+      });
+    }, 20);
+    
+    // 当节点加载完毕且进度达到100%时，取消加载状态
+    const timer = setTimeout(() => {
+      clearInterval(progressInterval);
+      setLoadingProgress(100);
+      
+      // 再等待短暂时间确保进度动画完成
+      setTimeout(() => {
+        setIsInitializing(false);
+      }, 200);
+    }, 800);
+    
+    return () => {
+      clearTimeout(timer);
+      clearInterval(progressInterval);
+    };
+  }, []);
+  
   // 添加拖动和缩放状态
   const [transform, setTransform] = useState<GraphTransform>({
     translateX: 0,
@@ -567,6 +598,79 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     canvas.width = width * dpr;
     canvas.height = height * dpr;
     
+    // 绘制加载动画函数
+    const drawLoadingIndicator = () => {
+      if (!ctx) return;
+      
+      // 清除画布
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // 保存当前状态并应用DPI缩放
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      
+      // 绘制半透明背景
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+      ctx.fillRect(0, 0, width, height);
+      
+      // 绘制进度条背景
+      const barWidth = width * 0.4;
+      const barHeight = 8;
+      const barX = (width - barWidth) / 2;
+      const barY = height / 2 + 40;
+      
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.beginPath();
+      ctx.roundRect(barX, barY, barWidth, barHeight, 4);
+      ctx.fill();
+      
+      // 绘制进度条
+      const progressWidth = (loadingProgress / 100) * barWidth;
+      const gradient = ctx.createLinearGradient(barX, barY, barX + barWidth, barY);
+      gradient.addColorStop(0, '#3b82f6');
+      gradient.addColorStop(1, '#8b5cf6');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(barX, barY, progressWidth, barHeight, 4);
+      ctx.fill();
+      
+      // 绘制加载文本
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.font = '16px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('正在加载知识图谱', width / 2, height / 2 - 20);
+      
+      // 绘制性能提示
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.font = '13px Inter, system-ui, sans-serif';
+      ctx.fillText(`优化的3072维向量聚类`, width / 2, height / 2 + 10);
+      
+      // 绘制进度百分比
+      ctx.font = '12px Inter, system-ui, sans-serif';
+      ctx.fillText(`${loadingProgress}%`, width / 2, height / 2 + 65);
+      
+      // 绘制周围的装饰性粒子
+      const time = Date.now() / 1000;
+      for (let i = 0; i < 8; i++) {
+        const angle = time * 1.5 + (i * Math.PI / 4);
+        const radius = 60 + Math.sin(time * 2) * 5;
+        const x = width / 2 + Math.cos(angle) * radius;
+        const y = height / 2 - 60 + Math.sin(angle) * radius * 0.5;
+        
+        const particleSize = 4 + Math.sin(time * 3 + i) * 2;
+        const alpha = 0.5 + Math.sin(time * 2 + i) * 0.3;
+        
+        ctx.fillStyle = `hsla(${i * 45}, 80%, 60%, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(x, y, particleSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      ctx.restore();
+    };
+    
     // 缩放上下文以匹配DPI
     ctx.scale(dpr, dpr);
     canvas.style.width = width + 'px';
@@ -574,6 +678,12 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     
     // 创建渲染函数 - 支持变换和缩放
     const render = () => {
+      // 如果在初始化状态，绘制加载动画
+      if (isInitializing) {
+        drawLoadingIndicator();
+        return;
+      }
+      
       // 清除画布
       ctx.clearRect(0, 0, width, height);
       
