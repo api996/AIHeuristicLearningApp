@@ -118,8 +118,9 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
       // 获取记忆的向量嵌入
       const memoriesWithEmbeddings = await Promise.all(
         memoryObjects.map(async (memory) => {
-          const memoryId = typeof memory.id === 'string' ? parseInt(memory.id, 10) : memory.id;
-          const embedding = await storage.getEmbeddingByMemoryId(memoryId);
+          // 无需转换为整数，直接使用字符串形式的ID 
+          // 让getEmbeddingByMemoryId内部处理类型转换
+          const embedding = await storage.getEmbeddingByMemoryId(memory.id);
           return {
             memory,
             embedding: embedding?.vectorData || null
