@@ -375,24 +375,40 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
     const { simpleClustering } = await import('./kmeans_clustering');
     
     try {
-      // 检查向量维度是否一致
-      let vectorDimension = -1;
-      const filteredMemoryVectors = memoryVectors.filter(memoryVec => {
-        if (vectorDimension === -1) {
-          // 设置第一个有效向量的维度作为标准
-          vectorDimension = memoryVec.vector.length;
-          return true;
-        }
-        // 只保留维度匹配的向量
-        return memoryVec.vector.length === vectorDimension;
+      // 检查向量维度，并选择拥有最多向量的维度
+      const dimensionCounts = new Map<number, number>();
+      
+      // 统计每个维度的向量数量
+      memoryVectors.forEach(memoryVec => {
+        const dimension = memoryVec.vector.length;
+        dimensionCounts.set(dimension, (dimensionCounts.get(dimension) || 0) + 1);
       });
       
-      if (filteredMemoryVectors.length < 2) {
-        log(`用户${userId}的有效向量数据不足，无法进行聚类`);
+      // 找出拥有最多向量的维度
+      let maxCount = 0;
+      let optimalDimension = -1;
+      
+      dimensionCounts.forEach((count, dimension) => {
+        log(`[知识图谱] 维度=${dimension}的向量数量: ${count}`);
+        if (count > maxCount) {
+          maxCount = count;
+          optimalDimension = dimension;
+        }
+      });
+      
+      log(`[知识图谱] 选择最优维度=${optimalDimension}，拥有${maxCount}个向量`);
+      
+      // 只保留维度匹配的向量
+      const filteredMemoryVectors = memoryVectors.filter(memoryVec => 
+        memoryVec.vector.length === optimalDimension
+      );
+      
+      if (filteredMemoryVectors.length < 5) {
+        log(`[知识图谱] 用户${userId}的有效向量数据不足5条（只有${filteredMemoryVectors.length}条），无法进行聚类`);
         return { nodes: [], links: [] };
       }
       
-      log(`为用户${userId}执行聚类，使用${filteredMemoryVectors.length}条有效记忆向量，维度=${vectorDimension}`);
+      log(`为用户${userId}执行聚类，使用${filteredMemoryVectors.length}条有效记忆向量，维度=${optimalDimension}`);
       
       // 执行聚类
       const clusterResult = simpleClustering(filteredMemoryVectors);
