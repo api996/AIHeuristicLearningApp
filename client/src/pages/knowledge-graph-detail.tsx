@@ -149,7 +149,7 @@ export default function KnowledgeGraphDetail() {
   const [localLoading, setLocalLoading] = useState(false);
   const [localKnowledgeGraph, setLocalKnowledgeGraph] = useState<KnowledgeGraph | null>(null);
 
-  // 添加刷新图谱的处理函数 - 使用预加载功能彻底刷新
+  // 改进的刷新图谱处理函数 - 保持页面不刷新，仅更新数据
   const handleRefreshGraph = async () => {
     if (user?.userId) {
       try {
@@ -161,7 +161,7 @@ export default function KnowledgeGraphDetail() {
         setLocalLoading(true);
         
         // 强制从服务器获取新数据 (不使用缓存)
-        const response = await fetch(`/api/learning-path/${user.userId}/knowledge-graph`, {
+        const response = await fetch(`/api/learning-path/${user.userId}/knowledge-graph?t=${Date.now()}`, {
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
@@ -177,11 +177,20 @@ export default function KnowledgeGraphDetail() {
         const freshData = await response.json();
         console.log(`获取到新数据: ${freshData.nodes.length}个节点, ${freshData.links.length}个连接`);
         
-        // 缓存新数据并更新状态
+        // 验证数据有效性
+        if (!freshData.nodes || !Array.isArray(freshData.nodes)) {
+          console.error("接收到的数据无效:", freshData);
+          throw new Error("接收到的知识图谱数据格式无效");
+        }
+        
+        // 确保强制更新画布，现在使用本地状态
         setLocalKnowledgeGraph(freshData);
         
         // 使用预加载器缓存数据，以便其他组件使用
-        await preloadKnowledgeGraphData(user.userId);
+        await preloadKnowledgeGraphData(user.userId, true);
+        
+        // 通知用户刷新成功
+        console.log("知识图谱数据刷新成功:", freshData.nodes.length, "个节点");
         
         // 清除加载状态
         setLocalLoading(false);
@@ -604,15 +613,13 @@ export default function KnowledgeGraphDetail() {
                   alignItems: 'center'
                 }}
               >
-                {/* 确保 graphData 正确构建 */}
-                <SimpleGraphChart
+                {/* 使用StaticKnowledgeGraph替代SimpleGraphChart以解决渲染问题 */}
+                <StaticKnowledgeGraph
                   nodes={graphData.nodes}
                   links={graphData.links}
-                  height={isFullScreen ? window.innerHeight - 80 : window.innerWidth < 768 ? window.innerHeight * 0.4 : 600}
                   width={isFullScreen ? window.innerWidth - 40 : window.innerWidth > 768 ? 800 : window.innerWidth - 20}
+                  height={isFullScreen ? window.innerHeight - 80 : window.innerWidth < 768 ? window.innerHeight * 0.4 : 600}
                   onNodeClick={onClickNode}
-                  zoomLevel={zoomLevel}
-                  isFullScreen={isFullScreen}
                 />
               </div>
             ) : (

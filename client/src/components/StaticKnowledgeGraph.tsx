@@ -77,8 +77,23 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
   const [isInitializing, setIsInitializing] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   
-  // 在初始渲染后平滑过渡到显示图谱
+  // 使用节点数量状态来解决循环依赖问题
+  const [nodeCount, setNodeCount] = useState(0);
+
+  // 在初始渲染后平滑过渡到显示图谱，但确保数据完全加载
   useEffect(() => {
+    // 使用节点数量作为触发条件
+    if (nodes.length === 0) {
+      // 如果没有数据，保持加载状态
+      setIsInitializing(true);
+      return;
+    }
+    
+    // 设置节点数量以便后续效果使用
+    setNodeCount(nodes.length);
+    
+    console.log("知识图谱节点数据已加载，启动渐变动画:", nodes.length, "个节点");
+    
     // 创建进度动画
     const progressInterval = setInterval(() => {
       setLoadingProgress(prev => {
@@ -92,8 +107,9 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
       clearInterval(progressInterval);
       setLoadingProgress(100);
       
-      // 再等待短暂时间确保进度动画完成
+      // 再等待短暂时间确保进度动画完成，然后显示图谱
       setTimeout(() => {
+        console.log("知识图谱加载动画完成，开始渲染图谱");
         setIsInitializing(false);
       }, 200);
     }, 800);
@@ -102,7 +118,7 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
       clearTimeout(timer);
       clearInterval(progressInterval);
     };
-  }, []);
+  }, [nodes.length]); // 依赖于原始节点数据的变化，而不是处理后的
   
   // 添加拖动和缩放状态
   const [transform, setTransform] = useState<GraphTransform>({
