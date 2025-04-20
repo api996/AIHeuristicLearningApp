@@ -34,15 +34,9 @@ def main():
         # 导入聚类服务
         try:
             from services.clustering import clustering_service
-            import asyncio
             
-            # 执行聚类
-            async def run_clustering():
-                result = await clustering_service.cluster_vectors(input_data, use_cosine_distance=True)
-                return result
-                
-            # 运行异步聚类函数
-            result = asyncio.run(run_clustering())
+            # 直接执行聚类，无需异步
+            result = clustering_service.cluster_vectors(input_data, use_cosine_distance=True)
             
             # 将结果写入输出文件
             with open(output_file, 'w', encoding='utf-8') as f:

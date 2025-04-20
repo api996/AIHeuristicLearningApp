@@ -45,7 +45,7 @@ async function testPythonClustering() {
   try {
     // 生成测试数据
     const genStart = Date.now();
-    const testVectors = generateMockVectors(20, 3072);
+    const testVectors = generateMockVectors(100, 3072);
     log(`已生成${testVectors.length}个${testVectors[0].vector.length}维测试向量`);
     log(`生成测试数据: ${Date.now() - genStart}ms`);
     
