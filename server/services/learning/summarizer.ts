@@ -41,9 +41,9 @@ sys.path.append('server')
 from services.learning_memory import learning_memory_service
 
 async def generate_summary():
-    # 使用现有服务生成摘要
-    summary = learning_memory_service.generate_content_summary("""${text.replace(/"/g, '\\"')}""")
-    keywords = learning_memory_service.extract_keywords_from_text("""${text.replace(/"/g, '\\"')}""")
+    # 使用现有服务生成摘要（必须await异步函数）
+    summary = await learning_memory_service.generate_content_summary("""${text.replace(/"/g, '\\"')}""")
+    keywords = await learning_memory_service.extract_keywords_from_text("""${text.replace(/"/g, '\\"')}""")
     
     # 转换为JSON输出
     result = {
