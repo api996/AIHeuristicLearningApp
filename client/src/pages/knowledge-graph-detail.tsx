@@ -613,7 +613,6 @@ export default function KnowledgeGraphDetail() {
                   alignItems: 'center'
                 }}
               >
-                {/* 使用StaticKnowledgeGraph替代SimpleGraphChart以解决渲染问题 */}
                 <StaticKnowledgeGraph
                   nodes={graphData.nodes}
                   links={graphData.links}
