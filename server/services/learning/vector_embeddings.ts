@@ -31,15 +31,71 @@ export class VectorEmbeddingsService {
         ? cleanedText.substring(0, 8000)
         : cleanedText;
       
-      // 使用GenAI服务生成嵌入
-      const embedding = await genAiService.generateEmbedding(truncatedText);
-      
-      if (!embedding) {
-        log('[vector_embeddings] 生成嵌入失败', 'error');
-        return null;
-      }
+      try {
+        // 使用Python嵌入服务API生成嵌入向量
+        // 这里通过执行Python代码调用embedding.py服务
+        const pythonCommand = `
+from services.embedding import embedding_service
+import asyncio
+import json
+import sys
 
-      return embedding;
+async def get_embedding():
+    texts = ["${truncatedText.replace(/"/g, '\\"')}"]
+    embeddings = await embedding_service.get_embeddings(texts)
+    if embeddings and len(embeddings) > 0:
+        print(json.dumps(embeddings[0]))
+    else:
+        print("null")
+
+asyncio.run(get_embedding())
+`;
+
+        // 执行Python代码并获取结果
+        const { exec } = require('child_process');
+        return new Promise((resolve, reject) => {
+          // 使用Python执行代码
+          const process = exec('python -c \'' + pythonCommand + '\'', {
+            cwd: process.cwd(),
+            maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+          });
+          
+          let output = '';
+          process.stdout.on('data', (data) => {
+            output += data.toString();
+          });
+          
+          process.on('close', (code) => {
+            if (code !== 0) {
+              log('[vector_embeddings] Python嵌入服务执行失败，使用备用服务', 'error');
+              // 如果Python服务失败，回退到GenAI服务
+              genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
+              return;
+            }
+            
+            try {
+              // 解析Python输出的JSON
+              const embedding = JSON.parse(output.trim());
+              resolve(embedding);
+            } catch (parseError) {
+              log(`[vector_embeddings] 解析Python输出失败: ${parseError}`, 'error');
+              // 如果解析失败，回退到GenAI服务
+              genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
+            }
+          });
+          
+          process.on('error', (err) => {
+            log(`[vector_embeddings] 执行Python失败: ${err}`, 'error');
+            // 如果执行失败，回退到GenAI服务
+            genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
+          });
+        });
+      } catch (pythonError) {
+        log(`[vector_embeddings] Python嵌入调用出错: ${pythonError}`, 'error');
+        // 如果Python调用出错，回退到GenAI服务
+        const embedding = await genAiService.generateEmbedding(truncatedText);
+        return embedding;
+      }
     } catch (error) {
       log(`[vector_embeddings] 生成嵌入时出错: ${error}`, 'error');
       return null;
