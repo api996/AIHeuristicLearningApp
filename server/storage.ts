@@ -667,18 +667,17 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async deleteMemory(memoryId: number): Promise<void> {
+  async deleteMemory(memoryId: number | string): Promise<void> {
     try {
-      if (!memoryId || isNaN(memoryId)) {
-        throw new Error("Invalid memory ID");
-      }
+      // 确保将memoryId转换为正确的类型
+      const memoryIdStr = String(memoryId);
       
       // First delete related records in other tables
-      await db.delete(memoryKeywords).where(eq(memoryKeywords.memoryId, memoryId));
-      await db.delete(memoryEmbeddings).where(eq(memoryEmbeddings.memoryId, memoryId));
+      await db.delete(memoryKeywords).where(eq(memoryKeywords.memoryId, memoryIdStr));
+      await db.delete(memoryEmbeddings).where(eq(memoryEmbeddings.memoryId, memoryIdStr));
       
-      // Then delete the memory itself
-      await db.delete(memories).where(eq(memories.id, memoryId));
+      // Then delete the memory itself - 注意这里使用原始类型，因为memories.id是数字类型
+      await db.delete(memories).where(eq(memories.id, typeof memoryId === 'string' ? parseInt(memoryId) : memoryId));
       
       log(`Memory ${memoryId} deleted successfully`);
     } catch (error) {
@@ -823,7 +822,8 @@ export class DatabaseStorage implements IStorage {
       .from(memories)
       .innerJoin(
         memoryEmbeddings,
-        eq(memories.id, memoryEmbeddings.memoryId)
+        // 将memories.id转换为字符串，以匹配memoryEmbeddings.memoryId的字符串类型
+        eq(memoryEmbeddings.memoryId, sql`${memories.id}::text`)
       )
       .where(eq(memories.userId, userId));
       
