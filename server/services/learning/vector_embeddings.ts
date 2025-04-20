@@ -52,12 +52,14 @@ export class VectorEmbeddingsService {
    * @param content 记忆内容
    * @returns 成功标志
    */
-  async generateAndSaveEmbedding(memoryId: number, content: string): Promise<boolean> {
+  async generateAndSaveEmbedding(memoryId: number | string, content: string): Promise<boolean> {
     try {
       // 首先检查是否已有嵌入
-      const existingEmbedding = await storage.getEmbeddingByMemoryId(memoryId);
+      // 确保memoryId作为字符串传递给storage.getEmbeddingByMemoryId
+      const memoryIdStr = String(memoryId);
+      const existingEmbedding = await storage.getEmbeddingByMemoryId(memoryIdStr);
       if (existingEmbedding) {
-        log(`[vector_embeddings] 记忆 ${memoryId} 已有嵌入，跳过生成`, 'info');
+        log(`[vector_embeddings] 记忆 ${memoryIdStr} 已有嵌入，跳过生成`, 'info');
         return true;
       }
 
@@ -68,8 +70,8 @@ export class VectorEmbeddingsService {
       }
 
       // 保存嵌入
-      await storage.saveMemoryEmbedding(memoryId, embedding);
-      log(`[vector_embeddings] 记忆 ${memoryId} 的嵌入已保存`, 'info');
+      await storage.saveMemoryEmbedding(memoryIdStr, embedding);
+      log(`[vector_embeddings] 记忆 ${memoryIdStr} 的嵌入已保存`, 'info');
       
       return true;
     } catch (error) {
