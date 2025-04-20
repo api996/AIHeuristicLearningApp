@@ -48,18 +48,18 @@ export interface IStorage {
   // Memory methods
   createMemory(userId: number, content: string, type?: string, summary?: string, timestamp?: Date): Promise<Memory>;
   getMemoriesByUserId(userId: number): Promise<Memory[]>;
-  getMemoryById(memoryId: number): Promise<Memory | undefined>;
-  updateMemory(memoryId: number, content?: string, summary?: string): Promise<Memory>;
-  deleteMemory(memoryId: number): Promise<void>;
+  getMemoryById(memoryId: number | string): Promise<Memory | undefined>;
+  updateMemory(memoryId: number | string, content?: string, summary?: string): Promise<Memory>;
+  deleteMemory(memoryId: number | string): Promise<void>;
   
   // Memory keywords methods
-  addKeywordToMemory(memoryId: number, keyword: string): Promise<MemoryKeyword>;
-  getKeywordsByMemoryId(memoryId: number): Promise<MemoryKeyword[]>;
-  deleteKeywordsByMemoryId(memoryId: number): Promise<void>;
+  addKeywordToMemory(memoryId: number | string, keyword: string): Promise<MemoryKeyword>;
+  getKeywordsByMemoryId(memoryId: number | string): Promise<MemoryKeyword[]>;
+  deleteKeywordsByMemoryId(memoryId: number | string): Promise<void>;
   
   // Memory embeddings methods
-  saveMemoryEmbedding(memoryId: number, vectorData: number[]): Promise<MemoryEmbedding>;
-  getEmbeddingByMemoryId(memoryId: number): Promise<MemoryEmbedding | undefined>;
+  saveMemoryEmbedding(memoryId: number | string, vectorData: number[]): Promise<MemoryEmbedding>;
+  getEmbeddingByMemoryId(memoryId: number | string): Promise<MemoryEmbedding | undefined>;
   findSimilarMemories(userId: number, vectorData: number[], limit?: number): Promise<Memory[]>;
   
   // Admin methods
