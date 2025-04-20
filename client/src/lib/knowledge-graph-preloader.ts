@@ -39,6 +39,10 @@ let pendingPromises: Map<number, Promise<KnowledgeGraphData>> = new Map();
 export async function preloadKnowledgeGraphData(userId: number, forceRefresh: boolean = false): Promise<KnowledgeGraphData> {
   console.log("预加载知识图谱数据...", forceRefresh ? "(强制刷新)" : "");
   
+  // 显示预计处理时间信息
+  const startTime = performance.now();
+  console.log("知识图谱数据处理时间估计：高维向量聚类<1秒，总加载时间<5秒");
+  
   // 如果强制刷新，清除现有缓存
   if (forceRefresh) {
     console.log(`强制刷新用户${userId}的知识图谱缓存`);
@@ -60,7 +64,11 @@ export async function preloadKnowledgeGraphData(userId: number, forceRefresh: bo
     // 成功后更新缓存并移除进行中的请求
     cachedGraphData.set(userId, data);
     pendingPromises.delete(userId);
-    console.log(`知识图谱数据加载完成: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+    
+    // 计算加载时间并显示性能指标
+    const loadTime = (performance.now() - startTime).toFixed(0);
+    console.log(`知识图谱数据加载完成: ${data.nodes.length}个节点, ${data.links.length}个连接，总耗时: ${loadTime}ms`);
+    
     return data;
   } catch (error) {
     // 请求失败时也移除进行中的请求，允许重试
