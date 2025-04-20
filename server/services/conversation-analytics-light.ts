@@ -186,7 +186,7 @@ export class ConversationAnalyticsLightService {
   async getLatestPhase(chatId: number): Promise<ConversationPhase | null> {
     try {
       const analytic = await storage.getLatestConversationAnalytic(chatId);
-      return analytic?.phase || null;
+      return analytic?.currentPhase || null;
     } catch (error) {
       log(`获取最新对话阶段错误: ${error}`);
       return null;
@@ -211,12 +211,101 @@ export class ConversationAnalyticsLightService {
    * @param conversationText 对话文本
    * @returns 对话阶段分析结果
    */
+  // 缓存配置
+  private cache: Map<string, {
+    result: PhaseAnalysisResult;
+    timestamp: number;
+  }> = new Map();
+  private readonly CACHE_TTL = 10 * 60 * 1000; // 缓存有效期10分钟
+  private readonly CACHE_MAX_SIZE = 100; // 最大缓存条目数
+
+  /**
+   * 为对话生成一个唯一缓存键
+   * @param text 对话文本
+   * @returns 缓存键
+   */
+  private generateCacheKey(text: string): string {
+    // 简单的散列函数，将文本转换为数字
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // 转换为32位整数
+    }
+    return `conversation_${hash}`;
+  }
+
+  /**
+   * 从缓存中获取分析结果
+   * @param text 对话文本
+   * @returns 缓存的分析结果或null
+   */
+  private getCachedResult(text: string): PhaseAnalysisResult | null {
+    const key = this.generateCacheKey(text);
+    const cached = this.cache.get(key);
+    
+    if (cached) {
+      const now = Date.now();
+      // 检查缓存是否过期
+      if (now - cached.timestamp <= this.CACHE_TTL) {
+        enhancedLog(`从缓存获取对话分析结果: ${cached.result.currentPhase}`, LogLevel.DEBUG);
+        return cached.result;
+      } else {
+        // 删除过期缓存
+        this.cache.delete(key);
+        enhancedLog(`缓存过期，已清除: ${key}`, LogLevel.DEBUG);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 将分析结果保存到缓存
+   * @param text 对话文本
+   * @param result 分析结果
+   */
+  private cacheResult(text: string, result: PhaseAnalysisResult): void {
+    const key = this.generateCacheKey(text);
+    
+    // 如果缓存已满，清除最早添加的条目
+    if (this.cache.size >= this.CACHE_MAX_SIZE) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey) {
+        this.cache.delete(oldestKey);
+        enhancedLog(`缓存已满，清除最早条目: ${oldestKey}`, LogLevel.DEBUG);
+      }
+    }
+    
+    this.cache.set(key, {
+      result,
+      timestamp: Date.now()
+    });
+    enhancedLog(`已缓存对话分析结果: ${key}`, LogLevel.DEBUG);
+  }
+
+  /**
+   * 调用Gemini-1.5-flash进行对话分析
+   * 使用更轻量级的模型以提高速度，减少超时
+   * @param conversationText 对话文本
+   * @returns 对话阶段分析结果
+   */
   private async callGeminiForAnalysis(conversationText: string): Promise<PhaseAnalysisResult | null> {
+    // 先检查缓存中是否有结果
+    const cachedResult = this.getCachedResult(conversationText);
+    if (cachedResult) {
+      enhancedLog("使用缓存的对话阶段分析结果", LogLevel.DEBUG);
+      return cachedResult;
+    }
+    
     // 如果没有API密钥，使用关键词分析（零API调用）
     if (!this.apiKey) {
-      log("没有Gemini API密钥，使用关键词分析替代");
+      enhancedLog("没有Gemini API密钥，使用关键词分析替代", LogLevel.WARN);
       return this.backoffToKeywordAnalysis(conversationText);
     }
+
+    // 追踪API请求
+    const requestId = ApiTracer.startRequest();
+    enhancedLog(`开始对话阶段分析请求 #${requestId}`, LogLevel.DEBUG);
 
     try {
       const prompt = `
@@ -261,6 +350,7 @@ ${conversationText}
       const timeout = setTimeout(() => controller.abort(), 5000); // 5秒超时
       
       try {
+        const startTime = Date.now();
         const response = await fetch(`${this.endpoint}?key=${this.apiKey}`, {
           method: "POST",
           headers: {
@@ -269,22 +359,47 @@ ${conversationText}
           body: JSON.stringify(requestBody),
           signal: controller.signal
         });
+        const endTime = Date.now();
+        const responseTime = endTime - startTime;
 
         clearTimeout(timeout); // 清除超时
         
         if (!response.ok) {
           const errorText = await response.text();
-          log(`Gemini API错误: ${response.status} - ${errorText}`);
+          enhancedLog(
+            `Gemini API错误 #${requestId}: ${response.status} - ${errorText}`, 
+            LogLevel.ERROR, 
+            { statusCode: response.status, responseTime }
+          );
+          ApiTracer.logError(false);
           return this.backoffToKeywordAnalysis(conversationText);
         }
 
+        // 使用类型断言确保正确处理响应数据
         const data = await response.json();
         
+        // 定义Gemini响应的接口
+        interface GeminiResponse {
+          candidates?: Array<{
+            content?: {
+              parts?: Array<{
+                text?: string;
+              }>;
+            };
+          }>;
+        }
+        
         // 提取响应中的JSON文本
-        const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const typedData = data as GeminiResponse;
+        const jsonText = typedData.candidates?.[0]?.content?.parts?.[0]?.text || "";
         
         if (!jsonText) {
-          log(`Gemini API返回空响应`);
+          enhancedLog(
+            `Gemini API返回空响应 #${requestId}`,
+            LogLevel.ERROR,
+            { responseTime }
+          );
+          ApiTracer.logError(false);
           return this.backoffToKeywordAnalysis(conversationText);
         }
         
@@ -294,31 +409,71 @@ ${conversationText}
           
           // 验证必要字段
           if (!parseResult.currentPhase || !["K", "W", "L", "Q"].includes(parseResult.currentPhase)) {
-            log(`无效的对话阶段值: ${parseResult.currentPhase}`);
+            enhancedLog(
+              `无效的对话阶段值 #${requestId}: ${parseResult.currentPhase}`,
+              LogLevel.ERROR,
+              { parseResult, responseTime }
+            );
+            ApiTracer.logError(false);
             return this.backoffToKeywordAnalysis(conversationText);
           }
           
-          // 返回格式化的结果
-          return {
+          // 标记API请求成功
+          ApiTracer.logSuccess();
+          
+          // 构建结果
+          const result: PhaseAnalysisResult = {
             currentPhase: parseResult.currentPhase as ConversationPhase,
             summary: parseResult.summary || "对话分析",
             confidence: parseResult.confidence || 0.7
           };
+          
+          // 缓存结果
+          this.cacheResult(conversationText, result);
+          
+          enhancedLog(
+            `对话阶段分析成功 #${requestId}: ${result.currentPhase} (${responseTime}ms)`,
+            LogLevel.INFO,
+            { responseTime, confidence: result.confidence }
+          );
+          
+          return result;
         } catch (parseError) {
-          log(`解析Gemini响应JSON失败: ${parseError}, 响应文本: ${jsonText}`);
+          enhancedLog(
+            `解析Gemini响应JSON失败 #${requestId}: ${parseError}`,
+            LogLevel.ERROR,
+            { 
+              error: parseError,
+              responseText: jsonText.substring(0, 200) + (jsonText.length > 200 ? '...' : ''),
+              responseTime 
+            }
+          );
+          ApiTracer.logError(false);
           return this.backoffToKeywordAnalysis(conversationText);
         }
-      } catch (fetchError) {
+      } catch (error) {
         clearTimeout(timeout); // 确保清除超时
-        if (fetchError.name === 'AbortError') {
-          log(`Gemini API请求超时`);
-        } else {
-          log(`Gemini API请求失败: ${fetchError}`);
-        }
+        const fetchError = error as Error;
+        const isTimeout = fetchError.name === 'AbortError';
+        
+        enhancedLog(
+          isTimeout 
+            ? `Gemini API请求超时 #${requestId}` 
+            : `Gemini API请求失败 #${requestId}: ${fetchError.message}`,
+          LogLevel.ERROR,
+          { error: fetchError.message, stack: fetchError.stack, isTimeout }
+        );
+        
+        ApiTracer.logError(isTimeout);
         return this.backoffToKeywordAnalysis(conversationText);
       }
     } catch (error) {
-      log(`对话阶段分析失败: ${error}`);
+      enhancedLog(
+        `对话阶段分析失败 #${requestId}: ${error}`,
+        LogLevel.ERROR,
+        { error }
+      );
+      ApiTracer.logError(false);
       return this.backoffToKeywordAnalysis(conversationText);
     }
   }
