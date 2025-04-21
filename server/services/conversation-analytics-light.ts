@@ -139,8 +139,8 @@ export class ConversationAnalyticsLightService {
 
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY || "";
-    // 使用更快速的gemini-1.5-pro-latest模型(修正: gemini-1.5-flash不存在)
-    this.endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent";
+    // 使用更快速的gemini-2.0-flash模型，适合后台分析，更高的频率限制
+    this.endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
     log("轻量级对话阶段分析服务初始化完成");
   }
 
