@@ -445,7 +445,18 @@ try {
       }
       
       // 最终的查询和参数处理
-      const query = queryValue || "自然语言处理"; // 如果没有查询，使用默认值
+      const query = queryValue || ""; // 如果没有查询，使用空字符串
+      
+      // 如果查询为空，返回错误
+      if (!query) {
+        console.error("[MCP-SERVER] 搜索查询为空");
+        return { 
+          content: [{ 
+            type: "text", 
+            text: "搜索查询不能为空，请提供有效的查询内容" 
+          }]
+        };
+      }
       
       // 提取布尔型参数
       let useMCP = true; // 默认使用MCP
@@ -484,44 +495,54 @@ try {
       
       // 根据 useMCP 标志决定使用哪种搜索方式
       if (useMCP) {
-        const mcpResult = await mcpWebSearchService.searchWithMCP(query);
-        
-        if (!mcpResult) {
-          return { content: [{ type: "text", text: "未找到相关搜索结果" }] };
+        try {
+          console.log(`[MCP-SERVER] 尝试使用MCP增强搜索模式执行查询: ${query}`);
+          const mcpResult = await mcpWebSearchService.searchWithMCP(query);
+          
+          if (!mcpResult) {
+            console.warn(`[MCP-SERVER] MCP模式未返回结果，切换到基础搜索模式`);
+            throw new Error("MCP搜索未返回结果");
+          }
+          
+          // 格式化搜索结果
+          return {
+            content: [
+              {
+                type: "text",
+                text: `## ${query} - 搜索摘要\n\n${mcpResult.summary}\n\n相关性: ${mcpResult.relevance}/10\n\n` +
+                      `关键信息点:\n${mcpResult.keyPoints.map((p: string) => `• ${p}`).join("\n")}\n\n` +
+                      `来源:\n${mcpResult.sources.map((s: any, i: number) => 
+                        `[${i+1}] ${s.title} - ${s.url}\n${s.content}`).join("\n\n")}`
+              }
+            ]
+          };
+        } catch (mcpError) {
+          console.warn(`[MCP-SERVER] MCP模式执行失败，自动切换到基础搜索模式: ${mcpError instanceof Error ? mcpError.message : String(mcpError)}`);
+          // MCP模式失败，自动切换到基础搜索模式
+          useMCP = false;
+          // 继续执行非MCP部分的代码
         }
-        
-        // 格式化搜索结果
-        return {
-          content: [
-            {
-              type: "text",
-              text: `## ${query} - 搜索摘要\n\n${mcpResult.summary}\n\n相关性: ${mcpResult.relevance}/10\n\n` +
-                    `关键信息点:\n${mcpResult.keyPoints.map((p: string) => `• ${p}`).join("\n")}\n\n` +
-                    `来源:\n${mcpResult.sources.map((s: any, i: number) => 
-                      `[${i+1}] ${s.title} - ${s.url}\n${s.content}`).join("\n\n")}`
-            }
-          ]
-        };
-      } else {
-        // 使用基础搜索
-        const snippets = await mcpWebSearchService.search(query);
-        
-        if (!snippets || snippets.length === 0) {
-          return { content: [{ type: "text", text: "未找到相关搜索结果" }] };
-        }
-        
-        // 格式化结果
-        return {
-          content: [
-            {
-              type: "text",
-              text: `## ${query} - 基础搜索结果\n\n` + 
-                    snippets.slice(0, numResults).map((s: {title: string; snippet: string; url: string}, i: number) => 
-                    `[${i+1}] ${s.title}\n${s.snippet}\n${s.url}`).join("\n\n")
-            }
-          ]
-        };
       }
+      
+      // 如果useMCP为false或MCP模式执行失败，使用基础搜索
+      console.log(`[MCP-SERVER] 使用基础搜索模式执行查询: ${query}`);
+      const snippets = await mcpWebSearchService.search(query);
+      
+      if (!snippets || snippets.length === 0) {
+        return { content: [{ type: "text", text: "未找到相关搜索结果" }] };
+      }
+      
+      // 格式化结果
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## ${query} - 基础搜索结果\n\n` + 
+                  snippets.slice(0, numResults).map((s: {title: string; snippet: string; url: string}, i: number) => 
+                  `[${i+1}] ${s.title}\n${s.snippet}\n${s.url}`).join("\n\n")
+          }
+        ]
+      };
     } catch (error) {
       console.error("搜索执行出错:", error);
       return {
