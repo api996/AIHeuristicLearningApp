@@ -123,9 +123,21 @@ class GeminiService implements GenAIService {
       
       // 使用Gemini 1.5 Flash模型生成摘要
       const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `请为以下文本生成一个简洁的摘要（不超过50个字）:\n\n${truncatedText}`;
       
-      const result = await model.generateContent(prompt);
+      // 使用正确的消息结构
+      const result = await model.generateContent({
+        contents: [{
+          role: 'user',
+          parts: [{ text: `请为以下文本生成一个简洁的摘要（不超过50个字）:\n\n${truncatedText}` }]
+        }],
+        generationConfig: {
+          temperature: 0.3,
+          topP: 0.8,
+          topK: 40,
+          maxOutputTokens: 100
+        }
+      });
+      
       const summary = result.response.text().trim();
       
       // 确保摘要不超过数据库字段长度限制
@@ -148,9 +160,21 @@ class GeminiService implements GenAIService {
       
       // 使用Gemini 1.5 Flash模型提取关键词
       const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `请从以下文本中提取5到10个关键词或短语，以逗号分隔。这些关键词应该能够概括文本的主要内容和主题:\n\n${truncatedText}`;
       
-      const result = await model.generateContent(prompt);
+      // 使用正确的消息结构
+      const result = await model.generateContent({
+        contents: [{
+          role: 'user',
+          parts: [{ text: `请从以下文本中提取5到10个关键词或短语，以逗号分隔。这些关键词应该能够概括文本的主要内容和主题:\n\n${truncatedText}` }]
+        }],
+        generationConfig: {
+          temperature: 0.2,
+          topP: 0.9,
+          topK: 40,
+          maxOutputTokens: 200
+        }
+      });
+      
       const keywordsText = result.response.text().trim();
       
       // 解析关键词（假设返回的是逗号分隔的关键词）
