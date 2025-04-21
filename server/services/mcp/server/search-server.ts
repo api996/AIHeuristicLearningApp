@@ -165,9 +165,30 @@ try {
       }
       
       // 直接从传入参数获取值，不依赖于 Zod 解析
-      let query = params?.query || "未提供查询";
-      let useMCP = params?.useMCP !== false; // 默认为 true
-      let numResults = params?.numResults || 5;
+      // 检查参数是否为字符串（SDK可能会将参数序列化为字符串）
+      let parsedParams = params;
+      if (typeof params === 'string') {
+        try {
+          parsedParams = JSON.parse(params);
+          console.log(`[MCP-SERVER] 已解析字符串参数: ${JSON.stringify(parsedParams)}`);
+        } catch (e) {
+          console.log(`[MCP-SERVER] 无法解析字符串参数: ${params}`);
+        }
+      }
+      
+      // 尝试从参数对象中读取值
+      let query = parsedParams?.query;
+      // 如果参数值是一个对象，尝试从中提取query
+      if (typeof query === 'object' && query !== null) {
+        console.log(`[MCP-SERVER] query是一个对象: ${JSON.stringify(query)}`);
+        query = query.query || query.toString();
+      }
+      // 确保query是字符串
+      query = String(query || "未提供查询");
+      
+      // 处理其他参数
+      let useMCP = parsedParams?.useMCP !== false; // 默认为 true
+      let numResults = parseInt(parsedParams?.numResults) || 5;
       
       console.log(`[MCP-SERVER] 提取的参数: query=${query}, useMCP=${useMCP}, numResults=${numResults}`);
       
