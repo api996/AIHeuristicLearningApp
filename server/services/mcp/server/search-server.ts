@@ -10,23 +10,31 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import 'dotenv/config';
+import fetch from "node-fetch";
 
-// 导入真实的 WebSearchService
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// 导入真实的 WebSearchService 所需依赖
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
 /**
- * 简化版的搜索服务，适用于MCP子进程
- * 这里我们提供一个轻量级版本，仅支持必要的功能
+ * 为MCP子进程提供的全功能搜索服务
+ * 基于原WebSearchService实现，做了必要的简化以适应子进程环境
  */
 class MCPWebSearchService {
+  private apiKey: string;
+  private geminiApiKey: string;
+  private searchEndpoint: string;
   private genAI: GoogleGenerativeAI | null = null;
   
   constructor() {
-    // 初始化 Gemini API
-    const apiKey = process.env.GEMINI_API_KEY || "";
-    if (apiKey) {
+    // 初始化API密钥
+    this.apiKey = process.env.SERPER_API_KEY || "";
+    this.geminiApiKey = process.env.GEMINI_API_KEY || "";
+    this.searchEndpoint = "https://google.serper.dev/search";
+    
+    // 初始化Gemini API
+    if (this.geminiApiKey) {
       try {
-        this.genAI = new GoogleGenerativeAI(apiKey);
+        this.genAI = new GoogleGenerativeAI(this.geminiApiKey);
         console.log("[MCP-SEARCH] Gemini API 初始化成功");
       } catch (error) {
         console.error("[MCP-SEARCH] Gemini API 初始化失败:", error);
@@ -38,28 +46,163 @@ class MCPWebSearchService {
   }
   
   /**
+   * 为提示词处理搜索结果
+   * @param snippets 搜索结果片段
+   * @returns 格式化的字符串
+   */
+  private formatSearchContextForMCP(snippets: any[]): string {
+    let context = "";
+    
+    snippets.forEach((snippet, index) => {
+      context += `--- 结果 ${index + 1} ---\n`;
+      context += `标题: ${snippet.title}\n`;
+      context += `摘要: ${snippet.snippet}\n`;
+      if (snippet.url) {
+        context += `URL: ${snippet.url}\n`;
+      }
+      context += "\n";
+    });
+    
+    return context;
+  }
+  
+  /**
+   * 解析JSON响应，处理可能的错误
+   */
+  private parseJsonResponse(text: string): any {
+    try {
+      // 尝试去除可能存在的markdown格式
+      let jsonText = text;
+      
+      // 如果是代码块格式，提取其中的JSON
+      const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (jsonMatch && jsonMatch[1]) {
+        jsonText = jsonMatch[1];
+      }
+      
+      return JSON.parse(jsonText);
+    } catch (error) {
+      console.error("[MCP-SEARCH] JSON解析错误:", error);
+      return null;
+    }
+  }
+  
+  /**
+   * 标准化相关性评分
+   */
+  private normalizeRelevanceScore(value: any): number {
+    // 如果是数字字符串，转为数字
+    if (typeof value === 'string') {
+      const parsedValue = parseInt(value, 10);
+      if (!isNaN(parsedValue)) {
+        value = parsedValue;
+      }
+    }
+    
+    // 确保是数字类型
+    if (typeof value !== 'number' || isNaN(value)) {
+      return 7; // 默认相关性评分
+    }
+    
+    // 限制在1-10范围内
+    return Math.max(1, Math.min(10, value));
+  }
+  
+  /**
    * 执行基础搜索
    * @param query 搜索查询
    * @returns 搜索结果片段
    */
   async search(query: string) {
-    try {
-      // 由于子进程中无法访问数据库，我们这里直接返回一些基本信息
-      // 在实际应用中，这里应该通过IPC或API调用主进程的搜索服务
-      
-      console.log(`[MCP-SEARCH] 执行基础搜索: ${query}`);
-      
-      // 为防止API不可用，提供备用结果
+    console.log(`[MCP-SEARCH] 执行基础搜索: ${query}`);
+    
+    // 如果API密钥未设置，返回默认结果
+    if (!this.apiKey) {
+      console.warn("[MCP-SEARCH] 搜索API密钥未设置，使用默认结果");
       return [
         {
-          title: `关于"${query}"的网络搜索`,
-          snippet: `这是搜索"${query}"的结果。请注意，子进程中的搜索功能受限。`,
+          title: `关于"${query}"的搜索结果`,
+          snippet: `请设置SERPER_API_KEY环境变量以启用真实搜索功能。`,
           url: 'https://example.com/search-results'
         }
       ];
+    }
+    
+    try {
+      // 执行实际搜索调用
+      const response = await fetch(this.searchEndpoint, {
+        method: "POST",
+        headers: {
+          "X-API-KEY": this.apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          q: query,
+          gl: "cn", // 地理位置：中国
+          hl: "zh-cn", // 语言：简体中文
+          num: 10 // 结果数量
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`搜索请求失败: ${response.status} ${response.statusText}`);
+      }
+      
+      const searchData = await response.json();
+      
+      // 处理搜索结果
+      const snippets: any[] = [];
+      
+      // 处理自然搜索结果
+      if (searchData.organic && Array.isArray(searchData.organic)) {
+        for (const result of searchData.organic) {
+          snippets.push({
+            title: result.title || "",
+            snippet: result.snippet || "",
+            url: result.link || ""
+          });
+        }
+      }
+      
+      // 处理知识面板结果（如果有）
+      if (searchData.knowledgeGraph) {
+        const kg = searchData.knowledgeGraph;
+        snippets.push({
+          title: kg.title || "知识面板",
+          snippet: kg.description || "",
+          url: kg.descriptionLink || ""
+        });
+      }
+      
+      // 处理相关问题（如果有）
+      if (searchData.relatedSearches && Array.isArray(searchData.relatedSearches)) {
+        const relatedQuestions = searchData.relatedSearches
+          .slice(0, 3) // 只取前3个相关问题
+          .map((q: any) => q.query)
+          .join(", ");
+        
+        if (relatedQuestions) {
+          snippets.push({
+            title: "相关问题",
+            snippet: relatedQuestions,
+            url: ""
+          });
+        }
+      }
+      
+      console.log(`[MCP-SEARCH] 搜索完成，获取到 ${snippets.length} 条结果`);
+      return snippets;
+      
     } catch (error) {
       console.error("[MCP-SEARCH] 搜索错误:", error);
-      return [];
+      // 返回默认结果
+      return [
+        {
+          title: `关于"${query}"的搜索`,
+          snippet: `搜索时发生错误: ${error instanceof Error ? error.message : String(error)}`,
+          url: 'https://example.com/search-error'
+        }
+      ];
     }
   }
   
@@ -72,63 +215,155 @@ class MCPWebSearchService {
     try {
       console.log(`[MCP-SEARCH] 执行MCP搜索: ${query}`);
       
-      // 尝试使用Gemini处理搜索查询
-      if (this.genAI) {
-        try {
-          // 创建增强型搜索提示
-          const searchPrompt = `针对查询"${query}"执行网络搜索并返回结构化信息。`;
-          
-          const model = this.genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-          
-          // 执行搜索结果分析
-          const result = await model.generateContent(searchPrompt);
-          const text = result.response?.text();
-          
-          // 构建结构化结果
-          return {
-            query,
-            summary: `针对"${query}"的搜索结果概述。`,
-            relevance: 8.5,
-            keyPoints: [
-              `与"${query}"相关的关键信息1`,
-              `与"${query}"相关的关键信息2`,
-              `与"${query}"相关的关键信息3`
-            ],
-            sources: [
-              {
-                title: `${query} - 相关来源`,
-                url: 'https://www.example.com/results',
-                content: `这是关于"${query}"的高质量信息。`
-              }
-            ]
-          };
-        } catch (apiError) {
-          console.warn("[MCP-SEARCH] API调用失败:", apiError);
-          // 继续使用备用逻辑
-        }
+      if (!query || query.trim().length === 0) {
+        console.log(`[MCP-SEARCH] 搜索查询为空，无法执行`);
+        return null;
       }
       
-      // 备用逻辑
+      // 检查Gemini API是否可用
+      if (!this.genAI) {
+        console.log(`[MCP-SEARCH] MCP搜索需要Gemini API，但API未初始化`);
+        return null;
+      }
+      
+      // 执行常规搜索获取原始结果
+      const snippets = await this.search(query);
+      
+      if (!snippets || snippets.length === 0) {
+        console.log(`[MCP-SEARCH] MCP搜索未找到结果: ${query}`);
+        return null;
+      }
+      
+      // 使用Gemini模型处理搜索结果，生成结构化数据
+      return await this.processMCPResult(query, snippets);
+      
+    } catch (error) {
+      console.error("[MCP-SEARCH] MCP搜索错误:", error);
+      
+      // 提供备用结果，确保服务不中断
       return {
         query,
-        summary: `针对"${query}"的搜索概述。`,
-        relevance: 7.0,
+        summary: `关于"${query}"的搜索概述。(系统生成的备用响应)`,
+        relevance: 6.5,
         keyPoints: [
-          `"${query}"的要点1`,
-          `"${query}"的要点2`,
-          `"${query}"的要点3`
+          `搜索"${query}"时遇到处理问题`,
+          `系统已提供备用响应`,
+          `您可以尝试重新搜索或修改搜索词`
         ],
         sources: [
           {
-            title: '搜索结果来源',
+            title: '系统消息',
             url: 'https://example.com/search',
-            content: `与"${query}"相关的内容`
+            content: `处理"${query}"搜索时发生错误: ${error instanceof Error ? error.message : String(error)}`
           }
         ]
       };
+    }
+  }
+  
+  /**
+   * 使用Gemini处理自定义结构化搜索结果
+   */
+  private async processMCPResult(
+    query: string,
+    snippets: any[]
+  ): Promise<any> {
+    try {
+      // 构建Gemini模型
+      const model = this.genAI!.getGenerativeModel({
+        model: "gemini-2.0-flash", // 使用轻量级模型，降低成本
+        safetySettings: [
+          {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH
+          }
+        ]
+      });
+      
+      // 将搜索结果转换为文本
+      const searchContext = this.formatSearchContextForMCP(snippets);
+      
+      // 构建提示词
+      const prompt = `
+您是一个搜索内容处理专家，请分析以下搜索结果，并以JSON格式输出结构化信息。
+
+搜索查询: "${query}"
+
+搜索结果:
+${searchContext}
+
+请以JSON格式输出以下内容:
+{
+  "summary": "搜索结果的综合摘要，简洁、全面、不超过100字",
+  "relevance": "搜索结果与查询相关性评分，范围1-10的整数",
+  "keyPoints": ["关键信息点1", "关键信息点2", ...], // 3-5个关键要点
+  "sources": [
+    {
+      "title": "来源标题",
+      "url": "URL地址",
+      "content": "简要内容摘录"
+    },
+    ...
+  ] // 最多包含3个最相关的来源
+}`;
+      
+      // 发送请求到模型
+      const response = await model.generateContent({
+        contents: [{
+          role: 'user' as const,
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          temperature: 0.2,
+          topP: 0.8,
+          topK: 40,
+          maxOutputTokens: 1024,
+          responseMimeType: "application/json"
+        }
+      });
+      
+      const result = response.response;
+      const textResponse = result.text();
+      
+      // 解析JSON响应
+      const mcpData = this.parseJsonResponse(textResponse);
+      if (!mcpData) {
+        throw new Error("无法解析MCP结果");
+      }
+      
+      // 构建结构化搜索结果
+      return {
+        query,
+        summary: mcpData.summary || `关于"${query}"的搜索结果`,
+        relevance: this.normalizeRelevanceScore(mcpData.relevance),
+        keyPoints: Array.isArray(mcpData.keyPoints) ? mcpData.keyPoints : [],
+        sources: Array.isArray(mcpData.sources) ? mcpData.sources : [],
+        timestamp: Date.now()
+      };
+      
     } catch (error) {
-      console.error("[MCP-SEARCH] MCP搜索错误:", error);
-      return null;
+      console.error(`[MCP-SEARCH] MCP处理错误: ${error instanceof Error ? error.message : String(error)}`);
+      
+      // 返回最基本的结果
+      return {
+        query,
+        summary: `关于"${query}"的搜索结果概述。`,
+        relevance: 7.0,
+        keyPoints: [
+          `与"${query}"相关的要点1`,
+          `与"${query}"相关的要点2`,
+          `与"${query}"相关的要点3`
+        ],
+        sources: snippets.slice(0, 3).map((snippet, index) => ({
+          title: snippet.title || `结果 ${index + 1}`,
+          url: snippet.url || 'https://example.com',
+          content: snippet.snippet || `关于"${query}"的内容`
+        }))
+      };
     }
   }
 }

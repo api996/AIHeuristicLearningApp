@@ -141,11 +141,24 @@ export class McpSearchClient {
         
         log(`已优化的参数: ${JSON.stringify(finalArgs)}`);
         
-        // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
-        const result = await this.client.callTool({
-          name: "webSearch",
-          arguments: finalArgs
-        });
+        // 尝试不同的参数传递方式
+        // 策略1：使用标准的callTool结构
+        try {
+          // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
+          const result = await this.client.callTool({
+            name: "webSearch",
+            arguments: { query: finalArgs.query }
+          });
+          return { 
+            success: true, 
+            content: Array.isArray(result?.content) 
+              ? result.content 
+              : (result?.content ? [result.content] : [])
+          };
+        } catch (err) {
+          log(`工具调用失败(策略1): ${err}`, 'warn');
+          throw err;
+        }
 
         // 确保返回内容是数组
         const contentArray = Array.isArray(result?.content) 
