@@ -142,13 +142,21 @@ export class McpSearchClient {
         log(`已优化的参数: ${JSON.stringify(finalArgs)}`);
         
         // 尝试不同的参数传递方式
-        // 策略1：使用标准的callTool结构
+        // 直接使用query参数，避免嵌套结构
         try {
+          log(`尝试直接使用query参数调用工具: query=${query}`);
+          
+          // 直接传递query参数，避免嵌套结构导致的问题
           // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
           const result = await this.client.callTool({
             name: "webSearch",
-            arguments: finalArgs // 传递所有参数
+            arguments: {
+              query: query, // 仅传递查询字符串
+              useMCP: useMCP,
+              numResults: numResults
+            }
           });
+          
           return { 
             success: true, 
             content: Array.isArray(result?.content) 
@@ -156,20 +164,46 @@ export class McpSearchClient {
               : (result?.content ? [result.content] : [])
           };
         } catch (err) {
-          log(`工具调用失败(策略1): ${err}`, 'warn');
-          // 尝试策略2：使用备用方法（如果有）
+          log(`工具调用失败(直接参数): ${err}`, 'warn');
+          
+          // 尝试策略2：使用单个字符串参数
           try {
+            log(`尝试使用单个字符串参数: ${query}`);
             // @ts-ignore 忽略类型检查
-            const altResult = await this.client.runTool("webSearch", finalArgs);
+            const simpleResult = await this.client.callTool({
+              name: "webSearch",
+              arguments: query // 仅传递查询字符串
+            });
+            
             return {
               success: true,
-              content: Array.isArray(altResult?.content)
-                ? altResult.content
-                : (altResult?.content ? [altResult.content] : [])
+              content: Array.isArray(simpleResult?.content)
+                ? simpleResult.content
+                : (simpleResult?.content ? [simpleResult.content] : [])
             };
           } catch (err2) {
-            log(`工具调用失败(策略2): ${err2}`, 'warn');
-            throw err; // 将首次错误抛出
+            log(`工具调用失败(单字符串): ${err2}`, 'warn');
+            
+            // 最后一种尝试：使用runTool方法
+            try {
+              log(`尝试使用runTool方法: ${query}`);
+              // @ts-ignore 忽略类型检查
+              const altResult = await this.client.runTool("webSearch", {
+                query: query,
+                useMCP: useMCP,
+                numResults: numResults
+              });
+              
+              return {
+                success: true,
+                content: Array.isArray(altResult?.content)
+                  ? altResult.content
+                  : (altResult?.content ? [altResult.content] : [])
+              };
+            } catch (err3) {
+              log(`工具调用全部失败，返回错误信息`, 'error');
+              throw err; // 将首次错误抛出
+            }
           }
         }
       } catch (callError) {
