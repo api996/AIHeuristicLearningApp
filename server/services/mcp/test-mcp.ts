@@ -72,8 +72,11 @@ async function testMCPSearch() {
   }
 }
 
-// 如果直接运行此文件则执行测试
-if (require.main === module) {
+// 在 ES 模块环境中直接运行时调用
+// Node.js ESM 模块不支持 require.main，因此使用 import.meta.url 检查
+const isMainModule = import.meta.url.endsWith('test-mcp.js') || 
+                     import.meta.url.endsWith('test-mcp.ts');
+if (isMainModule) {
   colorLog('开始 MCP 测试...');
   testMCPSearch()
     .then(success => {

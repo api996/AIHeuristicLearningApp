@@ -1815,6 +1815,7 @@ asyncio.run(test_memory())
   app.use('/api/test-data', testDataRoutes); // 只用于测试环境，生成测试数据
   app.use('/api/admin/prompts', adminPromptsRoutes);
   app.use('/api/admin/content-moderation', contentModerationRoutes);
+  app.use('/api/mcp', mcpRoutes); // MCP 搜索服务路由
   app.use('/api', conversationTestRoutes); // 对话分析和提示词测试路由
 
   // 调试端点：检查当前会话状态
