@@ -108,9 +108,14 @@ asyncio.run(get_embedding())
    * 为记忆生成并保存向量嵌入
    * @param memoryId 记忆ID
    * @param content 记忆内容
+   * @param forceEmbed 是否强制生成嵌入，跳过内容价值评估
    * @returns 成功标志
    */
-  async generateAndSaveEmbedding(memoryId: number | string, content: string): Promise<boolean> {
+  async generateAndSaveEmbedding(
+    memoryId: number | string, 
+    content: string,
+    forceEmbed: boolean = false
+  ): Promise<boolean> {
     try {
       // 首先检查是否已有嵌入
       // 确保memoryId作为字符串传递给storage.getEmbeddingByMemoryId
@@ -120,10 +125,20 @@ asyncio.run(get_embedding())
         log(`[vector_embeddings] 记忆 ${memoryIdStr} 已有嵌入，跳过生成`, 'info');
         return true;
       }
+      
+      // 如果不是强制生成，进行内容价值评估
+      if (!forceEmbed) {
+        const shouldEmbed = await webSearchService.shouldVectorize(content);
+        if (!shouldEmbed) {
+          log(`[vector_embeddings] 记忆 ${memoryIdStr} 内容未通过价值评估，不生成嵌入`, 'info');
+          return false;
+        }
+      }
 
       // 生成嵌入
       const embedding = await this.generateEmbedding(content);
       if (!embedding) {
+        log(`[vector_embeddings] 记忆 ${memoryIdStr} 嵌入生成失败`, 'warn');
         return false;
       }
 
@@ -141,10 +156,16 @@ asyncio.run(get_embedding())
   /**
    * 批量为记忆生成向量嵌入
    * @param memories 记忆对象数组
+   * @param forceEmbed 是否强制生成嵌入，跳过内容价值评估
    * @returns 成功生成嵌入的记忆数量
    */
-  async batchGenerateEmbeddings(memories: Memory[]): Promise<number> {
+  async batchGenerateEmbeddings(
+    memories: Memory[],
+    forceEmbed: boolean = false
+  ): Promise<number> {
     let successCount = 0;
+    let skippedCount = 0;
+    let failedCount = 0;
 
     for (const memory of memories) {
       // 跳过空内容
@@ -153,15 +174,21 @@ asyncio.run(get_embedding())
       }
 
       try {
-        const success = await this.generateAndSaveEmbedding(memory.id, memory.content);
+        const success = await this.generateAndSaveEmbedding(memory.id, memory.content, forceEmbed);
         if (success) {
           successCount++;
+        } else {
+          skippedCount++;
         }
       } catch (error) {
         log(`[vector_embeddings] 处理记忆 ${memory.id} 时出错: ${error}`, 'error');
+        failedCount++;
       }
     }
 
+    // 记录批量处理结果
+    log(`[vector_embeddings] 批量处理完成: ${successCount}个成功, ${skippedCount}个跳过, ${failedCount}个失败`, 'info');
+    
     return successCount;
   }
 
