@@ -396,7 +396,7 @@ try {
   // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
   server.tool && server.tool("webSearch", async (params: any) => {
     try {
-      console.log(`[MCP-SERVER] 收到搜索请求，参数: ${JSON.stringify(params)}`);
+      console.log(`[MCP-SERVER] 收到搜索请求，参数:`, params);
       
       // 新的参数处理逻辑 - MCP SDK可能通过多种方式传递参数
       // 检查所有可能的参数位置

@@ -70,7 +70,45 @@ router.post('/search', async (req, res) => {
     
     // 执行搜索
     console.log(`[MCP API] 执行搜索: "${query}", 使用MCP=${useMCP}, 结果数量=${numResults}`);
-    const result = await searchWithMCP(query, useMCP, numResults);
+    
+    // 导入 WebSearchService
+    const { WebSearchService } = await import('../services/web-search');
+    const webSearchService = new WebSearchService();
+    
+    let result;
+    if (useMCP) {
+      try {
+        // 尝试使用 MCP
+        result = await searchWithMCP(query, useMCP, numResults);
+      } catch (error) {
+        console.warn(`[MCP API] MCP模式失败，切换到自定义MCP模式: ${error}`);
+        
+        // 如果MCP失败，使用自定义MCP
+        const mcpResult = await webSearchService.searchWithCustomMCP(query);
+        result = { 
+          success: true, 
+          content: [{ 
+            type: "text",
+            text: `## ${query} - 搜索摘要\n\n${mcpResult.summary}\n\n相关性: ${mcpResult.relevance}/10\n\n` +
+                  `关键信息点:\n${mcpResult.keyPoints.map((p: string) => `• ${p}`).join("\n")}\n\n` +
+                  `来源:\n${mcpResult.sources.map((s: any, i: number) => 
+                    `[${i+1}] ${s.title} - ${s.url}\n${s.content}`).join("\n\n")}`
+          }]
+        };
+      }
+    } else {
+      // 使用基础搜索
+      const snippets = await webSearchService.search(query);
+      result = {
+        success: true,
+        content: [{
+          type: "text",
+          text: `## ${query} - 基础搜索结果\n\n` + 
+                snippets.slice(0, numResults).map((s: any, i: number) => 
+                `[${i+1}] ${s.title}\n${s.snippet}\n${s.url}`).join("\n\n")
+        }]
+      };
+    }
     
     // 返回结果
     return res.json(result);
