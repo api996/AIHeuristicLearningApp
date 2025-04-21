@@ -111,11 +111,19 @@ export class McpSearchClient {
       
       // 调用搜索工具
       try {
+        // 添加调试日志
+        log(`正在调用 MCP 工具，参数: ${JSON.stringify({ query, useMCP, numResults })}`);
+        
+        // 创建正确的参数对象
+        const toolArgs = { query, useMCP, numResults };
+        log(`工具参数结构: ${JSON.stringify(toolArgs)}`);
+        log(`参数类型: query=${typeof query}, useMCP=${typeof useMCP}, numResults=${typeof numResults}`);
+        
         // 尝试调用工具方法
         // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
         const result = await this.client.callTool({
           name: "webSearch",
-          arguments: { query, useMCP, numResults }
+          arguments: toolArgs
         });
 
         // 确保返回内容是数组

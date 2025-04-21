@@ -70,7 +70,18 @@ try {
   // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
   server.tool && server.tool("webSearch", async (params: any) => {
     try {
-      const { query, useMCP, numResults } = z.object(searchParamsSchema).parse(params);
+      console.log(`[MCP-SERVER] 收到参数: ${JSON.stringify(params)}`);
+      console.log(`[MCP-SERVER] 参数类型: ${typeof params}`);
+      if (typeof params === 'object') {
+        console.log(`[MCP-SERVER] 参数属性: ${Object.keys(params).join(', ')}`);
+      }
+      
+      // 直接从传入参数获取值，不依赖于 Zod 解析
+      let query = params?.query || "未提供查询";
+      let useMCP = params?.useMCP !== false; // 默认为 true
+      let numResults = params?.numResults || 5;
+      
+      console.log(`[MCP-SERVER] 提取的参数: query=${query}, useMCP=${useMCP}, numResults=${numResults}`);
       
       // 根据 useMCP 标志决定使用哪种搜索方式
       if (useMCP) {
