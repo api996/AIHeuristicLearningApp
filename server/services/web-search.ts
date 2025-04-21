@@ -1,7 +1,10 @@
 /**
  * 增强版网络搜索服务
- * 基于MCP协议实现的搜索功能
+ * 基于自定义结构化搜索结果处理（Custom MCP）实现的搜索功能
  * 集成Gemini优化内容处理
+ * 
+ * 注意: 此实现使用的是自定义的结构化搜索处理方法，而非 Anthropic 标准的 Model Context Protocol (MCP)
+ * 为避免混淆，我们将此实现称为 "CustomMCP"，标准的 Anthropic MCP 实现位于 server/services/mcp/ 目录
  */
 
 import fetch from "node-fetch";
@@ -19,10 +22,10 @@ export interface SearchSnippet {
 }
 
 /**
- * MCP搜索结果接口
+ * 自定义结构化搜索结果接口 (CustomMCP)
  * 结构化的搜索结果，优化模型理解
  */
-export interface MCPSearchResult {
+export interface CustomMCPSearchResult {
   query: string;           // 原始查询
   summary: string;         // 结果概述
   relevance: number;       // 相关性评分 (1-10)
@@ -36,11 +39,11 @@ export interface MCPSearchResult {
 }
 
 /**
- * MCP缓存条目
+ * 自定义结构化搜索缓存条目 (CustomMCP)
  */
-interface MCPCacheEntry {
+interface CustomMCPCacheEntry {
   query: string;
-  result: MCPSearchResult;
+  result: CustomMCPSearchResult;
   expiresAt: number;
 }
 
@@ -64,7 +67,7 @@ export class WebSearchService {
   private cacheExpiryMinutes: number;
   private mcpEnabled: boolean;
   private genAI: GoogleGenerativeAI | null = null;
-  private mcpCache: Map<string, MCPCacheEntry> = new Map();
+  private mcpCache: Map<string, CustomMCPCacheEntry> = new Map();
   private mcpCacheSize: number = 200;
   
   // 内容价值评估阈值
@@ -249,12 +252,12 @@ export class WebSearchService {
   }
   
   /**
-   * 使用MCP协议执行增强搜索
+   * 使用自定义的结构化搜索处理 (CustomMCP) 执行增强搜索
    * 返回结构化搜索结果，无需生成嵌入
    * @param query 搜索查询
    * @returns 结构化搜索结果
    */
-  async searchWithMCP(query: string): Promise<MCPSearchResult | null> {
+  async searchWithMCP(query: string): Promise<CustomMCPSearchResult | null> {
     try {
       if (!query || query.trim().length === 0) {
         log(`MCP搜索查询为空，无法执行`);
@@ -309,15 +312,15 @@ export class WebSearchService {
   }
   
   /**
-   * 使用Gemini处理MCP搜索结果
+   * 使用Gemini处理自定义结构化搜索结果 (CustomMCP)
    * @param query 搜索查询
    * @param snippets 原始搜索结果
-   * @returns 结构化MCP结果
+   * @returns 结构化CustomMCP结果
    */
   private async processMCPResult(
     query: string,
     snippets: SearchSnippet[]
-  ): Promise<MCPSearchResult | null> {
+  ): Promise<CustomMCPSearchResult | null> {
     try {
       // 构建Gemini模型
       const model = this.genAI!.getGenerativeModel({
@@ -385,8 +388,8 @@ ${searchContext}
         throw new Error("无法解析MCP结果");
       }
       
-      // 构建MCP结果
-      const mcpResult: MCPSearchResult = {
+      // 构建自定义结构化搜索结果 (CustomMCP)
+      const mcpResult: CustomMCPSearchResult = {
         query,
         summary: mcpData.summary || `关于"${query}"的搜索结果`,
         relevance: this.normalizeRelevanceScore(mcpData.relevance),
@@ -585,11 +588,11 @@ ${truncatedContent}
   }
   
   /**
-   * 从缓存获取MCP结果
+   * 从缓存获取自定义结构化搜索结果 (CustomMCP)
    * @param cacheKey 缓存键
    * @returns 缓存的结果或null
    */
-  private getMCPFromCache(cacheKey: string): MCPSearchResult | null {
+  private getMCPFromCache(cacheKey: string): CustomMCPSearchResult | null {
     const entry = this.mcpCache.get(cacheKey);
     
     if (entry && entry.expiresAt > Date.now()) {
@@ -605,11 +608,11 @@ ${truncatedContent}
   }
   
   /**
-   * 保存MCP结果到缓存
+   * 保存自定义结构化搜索结果到缓存 (CustomMCP)
    * @param cacheKey 缓存键
-   * @param result MCP结果
+   * @param result 结构化搜索结果
    */
-  private saveMCPToCache(cacheKey: string, result: MCPSearchResult): void {
+  private saveMCPToCache(cacheKey: string, result: CustomMCPSearchResult): void {
     // 如果缓存已满，删除最旧的条目
     if (this.mcpCache.size >= this.mcpCacheSize) {
       let oldestKey = '';
