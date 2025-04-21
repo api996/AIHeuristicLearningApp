@@ -172,7 +172,7 @@ export class McpSearchClient {
             // @ts-ignore 忽略类型检查
             const simpleResult = await this.client.callTool({
               name: "webSearch",
-              arguments: query // 仅传递查询字符串
+              arguments: { query: query } // 确保传递对象而非字符串
             });
             
             return {
