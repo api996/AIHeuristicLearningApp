@@ -28,9 +28,9 @@ export class ConversationAnalyticsService {
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY || "";
     
-    // 注意：对于主对话分析保留使用Gemini-2.5-Pro-Exp-03-25
-    // 对于后台处理任务和工具性分析，使用轻量级的conversationAnalyticsLightService
-    this.endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-exp-03-25:generateContent";
+    // 所有分析服务统一使用gemini-2.0-flash模型，具有更高的API调用限制
+    // 仅保留主对话使用高级的Gemini-2.5-Pro-Exp-03-25模型
+    this.endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
     log("对话阶段分析服务初始化完成");
   }
 

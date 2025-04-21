@@ -59,15 +59,22 @@ if not GEMINI_API_KEY:
 genai.configure(api_key=GEMINI_API_KEY)
 
 class EmbeddingService:
-    """提供文本嵌入服务"""
+    """提供文本嵌入服务 - 优化版本，减少API调用"""
 
     def __init__(self):
         # 使用最新的Gemini嵌入模型
         self.model_name = "models/gemini-embedding-exp-03-07"  # 添加models/前缀以符合API要求
+        # 添加向量缓存，减少重复嵌入请求
+        self._vector_cache = {}
+        self._cache_size = 0
+        self._max_cache_size = 1000  # 最大缓存1000个向量
+        # 文本长度限制，过长的文本将被截断以降低API调用成本
+        self._max_text_length = 1000  # 限制文本长度为1000字符
+        print(f"嵌入服务初始化: 使用模型={self.model_name}, 最大缓存={self._max_cache_size}, 文本长度限制={self._max_text_length}")
 
     async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
-        获取文本的嵌入向量
+        获取文本的嵌入向量 - 优化版本，包含缓存、长度限制和批处理
 
         Args:
             texts: 需要嵌入的文本列表
@@ -80,25 +87,52 @@ class EmbeddingService:
                 print("警告: 传入的文本列表为空")
                 return []
 
+            # 清理和预处理文本
+            processed_texts = [self._preprocess_text(text) for text in texts]
+            
+            # 初始化结果列表
             embeddings = []
-            # 分批处理以避免请求过大
-            batch_size = 10
-            for i in range(0, len(texts), batch_size):
-                batch_texts = texts[i:i+batch_size]
-                print(f"使用嵌入模型: {self.model_name}，请求嵌入向量，文本数量: {len(batch_texts)}")
-
-                for text in batch_texts:
-                    print(f"处理文本: {text[:30]}...")
-                    try:
-                        # 使用更新后的API方法获取嵌入向量
-                        print(f"调用genai.embed_content(model={self.model_name}, content={text[:20]}...)")
-                        
-                        # 使用新API进行嵌入
-                        result = genai.embed_content(
-                            model=self.model_name,
-                            content=text,
-                            task_type="retrieval_document"
-                        )
+            texts_to_embed = []
+            indices_to_embed = []
+            
+            # 检查缓存，收集未缓存的文本
+            for i, text in enumerate(processed_texts):
+                # 尝试从缓存获取
+                cache_key = self._get_cache_key(text)
+                if cache_key in self._vector_cache:
+                    print(f"[缓存命中] 文本: {text[:20]}...")
+                    embeddings.append(self._vector_cache[cache_key])
+                else:
+                    # 缓存未命中，需要嵌入
+                    texts_to_embed.append(text)
+                    indices_to_embed.append(i)
+                    # 占位，稍后填充
+                    embeddings.append(None)
+            
+            # 如果有未缓存的文本，进行嵌入
+            if texts_to_embed:
+                print(f"需要嵌入的文本数量: {len(texts_to_embed)}")
+                
+                # 分批处理以避免请求过大
+                batch_size = 5  # 减小批次大小，降低单次请求负担
+                for i in range(0, len(texts_to_embed), batch_size):
+                    batch_texts = texts_to_embed[i:i+batch_size]
+                    batch_indices = indices_to_embed[i:i+batch_size]
+                    print(f"嵌入批次 {i//batch_size + 1}/{(len(texts_to_embed) + batch_size - 1)//batch_size}，文本数量: {len(batch_texts)}")
+                    
+                    # 为每个文本生成向量
+                    for j, text in enumerate(batch_texts):
+                        idx = batch_indices[j]
+                        try:
+                            # 调用API获取嵌入向量
+                            print(f"处理文本 {j+1}/{len(batch_texts)}: {text[:20]}...")
+                            
+                            # 使用API进行嵌入
+                            result = genai.embed_content(
+                                model=self.model_name,
+                                content=text,
+                                task_type="retrieval_document"
+                            )
                         
                         # 解析嵌入结果
                         # 新API返回的是字典结构，嵌入向量在"embedding"键下
