@@ -95,7 +95,7 @@ function colorLog(message, type = 'info') {
 // 测试对话分析API
 async function testConversationAnalysis() {
   colorLog('开始测试对话分析服务...', 'info');
-  colorLog('使用修正后的模型: gemini-1.5-pro-latest', 'info');
+  colorLog('使用修正后的模型: gemini-2.0-flash', 'info');
   
   for (const testCase of testCases) {
     try {

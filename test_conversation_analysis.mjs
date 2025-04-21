@@ -77,7 +77,7 @@ async function callGeminiForAnalysis(conversationText, isLightVersion = true) {
   
   // 根据是否为轻量版选择不同的模型
   const model = isLightVersion 
-    ? "gemini-1.5-flash" 
+    ? "gemini-2.0-flash" 
     : "gemini-2.5-pro-exp-03-25";
   
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
