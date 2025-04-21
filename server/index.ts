@@ -7,6 +7,8 @@ import path from "path";
 import fs from "fs";
 import { initializeObjectStorage } from "./services/object-storage.service";
 import { initializeStorage } from "./services/hybrid-storage.service";
+import { contentValueAnalyzer } from "./services/content-value-analyzer";
+import { optimizedEmbeddingsService } from "./services/learning/optimized-embeddings";
 import pgSession from "connect-pg-simple";
 import { pool } from "./db";
 
@@ -153,6 +155,20 @@ app.use((req, res, next) => {
     // 初始化混合存储服务
     initializeStorage(useObjectStorage);
     log(`已初始化混合存储服务，模式: ${useObjectStorage ? '对象存储' : '文件系统'}`);
+    
+    // 初始化内容价值评估和优化嵌入服务
+    // 设置内容评估阈值 (0.0-1.0)，值越高过滤越严格
+    const CONTENT_VALUE_THRESHOLD = 
+      process.env.CONTENT_VALUE_THRESHOLD ? 
+      parseFloat(process.env.CONTENT_VALUE_THRESHOLD) : 0.4;
+    
+    if (CONTENT_VALUE_THRESHOLD >= 0 && CONTENT_VALUE_THRESHOLD <= 1) {
+      contentValueAnalyzer.setValueThreshold(CONTENT_VALUE_THRESHOLD);
+      optimizedEmbeddingsService.setValueThreshold(CONTENT_VALUE_THRESHOLD);
+      log(`内容价值评估服务初始化完成，价值阈值: ${CONTENT_VALUE_THRESHOLD}`);
+    } else {
+      log(`内容价值阈值设置无效: ${CONTENT_VALUE_THRESHOLD}，使用默认值0.4`);
+    }
     
     // 是否执行自动迁移
     const AUTO_MIGRATE = process.env.AUTO_MIGRATE_FILES === 'true' && useObjectStorage;
