@@ -30,7 +30,8 @@ const searchParamsSchema = {
 // 简化：直接注册搜索函数作为工具
 // 注意：如果 SDK API 与此不匹配，请使用更底层的 RPC 方式实现
 try {
-  server.registerTool && server.registerTool("webSearch", async (params: any) => {
+  // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
+  server.tool && server.tool("webSearch", async (params: any) => {
     try {
       const { query, useMCP, numResults } = z.object(searchParamsSchema).parse(params);
       

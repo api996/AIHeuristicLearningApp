@@ -1,82 +1,95 @@
 /**
  * MCP 测试脚本
- * 用于测试 MCP 搜索功能
+ * 用于测试 MCP 服务的基本功能
  */
 
-import 'dotenv/config';
-import { mcpService } from './index';
+import { initializeMCP, searchWithMCP, closeMCP } from './index';
 
 /**
- * 打印带颜色的日志
+ * 颜色日志函数
  */
-function colorLog(message: string, type: 'info' | 'success' | 'error' | 'warn' = 'info'): void {
+function colorLog(message: string, type: 'info' | 'success' | 'error' = 'info') {
   const colors = {
     info: '\x1b[36m%s\x1b[0m',    // 青色
     success: '\x1b[32m%s\x1b[0m',  // 绿色
-    error: '\x1b[31m%s\x1b[0m',    // 红色
-    warn: '\x1b[33m%s\x1b[0m'      // 黄色
+    error: '\x1b[31m%s\x1b[0m'     // 红色
   };
   
-  console.log(colors[type], message);
+  console.log(colors[type], `[MCP测试] ${message}`);
 }
 
 /**
- * 测试 MCP 搜索
+ * 测试 MCP 搜索功能
  */
-async function testMcpSearch(): Promise<void> {
-  colorLog('=== 测试 MCP 搜索功能 ===', 'info');
-  
+async function testMCPSearch() {
   try {
-    // 测试查询
-    const testQueries = [
-      '模型上下文协议的特点',
-      '量子计算的应用领域'
-    ];
+    // 初始化 MCP 服务
+    colorLog('正在初始化 MCP 服务...');
+    const initResult = await initializeMCP();
     
-    for (const query of testQueries) {
-      colorLog(`\n执行查询: "${query}"`, 'info');
-      
-      // 使用 MCP 搜索
-      colorLog('\n--- MCP 搜索结果 ---', 'info');
-      console.time('MCP 搜索耗时');
-      const mcpResults = await mcpService.search(query, true, 3);
-      console.timeEnd('MCP 搜索耗时');
-      
-      if (mcpResults.success) {
-        mcpResults.content.forEach((item: any, index: number) => {
-          colorLog(`\n内容块 ${index + 1}:`, 'success');
-          console.log(item.text);
-        });
-      } else {
-        colorLog(`MCP 搜索失败: ${mcpResults.error}`, 'error');
-      }
-      
-      // 使用普通搜索
-      colorLog('\n--- 普通搜索结果 ---', 'info');
-      console.time('普通搜索耗时');
-      const regularResults = await mcpService.search(query, false, 3);
-      console.timeEnd('普通搜索耗时');
-      
-      if (regularResults.success) {
-        regularResults.content.forEach((item: any, index: number) => {
-          colorLog(`\n结果 ${index + 1}:`, 'success');
-          console.log(item.text);
-        });
-      } else {
-        colorLog(`普通搜索失败: ${regularResults.error}`, 'error');
-      }
-      
-      console.log('\n' + '-'.repeat(50) + '\n');
+    if (!initResult) {
+      colorLog('MCP 服务初始化失败', 'error');
+      return false;
     }
-  } catch (error) {
-    colorLog(`测试出错: ${error instanceof Error ? error.message : String(error)}`, 'error');
-  } finally {
+    
+    colorLog('MCP 服务初始化成功', 'success');
+    
+    // 执行测试搜索查询
+    const query = 'Anthropic MCP 协议';
+    colorLog(`执行搜索查询: "${query}"`);
+    
+    // 测试使用 MCP 结构化结果
+    const mcpResults = await searchWithMCP(query, true, 3);
+    colorLog(`MCP 结构化搜索结果: ${mcpResults.success ? '成功' : '失败'}`, 
+             mcpResults.success ? 'success' : 'error');
+    
+    if (mcpResults.success && mcpResults.content.length > 0) {
+      colorLog(`结果内容示例: ${JSON.stringify(mcpResults.content[0]).slice(0, 150)}...`);
+    } else if (mcpResults.error) {
+      colorLog(`错误: ${mcpResults.error}`, 'error');
+    }
+    
+    // 测试使用基础搜索结果
+    const basicResults = await searchWithMCP(query, false, 3);
+    colorLog(`基础搜索结果: ${basicResults.success ? '成功' : '失败'}`, 
+             basicResults.success ? 'success' : 'error');
+    
+    if (basicResults.success && basicResults.content.length > 0) {
+      colorLog(`结果内容示例: ${JSON.stringify(basicResults.content[0]).slice(0, 150)}...`);
+    } else if (basicResults.error) {
+      colorLog(`错误: ${basicResults.error}`, 'error');
+    }
+    
     // 关闭 MCP 服务
-    await mcpService.close();
+    colorLog('正在关闭 MCP 服务...');
+    await closeMCP();
+    colorLog('MCP 服务已关闭', 'success');
+    
+    return mcpResults.success || basicResults.success;
+  } catch (error) {
+    colorLog(`测试过程中出现错误: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    return false;
   }
 }
 
-// 运行测试
-(async () => {
-  await testMcpSearch();
-})();
+// 如果直接运行此文件则执行测试
+if (require.main === module) {
+  colorLog('开始 MCP 测试...');
+  testMCPSearch()
+    .then(success => {
+      if (success) {
+        colorLog('MCP 测试完成，结果: 成功', 'success');
+        process.exit(0);
+      } else {
+        colorLog('MCP 测试完成，结果: 失败', 'error');
+        process.exit(1);
+      }
+    })
+    .catch(error => {
+      colorLog(`MCP 测试出错: ${error}`, 'error');
+      process.exit(1);
+    });
+}
+
+// 导出测试函数
+export { testMCPSearch };
