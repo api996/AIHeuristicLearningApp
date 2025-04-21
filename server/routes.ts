@@ -21,7 +21,6 @@ import testDataRoutes from './routes/test-data';
 import conversationTestRoutes from './routes/conversation-test';
 import mcpRoutes from './routes/mcp-routes';
 import { initializeBucket } from './services/file-bucket.service';
-import { mcpService } from './services/mcp';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // 简化的开发者认证API - 暂时注释
