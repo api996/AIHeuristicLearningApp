@@ -47,10 +47,20 @@ export class McpSearchClient {
       log("初始化 MCP 搜索客户端...");
       log(`MCP 服务器脚本路径: ${scriptPath}`);
 
-      // 创建 stdio 传输层 - 使用 tsx 运行 TypeScript 文件
+      // 创建 stdio 传输层 - 使用 tsx 运行 TypeScript 文件，并传递关键环境变量
       this.transport = new StdioClientTransport({
         command: "tsx",
-        args: [scriptPath]
+        args: [scriptPath],
+        env: {
+          ...process.env,
+          GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
+          DATABASE_URL: process.env.DATABASE_URL || "",
+          PGUSER: process.env.PGUSER || "",
+          PGDATABASE: process.env.PGDATABASE || "",
+          PGPORT: process.env.PGPORT || "",
+          PGHOST: process.env.PGHOST || "",
+          PGPASSWORD: process.env.PGPASSWORD || ""
+        }
       });
 
       // 创建 MCP 客户端
@@ -119,11 +129,22 @@ export class McpSearchClient {
         log(`工具参数结构: ${JSON.stringify(toolArgs)}`);
         log(`参数类型: query=${typeof query}, useMCP=${typeof useMCP}, numResults=${typeof numResults}`);
         
-        // 尝试调用工具方法
+        // 尝试调用工具方法，但先进行额外的日志记录
+        log(`正在序列化工具参数: ${JSON.stringify(toolArgs)}`);
+        
+        // 确保参数是正确的格式
+        const finalArgs = {
+          query: String(query),
+          useMCP: Boolean(useMCP),
+          numResults: Number(numResults)
+        };
+        
+        log(`已优化的参数: ${JSON.stringify(finalArgs)}`);
+        
         // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
         const result = await this.client.callTool({
           name: "webSearch",
-          arguments: toolArgs
+          arguments: finalArgs
         });
 
         // 确保返回内容是数组
