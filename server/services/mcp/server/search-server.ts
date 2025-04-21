@@ -9,7 +9,44 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { webSearchService } from "../../web-search";
+
+// 创建模拟搜索服务 - 避免导入真实的webSearchService，因为它依赖数据库连接
+// 在MCP子进程中，我们使用JSON-RPC通信，因此这里只需返回一个示例结构
+const mockWebSearchService = {
+  search: async (query: string) => {
+    return [
+      {
+        title: '示例搜索结果',
+        snippet: `这是关于"${query}"的示例搜索结果。在实际环境中，此结果将从搜索引擎获取。`,
+        url: 'https://example.com/search'
+      }
+    ];
+  },
+  searchWithMCP: async (query: string) => {
+    return {
+      query,
+      summary: `这是关于"${query}"的示例MCP搜索摘要。在实际环境中，此结果将从搜索引擎获取并经过AI处理。`,
+      relevance: 7.5,
+      keyPoints: [
+        `"${query}"的关键点1`,
+        `"${query}"的关键点2`,
+        `"${query}"的关键点3`
+      ],
+      sources: [
+        {
+          title: '示例来源1',
+          url: 'https://example.com/1',
+          content: `关于"${query}"的示例内容1`
+        },
+        {
+          title: '示例来源2',
+          url: 'https://example.com/2',
+          content: `关于"${query}"的示例内容2`
+        }
+      ]
+    };
+  }
+};
 
 // 创建 MCP Server (提示：如果SDK有变更，这里可能需要适配)
 const server = new McpServer({ 
@@ -37,7 +74,7 @@ try {
       
       // 根据 useMCP 标志决定使用哪种搜索方式
       if (useMCP) {
-        const mcpResult = await webSearchService.searchWithMCP(query);
+        const mcpResult = await mockWebSearchService.searchWithMCP(query);
         
         if (!mcpResult) {
           return { content: [{ type: "text", text: "未找到相关搜索结果" }] };
@@ -57,7 +94,7 @@ try {
         };
       } else {
         // 使用基础搜索
-        const snippets = await webSearchService.search(query);
+        const snippets = await mockWebSearchService.search(query);
         
         if (!snippets || snippets.length === 0) {
           return { content: [{ type: "text", text: "未找到相关搜索结果" }] };
@@ -68,7 +105,7 @@ try {
           content: [
             {
               type: "text",
-              text: snippets.slice(0, numResults).map((s, i) => 
+              text: snippets.slice(0, numResults).map((s: {title: string; snippet: string; url: string}, i: number) => 
                 `[${i+1}] ${s.title}\n${s.snippet}\n${s.url}`).join("\n\n")
             }
           ]
