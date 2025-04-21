@@ -1,12 +1,14 @@
 /**
  * 向量嵌入服务
  * 负责生成和管理文本的向量表示
+ * 集成内容价值评估，避免无价值内容向量化
  */
 
 import { log } from "../../vite";
 import { genAiService } from "../genai/genai_service";
 import { storage } from "../../storage";
 import { Memory } from "@shared/schema";
+import { webSearchService } from "../../services/web-search";
 
 export class VectorEmbeddingsService {
   /**
