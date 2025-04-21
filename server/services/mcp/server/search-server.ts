@@ -475,7 +475,12 @@ try {
       
       console.log(`[MCP-SERVER] 最终处理的参数: query=${query}, useMCP=${useMCP}, numResults=${numResults}`);
       
-      console.log(`[MCP-SERVER] 提取的参数: query=${query}, useMCP=${useMCP}, numResults=${numResults}`);
+      // 添加更详细的日志
+      if (useMCP) {
+        console.log(`[MCP-SERVER] 使用MCP增强搜索模式执行查询: ${query}`);
+      } else {
+        console.log(`[MCP-SERVER] 使用基础搜索模式执行查询: ${query}`);
+      }
       
       // 根据 useMCP 标志决定使用哪种搜索方式
       if (useMCP) {
@@ -510,8 +515,9 @@ try {
           content: [
             {
               type: "text",
-              text: snippets.slice(0, numResults).map((s: {title: string; snippet: string; url: string}, i: number) => 
-                `[${i+1}] ${s.title}\n${s.snippet}\n${s.url}`).join("\n\n")
+              text: `## ${query} - 基础搜索结果\n\n` + 
+                    snippets.slice(0, numResults).map((s: {title: string; snippet: string; url: string}, i: number) => 
+                    `[${i+1}] ${s.title}\n${s.snippet}\n${s.url}`).join("\n\n")
             }
           ]
         };
