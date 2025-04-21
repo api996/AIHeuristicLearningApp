@@ -11,6 +11,12 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { spawn } from "child_process";
 import { log } from "../../../vite";
 import path from "path";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// 获取当前文件的目录路径（兼容 ESM 模块环境）
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDir = dirname(currentFilePath);
 
 /**
  * MCP 搜索客户端
@@ -31,15 +37,19 @@ export class McpSearchClient {
     }
 
     try {
-      // 获取搜索服务器脚本的绝对路径
-      const scriptPath = path.resolve(__dirname, "../server/search-server.js");
+      // 计算相对于当前文件的路径 - 使用 .ts 扩展名，因为我们在开发环境中使用 tsx
+      const relativePath = "../server/search-server.ts";
+      const scriptPath = path.join(currentDir, relativePath);
+      
+      log(`当前文件路径: ${currentFilePath}`);
+      log(`当前目录: ${currentDir}`);
       
       log("初始化 MCP 搜索客户端...");
       log(`MCP 服务器脚本路径: ${scriptPath}`);
 
-      // 创建 stdio 传输层
+      // 创建 stdio 传输层 - 使用 tsx 运行 TypeScript 文件
       this.transport = new StdioClientTransport({
-        command: "node",
+        command: "tsx",
         args: [scriptPath]
       });
 
