@@ -110,7 +110,7 @@ export class McpSearchClient {
       if (!initSuccess) {
         return { 
           success: false, 
-          content: [{ text: "MCP 客户端未初始化" }], 
+          content: [{ type: "text", text: "MCP 客户端未初始化" }], 
           error: "客户端初始化失败" 
         };
       }
@@ -147,7 +147,7 @@ export class McpSearchClient {
           // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
           const result = await this.client.callTool({
             name: "webSearch",
-            arguments: { query: finalArgs.query }
+            arguments: finalArgs // 传递所有参数
           });
           return { 
             success: true, 
@@ -157,18 +157,21 @@ export class McpSearchClient {
           };
         } catch (err) {
           log(`工具调用失败(策略1): ${err}`, 'warn');
-          throw err;
+          // 尝试策略2：使用备用方法（如果有）
+          try {
+            // @ts-ignore 忽略类型检查
+            const altResult = await this.client.runTool("webSearch", finalArgs);
+            return {
+              success: true,
+              content: Array.isArray(altResult?.content)
+                ? altResult.content
+                : (altResult?.content ? [altResult.content] : [])
+            };
+          } catch (err2) {
+            log(`工具调用失败(策略2): ${err2}`, 'warn');
+            throw err; // 将首次错误抛出
+          }
         }
-
-        // 确保返回内容是数组
-        const contentArray = Array.isArray(result?.content) 
-          ? result.content 
-          : (result?.content ? [result.content] : []);
-
-        return { 
-          success: true, 
-          content: contentArray
-        };
       } catch (callError) {
         throw new Error(`工具调用失败: ${callError}`);
       }
@@ -176,7 +179,7 @@ export class McpSearchClient {
       log(`MCP 搜索失败: ${error instanceof Error ? error.message : String(error)}`, 'error');
       return { 
         success: false, 
-        content: [{ text: "搜索执行失败" }], 
+        content: [{ type: "text", text: "搜索执行失败" }], 
         error: error instanceof Error ? error.message : String(error)
       };
     }

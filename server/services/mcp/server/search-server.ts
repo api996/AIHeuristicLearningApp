@@ -148,13 +148,13 @@ class MCPWebSearchService {
         throw new Error(`搜索请求失败: ${response.status} ${response.statusText}`);
       }
       
-      const searchData = await response.json();
+      const searchData = await response.json() as any;
       
       // 处理搜索结果
       const snippets: any[] = [];
       
       // 处理自然搜索结果
-      if (searchData.organic && Array.isArray(searchData.organic)) {
+      if (searchData?.organic && Array.isArray(searchData.organic)) {
         for (const result of searchData.organic) {
           snippets.push({
             title: result.title || "",
@@ -165,7 +165,7 @@ class MCPWebSearchService {
       }
       
       // 处理知识面板结果（如果有）
-      if (searchData.knowledgeGraph) {
+      if (searchData?.knowledgeGraph) {
         const kg = searchData.knowledgeGraph;
         snippets.push({
           title: kg.title || "知识面板",
@@ -175,7 +175,7 @@ class MCPWebSearchService {
       }
       
       // 处理相关问题（如果有）
-      if (searchData.relatedSearches && Array.isArray(searchData.relatedSearches)) {
+      if (searchData?.relatedSearches && Array.isArray(searchData.relatedSearches)) {
         const relatedQuestions = searchData.relatedSearches
           .slice(0, 3) // 只取前3个相关问题
           .map((q: any) => q.query)
@@ -390,40 +390,90 @@ const searchParamsSchema = {
 // 简化：直接注册搜索函数作为工具
 // 注意：如果 SDK API 与此不匹配，请使用更底层的 RPC 方式实现
 try {
+  // 尝试在控制台看到注册函数
+  console.log(`[MCP-SERVER] 注册工具函数: ${typeof server.tool}`);
+  
   // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
   server.tool && server.tool("webSearch", async (params: any) => {
     try {
-      console.log(`[MCP-SERVER] 收到参数: ${JSON.stringify(params)}`);
-      console.log(`[MCP-SERVER] 参数类型: ${typeof params}`);
-      if (typeof params === 'object') {
-        console.log(`[MCP-SERVER] 参数属性: ${Object.keys(params).join(', ')}`);
-      }
+      console.log(`[MCP-SERVER] 收到搜索请求，参数: ${JSON.stringify(params)}`);
       
-      // 直接从传入参数获取值，不依赖于 Zod 解析
-      // 检查参数是否为字符串（SDK可能会将参数序列化为字符串）
-      let parsedParams = params;
+      // 新的参数处理逻辑 - MCP SDK可能通过多种方式传递参数
+      // 检查所有可能的参数位置
+      
+      let queryValue = "";
+      
+      // 尝试所有可能的参数结构
       if (typeof params === 'string') {
-        try {
-          parsedParams = JSON.parse(params);
-          console.log(`[MCP-SERVER] 已解析字符串参数: ${JSON.stringify(parsedParams)}`);
-        } catch (e) {
-          console.log(`[MCP-SERVER] 无法解析字符串参数: ${params}`);
+        queryValue = params; // 直接是查询字符串
+        console.log(`[MCP-SERVER] 参数是字符串: ${queryValue}`);
+      } 
+      else if (typeof params === 'object') {
+        if (params === null) {
+          console.log(`[MCP-SERVER] 参数是null`);
+        } else {
+          console.log(`[MCP-SERVER] 参数是对象，键: ${Object.keys(params).join(', ')}`);
+          
+          // 检查常见参数结构
+          if (params.query) {
+            queryValue = params.query; // 标准结构
+            console.log(`[MCP-SERVER] 从params.query获取值: ${queryValue}`);
+          } 
+          else if (params.arguments && typeof params.arguments === 'object') {
+            // arguments包含参数
+            if (params.arguments.query) {
+              queryValue = params.arguments.query;
+              console.log(`[MCP-SERVER] 从params.arguments.query获取值: ${queryValue}`);
+            }
+          }
+          else {
+            // 遍历所有键查找查询
+            for (const key of Object.keys(params)) {
+              if (typeof params[key] === 'string' && params[key].length > 0) {
+                queryValue = params[key];
+                console.log(`[MCP-SERVER] 从params[${key}]获取可能的查询值: ${queryValue}`);
+                break;
+              }
+              else if (typeof params[key] === 'object' && params[key]?.query) {
+                queryValue = params[key].query;
+                console.log(`[MCP-SERVER] 从params[${key}].query获取值: ${queryValue}`);
+                break;
+              }
+            }
+          }
         }
       }
       
-      // 尝试从参数对象中读取值
-      let query = parsedParams?.query;
-      // 如果参数值是一个对象，尝试从中提取query
-      if (typeof query === 'object' && query !== null) {
-        console.log(`[MCP-SERVER] query是一个对象: ${JSON.stringify(query)}`);
-        query = query.query || query.toString();
-      }
-      // 确保query是字符串
-      query = String(query || "未提供查询");
+      // 最终的查询和参数处理
+      const query = queryValue || "自然语言处理"; // 如果没有查询，使用默认值
       
-      // 处理其他参数
-      let useMCP = parsedParams?.useMCP !== false; // 默认为 true
-      let numResults = parseInt(parsedParams?.numResults) || 5;
+      // 提取布尔型参数
+      let useMCP = true; // 默认使用MCP
+      if (typeof params === 'object' && params !== null) {
+        if (params.useMCP !== undefined) {
+          useMCP = Boolean(params.useMCP);
+        } else if (params.arguments && params.arguments.useMCP !== undefined) {
+          useMCP = Boolean(params.arguments.useMCP);
+        }
+      }
+      
+      // 提取数字型参数
+      let numResults = 5; // 默认结果数量
+      if (typeof params === 'object' && params !== null) {
+        if (params.numResults !== undefined) {
+          const parsedNum = parseInt(String(params.numResults), 10);
+          if (!isNaN(parsedNum)) {
+            numResults = parsedNum;
+          }
+        } else if (params.arguments && params.arguments.numResults !== undefined) {
+          const parsedNum = parseInt(String(params.arguments.numResults), 10);
+          if (!isNaN(parsedNum)) {
+            numResults = parsedNum;
+          }
+        }
+      }
+      
+      console.log(`[MCP-SERVER] 最终处理的参数: query=${query}, useMCP=${useMCP}, numResults=${numResults}`);
       
       console.log(`[MCP-SERVER] 提取的参数: query=${query}, useMCP=${useMCP}, numResults=${numResults}`);
       
