@@ -1,6 +1,6 @@
 /**
  * 轻量级对话阶段分析服务
- * 使用Gemini-1.5-flash模型进行更快速的对话分析
+ * 使用Gemini-2.0-flash模型进行更快速的对话分析
  */
 
 import { log } from "../vite";
@@ -125,7 +125,7 @@ export interface PhaseAnalysisResult {
 
 /**
  * 轻量级对话阶段分析服务
- * 使用Gemini-1.5-flash模型对对话内容进行快速摘要和阶段识别
+ * 使用Gemini-2.0-flash模型对对话内容进行快速摘要和阶段识别
  * 
  * 对话阶段:
  * K - 知识获取阶段 (Knowledge Acquisition): 用户主要是获取信息和知识
@@ -206,7 +206,7 @@ export class ConversationAnalyticsLightService {
   }
 
   /**
-   * 调用Gemini-1.5-flash进行对话分析
+   * 调用Gemini-2.0-flash进行对话分析
    * 使用更轻量级的模型以提高速度，减少超时
    * @param conversationText 对话文本
    * @returns 对话阶段分析结果
@@ -284,7 +284,7 @@ export class ConversationAnalyticsLightService {
   }
 
   /**
-   * 调用Gemini-1.5-flash进行对话分析
+   * 调用Gemini-2.0-flash进行对话分析
    * 使用更轻量级的模型以提高速度，减少超时
    * @param conversationText 对话文本
    * @returns 对话阶段分析结果
