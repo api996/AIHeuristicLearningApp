@@ -49,13 +49,13 @@ async function testConversationPhaseAnalysis() {
     try {
       console.log(`测试场景: ${testCase.name}`);
       
-      const response = await fetch('http://localhost:5000/api/conversation-test/analyze-conversation', {
+      const response = await fetch('http://localhost:5000/api/analyze-conversation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          chatId: 1,
+          chatId: 48, // 使用一个可能存在的聊天ID
           messages: testCase.messages
         })
       });
