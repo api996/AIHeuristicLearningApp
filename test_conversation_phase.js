@@ -64,7 +64,17 @@ async function testConversationPhaseAnalysis() {
         throw new Error(`请求失败: ${response.status} ${response.statusText}`);
       }
       
-      const result = await response.json();
+      // 获取响应内容
+      const responseText = await response.text();
+      console.log(`响应内容: ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`);
+      
+      // 尝试解析JSON
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (e) {
+        throw new Error(`JSON解析失败: ${e.message}, 响应开头: ${responseText.substring(0, 50)}`);
+      }
       
       console.log(`分析结果: 阶段=${result.currentPhase}, 摘要="${result.summary}"\n`);
     } catch (error) {
