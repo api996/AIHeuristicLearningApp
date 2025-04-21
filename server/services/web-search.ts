@@ -690,12 +690,12 @@ ${truncatedContent}
   }
   
   /**
-   * 使用MCP结果格式化提示词上下文
-   * 适用于结构化MCP搜索结果
-   * @param mcpResult MCP搜索结果
+   * 使用自定义结构化搜索结果格式化提示词上下文 (CustomMCP)
+   * 适用于结构化CustomMCP搜索结果
+   * @param mcpResult 自定义结构化搜索结果
    * @returns 格式化的提示词上下文
    */
-  formatMCPSearchContext(mcpResult: MCPSearchResult): string {
+  formatMCPSearchContext(mcpResult: CustomMCPSearchResult): string {
     if (!mcpResult) {
       return "";
     }
@@ -708,7 +708,7 @@ ${truncatedContent}
     // 添加关键信息点
     if (mcpResult.keyPoints && mcpResult.keyPoints.length > 0) {
       context += "主要信息点：\n";
-      mcpResult.keyPoints.forEach((point, index) => {
+      mcpResult.keyPoints.forEach((point: string, index: number) => {
         context += `• ${point}\n`;
       });
       context += "\n";
@@ -717,7 +717,7 @@ ${truncatedContent}
     // 添加来源信息
     if (mcpResult.sources && mcpResult.sources.length > 0) {
       context += "详细信息来源：\n";
-      mcpResult.sources.forEach((source, index) => {
+      mcpResult.sources.forEach((source: {title: string, url: string, content: string}, index: number) => {
         context += `[${index + 1}] ${source.title}\n`;
         context += `${source.content}\n`;
         if (source.url) {
