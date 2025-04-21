@@ -18,6 +18,7 @@ import memoryTestRoutes from './routes/memory-test';
 import filesRoutes from './routes/files';
 import systemConfigRoutes from './routes/system-config';
 import testDataRoutes from './routes/test-data';
+import conversationTestRoutes from './routes/conversation-test';
 import { initializeBucket } from './services/file-bucket.service';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1813,6 +1814,7 @@ asyncio.run(test_memory())
   app.use('/api/test-data', testDataRoutes); // 只用于测试环境，生成测试数据
   app.use('/api/admin/prompts', adminPromptsRoutes);
   app.use('/api/admin/content-moderation', contentModerationRoutes);
+  app.use('/api', conversationTestRoutes); // 对话分析和提示词测试路由
 
   // 调试端点：检查当前会话状态
   app.get("/api/debug/session", (req, res) => {
