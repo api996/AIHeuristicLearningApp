@@ -361,8 +361,16 @@ ${searchContext}
   ] // 最多包含3个最相关的来源
 }`;
 
-      // 发送请求到模型 - 使用简单风格调用
-      const response = await model.generateContent(prompt);
+      // 发送请求到模型
+      const response = await model.generateContent([{ 
+        role: 'user',
+        parts: [{ text: prompt }] 
+      }], {
+        temperature: 0.2,
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 1024,
+      });
       
       const result = response.response;
       const textResponse = result.text();
@@ -454,8 +462,15 @@ ${truncatedContent}
   "reason": "简要解释评分原因，20字以内"
 }`;
 
-      // 发送请求到模型 - 使用简单风格调用
-      const result = await model.generateContent(prompt);
+      // 发送请求到模型
+      const result = await model.generateContent([{
+        role: 'user',
+        parts: [{ text: prompt }]
+      }], {
+        temperature: 0.1,
+        topP: 0.8,
+        maxOutputTokens: 256,
+      });
       
       const response = result.response;
       const textResponse = response.text();
