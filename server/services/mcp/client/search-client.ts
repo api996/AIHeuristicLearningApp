@@ -17,7 +17,7 @@ export class McpSearchClient {
   private client: Client | null = null;
   private transport: StdioClientTransport | null = null;
   private initialized = false;
-  private serverProcess: any = null;
+  private serverProcess: ReturnType<typeof spawn> | null = null;
 
   /**
    * 初始化 MCP 客户端
