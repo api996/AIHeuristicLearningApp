@@ -121,6 +121,15 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
           // 无需转换为整数，直接使用字符串形式的ID 
           // 让getEmbeddingByMemoryId内部处理类型转换
           const embedding = await storage.getEmbeddingByMemoryId(memory.id);
+          
+          // 记录向量信息用于调试
+          if (embedding) {
+            const vectorLength = Array.isArray(embedding.vectorData) ? embedding.vectorData.length : 'not an array';
+            log(`[trajectory] 记忆ID ${memory.id} 的向量: 类型=${typeof embedding.vectorData}, 长度=${vectorLength}`);
+          } else {
+            log(`[trajectory] 记忆ID ${memory.id} 未找到向量嵌入`);
+          }
+          
           return {
             memory,
             embedding: embedding?.vectorData || null
@@ -130,8 +139,10 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
       
       // 过滤出有向量嵌入的记忆
       const validMemoriesWithEmbeddings = memoriesWithEmbeddings.filter(
-        item => item.embedding !== null
+        item => item.embedding !== null && item.embedding !== undefined && Array.isArray(item.embedding) && item.embedding.length > 0
       );
+      
+      log(`[trajectory] 找到 ${memoriesWithEmbeddings.length} 条记忆数据，其中 ${validMemoriesWithEmbeddings.length} 条有有效向量嵌入`);
       
       if (validMemoriesWithEmbeddings.length >= 5) {
         // 转换为聚类分析服务需要的格式
