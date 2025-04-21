@@ -362,15 +362,11 @@ ${searchContext}
 }`;
 
       // 发送请求到模型
-      const response = await model.generateContent({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          topP: 0.8,
-          topK: 40,
-          maxOutputTokens: 1024,
-          responseMimeType: 'application/json'
-        }
+      const response = await model.generateContent(prompt, {
+        temperature: 0.2,
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 1024,
       });
       
       const result = response.response;
@@ -464,14 +460,10 @@ ${truncatedContent}
 }`;
 
       // 发送请求到模型
-      const result = await model.generateContent({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.1,
-          topP: 0.8,
-          maxOutputTokens: 256,
-          responseMimeType: 'application/json'
-        }
+      const result = await model.generateContent(prompt, {
+        temperature: 0.1,
+        topP: 0.8,
+        maxOutputTokens: 256,
       });
       
       const response = result.response;
@@ -609,12 +601,13 @@ ${truncatedContent}
       let oldestKey = '';
       let oldestTime = Infinity;
       
-      for (const [key, entry] of this.mcpCache.entries()) {
+      // 使用Array.from避免迭代器兼容性问题
+      Array.from(this.mcpCache.entries()).forEach(([key, entry]) => {
         if (entry.expiresAt < oldestTime) {
           oldestTime = entry.expiresAt;
           oldestKey = key;
         }
-      }
+      });
       
       if (oldestKey) {
         this.mcpCache.delete(oldestKey);
@@ -736,12 +729,13 @@ ${truncatedContent}
       let mcpDeletedCount = 0;
       const now = Date.now();
       
-      for (const [key, entry] of this.mcpCache.entries()) {
+      // 使用Array.from避免迭代器兼容性问题
+      Array.from(this.mcpCache.entries()).forEach(([key, entry]) => {
         if (entry.expiresAt < now) {
           this.mcpCache.delete(key);
           mcpDeletedCount++;
         }
-      }
+      });
       
       if (mcpDeletedCount > 0) {
         log(`已清理 ${mcpDeletedCount} 条过期MCP缓存`);
