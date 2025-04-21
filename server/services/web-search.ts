@@ -362,14 +362,18 @@ ${searchContext}
 }`;
 
       // 发送请求到模型
-      const response = await model.generateContent([{ 
-        role: 'user',
-        parts: [{ text: prompt }] 
-      }], {
-        temperature: 0.2,
-        topP: 0.8,
-        topK: 40,
-        maxOutputTokens: 1024,
+      const response = await model.generateContent({
+        contents: [{
+          role: 'user' as const,
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          temperature: 0.2,
+          topP: 0.8,
+          topK: 40,
+          maxOutputTokens: 1024,
+          responseMimeType: "application/json"
+        }
       });
       
       const result = response.response;
@@ -463,13 +467,17 @@ ${truncatedContent}
 }`;
 
       // 发送请求到模型
-      const result = await model.generateContent([{
-        role: 'user',
-        parts: [{ text: prompt }]
-      }], {
-        temperature: 0.1,
-        topP: 0.8,
-        maxOutputTokens: 256,
+      const result = await model.generateContent({
+        contents: [{
+          role: 'user' as const,
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          topP: 0.8,
+          maxOutputTokens: 256,
+          responseMimeType: "application/json"
+        }
       });
       
       const response = result.response;

@@ -202,9 +202,21 @@ class GeminiService implements GenAIService {
       
       // 使用Gemini 1.5 Flash模型生成主题
       const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `请为以下一组相关文本生成一个简洁的主题标签（5-10个字）。这个标签应该能够概括这组文本的共同主题:\n\n${combinedText}`;
       
-      const result = await model.generateContent(prompt);
+      // 使用正确的消息结构
+      const result = await model.generateContent({
+        contents: [{
+          role: 'user',
+          parts: [{ text: `请为以下一组相关文本生成一个简洁的主题标签（5-10个字）。这个标签应该能够概括这组文本的共同主题:\n\n${combinedText}` }]
+        }],
+        generationConfig: {
+          temperature: 0.3,
+          topP: 0.8,
+          topK: 40,
+          maxOutputTokens: 50
+        }
+      });
+      
       const topic = result.response.text().trim();
       
       // 进一步处理，确保主题简洁
