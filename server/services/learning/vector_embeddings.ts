@@ -4,8 +4,9 @@
  * 集成内容价值评估，避免无价值内容向量化
  * 
  * 架构说明:
- * 1. 主要使用Gemini API生成向量嵌入（与Python服务相同）
- * 2. Python服务只用于聚类分析，不用于嵌入生成
+ * 1. 主要使用Gemini API直接生成向量嵌入
+ * 2. 提供Python接口以便聚类分析等Python服务使用
+ * 3. 优先使用JS的GenAI服务进行嵌入，确保最高可靠性
  */
 
 import { log } from "../../vite";
@@ -37,76 +38,24 @@ export class VectorEmbeddingsService {
         ? cleanedText.substring(0, 8000)
         : cleanedText;
       
-      try {
-        // 使用Python嵌入服务API生成嵌入向量
-        // 这里通过执行Python代码调用embedding.py服务
-        const pythonCommand = `
-from services.embedding import embedding_service
-import asyncio
-import json
-import sys
-
-async def get_embedding():
-    texts = ["${truncatedText.replace(/"/g, '\\"')}"]
-    embeddings = await embedding_service.get_embeddings(texts)
-    if embeddings and len(embeddings) > 0:
-        print(json.dumps(embeddings[0]))
-    else:
-        print("null")
-
-asyncio.run(get_embedding())
-`;
-
-        // 执行Python代码并获取结果
-        return new Promise((resolve, reject) => {
-          // 使用Python执行代码
-          const childProcess = childExec('python -c \'' + pythonCommand + '\'', {
-            cwd: '.',  // 使用当前工作目录
-            maxBuffer: 10 * 1024 * 1024 // 10MB buffer
-          });
-          
-          let output = '';
-          if (childProcess.stdout) {
-            childProcess.stdout.on('data', (data: Buffer) => {
-              output += data.toString();
-            });
-          } else {
-            log('[vector_embeddings] 错误: 无法获取Python进程的标准输出', 'error');
-            genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
-            return;
-          }
-          
-          childProcess.on('close', (code: number) => {
-            if (code !== 0) {
-              log('[vector_embeddings] Python嵌入服务执行失败，使用备用服务', 'error');
-              // 如果Python服务失败，回退到GenAI服务
-              genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
-              return;
-            }
-            
-            try {
-              // 解析Python输出的JSON
-              const embedding = JSON.parse(output.trim());
-              resolve(embedding);
-            } catch (parseError) {
-              log(`[vector_embeddings] 解析Python输出失败: ${parseError}`, 'error');
-              // 如果解析失败，回退到GenAI服务
-              genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
-            }
-          });
-          
-          childProcess.on('error', (err: Error) => {
-            log(`[vector_embeddings] 执行Python失败: ${err}`, 'error');
-            // 如果执行失败，回退到GenAI服务
-            genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
-          });
-        });
-      } catch (pythonError) {
-        log(`[vector_embeddings] Python嵌入调用出错: ${pythonError}`, 'error');
-        // 如果Python调用出错，回退到GenAI服务
-        const embedding = await genAiService.generateEmbedding(truncatedText);
-        return embedding;
+      // 直接使用GenAI服务生成向量嵌入
+      // 这是最可靠的方法，不依赖于子进程和Python
+      log('[vector_embeddings] 使用GenAI服务生成向量嵌入', 'info');
+      const embedding = await genAiService.generateEmbedding(truncatedText);
+      
+      if (!embedding) {
+        log('[vector_embeddings] GenAI嵌入服务返回空结果', 'warn');
+        return null;
       }
+      
+      // 验证嵌入维度，确保是有效的向量
+      if (embedding.length < 100) {
+        log(`[vector_embeddings] 警告: 嵌入维度异常 (${embedding.length})`, 'warn');
+      } else {
+        log(`[vector_embeddings] 成功生成${embedding.length}维向量嵌入`, 'info');
+      }
+      
+      return embedding;
     } catch (error) {
       log(`[vector_embeddings] 生成嵌入时出错: ${error}`, 'error');
       return null;
