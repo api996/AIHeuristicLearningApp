@@ -1129,6 +1129,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             log(`未找到相关用户提问，使用默认提示`);
           }
 
+          // 判断是否为中间消息（非最后一条）
+          const allChatMessages = await storage.getChatMessages(Number(chatId), userId, isAdmin, false); // 获取所有消息（包括非活跃）
+          const assistantMessages = allChatMessages.filter(m => m.role === "assistant");
+          const isMiddleMessage = messageId !== assistantMessages[assistantMessages.length - 1].id;
+          
+          // 如果是中间消息，需要将其后的所有消息标记为非活跃
+          if (isMiddleMessage) {
+            log(`检测到重新生成的是中间消息 ${messageId}，将创建新分支`);
+            
+            // 显示确认对话框，告知用户后续消息将被隐藏
+            const confirmMessage = "重新生成此中间消息将创建新的对话分支，之后的消息将被隐藏。是否继续？";
+            log(`向用户展示确认信息: "${confirmMessage}"`);
+            
+            // 标记此消息之后的所有消息为非活跃
+            await storage.deactivateMessagesAfter(Number(chatId), messageId);
+            log(`已将消息 ${messageId} 之后的所有消息标记为非活跃`);
+          }
+
           // 重新生成回复，传入userId用于记忆检索，并传入网络搜索参数
           log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."，使用网络搜索=${shouldUseSearch}`);
           const response = await chatService.sendMessage(promptMessage, userId, Number(chatId), shouldUseSearch);
