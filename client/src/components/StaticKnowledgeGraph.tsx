@@ -80,7 +80,7 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
   // 使用节点数量状态来解决循环依赖问题
   const [nodeCount, setNodeCount] = useState(0);
 
-  // 在初始渲染后平滑过渡到显示图谱，但确保数据完全加载
+  // 简化加载逻辑，减少动画复杂性
   useEffect(() => {
     // 使用节点数量作为触发条件
     if (nodes.length === 0) {
@@ -92,33 +92,31 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     // 设置节点数量以便后续效果使用
     setNodeCount(nodes.length);
     
-    console.log("知识图谱节点数据已加载，启动渐变动画:", nodes.length, "个节点");
+    console.log("知识图谱节点数据已加载，节点数:", nodes.length, "个节点, 连接数:", links.length, "个连接");
     
-    // 创建进度动画
+    // 快速加载，避免长时间动画可能引起的问题
     const progressInterval = setInterval(() => {
       setLoadingProgress(prev => {
-        const newProgress = prev + 2;
+        const newProgress = prev + 5; // 更快速的进度增加
         return newProgress > 100 ? 100 : newProgress;
       });
-    }, 20);
+    }, 10); // 更快的间隔
     
-    // 当节点加载完毕且进度达到100%时，取消加载状态
+    // 缩短加载时间，避免长时间等待
     const timer = setTimeout(() => {
       clearInterval(progressInterval);
       setLoadingProgress(100);
       
-      // 再等待短暂时间确保进度动画完成，然后显示图谱
-      setTimeout(() => {
-        console.log("知识图谱加载动画完成，开始渲染图谱");
-        setIsInitializing(false);
-      }, 200);
-    }, 800);
+      // 直接显示图谱，不需要多余的延迟
+      console.log("知识图谱立即渲染，跳过长动画");
+      setIsInitializing(false);
+    }, 300); // 减少等待时间
     
     return () => {
       clearTimeout(timer);
       clearInterval(progressInterval);
     };
-  }, [nodes.length]); // 依赖于原始节点数据的变化，而不是处理后的
+  }, [nodes.length, links.length]); // 同时依赖于节点和连接数据的变化
   
   // 添加拖动和缩放状态
   const [transform, setTransform] = useState<GraphTransform>({
@@ -165,17 +163,38 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     const keywordNodes = processedNodes.filter(n => n.category === 'keyword');
     const memoryNodes = processedNodes.filter(n => n.category === 'memory');
     
-    // 1. 放置簇节点（主题）- 主题节点放在中心位置
-    const radius = Math.min(width, height) * 0.25;
+    // 1. 放置簇节点（主题）- 使用环形布局
+    const radius = Math.min(width, height) * 0.3; // 增大半径以避免拥挤
     const clusterAngle = (2 * Math.PI) / Math.max(clusterNodes.length, 1);
     
-    clusterNodes.forEach((node, i) => {
-      const angle = i * clusterAngle;
-      result[node.id] = {
-        x: centerX + Math.cos(angle) * radius * 0.5,
-        y: centerY + Math.sin(angle) * radius * 0.5
-      };
-    });
+    console.log(`布局计算: ${clusterNodes.length}个簇节点, 角度增量: ${clusterAngle}`);
+    
+    // 特殊情况：全为簇节点时使用更合适的布局
+    if (processedNodes.length === clusterNodes.length && clusterNodes.length > 10) {
+      // 对于大量簇节点，使用螺旋布局而不是简单环形
+      const spiralRadius = radius * 0.4;
+      const spiralB = 0.2; // 螺旋紧密度
+      
+      clusterNodes.forEach((node, i) => {
+        // 平均分布在螺旋上
+        const angle = i * clusterAngle * 1.2; // 增加一点角度以避免重叠
+        const distance = spiralRadius * (1 + spiralB * angle);
+        
+        result[node.id] = {
+          x: centerX + Math.cos(angle) * distance,
+          y: centerY + Math.sin(angle) * distance
+        };
+      });
+    } else {
+      // 普通环形布局
+      clusterNodes.forEach((node, i) => {
+        const angle = i * clusterAngle;
+        result[node.id] = {
+          x: centerX + Math.cos(angle) * radius * 0.5,
+          y: centerY + Math.sin(angle) * radius * 0.5
+        };
+      });
+    }
     
     // 2. 放置关键词节点 - 放在中间环
     const keywordRadius = radius * 1.2;
@@ -765,16 +784,36 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
       // 绘制连接线
       const drawLinks = () => {
         // 先绘制普通连接线
-        links.forEach(link => {
+        console.log(`开始绘制连接线，总数：${links.length}`);
+        
+        // 添加调试信息
+        if (links.length > 0) {
+          console.log("第一条连接:", JSON.stringify(links[0]));
+        }
+        
+        links.forEach((link, index) => {
+          // 确保source和target存在
+          if (!link.source || !link.target) {
+            console.warn(`连接 #${index} 没有有效的source或target:`);
+            console.warn(JSON.stringify(link));
+            return;
+          }
+          
           const sourcePos = positions[link.source];
           const targetPos = positions[link.target];
           
-          if (!sourcePos || !targetPos) return;
+          if (!sourcePos || !targetPos) {
+            console.warn(`连接 #${index} (${link.source} -> ${link.target})的位置未定义`);
+            return;
+          }
           
           const sourceNode = processedNodes.find(n => n.id === link.source);
           const targetNode = processedNodes.find(n => n.id === link.target);
           
-          if (!sourceNode || !targetNode) return;
+          if (!sourceNode || !targetNode) {
+            console.warn(`连接 #${index} (${link.source} -> ${link.target})的节点未找到`);
+            return;
+          }
           
           const sourceSize = getNodeSize(sourceNode);
           const targetSize = getNodeSize(targetNode);
@@ -785,7 +824,10 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
           const distance = Math.sqrt(dx * dx + dy * dy);
           
           // 避免除以零
-          if (distance === 0) return;
+          if (distance === 0) {
+            console.warn(`连接 #${index} (${link.source} -> ${link.target})的距离为0`);
+            return;
+          }
           
           const sourceX = sourcePos.x + (dx / distance) * sourceSize;
           const sourceY = sourcePos.y + (dy / distance) * sourceSize;
