@@ -117,22 +117,28 @@ export class ClusterMemoryRetrievalService {
       // 使用缓存为知识图谱加速 - 如果已有聚类结果且不强制刷新，直接返回
       const clusterResultCacheKey = `cluster_${userId}`;
 
-      if (!forceRefresh) {
-        const cachedResult = await this.getFromLocalCache(clusterResultCacheKey);
-        
-        if (cachedResult) {
-          // 确保从缓存获取的对象有正确的结构
-          const clusterCount = cachedResult.centroids?.length || 0;
-          log(`[trajectory] 使用数据库缓存的聚类数据: ${clusterCount} 个聚类`);
-          return cachedResult;
-        }
-      } else {
-        // 如果强制刷新，清除缓存
+      // 强制刷新时打印日志但不立即清除缓存，先检查缓存是否实际存在
+      if (forceRefresh) {
+        log(`[trajectory] 请求强制刷新用户${userId}的聚类缓存`);
+      }
+
+      // 无论是否强制刷新，都先检查是否有缓存
+      const cachedResult = await this.getFromLocalCache(clusterResultCacheKey);
+      
+      // 如果有缓存且不是强制刷新，直接使用
+      if (cachedResult && !forceRefresh) {
+        const clusterCount = cachedResult.centroids?.length || 0;
+        log(`[trajectory] 使用数据库缓存的聚类数据: ${clusterCount} 个聚类`);
+        return cachedResult;
+      } 
+      
+      // 如果有缓存但是强制刷新，清除缓存
+      if (cachedResult && forceRefresh) {
         await storage.clearClusterResultCache(userId);
-        log(`[trajectory] 已清除用户${userId}的聚类缓存`);
+        log(`[trajectory] 已清除用户${userId}的有效聚类缓存（强制刷新模式）`);
       }
       
-      log(`[trajectory] 缓存未命中或已过期，开始计算聚类数据`);
+      log(`[trajectory] ${cachedResult ? '强制刷新缓存' : '缓存未命中或已过期'}，开始计算聚类数据`);
       
       // 获取用户所有记忆
       const memories = await storage.getMemoriesByUserId(userId);

@@ -244,25 +244,17 @@ router.get('/:userId/knowledge-graph', async (req, res) => {
     
     log(`[API] 获取用户 ${userId} 的知识图谱，刷新模式: ${refresh}`);
     
-    // 如果是刷新请求，清除缓存
+    // 如果是刷新请求，我们将forceRefresh标志传递给生成函数，而不是提前清除缓存
     if (refresh) {
-      try {
-        await storage.clearKnowledgeGraphCache(userId);
-        log(`[API] 已清除用户 ${userId} 的知识图谱缓存`);
-      } catch (error) {
-        log(`[API] 清除知识图谱缓存时出错: ${error}`);
-        // 清除缓存失败不应阻止生成新的知识图谱
-      }
-    }
-    
-    // 设置响应头
-    // 允许短期缓存 1分钟 (除非是刷新请求)
-    if (refresh) {
+      // 设置响应头，阻止浏览器缓存
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
+      log(`[API] 请求强制刷新用户 ${userId} 的知识图谱，将跳过使用缓存`);
     } else {
-      res.setHeader('Cache-Control', 'max-age=60'); // 允许缓存1分钟
+      // 不刷新时，允许短期浏览器缓存（1分钟）
+      res.setHeader('Cache-Control', 'max-age=60');
+      log(`[API] 正常获取用户 ${userId} 的知识图谱，将优先使用缓存`);
     }
     
     // 生成知识图谱 (内部实现已修改为优先使用缓存)
