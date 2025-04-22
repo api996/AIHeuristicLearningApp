@@ -20,11 +20,13 @@ interface ChatMessageProps {
     isRegenerating?: boolean; // 添加是否正在重新生成的状态
     model?: string;           // 使用的模型
     hasError?: boolean;       // 标记消息是否包含错误信息
+    feedback?: "like" | "dislike"; // 消息当前的反馈状态
+    feedbackText?: string;    // 消息的文本反馈内容
   };
   isThinking?: boolean; // 用于表示AI是否正在思考
   onEdit?: (id: number | undefined, newContent: string) => Promise<void>; // 编辑消息
   onRegenerate?: (id: number | undefined) => Promise<void>; // 重新生成回答
-  onFeedback?: (id: number | undefined, feedback: "like" | "dislike") => Promise<void>; // 点赞/踩
+  onFeedback?: (id: number | undefined, feedback: "like" | "dislike", feedbackText?: string) => Promise<void>; // 点赞/踩和文本反馈
 }
 
 // 打字机效果的Hook
@@ -81,7 +83,10 @@ export function ChatMessage({
   
   // 状态管理
   const [isHovering, setIsHovering] = useState(false);
-  const [userRating, setUserRating] = useState<"like" | "dislike" | null>(null);
+  const [userRating, setUserRating] = useState<"like" | "dislike" | null>(message.feedback || null);
+  const [showFeedbackText, setShowFeedbackText] = useState(false);
+  const [feedbackText, setFeedbackText] = useState(message.feedbackText || "");
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   // Check if the message contains an image markdown
   const isImage = message.content.startsWith("![");
@@ -317,14 +322,20 @@ export function ChatMessage({
     
     try {
       setUserRating(feedback);
-      await onFeedback(message.id, feedback);
-      toast({
-        title: feedback === "like" ? "感谢您的肯定！" : "感谢您的反馈",
-        description: feedback === "like" 
-          ? "我们会继续提供高质量回答" 
-          : "我们会努力提高回答质量",
-        duration: 3000,
-      });
+      
+      // 如果是负面反馈，显示文本反馈输入框
+      if (feedback === "dislike") {
+        setShowFeedbackText(true);
+        // 不立即提交，等待用户输入文本反馈
+      } else {
+        // 对于正面反馈，直接提交
+        await onFeedback(message.id, feedback);
+        toast({
+          title: "感谢您的肯定！",
+          description: "我们会继续提供高质量回答",
+          duration: 3000,
+        });
+      }
     } catch (error) {
       setUserRating(null);
       toast({
@@ -334,6 +345,38 @@ export function ChatMessage({
       });
       console.error("提交反馈失败:", error);
     }
+  };
+  
+  // 提交文本反馈
+  const submitFeedbackText = async () => {
+    if (!onFeedback || !userRating) return;
+    
+    try {
+      setIsSubmittingFeedback(true);
+      await onFeedback(message.id, userRating, feedbackText);
+      setShowFeedbackText(false);
+      toast({
+        title: "感谢您的详细反馈",
+        description: "您的反馈将帮助我们改进系统",
+        duration: 3000,
+      });
+    } catch (error) {
+      toast({
+        title: "反馈提交失败",
+        description: "无法保存您的反馈，请稍后再试",
+        variant: "destructive"
+      });
+      console.error("提交文本反馈失败:", error);
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
+  
+  // 取消文本反馈
+  const cancelFeedbackText = () => {
+    setShowFeedbackText(false);
+    setFeedbackText("");
+    setUserRating(null);
   };
 
   // 支持简单的Markdown渲染
@@ -791,31 +834,66 @@ export function ChatMessage({
               
               {/* 点赞/踩按钮 */}
               {onFeedback && (
-                <div className="flex items-center space-x-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "h-7 w-7 rounded-full hover:bg-neutral-800",
-                      userRating === "like" ? "text-green-500" : "text-neutral-400"
-                    )}
-                    onClick={() => handleFeedback("like")}
-                    title="赞"
-                  >
-                    <ThumbsUp className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "h-7 w-7 rounded-full hover:bg-neutral-800",
-                      userRating === "dislike" ? "text-red-500" : "text-neutral-400"
-                    )}
-                    onClick={() => handleFeedback("dislike")}
-                    title="踩"
-                  >
-                    <ThumbsDown className="h-3.5 w-3.5" />
-                  </Button>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        "h-7 w-7 rounded-full hover:bg-neutral-800",
+                        userRating === "like" ? "text-green-500" : "text-neutral-400"
+                      )}
+                      onClick={() => handleFeedback("like")}
+                      title="赞"
+                    >
+                      <ThumbsUp className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        "h-7 w-7 rounded-full hover:bg-neutral-800",
+                        userRating === "dislike" ? "text-red-500" : "text-neutral-400"
+                      )}
+                      onClick={() => handleFeedback("dislike")}
+                      title="踩"
+                    >
+                      <ThumbsDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  
+                  {/* 文本反馈输入框 */}
+                  {showFeedbackText && (
+                    <div className="mt-2 space-y-2 w-full animate-fade-down">
+                      <div className="text-sm text-neutral-400">请告诉我们您不满意的原因，以便我们改进:</div>
+                      <textarea
+                        value={feedbackText}
+                        onChange={(e) => setFeedbackText(e.target.value)}
+                        className="w-full bg-neutral-800/50 backdrop-blur-sm border border-neutral-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
+                        placeholder="请输入您的反馈意见（可选）..."
+                        rows={3}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={cancelFeedbackText}
+                          disabled={isSubmittingFeedback}
+                          className="text-neutral-400 hover:text-white"
+                        >
+                          取消
+                        </Button>
+                        <Button
+                          onClick={submitFeedbackText}
+                          disabled={isSubmittingFeedback}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          size="sm"
+                        >
+                          {isSubmittingFeedback ? '提交中...' : '提交反馈'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               
