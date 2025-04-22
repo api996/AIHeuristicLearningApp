@@ -4,10 +4,8 @@
  * 集成内容价值评估，避免无价值内容向量化
  * 
  * 架构说明:
- * 1. 提供双语言实现的嵌入服务：
- *    - 首先尝试调用Python实现（基于Gemini API），稳定且扩展性好
- *    - 出错时回退到JS实现（也基于Gemini API），确保服务可用性
- * 2. 所有嵌入生成结果格式一致，确保不同语言实现的兼容性
+ * 1. 主要使用Gemini API生成向量嵌入（与Python服务相同）
+ * 2. Python服务只用于聚类分析，不用于嵌入生成
  */
 
 import { log } from "../../vite";
@@ -15,13 +13,10 @@ import { genAiService } from "../genai/genai_service";
 import { storage } from "../../storage";
 import { Memory } from "@shared/schema";
 import { webSearchService } from "../../services/web-search";
-// 使用ESM兼容的方式导入child_process
-import * as childProcess from 'child_process';
 
 export class VectorEmbeddingsService {
   /**
    * 生成文本的向量嵌入
-   * 首先尝试使用Python实现，出错时回退到JS实现
    * @param text 输入文本
    * @returns 向量嵌入
    */
@@ -43,8 +38,8 @@ export class VectorEmbeddingsService {
         : cleanedText;
       
       try {
-        // 首先尝试使用Python嵌入服务API生成嵌入向量
-        log('[vector_embeddings] 尝试使用Python嵌入服务生成向量...', 'info');
+        // 使用Python嵌入服务API生成嵌入向量
+        // 这里通过执行Python代码调用embedding.py服务
         const pythonCommand = `
 from services.embedding import embedding_service
 import asyncio
@@ -62,72 +57,54 @@ async def get_embedding():
 asyncio.run(get_embedding())
 `;
 
-        // 使用ESM兼容的方式执行Python代码
-        const embedding = await new Promise<number[] | null>((resolve, reject) => {
+        // 执行Python代码并获取结果
+        return new Promise((resolve, reject) => {
           // 使用Python执行代码
-          const pythonProcess = childProcess.exec('python -c \'' + pythonCommand + '\'', {
+          const childProcess = childExec('python -c \'' + pythonCommand + '\'', {
             cwd: '.',  // 使用当前工作目录
             maxBuffer: 10 * 1024 * 1024 // 10MB buffer
           });
           
           let output = '';
-          
-          if (pythonProcess.stdout) {
-            pythonProcess.stdout.on('data', (data: Buffer) => {
+          if (childProcess.stdout) {
+            childProcess.stdout.on('data', (data: Buffer) => {
               output += data.toString();
             });
           } else {
-            log('[vector_embeddings] 警告: 无法获取Python进程的标准输出，将使用JS实现', 'warn');
-            // 如果无法获取输出，使用JS实现
+            log('[vector_embeddings] 错误: 无法获取Python进程的标准输出', 'error');
             genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
             return;
           }
           
-          pythonProcess.on('close', (code: number) => {
+          childProcess.on('close', (code: number) => {
             if (code !== 0) {
-              log('[vector_embeddings] Python嵌入服务执行失败，将使用JS实现', 'warn');
-              // 如果Python服务失败，回退到JS实现
+              log('[vector_embeddings] Python嵌入服务执行失败，使用备用服务', 'error');
+              // 如果Python服务失败，回退到GenAI服务
               genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
               return;
             }
             
             try {
               // 解析Python输出的JSON
-              const result = JSON.parse(output.trim());
-              resolve(result);
+              const embedding = JSON.parse(output.trim());
+              resolve(embedding);
             } catch (parseError) {
-              log(`[vector_embeddings] 解析Python输出失败: ${parseError}，将使用JS实现`, 'warn');
-              // 如果解析失败，回退到JS实现
+              log(`[vector_embeddings] 解析Python输出失败: ${parseError}`, 'error');
+              // 如果解析失败，回退到GenAI服务
               genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
             }
           });
           
-          pythonProcess.on('error', (err: Error) => {
-            log(`[vector_embeddings] 执行Python失败: ${err}，将使用JS实现`, 'warn');
-            // 如果执行失败，回退到JS实现
+          childProcess.on('error', (err: Error) => {
+            log(`[vector_embeddings] 执行Python失败: ${err}`, 'error');
+            // 如果执行失败，回退到GenAI服务
             genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
           });
         });
-        
-        if (!embedding) {
-          log('[vector_embeddings] Python服务返回空结果，将使用JS实现', 'warn');
-          // 如果Python服务返回空结果，使用JS实现
-          return await genAiService.generateEmbedding(truncatedText);
-        }
-        
-        log(`[vector_embeddings] 向量嵌入生成成功，维度: ${embedding.length}`, 'info');
-        return embedding;
       } catch (pythonError) {
-        // 如果Python调用出错，使用JS实现
-        log(`[vector_embeddings] Python嵌入调用出错: ${pythonError}，将使用JS实现`, 'warn');
+        log(`[vector_embeddings] Python嵌入调用出错: ${pythonError}`, 'error');
+        // 如果Python调用出错，回退到GenAI服务
         const embedding = await genAiService.generateEmbedding(truncatedText);
-        
-        if (!embedding) {
-          log('[vector_embeddings] JS实现也返回空结果', 'error');
-          return null;
-        }
-        
-        log(`[vector_embeddings] 使用JS实现生成成功，维度: ${embedding.length}`, 'info');
         return embedding;
       }
     } catch (error) {
