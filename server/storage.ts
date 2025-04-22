@@ -65,6 +65,7 @@ export interface IStorage {
   // Memory embeddings methods
   saveMemoryEmbedding(memoryId: number | string, vectorData: number[]): Promise<MemoryEmbedding>;
   getEmbeddingByMemoryId(memoryId: number | string): Promise<MemoryEmbedding | undefined>;
+  getEmbeddingsByMemoryIds(memoryIds: (number | string)[]): Promise<Record<string, MemoryEmbedding>>;
   findSimilarMemories(userId: number, vectorData: number[], limit?: number): Promise<Memory[]>;
   
   // Admin methods
@@ -1118,6 +1119,38 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       log(`Error getting embedding for memory ${memoryId}: ${error}`);
       return undefined;
+    }
+  }
+  
+  /**
+   * 批量获取多个记忆的向量嵌入，提高性能
+   * @param memoryIds 记忆ID数组
+   * @returns 以记忆ID为键、嵌入对象为值的映射
+   */
+  async getEmbeddingsByMemoryIds(memoryIds: (number | string)[]): Promise<Record<string, MemoryEmbedding>> {
+    try {
+      if (!memoryIds || !Array.isArray(memoryIds) || memoryIds.length === 0) {
+        return {};
+      }
+      
+      // 转换所有ID为字符串
+      const memoryIdStrs = memoryIds.map(id => String(id));
+      
+      // 使用IN查询批量获取
+      const embeddings = await db.select()
+        .from(memoryEmbeddings)
+        .where(inArray(memoryEmbeddings.memoryId, memoryIdStrs));
+      
+      // 创建ID到嵌入的映射
+      const result: Record<string, MemoryEmbedding> = {};
+      for (const embedding of embeddings) {
+        result[embedding.memoryId] = embedding;
+      }
+      
+      return result;
+    } catch (error) {
+      log(`Error getting embeddings by memory IDs: ${error}`);
+      return {}; // 返回空对象而不是抛出异常，避免影响调用链
     }
   }
 
