@@ -396,7 +396,22 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     
     const canvas = canvasRef.current;
     
-    // 获取变换后的鼠标坐标
+    // 为移动设备添加标志
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (isMobile) {
+      console.log("检测到触摸设备，启用触摸控制支持");
+    }
+    
+    // 记录多指触摸数据
+    const touchInfo = {
+      lastDistance: 0,
+      touchStarted: false,
+      touchMoved: false,
+      lastX: 0,
+      lastY: 0
+    };
+    
+    // 获取变换后的坐标（鼠标或触摸点）
     const getTransformedCoordinates = (clientX: number, clientY: number) => {
       const rect = canvas.getBoundingClientRect();
       const x = clientX - rect.left;
@@ -408,6 +423,131 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
       const transformedY = (y - transform.translateY) * inverseScale;
       
       return { x: transformedX, y: transformedY };
+    };
+    
+    // 增强版触摸事件处理，支持单指拖动和双指缩放
+    const handleEnhancedTouchStart = (e: TouchEvent) => {
+      e.preventDefault(); // 防止滚动和其他默认行为
+      
+      touchInfo.touchStarted = true;
+      touchInfo.touchMoved = false;
+      
+      if (e.touches.length === 1) {
+        // 单指触摸 - 拖动
+        touchInfo.lastX = e.touches[0].clientX;
+        touchInfo.lastY = e.touches[0].clientY;
+        
+        // 检查是否点击在节点上
+        const { x, y } = getTransformedCoordinates(e.touches[0].clientX, e.touches[0].clientY);
+        
+        // 节点击中检测
+        for (const node of processedNodes) {
+          const pos = positions[node.id];
+          if (!pos) continue;
+          
+          const size = getNodeSize(node);
+          const dx = pos.x - x;
+          const dy = pos.y - y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance <= size + 5) {
+            // 点击在节点上，设置悬停状态但不启动拖动
+            setHoveredNode(node.id);
+            touchInfo.touchStarted = false; // 不启动拖动
+            return;
+          }
+        }
+      } 
+      else if (e.touches.length === 2) {
+        // 双指触摸 - 缩放
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        touchInfo.lastDistance = Math.sqrt(dx * dx + dy * dy);
+      }
+    };
+    
+    const handleEnhancedTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      
+      if (!touchInfo.touchStarted && e.touches.length !== 2) return;
+      touchInfo.touchMoved = true;
+      
+      if (e.touches.length === 1) {
+        // 单指拖动
+        const dx = e.touches[0].clientX - touchInfo.lastX;
+        const dy = e.touches[0].clientY - touchInfo.lastY;
+        
+        setTransform(prev => ({
+          ...prev,
+          translateX: prev.translateX + dx,
+          translateY: prev.translateY + dy
+        }));
+        
+        touchInfo.lastX = e.touches[0].clientX;
+        touchInfo.lastY = e.touches[0].clientY;
+      } 
+      else if (e.touches.length === 2) {
+        // 双指缩放
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (touchInfo.lastDistance > 0) {
+          const scaleFactor = distance / touchInfo.lastDistance;
+          
+          // 计算两指中心点
+          const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const rect = canvas.getBoundingClientRect();
+          const canvasCenterX = centerX - rect.left;
+          const canvasCenterY = centerY - rect.top;
+          
+          // 应用缩放，限制缩放范围
+          const newScale = Math.max(0.2, Math.min(5, transform.scale * scaleFactor));
+          
+          // 计算新的平移量，使缩放中心保持在相同位置
+          setTransform(prev => {
+            const scaleChange = newScale / prev.scale;
+            return {
+              scale: newScale,
+              translateX: canvasCenterX - (canvasCenterX - prev.translateX) * scaleChange,
+              translateY: canvasCenterY - (canvasCenterY - prev.translateY) * scaleChange
+            };
+          });
+        }
+        
+        touchInfo.lastDistance = distance;
+      }
+    };
+    
+    const handleEnhancedTouchEnd = (e: TouchEvent) => {
+      if (!touchInfo.touchMoved && e.changedTouches.length === 1) {
+        // 如果是单击而非拖动，处理节点点击
+        const { x, y } = getTransformedCoordinates(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+        
+        if (onNodeClick) {
+          // 点击节点检测
+          for (const node of processedNodes) {
+            const pos = positions[node.id];
+            if (!pos) continue;
+            
+            const size = getNodeSize(node);
+            const dx = pos.x - x;
+            const dy = pos.y - y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance <= size + 5) {
+              onNodeClick(node.id);
+              break;
+            }
+          }
+        }
+      }
+      
+      // 重置触摸状态
+      touchInfo.touchStarted = false;
+      touchInfo.touchMoved = false;
+      touchInfo.lastDistance = 0;
     };
     
     // 鼠标移动处理
@@ -551,69 +691,7 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
       });
     };
     
-    // 触摸事件处理
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        // 单指触摸 - 开始拖动
-        const touch = e.touches[0];
-        
-        // 检查是否点击在节点上，如果是则不启动拖动
-        const { x: touchX, y: touchY } = getTransformedCoordinates(touch.clientX, touch.clientY);
-        
-        // 检查是否点击在节点上
-        for (const node of processedNodes) {
-          const pos = positions[node.id];
-          if (!pos) continue;
-          
-          const size = getNodeSize(node);
-          const dx = pos.x - touchX;
-          const dy = pos.y - touchY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          if (distance <= size + 5) {
-            // 点击在节点上，不启动拖动
-            return;
-          }
-        }
-        
-        dragRef.current = {
-          isDragging: true,
-          lastX: touch.clientX,
-          lastY: touch.clientY
-        };
-      }
-    };
-    
-    const handleTouchMove = (e: TouchEvent) => {
-      e.preventDefault(); // 防止页面滚动
-      
-      if (e.touches.length === 1 && dragRef.current.isDragging) {
-        // 单指触摸 - 拖动
-        const touch = e.touches[0];
-        
-        const dx = touch.clientX - dragRef.current.lastX;
-        const dy = touch.clientY - dragRef.current.lastY;
-        
-        // 更新上次位置
-        dragRef.current.lastX = touch.clientX;
-        dragRef.current.lastY = touch.clientY;
-        
-        // 更新平移
-        setTransform(prev => ({
-          ...prev,
-          translateX: prev.translateX + dx,
-          translateY: prev.translateY + dy
-        }));
-      } else if (e.touches.length === 2) {
-        // 双指触摸 - 缩放 (简化实现)
-        // 这里可以添加更复杂的手势处理
-      }
-    };
-    
-    const handleTouchEnd = () => {
-      // 触摸结束
-      dragRef.current.isDragging = false;
-    };
+    // 我们将使用增强版触摸事件处理函数，不需要这部分旧代码
     
     // 添加所有事件监听器
     canvas.addEventListener('mousemove', handleMouseMove);
@@ -623,10 +701,10 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     canvas.addEventListener('mouseleave', handleMouseLeave);
     canvas.addEventListener('wheel', handleWheel);
     
-    // 触摸事件
-    canvas.addEventListener('touchstart', handleTouchStart);
-    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-    canvas.addEventListener('touchend', handleTouchEnd);
+    // 触摸事件 - 使用增强版处理函数
+    canvas.addEventListener('touchstart', handleEnhancedTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleEnhancedTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleEnhancedTouchEnd);
     
     return () => {
       // 移除所有事件监听器
@@ -637,9 +715,9 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
       canvas.removeEventListener('mouseleave', handleMouseLeave);
       canvas.removeEventListener('wheel', handleWheel);
       
-      canvas.removeEventListener('touchstart', handleTouchStart);
-      canvas.removeEventListener('touchmove', handleTouchMove);
-      canvas.removeEventListener('touchend', handleTouchEnd);
+      canvas.removeEventListener('touchstart', handleEnhancedTouchStart);
+      canvas.removeEventListener('touchmove', handleEnhancedTouchMove);
+      canvas.removeEventListener('touchend', handleEnhancedTouchEnd);
     };
   }, [processedNodes, positions, hoveredNode, onNodeClick, transform]);
   
@@ -893,19 +971,19 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
           const targetX = targetPos.x - (dx / distance) * targetSize;
           const targetY = targetPos.y - (dy / distance) * targetSize;
           
-          // 确定连接线颜色和透明度
+          // 确定连接线颜色和透明度 - 增强可见度
           let linkColor = colorScheme.link.default;
-          let linkWidth = 1.5 / scale; // 调整线宽以适应缩放
-          let linkOpacity = 0.5;
+          let linkWidth = 2.5 / scale; // 增加基础线宽以提升可见度
+          let linkOpacity = 0.7; // 增加透明度以提高清晰度
           
           if (link.type === 'contains') {
             linkColor = colorScheme.link.contains;
-            linkWidth = 2 / scale;
-            linkOpacity = 0.7;
+            linkWidth = 3 / scale; // 增加包含关系的线宽
+            linkOpacity = 0.85; // 增加透明度
           } else if (link.type === 'related') {
             linkColor = colorScheme.link.related;
-            linkWidth = 1.8 / scale;
-            linkOpacity = 0.6;
+            linkWidth = 2.8 / scale; // 增加相关关系的线宽
+            linkOpacity = 0.8; // 增加透明度
           }
           
           // 根据link.value调整线的宽度
