@@ -41,10 +41,26 @@ export interface KnowledgeGraph {
 /**
  * 基于用户ID生成知识图谱
  * @param userId 用户ID
+ * @param forceRefresh 是否强制刷新缓存
  * @returns 知识图谱
  */
-export async function generateUserKnowledgeGraph(userId: number): Promise<KnowledgeGraph> {
+export async function generateUserKnowledgeGraph(userId: number, forceRefresh: boolean = false): Promise<KnowledgeGraph> {
   try {
+    // 如果不是强制刷新，先尝试从缓存获取
+    if (!forceRefresh) {
+      const cachedGraph = await storage.getKnowledgeGraphCache(userId);
+      if (cachedGraph) {
+        log(`使用缓存的知识图谱，用户ID=${userId}，版本=${cachedGraph.version}`);
+        return {
+          nodes: cachedGraph.nodes as KnowledgeNode[],
+          links: cachedGraph.links as KnowledgeLink[]
+        };
+      }
+      log(`未找到用户${userId}的知识图谱缓存或缓存已过期，将重新生成`);
+    } else {
+      log(`强制刷新用户${userId}的知识图谱，跳过缓存`);
+    }
+    
     // 直接从memory_service获取已分析的聚类结果，而不是重新处理所有记忆
     const { clusterResult, clusterCount } = await memoryService.getUserClusters(userId);
     
@@ -52,7 +68,7 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
       log(`用户${userId}没有有效的聚类结果，返回默认知识图谱`);
       
       // 创建一个最小的默认图谱节点
-      return {
+      const defaultGraph = {
         nodes: [
           {
             id: 'cluster_0',
@@ -91,6 +107,11 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
           }
         ]
       };
+      
+      // 将默认图谱也缓存起来，有效期2小时
+      await storage.saveKnowledgeGraphCache(userId, defaultGraph.nodes, defaultGraph.links, 2);
+      
+      return defaultGraph;
     }
     
     log(`为用户${userId}生成知识图谱，基于${clusterCount}个聚类`);
@@ -120,13 +141,20 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
       });
     }
     
+    // 只有创建了有效的图谱才缓存
+    if (nodes.length > 0 && links.length > 0) {
+      log(`将知识图谱保存到缓存，包含${nodes.length}个节点和${links.length}个连接`);
+      // 缓存图谱，有效期24小时
+      await storage.saveKnowledgeGraphCache(userId, nodes, links, 24);
+    }
+    
     log(`知识图谱生成完成，包含${nodes.length}个节点和${links.length}个连接`);
     return { nodes, links };
   } catch (error) {
     log(`生成用户知识图谱时出错: ${error}`, "error");
     
     // 返回默认图谱
-    return {
+    const defaultGraph = {
       nodes: [
         {
           id: 'default_0',
@@ -162,6 +190,15 @@ export async function generateUserKnowledgeGraph(userId: number): Promise<Knowle
         }
       ]
     };
+    
+    // 出错时也尝试缓存默认图谱，但有效期短一些
+    try {
+      await storage.saveKnowledgeGraphCache(userId, defaultGraph.nodes, defaultGraph.links, 1);
+    } catch (cacheError) {
+      log(`缓存默认知识图谱时出错: ${cacheError}`, "error");
+    }
+    
+    return defaultGraph;
   }
 }
 

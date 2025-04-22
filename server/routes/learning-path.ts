@@ -238,17 +238,31 @@ router.get('/:userId/knowledge-graph', async (req, res) => {
       return res.status(400).json({ error: "无效的用户ID" });
     }
     
-    log(`[API] 获取用户 ${userId} 的知识图谱`);
+    // 检查是否请求强制刷新
+    const refresh = req.query.refresh === 'true';
     
-    // 设置响应头，禁用缓存
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    log(`[API] 获取用户 ${userId} 的知识图谱，刷新模式: ${refresh}`);
     
-    // 生成知识图谱
-    const knowledgeGraph = await generateUserKnowledgeGraph(userId);
+    // 如果是刷新请求，清除缓存
+    if (refresh) {
+      await storage.clearKnowledgeGraphCache(userId);
+      log(`[API] 已清除用户 ${userId} 的知识图谱缓存`);
+    }
     
-    // 添加时间戳版本，避免浏览器缓存
+    // 设置响应头
+    // 允许短期缓存 1分钟 (除非是刷新请求)
+    if (refresh) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    } else {
+      res.setHeader('Cache-Control', 'max-age=60'); // 允许缓存1分钟
+    }
+    
+    // 生成知识图谱 (内部实现已修改为优先使用缓存)
+    const knowledgeGraph = await generateUserKnowledgeGraph(userId, refresh);
+    
+    // 添加时间戳版本，帮助区分不同版本的数据
     const response = {
       ...knowledgeGraph,
       version: new Date().getTime()
