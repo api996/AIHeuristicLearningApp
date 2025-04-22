@@ -123,11 +123,17 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
           const embedding = await storage.getEmbeddingByMemoryId(memory.id);
           
           // 记录向量信息用于调试
-          if (embedding) {
-            const vectorLength = Array.isArray(embedding.vectorData) ? embedding.vectorData.length : 'not an array';
-            log(`[trajectory] 记忆ID ${memory.id} 的向量: 类型=${typeof embedding.vectorData}, 长度=${vectorLength}`);
+          if (embedding && Array.isArray(embedding.vectorData) && embedding.vectorData.length > 0) {
+            const vectorLength = embedding.vectorData.length;
+            const sample = embedding.vectorData.slice(0, 3).map(v => v.toFixed(4)).join(', ');
+            log(`[trajectory] 记忆ID ${memory.id} 有有效向量: 长度=${vectorLength}, 样本=[${sample}...]`);
           } else {
-            log(`[trajectory] 记忆ID ${memory.id} 未找到向量嵌入`);
+            const reason = embedding 
+              ? (Array.isArray(embedding.vectorData) 
+                 ? "向量数组为空" 
+                 : `向量数据类型错误: ${typeof embedding.vectorData}`)
+              : "未找到向量记录";
+            log(`[trajectory] 记忆ID ${memory.id} 未找到有效向量嵌入: ${reason}`);
           }
           
           return {
