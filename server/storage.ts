@@ -517,6 +517,55 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
+  // 实现将指定消息之后的所有消息设为非活跃状态的方法
+  async deactivateMessagesAfter(chatId: number, messageId: number): Promise<void> {
+    try {
+      // 获取当前消息以确认它存在
+      const message = await this.getMessageById(messageId);
+      if (!message) {
+        throw new Error(`Message with ID ${messageId} not found`);
+      }
+      
+      // 确认消息属于指定的聊天
+      if (message.chatId !== chatId) {
+        throw new Error(`Message ${messageId} does not belong to chat ${chatId}`);
+      }
+      
+      // 查找此消息之后的所有消息（按照创建时间排序）
+      const allMessages = await db.select()
+        .from(messages)
+        .where(eq(messages.chatId, chatId))
+        .orderBy(asc(messages.createdAt));
+      
+      // 查找消息在列表中的位置
+      const messageIndex = allMessages.findIndex(msg => msg.id === messageId);
+      if (messageIndex === -1) {
+        throw new Error(`Message ${messageId} not found in chat ${chatId}`);
+      }
+      
+      // 获取此消息之后的所有消息ID
+      const laterMessagesIds = allMessages
+        .slice(messageIndex + 1)
+        .map(msg => msg.id);
+      
+      if (laterMessagesIds.length === 0) {
+        // 没有后续消息需要处理
+        log(`No messages to deactivate after message ${messageId} in chat ${chatId}`);
+        return;
+      }
+      
+      // 将所有后续消息标记为非活跃
+      const result = await db.update(messages)
+        .set({ isActive: false })
+        .where(inArray(messages.id, laterMessagesIds));
+      
+      log(`已将聊天 ${chatId} 中消息 ${messageId} 之后的 ${laterMessagesIds.length} 条消息标记为非活跃`);
+    } catch (error) {
+      log(`Error deactivating messages: ${error}`);
+      throw error;
+    }
+  }
 
   async regenerateMessage(messageId: number): Promise<Message> {
     try {
