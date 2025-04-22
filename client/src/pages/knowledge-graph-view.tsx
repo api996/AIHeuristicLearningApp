@@ -60,49 +60,93 @@ export default function KnowledgeGraphView() {
   useEffect(() => {
     if (!userId) return;
     
+    let isMounted = true; // 防止组件卸载后设置状态
+    
     async function loadGraphData() {
       try {
         setIsLoading(true);
+        setError(null); // 重置错误状态
         
-        // 先尝试获取预加载数据
+        // 使用内置重试机制的函数获取数据
+        let data;
         try {
+          // 先尝试获取预加载/缓存数据
           if (userId !== null) {
-            const data = await getKnowledgeGraphData(userId);
+            data = await getKnowledgeGraphData(userId);
             if (data && Array.isArray(data.nodes)) {
               console.log(`已获取缓存的知识图谱数据: ${data.nodes.length}个节点`);
-              setGraphData(data);
-              setIsLoading(false);
+              if (isMounted) {
+                setGraphData(data);
+                setIsLoading(false);
+              }
               return;
             }
           }
         } catch (e) {
-          console.warn('无法获取预加载数据:', e);
+          console.warn('无法获取预加载数据，将直接从API获取:', e);
         }
         
-        // 如果没有预加载数据，直接从API获取
-        const response = await fetch(`/api/learning-path/${userId}/knowledge-graph`);
-        if (!response.ok) {
-          throw new Error(`获取失败: ${response.status}`);
+        // 如果没有预加载数据或获取失败，直接从API获取
+        console.log('缓存获取失败，直接请求知识图谱数据...');
+        
+        try {
+          // 添加随机参数避免浏览器缓存
+          const timestamp = Date.now();
+          const rand = Math.floor(Math.random() * 1000000);
+          const response = await fetch(`/api/learning-path/${userId}/knowledge-graph?t=${timestamp}&r=${rand}`, {
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`获取失败: ${response.status}`);
+          }
+          
+          data = await response.json();
+          console.log(`成功获取知识图谱数据: ${data.nodes?.length || 0}个节点`);
+          
+          // 验证数据结构
+          if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
+            console.error('API返回的数据格式无效:', data);
+            throw new Error('API返回的数据格式无效');
+          }
+          
+          if (isMounted) {
+            setGraphData(data);
+          }
+          
+          // 更新缓存 (后台进行，不阻塞UI)
+          if (userId !== null && isMounted) {
+            setTimeout(() => {
+              preloadKnowledgeGraphData(userId, true).catch(e => {
+                console.warn('缓存更新失败，但不影响当前显示:', e);
+              });
+            }, 100);
+          }
+        } catch (apiError) {
+          console.error('直接API获取失败:', apiError);
+          throw apiError; // 重新抛出以便被外层捕获
         }
-        
-        const data = await response.json();
-        console.log(`成功获取知识图谱数据: ${data.nodes.length}个节点`);
-        
-        setGraphData(data);
-        
-        // 更新缓存
-        if (userId !== null) {
-          await preloadKnowledgeGraphData(userId);
-        }
-      } catch (err) {
+      } catch (err: any) {
         console.error('加载知识图谱失败:', err);
-        setError('无法加载知识图谱数据');
+        if (isMounted) {
+          setError('无法加载知识图谱数据: ' + (err?.message || '未知错误'));
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
     
     loadGraphData();
+    
+    // 清理函数
+    return () => {
+      isMounted = false;
+    };
   }, [userId]);
   
   // 刷新数据
@@ -111,33 +155,61 @@ export default function KnowledgeGraphView() {
     
     try {
       setIsLoading(true);
+      setError(null); // 重置错误状态
       
       // 清除缓存
       clearKnowledgeGraphCache(userId);
+      console.log('已清除缓存，正在刷新知识图谱数据...');
+      
+      // 防止浏览器缓存
+      const timestamp = Date.now();
+      const rand = Math.floor(Math.random() * 1000000);
       
       // 从API获取新数据
-      const response = await fetch(`/api/learning-path/${userId}/knowledge-graph`, {
-        headers: {
-          'Cache-Control': 'no-cache'
+      const response = await fetch(
+        `/api/learning-path/${userId}/knowledge-graph?t=${timestamp}&r=${rand}`, 
+        {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
         }
-      });
+      );
       
       if (!response.ok) {
-        throw new Error(`获取失败: ${response.status}`);
+        throw new Error(`获取失败: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
-      console.log(`刷新成功: ${data.nodes.length}个节点`);
       
+      // 验证数据结构
+      if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
+        console.error('API返回的数据格式无效:', data);
+        throw new Error('API返回的数据格式无效');
+      }
+      
+      console.log(`刷新成功: ${data.nodes.length}个节点, ${data.links.length}个连接`);
       setGraphData(data);
       
-      // 更新缓存
+      // 在后台更新缓存，不阻塞UI
       if (userId !== null) {
-        await preloadKnowledgeGraphData(userId);
+        setTimeout(() => {
+          preloadKnowledgeGraphData(userId, true).catch(e => {
+            console.warn('缓存更新失败，但不影响当前显示:', e);
+          });
+        }, 100);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('刷新知识图谱失败:', err);
-      setError('刷新数据失败');
+      setError('刷新数据失败: ' + (err?.message || '未知错误'));
+      
+      // 防止失败后用户被困住，添加返回选项
+      setTimeout(() => {
+        if (!graphData || graphData.nodes.length === 0) {
+          console.log('刷新失败且无数据，提供返回选项');
+        }
+      }, 2000);
     } finally {
       setIsLoading(false);
     }
@@ -178,10 +250,18 @@ export default function KnowledgeGraphView() {
         ) : error ? (
           <div className="w-full h-full flex flex-col items-center justify-center">
             <p className="text-red-500 mb-2">{error}</p>
-            <Button variant="outline" onClick={handleRefresh} className="mt-4">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              重试
-            </Button>
+            <div className="flex space-x-4 mt-4">
+              <Button variant="outline" onClick={handleRefresh}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                重试
+              </Button>
+              <Link href="/learning-path">
+                <Button variant="outline" className="border-yellow-600 text-yellow-500 hover:bg-yellow-900/20">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  返回学习轨迹
+                </Button>
+              </Link>
+            </div>
           </div>
         ) : graphData && graphData.nodes.length > 0 ? (
           <div className="w-full h-full">
@@ -206,7 +286,13 @@ export default function KnowledgeGraphView() {
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center">
             <p className="text-gray-400 mb-2">暂无足够数据生成知识图谱</p>
-            <p className="text-sm text-gray-500">继续与AI交流以获取更多记忆数据</p>
+            <p className="text-sm text-gray-500 mb-6">继续与AI交流以获取更多记忆数据</p>
+            <Link href="/learning-path">
+              <Button variant="outline" className="mt-2 border-blue-600 text-blue-500 hover:bg-blue-900/20">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                返回学习轨迹
+              </Button>
+            </Link>
           </div>
         )}
       </div>
