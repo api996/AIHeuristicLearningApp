@@ -1958,7 +1958,7 @@ asyncio.run(test_memory())
   // 获取系统当前设置和配置
   app.get("/api/system-info", async (req, res) => {
     try {
-      const systemInfo = await storage.getSystemConfig();
+      const systemInfo = await storage.getAllSystemConfigs();
       res.json(systemInfo);
     } catch (error) {
       log(`Error fetching system info: ${error}`);

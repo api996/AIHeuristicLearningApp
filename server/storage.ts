@@ -10,7 +10,10 @@ import {
   type SystemConfig
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, ne, and, asc, desc, sql, inArray } from "drizzle-orm";
+import { 
+  eq, ne, and, asc, desc, sql, inArray, isNotNull, count
+} from "drizzle-orm";
+import { sql as sqlExpr } from "drizzle-orm/sql";
 import { log } from "./vite";
 import fs from 'fs';
 import path from 'path';
@@ -552,172 +555,134 @@ export class DatabaseStorage implements IStorage {
     }[]
   }> {
     try {
-      // 1. 获取总消息数统计
-      const [{ count: totalMessages }] = await db
-        .select({ count: count() })
-        .from(messages)
-        .where(eq(messages.role, "assistant"));
+      // 使用原生SQL查询获取统计数据
       
-      // 2. 获取有反馈的消息统计
-      const [feedbackStats] = await db
-        .select({
-          totalFeedback: count(),
-          likesCount: countDistinct(
-            when(eq(messages.feedback, "like"), messages.id)
-          ),
-          dislikesCount: countDistinct(
-            when(eq(messages.feedback, "dislike"), messages.id)
-          )
-        })
-        .from(messages)
-        .where(
-          and(
-            eq(messages.role, "assistant"),
-            isNotNull(messages.feedback)
-          )
-        );
-        
-      // 3. 按用户统计反馈
-      const userFeedbackQuery = await db
-        .select({
-          userId: chats.userId,
-          totalFeedback: count(messages.feedback),
-          likes: countDistinct(
-            when(eq(messages.feedback, "like"), messages.id)
-          ),
-          dislikes: countDistinct(
-            when(eq(messages.feedback, "dislike"), messages.id)
-          )
-        })
-        .from(messages)
-        .innerJoin(chats, eq(messages.chatId, chats.id))
-        .where(
-          and(
-            eq(messages.role, "assistant"),
-            isNotNull(messages.feedback)
-          )
-        )
-        .groupBy(chats.userId);
-
-      // 获取用户名
-      const userIds = userFeedbackQuery.map(stats => stats.userId);
-      const userMap = new Map();
+      // 1. 获取总消息数和反馈统计
+      const overallStatsQuery = sql`
+        SELECT
+          (SELECT COUNT(*) FROM messages WHERE role = 'assistant') AS total_messages,
+          COUNT(*) AS total_feedback,
+          SUM(CASE WHEN feedback = 'like' THEN 1 ELSE 0 END) AS likes_count,
+          SUM(CASE WHEN feedback = 'dislike' THEN 1 ELSE 0 END) AS dislikes_count
+        FROM messages
+        WHERE role = 'assistant' AND feedback IS NOT NULL
+      `;
       
-      if (userIds.length > 0) {
-        const usersData = await db
-          .select({ id: users.id, username: users.username })
-          .from(users)
-          .where(inArray(users.id, userIds));
-          
-        usersData.forEach(user => {
-          userMap.set(user.id, user.username);
-        });
-      }
+      const overallStatsResult = await db.execute(overallStatsQuery);
+      const overallStats = overallStatsResult[0] || {
+        total_messages: 0, 
+        total_feedback: 0, 
+        likes_count: 0, 
+        dislikes_count: 0
+      };
       
-      const userFeedbackStats = userFeedbackQuery.map(stats => ({
-        userId: stats.userId,
-        username: userMap.get(stats.userId) || `User ${stats.userId}`,
-        totalFeedback: Number(stats.totalFeedback),
-        likes: Number(stats.likes),
-        dislikes: Number(stats.dislikes),
-        feedbackRate: Number(stats.totalFeedback) > 0 
-          ? Number(stats.likes) / Number(stats.totalFeedback) 
-          : 0
-      }));
+      // 2. 按用户统计反馈
+      const userStatsQuery = sql`
+        SELECT 
+          c.user_id AS user_id,
+          u.username AS username,
+          COUNT(*) AS total_feedback,
+          SUM(CASE WHEN m.feedback = 'like' THEN 1 ELSE 0 END) AS likes,
+          SUM(CASE WHEN m.feedback = 'dislike' THEN 1 ELSE 0 END) AS dislikes
+        FROM messages m
+        JOIN chats c ON m.chat_id = c.id
+        JOIN users u ON c.user_id = u.id
+        WHERE m.role = 'assistant' AND m.feedback IS NOT NULL
+        GROUP BY c.user_id, u.username
+      `;
       
-      // 4. 按模型统计反馈
-      const modelFeedbackQuery = await db
-        .select({
-          model: messages.model,
-          totalMessages: count(),
-          likes: countDistinct(
-            when(eq(messages.feedback, "like"), messages.id)
-          ),
-          dislikes: countDistinct(
-            when(eq(messages.feedback, "dislike"), messages.id)
-          )
-        })
-        .from(messages)
-        .where(eq(messages.role, "assistant"))
-        .groupBy(messages.model);
-        
-      const modelFeedbackStats = modelFeedbackQuery.map(stats => ({
-        model: stats.model || "未指定",
-        totalMessages: Number(stats.totalMessages),
-        likes: Number(stats.likes),
-        dislikes: Number(stats.dislikes),
-        likeRate: (Number(stats.likes) + Number(stats.dislikes)) > 0 
-          ? Number(stats.likes) / (Number(stats.likes) + Number(stats.dislikes)) 
-          : 0
-      }));
+      const userStatsResult = await db.execute(userStatsQuery);
+      const userStats = userStatsResult || [];
       
-      // 5. 获取最近的反馈消息
-      const recentFeedbackMessages = await db
-        .select({
-          id: messages.id,
-          chatId: messages.chatId,
-          content: messages.content,
-          feedback: messages.feedback,
-          model: messages.model,
-          createdAt: messages.createdAt
-        })
-        .from(messages)
-        .where(
-          and(
-            eq(messages.role, "assistant"),
-            isNotNull(messages.feedback)
-          )
-        )
-        .orderBy(desc(messages.createdAt))
-        .limit(10);
-
-      // 获取这些消息对应的用户信息
-      const chatIds = recentFeedbackMessages.map(msg => msg.chatId);
-      const chatUserMap = new Map();
+      // 3. 按模型统计反馈
+      const modelStatsQuery = sql`
+        SELECT 
+          COALESCE(model, '未指定') AS model_name,
+          COUNT(*) AS total_messages,
+          SUM(CASE WHEN feedback = 'like' THEN 1 ELSE 0 END) AS likes,
+          SUM(CASE WHEN feedback = 'dislike' THEN 1 ELSE 0 END) AS dislikes
+        FROM messages
+        WHERE role = 'assistant'
+        GROUP BY model
+      `;
       
-      if (chatIds.length > 0) {
-        const chatUserData = await db
-          .select({
-            chatId: chats.id,
-            userId: chats.userId,
-            username: users.username
-          })
-          .from(chats)
-          .innerJoin(users, eq(chats.userId, users.id))
-          .where(inArray(chats.id, chatIds));
-          
-        chatUserData.forEach(data => {
-          chatUserMap.set(data.chatId, {
-            userId: data.userId,
-            username: data.username
-          });
-        });
-      }
+      const modelStatsResult = await db.execute(modelStatsQuery);
+      const modelStats = modelStatsResult || [];
       
-      const recentFeedback = recentFeedbackMessages.map(msg => {
-        const userInfo = chatUserMap.get(msg.chatId) || { userId: 0, username: "未知用户" };
+      // 4. 获取最近的反馈消息
+      const recentFeedbackQuery = sql`
+        SELECT 
+          m.id, 
+          m.chat_id, 
+          m.content, 
+          m.feedback, 
+          m.model, 
+          m.created_at,
+          c.user_id,
+          u.username
+        FROM messages m
+        JOIN chats c ON m.chat_id = c.id
+        JOIN users u ON c.user_id = u.id
+        WHERE m.role = 'assistant' AND m.feedback IS NOT NULL
+        ORDER BY m.created_at DESC
+        LIMIT 10
+      `;
+      
+      const recentFeedbackResult = await db.execute(recentFeedbackQuery);
+      const recentFeedbackData = recentFeedbackResult || [];
+      
+      // 处理用户统计数据
+      const userFeedbackStats = userStats.map((row: any) => {
+        const totalFeedback = parseInt(row.total_feedback) || 0;
+        const likes = parseInt(row.likes) || 0;
         return {
-          id: msg.id,
-          userId: userInfo.userId,
-          username: userInfo.username,
-          chatId: msg.chatId,
-          content: msg.content,
-          feedback: msg.feedback,
-          model: msg.model || "未指定",
-          createdAt: msg.createdAt.toISOString()
+          userId: parseInt(row.user_id),
+          username: row.username || `用户 ${row.user_id}`,
+          totalFeedback,
+          likes,
+          dislikes: parseInt(row.dislikes) || 0,
+          feedbackRate: totalFeedback > 0 ? likes / totalFeedback : 0
         };
       });
       
-      // 计算反馈率
-      const feedbackPercentage = totalMessages > 0 
-        ? (feedbackStats.totalFeedback / totalMessages) * 100 
-        : 0;
-        
+      // 处理模型统计数据
+      const modelFeedbackStats = modelStats.map((row: any) => {
+        const likes = parseInt(row.likes) || 0;
+        const dislikes = parseInt(row.dislikes) || 0;
+        const total = likes + dislikes;
+        return {
+          model: row.model_name || "未指定",
+          totalMessages: parseInt(row.total_messages) || 0,
+          likes,
+          dislikes,
+          likeRate: total > 0 ? likes / total : 0
+        };
+      });
+      
+      // 处理最近反馈数据
+      const recentFeedback = recentFeedbackData.map((row: any) => ({
+        id: parseInt(row.id),
+        userId: parseInt(row.user_id) || 0,
+        username: row.username || "未知用户",
+        chatId: parseInt(row.chat_id),
+        content: row.content || "",
+        feedback: row.feedback || "未指定",
+        model: row.model || "未指定",
+        createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString()
+      }));
+      
+      // 计算总体统计数据
+      const totalMessages = parseInt(overallStats.total_messages) || 0;
+      const totalFeedback = parseInt(overallStats.total_feedback) || 0;
+      const likesCount = parseInt(overallStats.likes_count) || 0;
+      const dislikesCount = parseInt(overallStats.dislikes_count) || 0;
+      const feedbackPercentage = totalMessages > 0 ? (totalFeedback / totalMessages) * 100 : 0;
+      
       return {
-        totalMessages: Number(totalMessages),
-        totalFeedback: Number(feedbackStats.totalFeedback) || 0,
-        likesCount: Number(feedbackStats.likesCount) || 0,
-        dislikesCount: Number(feedbackStats.dislikesCount) || 0,
+        totalMessages,
+        totalFeedback,
+        likesCount,
+        dislikesCount,
         feedbackPercentage,
         userFeedbackStats,
         modelFeedbackStats,
