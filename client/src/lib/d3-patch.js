@@ -1,194 +1,174 @@
 /**
- * D3.js 库补丁文件
- * 确保D3库在各种环境下正确加载，支持iPad和高分辨率屏幕
+ * D3.js修复工具集
+ * 提供修复D3.js在iPad和高DPI设备上的渲染和交互问题的工具函数
  */
 
-// 创建全局补丁对象
-window._d3Patch = window._d3Patch || {
-  loaded: false,
-  retryCount: 0,
-  maxRetries: 3
-};
+// D3加载状态
+export let d3Loaded = false;
 
-// 导出加载检查函数
-export const ensureD3Loaded = () => {
-  return new Promise((resolve) => {
-    if (window.d3) {
-      resolve(true);
-      return;
-    }
-    
-    // 如果D3未加载，尝试加载
-    loadD3Library().then(success => {
-      resolve(success);
-    });
-  });
-};
+// 检查D3是否已加载
+export function isD3Loaded() {
+  return typeof window !== 'undefined' && window.d3 !== undefined;
+}
 
 // 加载D3库
-function loadD3Library() {
-  return new Promise((resolve) => {
-    try {
-      const script = document.createElement('script');
-      script.src = "https://d3js.org/d3.v7.min.js";
-      script.async = true;
-      
-      script.onload = function() {
-        window._d3Patch.loaded = true;
-        applyD3Patches();
-        resolve(true);
-      };
-      
-      script.onerror = function() {
-        window._d3Patch.retryCount++;
-        if (window._d3Patch.retryCount < window._d3Patch.maxRetries) {
-          setTimeout(() => loadD3Library().then(resolve), 1000);
-        } else {
-          resolve(false);
-        }
-      };
-      
-      document.head.appendChild(script);
-    } catch (err) {
-      resolve(false);
+export async function loadD3() {
+  if (isD3Loaded()) {
+    d3Loaded = true;
+    return true;
+  }
+  
+  try {
+    // 尝试加载D3.js库
+    await import('d3');
+    
+    // 检查是否成功加载
+    if (isD3Loaded()) {
+      console.log("D3.js库已成功加载");
+      d3Loaded = true;
+      return true;
+    } else {
+      console.error("D3.js库加载失败，window.d3未定义");
+      return false;
     }
-  });
-}
-
-// 应用D3补丁
-function applyD3Patches() {
-  if (!window.d3) return;
-  
-  // 修复触摸事件
-  if (typeof window.d3.select === 'function') {
-    const originalSelect = window.d3.select;
-    window.d3.select = function() {
-      const selection = originalSelect.apply(this, arguments);
-      enhanceSelection(selection);
-      return selection;
-    };
-  }
-  
-  if (typeof window.d3.selectAll === 'function') {
-    const originalSelectAll = window.d3.selectAll;
-    window.d3.selectAll = function() {
-      const selection = originalSelectAll.apply(this, arguments);
-      enhanceSelection(selection);
-      return selection;
-    };
-  }
-  
-  // 检测是否为iPad，应用专用修复
-  if (isIPadDevice()) {
-    applyIPadSpecificFixes();
+  } catch (error) {
+    console.error("加载D3.js库时出错:", error);
+    return false;
   }
 }
 
-// 增强选择集
-function enhanceSelection(selection) {
-  if (!selection || !selection.on) return selection;
+// 确保D3已加载
+export async function ensureLoaded() {
+  if (d3Loaded) return true;
+  return await loadD3();
+}
+
+// 检测设备类型
+export function detectDevice() {
+  if (typeof window === 'undefined') return 'unknown';
   
-  // 保存原始on方法
-  const originalOn = selection.on;
+  const isIPad = /iPad/.test(navigator.userAgent) || 
+                (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
   
-  // 增强on方法，自动添加触摸事件支持
-  selection.on = function(typenames, listener, capture) {
-    if (typenames && typeof typenames === 'string' && listener) {
-      // 为鼠标事件添加对应的触摸事件
-      const touchMapping = {
-        'mousedown': 'touchstart',
-        'mousemove': 'touchmove',
-        'mouseup': 'touchend',
-        'click': 'touchend'
-      };
-      
-      const touchEvent = touchMapping[typenames];
-      if (touchEvent) {
-        // 包装触摸事件监听器，使其模拟鼠标事件
-        const touchListener = function(event) {
-          if (event.touches && event.touches[0]) {
-            // 创建模拟鼠标事件
-            const touch = event.touches[0];
-            const simulatedEvent = {
-              ...event,
-              clientX: touch.clientX,
-              clientY: touch.clientY,
-              pageX: touch.pageX,
-              pageY: touch.pageY,
-              screenX: touch.screenX,
-              screenY: touch.screenY
-            };
-            
-            // 调用原始监听器
-            listener.call(this, simulatedEvent);
-          }
-        };
-        
-        // 添加触摸事件监听器
-        originalOn.call(this, touchEvent, touchListener, capture);
-      }
+  const isIPhone = /iPhone|iPod/.test(navigator.userAgent);
+  
+  const isTablet = isIPad || 
+                  (window.innerWidth >= 768 && window.innerWidth <= 1366 && 'ontouchend' in document);
+  
+  const isHighDPI = window.devicePixelRatio >= 2;
+  
+  if (isIPad) {
+    document.documentElement.classList.add('ipad-device');
+    console.log("检测到iPad设备，应用iPad专用布局优化");
+    return 'ipad';
+  } else if (isIPhone) {
+    document.documentElement.classList.add('iphone-device');
+    console.log("检测到iPhone设备，应用移动布局优化");
+    return 'iphone';
+  } else if (isTablet) {
+    document.documentElement.classList.add('tablet-device');
+    console.log("检测到平板设备，应用平板布局优化");
+    return 'tablet';
+  } else if (isHighDPI) {
+    document.documentElement.classList.add('high-dpi-device');
+    console.log("检测到高DPI设备，应用高分辨率优化");
+    return 'high-dpi';
+  }
+  
+  return 'desktop';
+}
+
+// 获取SVG中的所有节点
+export function getAllSvgNodes(svgContainer) {
+  if (!svgContainer) return [];
+  return Array.from(svgContainer.querySelectorAll('.node, circle, .node-circle'));
+}
+
+// 修复SVG交互问题
+export function fixSvgInteraction(svgElement) {
+  if (!svgElement) return;
+  
+  // 阻止默认的触摸事件行为
+  svgElement.addEventListener('touchstart', (e) => {
+    if (e.target.closest('circle, .node, .node-circle')) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+  
+  // 阻止鼠标事件
+  svgElement.addEventListener('mousedown', (e) => {
+    if (e.target.closest('circle, .node, .node-circle')) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+}
+
+// 修复D3力导向图布局
+export function fixForceLayout(simulation, svg) {
+  if (!simulation || !svg || !window.d3) return;
+  
+  // 检测设备类型
+  const deviceType = detectDevice();
+  const isTouch = ['ipad', 'iphone', 'tablet'].includes(deviceType);
+  
+  // 修改力导向图参数以适应触摸设备
+  if (isTouch) {
+    // 增加节点之间的距离
+    if (simulation.force('link')) {
+      simulation.force('link').distance(100);
     }
     
-    // 调用原始方法
-    return originalOn.apply(this, arguments);
-  };
-  
-  return selection;
-}
-
-// 检测iPad设备
-function isIPadDevice() {
-  const userAgent = navigator.userAgent.toLowerCase();
-  return /ipad/.test(userAgent) || 
-         (/macintosh/.test(userAgent) && 'ontouchend' in document);
-}
-
-// 应用iPad专用修复
-function applyIPadSpecificFixes() {
-  // 添加触摸优化样式
-  const style = document.createElement('style');
-  style.textContent = `
-    svg {
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      -webkit-user-select: none;
+    // 增加电荷力，使节点更分散
+    if (simulation.force('charge')) {
+      simulation.force('charge').strength(-150);
     }
-    .d3-force-graph-container {
-      touch-action: pan-x pan-y;
+    
+    // 减小中心引力
+    if (simulation.force('center')) {
+      simulation.force('center').strength(0.08);
     }
-    .d3-force-graph {
-      touch-action: manipulation;
+    
+    // 减少随机性，使布局更稳定
+    if (simulation.alphaDecay) {
+      simulation.alphaDecay(0.02);
     }
-  `;
-  document.head.appendChild(style);
-  
-  // 监听窗口大小变化，触发SVG更新
-  window.addEventListener('resize', function() {
-    if (window.d3) {
-      document.querySelectorAll('svg').forEach(svg => {
-        // 触发重新渲染
-        const event = new Event('resize-svg');
-        svg.dispatchEvent(event);
-      });
-    }
-  });
-  
-  console.log("已应用iPad设备D3.js优化");
-}
-
-// DOM加载完成后检查D3状态
-document.addEventListener('DOMContentLoaded', function() {
-  if (window.d3 && !window._d3Patch.loaded) {
-    window._d3Patch.loaded = true;
-    applyD3Patches();
-    console.log("检测到D3.js已加载，应用补丁");
   }
-});
+  
+  // 处理拖动行为（如果d3已加载）
+  if (window.d3 && window.d3.drag) {
+    svg.call(window.d3.drag()
+      .on("start", dragstarted)
+      .on("drag", dragged)
+      .on("end", dragended));
+      
+    function dragstarted(event, d) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+    
+    function dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+    
+    function dragended(event, d) {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+  }
+}
 
-// 导出实用函数
-export default {
-  isLoaded: () => !!window.d3,
-  applyPatches: applyD3Patches,
-  ensureLoaded: ensureD3Loaded
+// 导出工具集
+const d3PatchUtils = {
+  isD3Loaded,
+  loadD3,
+  ensureLoaded,
+  detectDevice,
+  getAllSvgNodes,
+  fixSvgInteraction,
+  fixForceLayout
 };
+
+export default d3PatchUtils;

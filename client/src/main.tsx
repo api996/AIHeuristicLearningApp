@@ -9,7 +9,7 @@ import "./components/ui/button-styles.css";
 import "./components/ui/icon-fixes.css"; // 导入图标大小修复
 
 // 导入D3补丁文件
-import d3PatchUtils from "./lib/d3-patches";
+import * as d3PatchUtils from "./lib/d3-patch";
 import "./components/ui/d3-fixes.css"; 
 import "./components/ui/knowledge-graph-fixes.css";
 
