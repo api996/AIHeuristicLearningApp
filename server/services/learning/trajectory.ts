@@ -179,8 +179,9 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
           };
         });
         // 强制类型转换，解决类型不兼容问题
+        // 注意：必须使用字符串类型的ID，避免整数转换导致的ID不匹配问题
         const compatibleMemories = convertedMemories as any as { 
-          id: number; 
+          id: string; // 使用字符串ID，避免整数转换问题
           userId: number; 
           content: string; 
           type: string; 
