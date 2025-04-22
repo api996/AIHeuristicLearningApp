@@ -60,14 +60,14 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   // 确保D3补丁正确应用
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
         // 直接设置全局d3对象
         window.d3 = d3;
-        
+
         // 初始化必要的全局对象 - 不依赖补丁文件
         if (!window._d3Selection) {
           window._d3Selection = { d3: d3, event: null, transform: { k: 1, x: 0, y: 0 } };
@@ -76,7 +76,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           window._d3Selection.d3 = d3;
           console.log("SimpleKnowledgeGraph: 更新了_d3Selection.d3引用");
         }
-        
+
         if (!window.d3Selection) {
           window.d3Selection = {
             d3: d3,
@@ -91,13 +91,13 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           };
           console.log("SimpleKnowledgeGraph: 创建了d3Selection全局对象");
         }
-        
+
         // 直接应用D3补丁，不使用全局函数
         if (window.d3 && window._d3Selection) {
           window._d3Selection.d3 = window.d3;
           console.log("SimpleKnowledgeGraph: 内置补丁已应用");
         }
-        
+
         // 标记组件已加载
         console.log("SimpleKnowledgeGraph组件已加载并初始化D3全局对象");
       } catch (err) {
@@ -112,7 +112,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       // 确保事件和节点对象存在
       if (!event) event = {};
       if (!d) d = { x: width / 2, y: height / 2 };
-      
+
       // 设置力学模拟的活跃度
       if (typeof event.active !== 'undefined' && !event.active) {
         try {
@@ -121,11 +121,11 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           console.warn("重启模拟失败:", e);
         }
       }
-      
+
       // 设置节点的固定位置 (fx, fy) 以实现拖拽效果
       d.fx = typeof d.x !== 'undefined' ? d.x : width / 2;
       d.fy = typeof d.y !== 'undefined' ? d.y : height / 2;
-      
+
       // 记录初始拖拽位置
       console.log("开始拖拽节点:", { id: d.id, x: d.fx, y: d.fy });
     } catch (err) {
@@ -138,14 +138,14 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       // 检查事件和节点对象是否存在
       if (!event) event = {};
       if (!d) return;
-      
+
       // 获取事件中的坐标
       // D3的不同版本可能使用不同的属性名称
       const x = typeof event.x !== 'undefined' ? event.x : 
                (event.dx && d.fx ? d.fx + event.dx : d.fx);
       const y = typeof event.y !== 'undefined' ? event.y :
                (event.dy && d.fy ? d.fy + event.dy : d.fy);
-      
+
       // 更新节点位置
       if (typeof x !== 'undefined') d.fx = x;
       if (typeof y !== 'undefined') d.fy = y;
@@ -159,7 +159,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       // 确保事件和节点对象存在
       if (!event) event = {};
       if (!d) return;
-      
+
       // 减小力学模拟的活跃度
       if (typeof event.active !== 'undefined' && !event.active) {
         try {
@@ -168,11 +168,11 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           console.warn("设置模拟活跃度失败:", e);
         }
       }
-      
+
       // 释放节点，让它再次自由移动
       d.fx = null;
       d.fy = null;
-      
+
       console.log("结束拖拽节点:", d.id);
     } catch (err) {
       console.warn("拖拽结束事件处理错误:", err);
@@ -182,12 +182,12 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
   // 响应缩放级别和全屏状态变化
   useEffect(() => {
     if (!svgRef.current) return;
-    
+
     console.log(`图谱更新: 缩放=${zoomLevel}, 全屏=${isFullScreen}`);
-    
+
     // 获取SVG元素
     const svg = d3.select(svgRef.current);
-    
+
     // 根据全屏状态更新SVG尺寸
     if (isFullScreen) {
       svg.attr('width', window.innerWidth - 40)
@@ -196,7 +196,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       svg.attr('width', width)
          .attr('height', height);
     }
-    
+
     // 应用缩放级别（使用transform属性直接缩放容器）
     try {
       const g = svg.select('g');
@@ -214,24 +214,36 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
     }
   }, [zoomLevel, isFullScreen, width, height]);
 
+  // 使用useEffect渲染图谱
   useEffect(() => {
-    if (!svgRef.current || !nodes.length) return;
+    if (!svgRef.current) {
+      console.error("SVG引用不存在，无法渲染图谱");
+      return;
+    }
+
+    if (!nodes || !nodes.length) {
+      console.warn("无节点数据，跳过图谱渲染");
+      return;
+    }
 
     try {
       // 清除之前的SVG内容
       d3.select(svgRef.current).selectAll("*").remove();
       console.log(`开始重新渲染图谱: ${nodes.length}个节点, ${links.length}个连接`);
 
+      // 记录渲染开始时间用于性能分析
+      const renderStartTime = performance.now();
+
       // 预处理数据
       // 使用深拷贝确保不修改原始数据
       const nodesCopy = JSON.parse(JSON.stringify(nodes));
       const linksCopy = JSON.parse(JSON.stringify(links));
-      
+
       // 为节点添加初始位置 - 使用极坐标分布让它们更均匀
       const centerX = width / 2;
       const centerY = height / 2;
       const radius = Math.min(width, height) * 0.35; // 使用画布尺寸的35%作为分布半径
-      
+
       // 将不同类别的节点分开放置
       nodesCopy.forEach((node: any, i: number) => {
         // 基于节点类别和索引计算角度
@@ -239,17 +251,17 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         if (node.category === 'cluster') angleOffset = 0;
         else if (node.category === 'keyword') angleOffset = 2;
         else angleOffset = 4;
-        
+
         // 使用黄金角分布法获得更均匀的分布
         const angle = (i * 0.618033988749895 + angleOffset) * Math.PI * 2;
-        
+
         // 计算节点初始位置，根据类型略微调整距离
         let distance = radius;
         if (node.category === 'cluster') distance *= 0.5; // 集群靠近中心
-        
+
         node.x = centerX + Math.cos(angle) * distance;
         node.y = centerY + Math.sin(angle) * distance;
-        
+
         // 添加初始速度以减少启动时的混乱
         node.vx = 0;
         node.vy = 0;
@@ -346,7 +358,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         // 定义默认和当前变换
         const defaultTransform = { k: 1, x: width / 2, y: height / 2 };
         let currentTransform = { ...defaultTransform };
-        
+
         // 创建缩放控制器
         const zoom = d3.zoom()
           .scaleExtent([0.1, 8]) // 更大的缩放范围
@@ -356,12 +368,12 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
               if (event && event.transform) {
                 // 保存当前变换
                 currentTransform = event.transform;
-                
+
                 // 应用变换到容器
                 container.attr('transform', 
                   `translate(${currentTransform.x},${currentTransform.y}) scale(${currentTransform.k})`
                 );
-                
+
                 // 在全屏模式下显示缩放级别指示器
                 if (isFullScreen) {
                   const indicator = svg.select('#zoom-indicator');
@@ -376,14 +388,14 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
               container.attr('transform', `translate(0,0) scale(1)`);
             }
           });
-        
+
         // 应用缩放行为
         svg.call(zoom as any);
-        
+
         // 简化界面，不添加额外按钮和指示器，专注于提升触摸和拖拽体验
-        
+
         // 不再需要预热，删除此部分
-        
+
         // 应用初始缩放级别
         if (zoomLevel && zoomLevel !== 1) {
           // 使用平滑过渡动画
@@ -418,7 +430,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         .attr('stroke-width', (d: any) => (d.strokeWidth || 2.5) * 3)
         .attr('stroke-linecap', 'round')
         .attr('filter', 'blur(3px)');
-        
+
       // 主连接线
       const link = container.append('g')
         .selectAll('.link-main')
@@ -475,7 +487,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           .attr('y1', (d: any) => d.source.y)
           .attr('x2', (d: any) => d.target.x)
           .attr('y2', (d: any) => d.target.y);
-          
+
         // 更新辅助高亮线条
         container.selectAll('.link-highlight')
           .attr('x1', (d: any) => d.source.x)
@@ -487,6 +499,11 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         node
           .attr('transform', (d: any) => `translate(${d.x},${d.y})`);
       });
+
+      // 记录渲染结束时间并计算渲染时间
+      const renderEndTime = performance.now();
+      const renderTime = renderEndTime - renderStartTime;
+      console.log(`图谱渲染完成，耗时: ${renderTime.toFixed(2)}ms`);
     } catch (err: any) {
       console.error('知识图谱渲染错误:', err);
       setError(err.message || '图谱渲染失败');
@@ -511,7 +528,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       length: nodes ? nodes.length : 0,
       nodesData: nodes
     });
-    
+
     return (
       <div className="flex flex-col items-center justify-center h-full w-full">
         <p className="text-lg text-neutral-400">暂无足够数据生成知识图谱</p>
@@ -521,14 +538,14 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
       </div>
     );
   }
-  
+
   // 添加确认日志
   console.log("SimpleKnowledgeGraph: 准备渲染知识图谱，节点数=", nodes.length, "连接数=", links.length);
 
   // 添加触摸事件处理，增强移动设备兼容性
   useEffect(() => {
     if (!svgRef.current) return;
-    
+
     // 为SVG添加触摸事件处理
     const handleTouchStart = (e: TouchEvent) => {
       // 确保触摸事件不会导致页面滚动
@@ -538,7 +555,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         return false;
       }
     };
-    
+
     const handleTouchMove = (e: TouchEvent) => {
       // 阻止单指触摸时的页面滚动，但允许多指操作（如缩放）
       if (e.touches.length === 1) {
@@ -546,21 +563,21 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         return false;
       }
     };
-    
+
     // 防止双击放大
     const handleDoubleTap = (e: TouchEvent) => {
       e.preventDefault();
       return false;
     };
-    
+
     const svgElement = svgRef.current;
     svgElement.addEventListener('touchstart', handleTouchStart, { passive: false });
     svgElement.addEventListener('touchmove', handleTouchMove, { passive: false });
     svgElement.addEventListener('dblclick', handleDoubleTap as any, { passive: false });
-    
+
     // 添加触摸样式类，以便应用CSS优化
     svgElement.classList.add('touch-enabled-svg');
-    
+
     return () => {
       svgElement.removeEventListener('touchstart', handleTouchStart);
       svgElement.removeEventListener('touchmove', handleTouchMove);
@@ -572,18 +589,18 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
   // 适应移动端的尺寸计算
   const adjustedHeight = isFullScreen ? height : Math.min(height, window.innerHeight * 0.7);
   const adjustedWidth = isFullScreen ? width : Math.min(width, window.innerWidth - 20);
-  
+
   // 添加刷新图谱的函数
   const refreshGraph = () => {
     if (!svgRef.current || !nodes.length) return;
-    
+
     // 重新渲染图谱
     console.log("手动刷新知识图谱...");
     d3.select(svgRef.current).selectAll("*").remove();
-    
+
     // 重新触发useEffect渲染
     setError(null);
-    
+
     // 模拟状态变化，强制重新渲染
     const svgElement = svgRef.current;
     setTimeout(() => {
@@ -591,17 +608,17 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
         // 重绘图谱的核心逻辑
         const nodeMap = new Map();
         nodes.forEach(node => nodeMap.set(node.id, { ...node }));
-        
+
         const formattedLinks = links.map(link => ({
           ...link,
           source: typeof link.source === 'string' ? nodeMap.get(link.source) || link.source : link.source,
           target: typeof link.target === 'string' ? nodeMap.get(link.target) || link.target : link.target,
         }));
-        
+
         // 创建SVG元素
         const svg = d3.select(svgElement);
         const container = svg.append('g');
-        
+
         // 绘制连接线 - 明显增强版
         // 先添加较粗但透明的辅助线，使线条显得更宽更醒目
         container.append('g')
@@ -614,7 +631,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           .attr('stroke-width', (d: any) => (d.strokeWidth || 2.5) * 3)
           .attr('stroke-linecap', 'round')
           .attr('filter', 'blur(3px)');
-          
+
         // 主连接线
         const link = container.append('g')
           .selectAll('.link-main')
@@ -626,7 +643,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           .attr('stroke-width', (d: any) => d.strokeWidth || 3)
           .attr('stroke-opacity', 0.9)
           .attr('stroke-linecap', 'round');
-          
+
         // 创建节点
         const node = container.append('g')
           .selectAll('.node')
@@ -635,14 +652,14 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           .append('g')
           .attr('class', 'node')
           .attr('data-category', (d: any) => d.category || 'default');
-          
+
         // 添加节点圆形
         node.append('circle')
           .attr('r', (d: any) => Math.max(5, (d.size || 15) / 10))
           .attr('fill', (d: any) => d.color || '#3b82f6')
           .attr('stroke', '#ffffff')
           .attr('stroke-width', 1.5);
-          
+
         // 添加节点标签
         node.append('text')
           .attr('dx', (d: any) => Math.max(5, (d.size || 15) / 10) + 5)
@@ -652,7 +669,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           .attr('stroke', 'rgba(0,0,0,0.5)')
           .attr('stroke-width', 0.3)
           .text((d: any) => d.label || d.id);
-          
+
         // 启动力导向图计算
         const simulation = d3.forceSimulation(nodes as any)
           .force('link', d3.forceLink(formattedLinks).id((d: any) => d.id).distance(150))
@@ -666,14 +683,14 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
               .attr('y1', (d: any) => d.source.y)
               .attr('x2', (d: any) => d.target.x)
               .attr('y2', (d: any) => d.target.y);
-              
+
             // 更新辅助高亮线条
             container.selectAll('.link-highlight')
               .attr('x1', (d: any) => d.source.x)
               .attr('y1', (d: any) => d.source.y)
               .attr('x2', (d: any) => d.target.x)
               .attr('y2', (d: any) => d.target.y);
-    
+
             // 更新节点位置
             node
               .attr('transform', (d: any) => `translate(${d.x},${d.y})`);
@@ -682,6 +699,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
     }, 50);
   };
 
+  // 渲染图谱
   return (
     <div 
       className={`knowledge-graph-container ${isFullScreen ? 'fullscreened-graph' : ''}`}
@@ -708,7 +726,7 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           touchAction: 'manipulation'
         }}
       />
-      
+
       {/* 添加图谱控制按钮 */}
       <div className="graph-controls">
         <button 
@@ -719,11 +737,21 @@ const SimpleKnowledgeGraph: React.FC<SimpleKnowledgeGraphProps> = ({
           <RefreshCw size={18} />
         </button>
       </div>
-      
+
       {/* 缩放级别指示器 */}
       <div className="zoom-level-indicator">
         缩放: {(zoomLevel || 1).toFixed(1)}x
       </div>
+
+      {/* 调试信息面板 - 仅在开发模式显示 */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="absolute bottom-2 left-2 right-2 bg-black/50 text-white text-xs p-2 rounded-md">
+          <div>节点数量: {nodes?.length || 0}</div>
+          <div>连接数量: {links?.length || 0}</div>
+          <div>渲染状态: {error ? '错误' : '正常'}</div>
+          {error && <div className="text-red-400">错误: {error}</div>}
+        </div>
+      )}
     </div>
   );
 };
