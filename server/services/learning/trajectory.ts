@@ -164,11 +164,10 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
           // 使用记忆ID获取向量嵌入
           const embedding = await storage.getEmbeddingByMemoryId(memoryId);
           
-          // 记录向量信息用于调试
+          // 记录向量信息用于调试 - 使用安全日志函数
           if (embedding && Array.isArray(embedding.vectorData) && embedding.vectorData.length > 0) {
-            const vectorLength = embedding.vectorData.length;
-            const sample = embedding.vectorData.slice(0, 3).map(v => v.toFixed(4)).join(', ');
-            log(`[trajectory] 记忆ID ${memoryId} 有有效向量: 长度=${vectorLength}, 样本=[${sample}...]`);
+            const { utils } = await import('../../utils');
+            log(`[trajectory] 记忆ID ${memoryId} 有有效向量: 长度=${embedding.vectorData.length}, 样本=[${embedding.vectorData.slice(0, 5).map(v => v.toFixed(4)).join(', ')}...]`);
           } else {
             const reason = embedding 
               ? (Array.isArray(embedding.vectorData) 
