@@ -15,8 +15,8 @@ interface GraphNode {
 
 // 图谱连接类型
 interface GraphLink {
-  source: string;
-  target: string;
+  source: string | GraphNode;
+  target: string | GraphNode;
   type?: string;
   value?: number;
   label?: string;
@@ -49,7 +49,30 @@ const TextNodeKnowledgeGraph: React.FC<TextNodeKnowledgeGraphProps> = ({
   highlightedNodeId
 }) => {
   const graphRef = useRef<any>();
-  const [graphData, setGraphData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] });
+  // 定义内部处理过的节点和连接类型
+  interface ProcessedNode extends GraphNode {
+    label: string;
+    color: string;
+    size: number;
+  }
+  
+  interface ProcessedLink {
+    source: ProcessedNode | { id: string };
+    target: ProcessedNode | { id: string };
+    type?: string;
+    value?: number;
+    label?: string;
+    reason?: string;
+    color: string;
+    width: number;
+    labelText: string;
+    reasonText: string;
+  }
+  
+  const [graphData, setGraphData] = useState<{ 
+    nodes: ProcessedNode[], 
+    links: ProcessedLink[]
+  }>({ nodes: [], links: [] });
   const { isMobile } = useDeviceDetect();
   
   // 转换输入数据为图形库所需格式
@@ -57,7 +80,7 @@ const TextNodeKnowledgeGraph: React.FC<TextNodeKnowledgeGraphProps> = ({
     if (!nodes || !links) return;
     
     // 处理节点数据 - 为节点添加必要的属性
-    const processedNodes = nodes.map(node => {
+    const processedNodes: ProcessedNode[] = nodes.map(node => {
       // 根据节点类型设置颜色
       let nodeColor: string;
       
@@ -96,7 +119,7 @@ const TextNodeKnowledgeGraph: React.FC<TextNodeKnowledgeGraphProps> = ({
     });
     
     // 处理连接数据
-    const processedLinks = links.map(link => {
+    const processedLinks: ProcessedLink[] = links.map(link => {
       let linkColor: string;
       let linkWidth: number = 1;
       
@@ -140,18 +163,27 @@ const TextNodeKnowledgeGraph: React.FC<TextNodeKnowledgeGraphProps> = ({
       
       // 标准化source和target
       // 如果是字符串ID，需要找到对应的节点对象
-      let source = link.source;
-      let target = link.target;
+      let source: ProcessedNode | { id: string } = typeof link.source === 'string' 
+        ? { id: link.source } 
+        : link.source as ProcessedNode;
       
-      // 如果是字符串ID，要查找对应的节点对象
+      let target: ProcessedNode | { id: string } = typeof link.target === 'string' 
+        ? { id: link.target } 
+        : link.target as ProcessedNode;
+      
+      // 如果是字符串ID，尝试查找对应的节点对象
       if (typeof link.source === 'string') {
         const foundNode = processedNodes.find(n => n.id === link.source);
-        source = foundNode || { id: link.source as string };
+        if (foundNode) {
+          source = foundNode;
+        }
       }
       
       if (typeof link.target === 'string') {
         const foundNode = processedNodes.find(n => n.id === link.target);
-        target = foundNode || { id: link.target as string };
+        if (foundNode) {
+          target = foundNode;
+        }
       }
       
       return {
