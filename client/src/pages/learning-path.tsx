@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle, RefreshCw, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
-import StaticKnowledgeGraph from "@/components/StaticKnowledgeGraph";
+import ForceGraphKnowledgeGraph from "@/components/ForceGraphKnowledgeGraph";
 // 导入学习轨迹页面的iPad滚动修复CSS
 import "@/components/ui/learning-path-fixes.css";
 // 导入知识图谱样式
@@ -561,7 +561,7 @@ export default function LearningPath() {
                 {/* 知识图谱可视化区域 */}
                 <div className="h-[calc(100%-60px)] w-full relative rounded-lg bg-indigo-950/10 border border-indigo-900/10 overflow-hidden">
                   <div className="absolute inset-0" style={{ backdropFilter: 'blur(2px)' }}>
-                    <StaticKnowledgeGraph
+                    <ForceGraphKnowledgeGraph
                       nodes={knowledgeGraph.nodes}
                       links={knowledgeGraph.links}
                       width={window.innerWidth - 80} // 留出边距
