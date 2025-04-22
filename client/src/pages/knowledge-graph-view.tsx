@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Home } from 'lucide-react';
 import StaticKnowledgeGraph from '@/components/StaticKnowledgeGraph';
 import { preloadKnowledgeGraphData, getKnowledgeGraphData, clearKnowledgeGraphCache } from '@/lib/knowledge-graph-preloader';
+// 导入修复样式
+import './knowledge-graph-fixes.css';
 
 interface SimpleNode {
   id: string;
@@ -146,7 +148,7 @@ export default function KnowledgeGraphView() {
   return (
     <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-gray-950 text-white overflow-hidden">
       {/* 顶部导航 */}
-      <div className="absolute top-0 left-0 right-0 z-10 p-4 flex justify-between items-center bg-gradient-to-b from-gray-900/80 to-transparent">
+      <div className="absolute top-0 left-0 right-0 z-10 p-4 flex justify-between items-center bg-gradient-to-b from-gray-900/80 to-transparent knowledge-graph-header">
         <div className="flex items-center">
           <Link href="/learning-path">
             <Button variant="outline" size="icon" className="text-white border-gray-700 hover:bg-gray-800">
@@ -156,16 +158,24 @@ export default function KnowledgeGraphView() {
           <h1 className="ml-2 text-xl font-bold">知识连接图谱</h1>
         </div>
         
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleRefresh} 
-          disabled={isLoading}
-          className="bg-gray-800/70 text-white border-gray-700 hover:bg-gray-700"
-        >
-          <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
-          刷新
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link href="/">
+            <Button variant="outline" size="icon" className="text-white border-gray-700 hover:bg-gray-800">
+              <Home className="h-4 w-4" />
+            </Button>
+          </Link>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh} 
+            disabled={isLoading}
+            className="bg-gray-800/70 text-white border-gray-700 hover:bg-gray-700"
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+            刷新
+          </Button>
+        </div>
       </div>
       
       {/* 内容区域 */}
