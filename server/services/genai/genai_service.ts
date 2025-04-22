@@ -198,26 +198,44 @@ class GeminiService implements GenAIService {
 
     try {
       // 合并并截断文本，防止过长
-      const combinedText = texts.join("\n\n").substring(0, 20000);
+      // 使用最多5个文本样本，并限制每个样本长度以避免超过令牌限制
+      const sampleTexts = texts.slice(0, 5).map(text => text.substring(0, 4000));
+      const combinedText = sampleTexts.join("\n---\n").substring(0, 20000);
       
-      // 使用Gemini 1.5 Flash模型生成主题
+      // 使用Gemini 1.5 Flash模型生成主题（更快速的模型版本）
       const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
-      // 使用正确的消息结构
+      // 改进的提示词，给出更明确的指导和更多上下文
       const result = await model.generateContent({
         contents: [{
           role: 'user',
-          parts: [{ text: `请为以下一组相关文本生成一个简洁的主题标签（5-10个字）。这个标签应该能够概括这组文本的共同主题:\n\n${combinedText}` }]
+          parts: [{ text: 
+            `以下是一组相关的用户学习记忆或对话内容。请分析这些内容，识别它们的共同主题，并生成一个简洁、有意义的主题标签。
+
+主题标签要求:
+1. 长度在2-6个词之间（或5-15个字符）
+2. 具体而非抽象（例如："机器学习算法"而不是"学习"）
+3. 内容相关而非格式相关
+4. 避免使用"主题"、"学习"等通用词作为标签的主要部分
+5. 使用学科领域的专业术语，但应保持易理解
+6. 应反映内容的实质而非表面形式
+
+内容样本:
+${combinedText}
+
+请直接输出主题标签，不要有任何解释或引号。` 
+          }]
         }],
         generationConfig: {
-          temperature: 0.3,
-          topP: 0.8,
+          temperature: 0.2,  // 降低温度以获得更稳定的结果
+          topP: 0.85,
           topK: 40,
           maxOutputTokens: 50
         }
       });
       
-      const topic = result.response.text().trim();
+      // 清理结果
+      let topic = result.response.text().trim();
       
       // 进一步处理，确保主题简洁
       let cleanTopic = topic.replace(/["'"【】《》]/g, ""); // 移除引号和括号
