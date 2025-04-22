@@ -4,10 +4,44 @@
  */
 
 import { log } from "../../vite";
-import { callGemini } from '../genai/genai_service';
 import { db } from "../../db";
 import { memories, memoryKeywords, knowledgeGraphCache } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// 初始化Gemini API客户端
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+/**
+ * 使用Gemini模型生成内容
+ * @param prompt 提示词
+ * @param options 选项
+ * @returns 生成的文本内容
+ */
+async function callGeminiModel(prompt: string, options: { model: string }): Promise<string> {
+  try {
+    const modelName = options.model === 'gemini-2.0-flash' ? 'gemini-1.5-flash' : options.model;
+    const model = genAI.getGenerativeModel({ model: modelName });
+    
+    const result = await model.generateContent({
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        temperature: 0.3,
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 500
+      }
+    });
+    
+    return result.response.text().trim();
+  } catch (error) {
+    log(`[TopicGraphBuilder] Gemini API调用失败: ${error}`);
+    return `调用失败: ${error}`;
+  }
+}
 
 // 聚类中心类型定义
 interface ClusterCenter {
@@ -57,7 +91,7 @@ async function extractTopicName(center: ClusterCenter): Promise<string> {
 ${textsToUse.map((t, i) => `${i+1}. ${t}`).join('\n')}
 只输出主题名称，不要其它说明。`;
 
-    const resp = await callGemini(prompt, { model: 'gemini-2.0-flash' });
+    const resp = await callGeminiModel(prompt, { model: 'gemini-2.0-flash' });
     return resp.trim();
   } catch (error) {
     log(`[TopicGraphBuilder] 提取主题名称出错: ${error}`);
@@ -91,7 +125,7 @@ A: ${A}
 B: ${B}
 输出格式：A → B（关系类型）：原因说明`;
 
-        const resp = await callGemini(prompt, { model: 'gemini-2.0-flash' });
+        const resp = await callGeminiModel(prompt, { model: 'gemini-2.0-flash' });
         const m = resp.match(/(.+?) → (.+?)（(.+?)）：(.+)/);
         
         if (m) {
