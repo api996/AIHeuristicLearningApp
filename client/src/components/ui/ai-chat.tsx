@@ -386,7 +386,7 @@ export function AIChat({ userData }: AIChatProps) {
           if (allMessagesResponse.ok) {
             const allMessages = await allMessagesResponse.json();
             // 筛选所有AI消息
-            const aiMessages = allMessages.filter(msg => msg.role === "assistant");
+            const aiMessages = allMessages.filter((msg: Message) => msg.role === "assistant");
             
             // 如果要重新生成的不是最后一条AI消息，需要确认
             if (aiMessages.length > 0 && finalMessageId !== aiMessages[aiMessages.length - 1].id) {
@@ -2313,6 +2313,43 @@ export function AIChat({ userData }: AIChatProps) {
       </Dialog>
 
       {/* 偏好设置对话框 */}
+      {/* 中间消息重新生成确认对话框 */}
+      <Dialog open={showBranchConfirmDialog} onOpenChange={setShowBranchConfirmDialog}>
+        <DialogContent className="sm:max-w-md frosted-dialog">
+          <DialogHeader>
+            <DialogTitle>创建新对话分支</DialogTitle>
+          </DialogHeader>
+          <p className="py-4">重新生成此消息将创建新的对话分支，这将隐藏此消息之后的所有回复。您可以随时查看或恢复完整对话历史。</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowBranchConfirmDialog(false);
+              setPendingRegenerateMessageId(undefined);
+            }}>取消</Button>
+            <Button onClick={() => {
+              // 关闭对话框
+              setShowBranchConfirmDialog(false);
+              
+              // 执行重新生成
+              const messageId = pendingRegenerateMessageId;
+              setPendingRegenerateMessageId(undefined);
+              
+              if (messageId) {
+                // 异步执行重新生成
+                executeRegenerateMessage(messageId).catch(error => {
+                  console.error("确认后执行重新生成失败:", error);
+                  toast({
+                    title: "重新生成失败",
+                    description: error instanceof Error ? error.message : "处理请求时发生错误",
+                    variant: "destructive", 
+                    className: "frosted-toast-error",
+                  });
+                });
+              }
+            }}>继续创建分支</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showPreferencesDialog} onOpenChange={setShowPreferencesDialog}>
         <DialogContent className="sm:max-w-md frosted-dialog preferences-dialog-content">
           <DialogHeader>
