@@ -51,7 +51,7 @@ function isTimestampId(id) {
 /**
  * 获取一批需要转换的记忆记录
  */
-async function getMemoriesToFix(batchSize = 50) {
+async function getMemoriesToFix(batchSize = 10) {
   const query = `SELECT id FROM memories WHERE id ~ '^\\d+$' AND length(id) < 10 LIMIT $1`;
   const result = await pool.query(query, [batchSize]);
   return result.rows;
@@ -116,7 +116,7 @@ async function main() {
       console.log(`\n执行批次 #${batchNumber}...`);
       
       // 获取一批需要修复的记忆
-      const memoriesToFix = await getMemoriesToFix(50);
+      const memoriesToFix = await getMemoriesToFix(10);
       console.log(`找到 ${memoriesToFix.length} 条需要转换的记忆记录`);
       
       if (memoriesToFix.length === 0) {
@@ -142,8 +142,8 @@ async function main() {
           totalFail++;
         }
         
-        // 添加小延迟，防止ID冲突
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // 添加很小的延迟，防止ID冲突同时加快处理速度
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
       
       totalProcessed += memoriesToFix.length;
