@@ -37,7 +37,15 @@ export class ClusterAnalyzerService {
    * @returns 聚类结果
    */
   async analyzeMemoryClusters(
-    memories: Memory[],
+    memories: { 
+      id: string; 
+      userId: number; 
+      content: string; 
+      type: string; 
+      timestamp: Date | null; 
+      summary: string | null; 
+      createdAt: Date | null; 
+    }[],
     memoryEmbeddings: number[][],
     minClusterSize: number = 3
   ): Promise<ClusterResult> {
