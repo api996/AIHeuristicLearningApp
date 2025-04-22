@@ -1147,6 +1147,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             log(`已将消息 ${messageId} 之后的所有消息标记为非活跃`);
           }
 
+          // 提取所有当前活跃的消息用于上下文
+          const activeMessages = await storage.getChatMessages(chatId, userId, isAdmin, true);
+          
+          // 确定是针对哪个消息进行重新生成
+          const targetIndex = activeMessages.findIndex(m => m.id === messageId);
+          
+          // 如果在活跃消息中找不到，可能是出现了错误
+          if (targetIndex === -1) {
+            log(`警告: 在活跃消息中未找到目标消息ID ${messageId}`);
+          }
+          
+          // 获取重新生成目标消息之前的所有消息作为上下文
+          const contextMessages = targetIndex !== -1 
+            ? activeMessages.slice(0, targetIndex) 
+            : activeMessages.filter(m => m.id !== messageId); // 备选：排除当前消息的所有其他消息
+            
+          log(`为消息 ${messageId} 准备重新生成，使用 ${contextMessages.length} 条消息作为上下文`);
+          
           // 重新生成回复，传入userId用于记忆检索，并传入网络搜索参数
           log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."，使用网络搜索=${shouldUseSearch}`);
           const response = await chatService.sendMessage(promptMessage, userId, Number(chatId), shouldUseSearch);
