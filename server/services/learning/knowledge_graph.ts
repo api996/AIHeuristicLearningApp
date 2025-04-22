@@ -62,7 +62,8 @@ export async function generateUserKnowledgeGraph(userId: number, forceRefresh: b
     }
     
     // 直接从memory_service获取已分析的聚类结果，而不是重新处理所有记忆
-    const { clusterResult, clusterCount } = await memoryService.getUserClusters(userId);
+    // 传递forceRefresh参数，确保在需要时获得最新数据
+    const { clusterResult, clusterCount } = await memoryService.getUserClusters(userId, forceRefresh);
     
     if (!clusterResult || !clusterResult.centroids || clusterResult.centroids.length === 0) {
       log(`用户${userId}没有有效的聚类结果，返回默认知识图谱`);
