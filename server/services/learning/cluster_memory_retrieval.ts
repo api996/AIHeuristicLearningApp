@@ -107,6 +107,17 @@ export class ClusterMemoryRetrievalService {
     try {
       log(`[trajectory] 获取用户${userId}的聚类数据`);
       
+      // 使用缓存为知识图谱加速 - 如果已有聚类结果，直接返回
+      const clusterResultCacheKey = `cluster_result_${userId}`;
+      const cachedResult = this.getFromLocalCache(clusterResultCacheKey);
+      
+      if (cachedResult) {
+        log(`[trajectory] 使用缓存的聚类数据: ${cachedResult.centroids?.length || 0} 个聚类`);
+        return cachedResult;
+      }
+      
+      log(`[trajectory] 缓存未命中，开始计算聚类数据`);
+      
       // 获取用户所有记忆
       const memories = await storage.getMemoriesByUserId(userId);
       
@@ -115,11 +126,20 @@ export class ClusterMemoryRetrievalService {
         return null;
       }
       
-      // 获取记忆的向量嵌入
+      // 获取记忆的向量嵌入 - 使用批量查询
+      const memoryIds = memories.map(m => m.id);
+      const embeddings = await storage.getEmbeddingsByMemoryIds(memoryIds);
+      
+      if (!embeddings || Object.keys(embeddings).length === 0) {
+        log(`[trajectory] 未找到任何向量嵌入数据`);
+        return null;
+      }
+      
+      // 构建向量数据
       const memoryVectors: { id: string | number; vector: number[] }[] = [];
       
       for (const memory of memories) {
-        const embedding = await storage.getEmbeddingByMemoryId(memory.id);
+        const embedding = embeddings[memory.id];
         if (embedding && Array.isArray(embedding.vectorData)) {
           memoryVectors.push({
             id: memory.id,
@@ -173,13 +193,40 @@ export class ClusterMemoryRetrievalService {
         return null;
       }
       
-      log(`[trajectory] 成功从memory_service获取聚类数据: ${clusterResult.centroids.length} 个聚类`);
+      log(`[trajectory] 成功计算聚类数据: ${clusterResult.centroids.length} 个聚类`);
+      
+      // 缓存结果
+      this.saveToLocalCache(clusterResultCacheKey, clusterResult);
       
       return clusterResult;
     } catch (error) {
       log(`[trajectory] 获取用户聚类数据出错: ${error}`);
       return null;
     }
+  }
+  
+  // 本地缓存方法
+  private localCache: Map<string, any> = new Map();
+  
+  private saveToLocalCache(key: string, data: any): void {
+    this.localCache.set(key, {
+      data,
+      timestamp: Date.now()
+    });
+  }
+  
+  private getFromLocalCache(key: string): any | null {
+    const cached = this.localCache.get(key);
+    if (!cached) return null;
+    
+    // 检查缓存是否过期（使用12小时作为图谱数据缓存时间)
+    const now = Date.now();
+    if ((now - cached.timestamp) > 12 * 60 * 60 * 1000) {
+      this.localCache.delete(key);
+      return null;
+    }
+    
+    return cached.data;
   }
   
   /**
