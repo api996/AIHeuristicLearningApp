@@ -1028,17 +1028,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 消息反馈（点赞/踩）
+  // 消息反馈（点赞/踩）及文本反馈
   app.patch("/api/messages/:messageId/feedback", async (req, res) => {
     try {
-      const { feedback } = req.body;
+      const { feedback, feedbackText } = req.body;
       const messageId = parseInt(req.params.messageId, 10);
 
       if (isNaN(messageId) || !feedback || !["like", "dislike"].includes(feedback)) {
         return res.status(400).json({ message: "Invalid feedback parameters" });
       }
 
-      const updatedMessage = await storage.updateMessageFeedback(messageId, feedback as "like" | "dislike");
+      const updatedMessage = await storage.updateMessageFeedback(
+        messageId, 
+        feedback as "like" | "dislike", 
+        feedbackText
+      );
       res.json(updatedMessage);
     } catch (error) {
       log(`Error updating message feedback: ${error}`);
