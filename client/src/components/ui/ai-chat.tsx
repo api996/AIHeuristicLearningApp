@@ -582,10 +582,19 @@ export function AIChat({ userData }: AIChatProps) {
 
   // 处理消息反馈的变异函数
   const feedbackMessageMutation = useMutation({
-    mutationFn: async ({ messageId, feedback }: { messageId: number | undefined; feedback: "like" | "dislike" }) => {
+    mutationFn: async ({ 
+      messageId, 
+      feedback, 
+      feedbackText 
+    }: { 
+      messageId: number | undefined; 
+      feedback: "like" | "dislike";
+      feedbackText?: string;
+    }) => {
       if (!messageId) throw new Error("消息ID不存在");
       const response = await apiRequest("PATCH", `/api/messages/${messageId}/feedback`, { 
         feedback,
+        feedbackText,
         userId: userData.userId,
         userRole: userData.role,
         chatId: currentChatId
@@ -599,6 +608,7 @@ export function AIChat({ userData }: AIChatProps) {
       }
     },
     onError: (error: Error) => {
+      console.error("提交反馈失败:", error);
       toast({
         title: "提交反馈失败",
         description: error.message,
@@ -953,12 +963,16 @@ export function AIChat({ userData }: AIChatProps) {
   };
 
   // 处理消息反馈
-  const handleMessageFeedback = async (messageId: number | undefined, feedback: "like" | "dislike") => {
+  const handleMessageFeedback = async (
+    messageId: number | undefined, 
+    feedback: "like" | "dislike", 
+    feedbackText?: string
+  ) => {
     try {
-      await feedbackMessageMutation.mutateAsync({ messageId, feedback });
+      await feedbackMessageMutation.mutateAsync({ messageId, feedback, feedbackText });
       toast({
         title: feedback === "like" ? "感谢您的好评!" : "感谢您的反馈",
-        description: "您的反馈将帮助我们改进系统",
+        description: feedbackText ? "您的详细反馈已提交，将帮助我们改进系统" : "您的反馈将帮助我们改进系统",
       });
     } catch (error) {
       console.error("提交反馈失败:", error);
