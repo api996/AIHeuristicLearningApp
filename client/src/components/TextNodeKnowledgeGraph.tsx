@@ -145,11 +145,13 @@ const TextNodeKnowledgeGraph: React.FC<TextNodeKnowledgeGraphProps> = ({
       
       // 如果是字符串ID，要查找对应的节点对象
       if (typeof link.source === 'string') {
-        source = processedNodes.find(n => n.id === link.source) || link.source;
+        const foundNode = processedNodes.find(n => n.id === link.source);
+        source = foundNode || { id: link.source as string };
       }
       
       if (typeof link.target === 'string') {
-        target = processedNodes.find(n => n.id === link.target) || link.target;
+        const foundNode = processedNodes.find(n => n.id === link.target);
+        target = foundNode || { id: link.target as string };
       }
       
       return {
