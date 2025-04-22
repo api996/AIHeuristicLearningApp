@@ -2,6 +2,10 @@
  * 向量嵌入服务
  * 负责生成和管理文本的向量表示
  * 集成内容价值评估，避免无价值内容向量化
+ * 
+ * 架构说明:
+ * 1. 主要使用Gemini API生成向量嵌入（与Python服务相同）
+ * 2. Python服务只用于聚类分析，不用于嵌入生成
  */
 
 import { log } from "../../vite";
@@ -54,20 +58,25 @@ asyncio.run(get_embedding())
 `;
 
         // 执行Python代码并获取结果
-        const { exec } = require('child_process');
         return new Promise((resolve, reject) => {
           // 使用Python执行代码
-          const process = exec('python -c \'' + pythonCommand + '\'', {
-            cwd: process.cwd(),
+          const childProcess = childExec('python -c \'' + pythonCommand + '\'', {
+            cwd: '.',  // 使用当前工作目录
             maxBuffer: 10 * 1024 * 1024 // 10MB buffer
           });
           
           let output = '';
-          process.stdout.on('data', (data) => {
-            output += data.toString();
-          });
+          if (childProcess.stdout) {
+            childProcess.stdout.on('data', (data: Buffer) => {
+              output += data.toString();
+            });
+          } else {
+            log('[vector_embeddings] 错误: 无法获取Python进程的标准输出', 'error');
+            genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
+            return;
+          }
           
-          process.on('close', (code) => {
+          childProcess.on('close', (code: number) => {
             if (code !== 0) {
               log('[vector_embeddings] Python嵌入服务执行失败，使用备用服务', 'error');
               // 如果Python服务失败，回退到GenAI服务
@@ -86,7 +95,7 @@ asyncio.run(get_embedding())
             }
           });
           
-          process.on('error', (err) => {
+          childProcess.on('error', (err: Error) => {
             log(`[vector_embeddings] 执行Python失败: ${err}`, 'error');
             // 如果执行失败，回退到GenAI服务
             genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
