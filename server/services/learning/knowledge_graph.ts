@@ -7,6 +7,7 @@ import { log } from "../../vite";
 import { ClusterResult } from "./kmeans_clustering";
 import { storage } from "../../storage";
 import { Memory } from "@shared/schema";
+import { memoryService } from "./memory_service";
 
 /**
  * 知识图谱节点接口
@@ -197,89 +198,83 @@ export async function generateKnowledgeGraph(
  */
 export async function generateUserKnowledgeGraph(userId: number): Promise<KnowledgeGraph> {
   try {
-    // 获取用户记忆
-    const memories = await storage.getMemoriesByUserId(userId);
+    // 直接从trajectory/memory_service获取已分析的聚类结果，而不是重新处理所有记忆
+    const { clusterResult, clusterCount } = await memoryService.getUserClusters(userId);
     
-    if (!memories || memories.length === 0) {
-      log(`用户${userId}没有记忆数据，返回空知识图谱`);
-      // 返回空图谱，不使用默认节点
+    if (!clusterResult || clusterResult.centroids.length === 0) {
+      log(`用户${userId}没有有效的聚类结果，返回默认知识图谱`);
+      
+      // 创建一个最小的默认图谱节点
       return {
-        nodes: [],
-        links: []
+        nodes: [
+          {
+            id: 'cluster_0',
+            label: '主题1',
+            size: 36,
+            category: 'cluster',
+            clusterId: '0'
+          },
+          {
+            id: 'cluster_1',
+            label: '主题2',
+            size: 25,
+            category: 'cluster',
+            clusterId: '1'
+          },
+          {
+            id: 'cluster_2',
+            label: '知识点',
+            size: 20,
+            category: 'cluster',
+            clusterId: '2'
+          }
+        ],
+        links: [
+          {
+            source: 'cluster_0',
+            target: 'cluster_1',
+            value: 0.1,
+            type: 'proximity'
+          },
+          {
+            source: 'cluster_1',
+            target: 'cluster_2',
+            value: 0.1,
+            type: 'proximity'
+          }
+        ]
       };
     }
     
-    log(`为用户${userId}生成知识图谱，共${memories.length}条记忆`);
+    log(`为用户${userId}生成知识图谱，基于${clusterCount}个聚类`);
     
-    // 过滤和分类记忆ID (数字ID和时间戳ID分开处理)
-    const isNumericId = (id: string | number): boolean => {
-      const idStr = String(id);
-      return /^\d+$/.test(idStr) && idStr.length < 15; // 纯数字且长度小于15视为传统数字ID
-    };
+    // 创建节点和连接
+    const nodes: KnowledgeNode[] = [];
+    const links: KnowledgeLink[] = [];
     
-    const isTimestampId = (id: string | number): boolean => {
-      const idStr = String(id);
-      return /^\d{17,}$/.test(idStr); // 17位以上数字视为时间戳ID
-    };
+    // 为每个聚类创建一个节点
+    clusterResult.centroids.forEach((centroid, index) => {
+      nodes.push({
+        id: `cluster_${index}`,
+        label: `主题${index + 1}`,
+        size: 25 + (centroid.points?.length || 0) * 2, // 基于点数调整大小
+        category: 'cluster',
+        clusterId: `${index}`
+      });
+    });
     
-    // 按ID类型分组记忆
-    const numericIdMemories = memories.filter(m => isNumericId(m.id));
-    const timestampIdMemories = memories.filter(m => isTimestampId(m.id));
-    const otherIdMemories = memories.filter(m => !isNumericId(m.id) && !isTimestampId(m.id));
-    
-    log(`记忆ID类型分析: 数字ID=${numericIdMemories.length}, 时间戳ID=${timestampIdMemories.length}, 其他=${otherIdMemories.length}`);
-    
-    // 获取记忆的向量嵌入
-    const memoryVectors: { id: string | number; vector: number[] }[] = [];
-    
-    // 处理所有类型的记忆
-    const allProcessedMemories = [...numericIdMemories, ...timestampIdMemories, ...otherIdMemories];
-    
-    for (const memory of allProcessedMemories) {
-      try {
-        const embedding = await storage.getEmbeddingByMemoryId(memory.id);
-        
-        if (embedding && embedding.vectorData && Array.isArray(embedding.vectorData)) {
-          memoryVectors.push({
-            id: memory.id,
-            vector: embedding.vectorData
-          });
-        }
-      } catch (error) {
-        log(`获取记忆${memory.id}的向量嵌入时出错: ${error}`);
-      }
+    // 创建节点之间的连接，确保图谱连通
+    for (let i = 0; i < nodes.length - 1; i++) {
+      links.push({
+        source: nodes[i].id,
+        target: nodes[i+1].id,
+        value: 0.1, // 低相似度
+        type: 'proximity'
+      });
     }
     
-    if (memoryVectors.length === 0) {
-      log('没有找到有效的向量嵌入，返回空知识图谱');
-      // 返回空图谱，不使用默认节点
-      return {
-        nodes: [],
-        links: []
-      };
-    }
-    
-    log(`找到${memoryVectors.length}条带有有效向量嵌入的记忆`);
-    
-    // 获取记忆关键词
-    const memoryKeywords: [string, string[]][] = [];
-    
-    for (const memory of allProcessedMemories) {
-      try {
-        const keywords = await storage.getKeywordsByMemoryId(memory.id);
-        
-        if (keywords && keywords.length > 0) {
-          memoryKeywords.push([
-            `${memory.id}`, 
-            keywords.map(k => k.keyword)
-          ]);
-        }
-      } catch (error) {
-        log(`获取记忆${memory.id}的关键词时出错: ${error}`);
-      }
-    }
-    
-    log(`找到${memoryKeywords.length}条带有关键词的记忆`);
+    log(`知识图谱生成完成，包含${nodes.length}个节点和${links.length}个连接`);
+    return { nodes, links };
     
     // 如果找不到足够的记忆数据，尝试创建一些测试记忆
     if (memoryVectors.length < 5 && userId === 6) {
