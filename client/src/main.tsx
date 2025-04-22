@@ -9,9 +9,7 @@ import "./components/ui/button-styles.css";
 import "./components/ui/icon-fixes.css"; // 导入图标大小修复
 
 // 导入D3补丁文件
-import * as d3PatchUtils from "./lib/d3-patch";
-import "./components/ui/d3-fixes.css"; 
-import "./components/ui/knowledge-graph-fixes.css";
+import d3PatchUtils from "./lib/d3-patch";
 
 // 预加载管理员组件，确保它们被包含在构建中
 import { preloadAdminComponents } from "./admin-components";
