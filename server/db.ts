@@ -1,5 +1,6 @@
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
+import { sql } from 'drizzle-orm';
 import ws from "ws";
 import * as schema from "@shared/schema";
 import { log } from "./vite";
@@ -84,3 +85,6 @@ export const db = drizzle({
     }
   }
 });
+
+// 导出sql函数，用于原生SQL查询
+export { sql };
