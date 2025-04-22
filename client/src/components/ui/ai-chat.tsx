@@ -52,6 +52,7 @@ type Message = {
   feedback?: "like" | "dislike";  // 消息反馈
   created_at?: string;            // 创建时间
   is_edited?: boolean;            // 是否已编辑
+  is_active?: boolean;            // 标记消息是否为活动状态（非分支历史）
   chat_id?: number;               // 所属对话ID
   model?: string;                 // 使用的模型，如"deep"、"gemini"等
   hasError?: boolean;             // 标记消息是否包含错误信息
@@ -316,7 +317,11 @@ export function AIChat({ userData }: AIChatProps) {
     }
   };
 
-  // 重写：处理消息重新生成功能 - 增强错误处理和ID查找逻辑
+  // 中间消息重新生成确认对话框状态
+  const [showBranchConfirmDialog, setShowBranchConfirmDialog] = useState(false);
+  const [pendingRegenerateMessageId, setPendingRegenerateMessageId] = useState<number | undefined>();
+  
+  // 处理消息重新生成功能 - 增强错误处理和ID查找逻辑
   const handleRegenerateMessage = async (messageId: number | undefined) => {
     try {
       // 开始加载状态，可以添加视觉反馈
@@ -372,6 +377,54 @@ export function AIChat({ userData }: AIChatProps) {
         }
       }
       
+      // 检查是否为中间消息（非最后一条AI消息），如果是，则显示确认对话框
+      if (currentChatId && finalMessageId) {
+        const baseUrl = window.location.origin;
+        const url = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}&activeOnly=false`;
+        try {
+          const allMessagesResponse = await fetch(url);
+          if (allMessagesResponse.ok) {
+            const allMessages = await allMessagesResponse.json();
+            // 筛选所有AI消息
+            const aiMessages = allMessages.filter(msg => msg.role === "assistant");
+            
+            // 如果要重新生成的不是最后一条AI消息，需要确认
+            if (aiMessages.length > 0 && finalMessageId !== aiMessages[aiMessages.length - 1].id) {
+              console.log("检测到中间消息重新生成，将显示确认对话框");
+              setPendingRegenerateMessageId(finalMessageId);
+              setShowBranchConfirmDialog(true);
+              setIsLoading(false);
+              return; // 等待用户确认
+            }
+          }
+        } catch (error) {
+          console.error("检查消息位置时出错:", error);
+          // 继续执行，不阻止重新生成
+        }
+      }
+      
+      // 直接重新生成（最后一条消息或用户已确认）
+      await executeRegenerateMessage(finalMessageId);
+      
+    } catch (error) {
+      console.error("准备重新生成消息时出错:", error);
+      toast({
+        title: "重新生成失败",
+        description: error instanceof Error ? error.message : "未知错误",
+        variant: "destructive",
+        className: "frosted-toast-error",
+      });
+      setIsLoading(false);
+    }
+  };
+  
+  // 实际执行重新生成的函数
+  const executeRegenerateMessage = async (finalMessageId: number | undefined) => {
+    if (!finalMessageId) {
+      throw new Error("消息ID不存在");
+    }
+    
+    try {
       // 添加临时状态表示AI正在思考
       setMessages(prev => {
         // 找到要重新生成的消息的索引
