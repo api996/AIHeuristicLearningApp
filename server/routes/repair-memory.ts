@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db';
 import { memories, memoryEmbeddings } from '../../shared/schema';
 import { vectorEmbeddingsService } from '../services/learning/vector_embeddings';
-import { log } from "../../vite";
+import { log } from "../vite";
 
 const router = Router();
 
@@ -24,7 +24,7 @@ router.get('/repair-memory', async (req, res) => {
   }
 
   try {
-    logger.info(`开始修复用户ID=${userIdNumber}的记忆向量嵌入`);
+    log(`开始修复用户ID=${userIdNumber}的记忆向量嵌入`, 'info');
     
     // 获取用户的所有记忆
     const userMemories = await db
@@ -39,7 +39,7 @@ router.get('/repair-memory', async (req, res) => {
       });
     }
     
-    logger.info(`找到${userMemories.length}条记忆数据需要修复`);
+    log(`找到${userMemories.length}条记忆数据需要修复`, 'info');
     
     let repairedCount = 0;
     
@@ -55,15 +55,15 @@ router.get('/repair-memory', async (req, res) => {
         
         // 检查记忆内容是否有效
         if (!memory.content || typeof memory.content !== 'string') {
-          logger.warn(`记忆ID ${memory.id} 内容无效，跳过向量化`);
+          log(`记忆ID ${memory.id} 内容无效，跳过向量化`, 'warn');
           continue;
         }
         
-        // 生成向量嵌入
-        const embedding = await vectorize(memory.content);
+        // 使用向量服务生成向量嵌入
+        const embedding = await vectorEmbeddingsService.generateEmbedding(memory.content);
         
         if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
-          logger.warn(`记忆ID ${memory.id} 向量化失败，跳过`);
+          log(`记忆ID ${memory.id} 向量化失败，跳过`, 'warn');
           continue;
         }
         
@@ -82,13 +82,13 @@ router.get('/repair-memory', async (req, res) => {
         }
         
         repairedCount++;
-        logger.info(`修复记忆ID ${memory.id} 的向量嵌入成功`);
-      } catch (error) {
-        logger.error(`修复记忆ID ${memory.id} 时出错: ${error.message}`);
+        log(`修复记忆ID ${memory.id} 的向量嵌入成功`, 'info');
+      } catch (error: any) {
+        log(`修复记忆ID ${memory.id} 时出错: ${error.message || error}`, 'error');
       }
     }
     
-    logger.info(`成功修复${repairedCount}/${userMemories.length}条记忆的向量嵌入`);
+    log(`成功修复${repairedCount}/${userMemories.length}条记忆的向量嵌入`, 'info');
     
     return res.json({
       success: true,
@@ -96,11 +96,11 @@ router.get('/repair-memory', async (req, res) => {
       repairedCount,
       message: `成功修复${repairedCount}条记忆数据的向量嵌入`,
     });
-  } catch (error) {
-    logger.error(`记忆修复过程中出错: ${error.message}`);
+  } catch (error: any) {
+    log(`记忆修复过程中出错: ${error.message || error}`, 'error');
     return res.status(500).json({
       success: false,
-      message: `修复过程中出错: ${error.message}`,
+      message: `修复过程中出错: ${error.message || '未知错误'}`,
     });
   }
 });
