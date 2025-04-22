@@ -55,8 +55,8 @@ export async function preloadKnowledgeGraphData(userId: number, forceRefresh: bo
     return pendingPromises.get(userId)!;
   }
   
-  // 创建新的获取请求
-  const promise = fetchKnowledgeGraphData(userId);
+  // 创建新的获取请求，使用包装函数增加错误恢复机制
+  const promise = fetchKnowledgeGraphDataWithRetry(userId);
   pendingPromises.set(userId, promise);
   
   try {
@@ -115,6 +115,52 @@ export function clearKnowledgeGraphCache(userId?: number): void {
     pendingPromises.clear();
     console.log("已清除所有知识图谱缓存");
   }
+}
+
+/**
+ * 带重试功能的知识图谱数据获取函数
+ * @param userId 用户ID
+ * @param retryCount 重试次数，默认3次
+ * @returns 承诺知识图谱数据
+ */
+async function fetchKnowledgeGraphDataWithRetry(userId: number, retryCount: number = 3): Promise<KnowledgeGraphData> {
+  let lastError: any = null;
+  
+  // 尝试获取数据，最多重试指定次数
+  for (let attempt = 0; attempt <= retryCount; attempt++) {
+    try {
+      if (attempt > 0) {
+        console.log(`第${attempt}次重试获取知识图谱数据...`);
+        // 稍微延迟再重试，增加成功率
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      const data = await fetchKnowledgeGraphData(userId);
+      
+      // 如果获取成功，直接返回数据
+      return data;
+    } catch (err) {
+      lastError = err;
+      console.warn(`获取知识图谱失败，尝试${attempt}/${retryCount}:`, err);
+    }
+  }
+  
+  // 如果所有重试都失败，返回一个最小的默认图谱
+  console.error(`所有${retryCount}次获取知识图谱尝试均失败，使用默认空图谱`);
+  
+  // 创建一个最小默认图谱
+  return {
+    nodes: [
+      {
+        id: 'default-node',
+        label: '暂无数据',
+        size: 20,
+        category: 'cluster',
+        color: '#888888'
+      }
+    ],
+    links: []
+  };
 }
 
 /**
