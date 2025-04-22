@@ -36,7 +36,8 @@ class SimpleEmbeddingGenerator {
     // 生成一个固定大小的随机向量，仅用于测试
     // 实际应用中应使用proper ML模型
     console.log("生成随机向量嵌入（仅用于演示）");
-    const embedding = Array(768).fill(0).map(() => Math.random() * 2 - 1);
+    // 使用3072维向量，与系统中的其他向量保持一致
+    const embedding = Array(3072).fill(0).map(() => Math.random() * 2 - 1);
     return embedding;
   }
 }
