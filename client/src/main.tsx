@@ -15,12 +15,65 @@ import "./lib/d3-patch.js";
 // 预加载管理员组件，确保它们被包含在构建中
 import { preloadAdminComponents } from "./admin-components";
 
-// 在应用启动前确保D3.js已加载
-ensureD3Loaded().then(loaded => {
-  if (loaded) {
-    console.log("D3.js库已成功加载和初始化，可视化组件将正常运行");
+// 在应用启动前确保D3.js已加载，并配置重试机制
+(async function initializeD3AndCriticalComponents() {
+  try {
+    // 先尝试加载D3
+    const d3Loaded = await ensureD3Loaded();
+    
+    if (d3Loaded) {
+      console.log("D3.js库已成功加载和初始化，可视化组件将正常运行");
+    } else {
+      console.warn("D3.js初始加载失败，将继续尝试后台加载");
+      
+      // 如果首次加载失败，设置重试
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      const retryInterval = setInterval(async () => {
+        if (window.d3) {
+          clearInterval(retryInterval);
+          console.log("D3.js成功加载，界面组件已修复");
+          return;
+        }
+        
+        if (retryCount >= maxRetries) {
+          clearInterval(retryInterval);
+          console.error("D3.js多次加载失败，某些UI组件可能无法正常显示");
+          return;
+        }
+        
+        console.log(`正在重试加载D3.js (${retryCount + 1}/${maxRetries})...`);
+        retryCount++;
+        await ensureD3Loaded();
+      }, 2000);
+    }
+    
+    // 确保在快速刷新后重新应用必要的CSS类
+    setTimeout(() => {
+      if (document.documentElement.classList.contains('ipad-device')) {
+        // 重新应用iPad和管理员界面修复
+        const styleFixElements = document.querySelectorAll('.tabs-container, [role="tablist"], [role="tab"]');
+        styleFixElements.forEach(el => {
+          // 触发重新布局
+          const element = el as HTMLElement;
+          if (element.style) {
+            const originalDisplay = element.style.display;
+            element.style.display = 'none';
+            // 强制重绘
+            void element.offsetHeight;
+            element.style.display = originalDisplay;
+          }
+        });
+        
+        console.log("已重新应用界面样式修复");
+      }
+    }, 1000);
+    
+  } catch (error) {
+    console.error("初始化关键组件时出错:", error);
   }
-});
+})();
 
 // 在开发环境下，预加载管理员组件
 if (process.env.NODE_ENV !== 'production') {

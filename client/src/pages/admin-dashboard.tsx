@@ -25,6 +25,8 @@ import { PromptTemplateManager } from "@/components/admin/PromptTemplateManager"
 import { ContentModerationSettings } from "@/components/admin/ContentModerationSettings";
 import { SystemSettings } from "@/components/admin/SystemSettings";
 import { FeedbackAnalytics } from "@/components/admin/FeedbackAnalytics";
+// 导入管理员界面iPad平台特定修复样式
+import "@/components/admin/admin-ipad-fixes.css";
 
 interface ChatStats {
   total: number;
@@ -103,7 +105,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   return (
-    <div className="min-h-screen bg-black admin-dashboard">
+    <div className="min-h-screen bg-black admin-dashboard-container admin-dashboard">
       {/* Header */}
       <header className="border-b border-neutral-800 bg-neutral-900">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
