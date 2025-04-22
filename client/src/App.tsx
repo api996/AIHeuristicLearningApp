@@ -72,7 +72,7 @@ function App() {
     console.log("已启动全局视口监听器，进行设备识别和CSS优化");
     
     // 确保D3.js加载
-    ensureD3Loaded().then(success => {
+    ensureD3Loaded().then((success: boolean) => {
       if (success) {
         console.log("D3.js库已成功加载和初始化");
       } else {
