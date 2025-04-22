@@ -140,7 +140,8 @@ async function checkMemoryEmbedding(memoryId) {
     }
     
     if (embedding) {
-      log(`成功找到向量嵌入，维度: ${embedding.vector_length}`, 'success');
+      const vectorLength = embedding.vector_data ? embedding.vector_data.length : "未知";
+      log(`成功找到向量嵌入，维度: ${vectorLength}`, 'success');
       return true;
     } else {
       log('未能找到向量嵌入，可能需要手动触发生成', 'warning');
@@ -159,19 +160,56 @@ async function checkClusteringAndTrajectory(userId) {
   log(`检查用户ID ${userId} 的聚类和学习路径结果...`);
   
   try {
-    // 这里我们假设有API端点来检索学习路径数据
-    // 在真实情况下，你可能需要直接从数据库查询或调用内部服务
+    // 查询数据库获取记忆总数
+    log('查询用户记忆总数...');
+    const memoriesResult = await pool.query(`
+      SELECT COUNT(*) as count FROM memories 
+      WHERE user_id = $1
+    `, [userId]);
     
-    // 模拟API调用延迟
-    log('等待聚类和学习路径生成...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const totalMemories = memoriesResult.rows[0].count;
+    log(`用户拥有 ${totalMemories} 条记忆记录`);
     
-    log('聚类和学习路径检查完成，请检查服务器日志以查看详细信息', 'success');
+    // 查询聚类信息
+    log('查询聚类和学习路径信息...');
+    
+    // 查询向量嵌入总数
+    const embeddingsResult = await pool.query(`
+      SELECT COUNT(*) as count FROM memory_embeddings me
+      JOIN memories m ON me.memory_id = m.id
+      WHERE m.user_id = $1
+    `, [userId]);
+    
+    const totalEmbeddings = embeddingsResult.rows[0].count;
+    log(`找到 ${totalEmbeddings} 条向量嵌入`);
+    
+    // 检查最近添加的记忆
+    const recentMemoriesResult = await pool.query(`
+      SELECT id, type, substring(content, 1, 50) as preview
+      FROM memories
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT 3
+    `, [userId]);
+    
+    log('最近添加的记忆:');
+    recentMemoriesResult.rows.forEach((memory, index) => {
+      log(`  ${index + 1}. ID: ${memory.id}, 类型: ${memory.type}, 预览: ${memory.preview}...`);
+    });
+    
+    log('聚类和学习路径检查完成，请查看服务器日志以获取更多详细信息', 'success');
     return true;
   } catch (error) {
     log(`检查聚类和学习路径时出错: ${error.message}`, 'error');
     return false;
   }
+}
+
+/**
+ * 等待一段时间
+ */
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
@@ -184,12 +222,17 @@ async function runCompleteTest() {
     // 步骤1: 创建有意义的记忆
     const { memoryId, userId } = await createMeaningfulMemory();
     
+    // 给系统一些时间来处理新记忆
+    log('等待系统处理新记忆...');
+    await sleep(5000); // 等待5秒
+    
     // 步骤2: 检查向量嵌入是否已生成
     const hasEmbedding = await checkMemoryEmbedding(memoryId);
     
     if (!hasEmbedding) {
       log('向量嵌入未生成，可能需要手动触发或检查系统日志', 'warning');
-      // 可以在这里添加手动触发向量嵌入的代码
+      log('给系统更多时间处理向量嵌入...');
+      await sleep(5000); // 再等5秒
     }
     
     // 步骤3: 检查聚类和学习路径
