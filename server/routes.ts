@@ -21,6 +21,7 @@ import testDataRoutes from './routes/test-data';
 import conversationTestRoutes from './routes/conversation-test';
 import mcpRoutes from './routes/mcp-routes';
 import clusteringTestRoutes from './routes/clustering-test';
+import repairMemoryRoutes from './routes/repair-memory';
 import { initializeBucket } from './services/file-bucket.service';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1817,6 +1818,9 @@ asyncio.run(test_memory())
   
   // 注册聚类测试路由
   app.use('/api/test', clusteringTestRoutes);
+  
+  // 注册记忆修复路由
+  app.use('/api/repair-memory', repairMemoryRoutes);
   app.use('/api/admin/prompts', adminPromptsRoutes);
   app.use('/api/admin/content-moderation', contentModerationRoutes);
   app.use('/api/mcp', mcpRoutes); // MCP 搜索服务路由
