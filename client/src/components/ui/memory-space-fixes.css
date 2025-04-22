@@ -1,189 +1,177 @@
-/* 记忆空间特定的样式修复 */
+/*
+ * 记忆空间页面在iPad上的滚动修复 - 专用版
+ * 确保记忆空间页面在iPad上可以正常滚动，防止内容溢出
+ * 适配各种屏幕尺寸和方向
+ */
 
-/* 主容器修复 */
-.memory-space-container {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  overflow: hidden;
+/* iPad设备上的记忆空间页面滚动修复 */
+.ipad-device .memory-space-container,
+.tablet-device .memory-space-container {
+  max-height: 100vh !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: 80px !important; /* 增加底部距离 */
+  position: relative !important;
+  height: auto !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  overscroll-behavior: contain !important; /* 防止过度滚动 */
+  touch-action: pan-y !important; /* 允许垂直触摸滑动 */
+  display: flex !important;
+  flex-direction: column !important;
+  transform: translateZ(0) !important; /* 提升为合成层，优化渲染性能 */
+  will-change: transform !important; /* 提前告知浏览器元素将要改变 */
+  -webkit-backface-visibility: hidden !important; /* 提升iOS渲染性能 */
 }
 
-/* 针对iPad的特殊修复 */
-@media (min-width: 768px) and (max-width: 1024px) {
+/* 页面标题区域修复 */
+.ipad-device .memory-space-container .flex.justify-between.items-center.mb-6,
+.tablet-device .memory-space-container .flex.justify-between.items-center.mb-6,
+.ipad-device .memory-space-container h1.text-3xl,
+.tablet-device .memory-space-container h1.text-3xl {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background-color: rgba(17, 17, 24, 0.8) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  padding: 1rem 0 !important;
+  margin-bottom: 1rem !important;
+  width: 100% !important;
+}
+
+/* 记忆列表容器修复 */
+.ipad-device .memory-space-container .memory-list,
+.tablet-device .memory-space-container .memory-list {
+  width: 100% !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1rem !important;
+  padding-bottom: 2rem !important;
+}
+
+/* 记忆卡片修复 */
+.ipad-device .memory-space-container .memory-card,
+.tablet-device .memory-space-container .memory-card {
+  width: 100% !important;
+  position: relative !important;
+  transform: translateZ(0) !important; /* 启用硬件加速 */
+  border-radius: 0.75rem !important;
+  overflow: hidden !important;
+  margin-bottom: 1rem !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 记忆卡片内容滚动修复 */
+.ipad-device .memory-space-container .memory-content,
+.tablet-device .memory-space-container .memory-content {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 60vh !important; /* 限制最大高度 */
+  padding: 1.25rem !important;
+}
+
+/* 记忆卡片头部固定 */
+.ipad-device .memory-space-container .memory-header,
+.tablet-device .memory-space-container .memory-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 5 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(5px) !important;
+  -webkit-backdrop-filter: blur(5px) !important;
+  background-color: rgba(17, 17, 24, 0.7) !important;
+}
+
+/* 搜索栏修复 */
+.ipad-device .memory-space-container .search-container,
+.tablet-device .memory-space-container .search-container {
+  position: sticky !important;
+  top: 4rem !important; /* 标题下方 */
+  z-index: 8 !important;
+  margin-bottom: 1rem !important;
+  padding: 0.5rem 0 !important;
+  background-color: rgba(17, 17, 24, 0.7) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  width: 100% !important;
+}
+
+/* 过滤器和排序控件修复 */
+.ipad-device .memory-space-container .filter-controls,
+.tablet-device .memory-space-container .filter-controls {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  flex-wrap: wrap !important;
+  margin-bottom: 1rem !important;
+  width: 100% !important;
+}
+
+/* 分页控件修复 */
+.ipad-device .memory-space-container .pagination-controls,
+.tablet-device .memory-space-container .pagination-controls {
+  position: sticky !important;
+  bottom: 0 !important;
+  background-color: rgba(17, 17, 24, 0.8) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  padding: 1rem 0 !important;
+  margin-top: 1rem !important;
+  width: 100% !important;
+  z-index: 10 !important;
+  display: flex !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+}
+
+/* 空状态容器修复 */
+.ipad-device .memory-space-container .empty-state,
+.tablet-device .memory-space-container .empty-state {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 200px !important;
+  padding: 2rem !important;
+  text-align: center !important;
+  margin: 2rem 0 !important;
+}
+
+/* iOS Safari特定修复 */
+@supports (-webkit-touch-callout: none) {
   .memory-space-container {
-    height: calc(100vh - 60px);
-    height: calc(var(--vh, 1vh) * 100 - 60px);
-  }
-}
-
-/* 确保图表容器正确显示 */
-.graph-container {
-  width: 100%;
-  height: 100%;
-  position: relative;
-}
-
-/* 防止在移动设备上的溢出问题 */
-.canvas-container {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  touch-action: pan-x pan-y;
-}
-
-/* SVG元素的基本样式修复 */
-.memory-space-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* 修复节点渲染问题 */
-.node {
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-/* 修复边线渲染问题 */
-.link {
-  stroke-width: 1px;
-  transition: opacity 0.2s ease;
-}
-
-/* 增强触摸设备上的节点可点击性 */
-@media (pointer: coarse) {
-  .node circle {
-    r: 15; /* 增大节点半径 */
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    overscroll-behavior-y: contain !important;
+    -webkit-tap-highlight-color: transparent !important; /* 移除点击高亮 */
   }
   
-  .link {
-    stroke-width: 2px; /* 加粗连接线 */
+  /* 容器内所有卡片的额外修复 */
+  .ipad-device .memory-space-container .memory-card,
+  .tablet-device .memory-space-container .memory-card {
+    transform: translateZ(0) !important; /* 启用硬件加速 */
+    backface-visibility: hidden !important; /* 提高渲染性能 */
+    perspective: 1000px !important; /* 提高3D性能 */
   }
-}
-
-/* 修复标签文本显示问题 */
-.node-label {
-  font-size: 12px;
-  text-anchor: middle;
-  pointer-events: none;
-  fill: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-@media (pointer: coarse) {
-  .node-label {
-    font-size: 14px;
+  
+  /* 按钮点击优化 */
+  .ipad-device .memory-space-container button,
+  .tablet-device .memory-space-container button {
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation !important;
   }
-}
-
-/* 修复按钮样式问题 */
-.control-button {
-  background-color: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
-  color: #1f2937;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem;
-  transition: background-color 0.2s;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  min-width: 44px;
-  min-height: 44px;
-}
-
-.control-button:hover {
-  background-color: #f9fafb;
-}
-
-.control-button:active {
-  background-color: #f3f4f6;
-}
-
-/* 修复控制面板布局问题 */
-.control-panel {
-  position: absolute;
-  bottom: 1rem;
-  right: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  z-index: 10;
-}
-
-/* 确保工具提示正常显示 */
-.tooltip {
-  position: absolute;
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  pointer-events: none;
-  max-width: 300px;
-  z-index: 20;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-/* 修复图例显示问题 */
-.legend {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background-color: rgba(255, 255, 255, 0.9);
-  padding: 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  z-index: 10;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.25rem;
-}
-
-.legend-color {
-  width: 1rem;
-  height: 1rem;
-  margin-right: 0.5rem;
-  border-radius: 50%;
-}
-
-/* 加载状态修复 */
-.loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: rgba(255, 255, 255, 0.7);
-  z-index: 50;
-}
-
-/* 空状态消息修复 */
-.empty-state {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  padding: 1rem;
-  max-width: 90%;
-}
-
-/* 修复图表交互状态 */
-.is-dragging .node,
-.is-dragging .link {
-  pointer-events: none;
-}
-
-/* 修复高亮状态 */
-.node.highlighted circle {
-  stroke-width: 3px;
-  stroke: #3b82f6;
+  
+  /* 阻止文本选择 */
+  .ipad-device .memory-space-container .memory-header,
+  .tablet-device .memory-space-container .memory-header,
+  .ipad-device .memory-space-container .pagination-controls,
+  .tablet-device .memory-space-container .pagination-controls {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+  }
 }
