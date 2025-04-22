@@ -1182,7 +1182,10 @@ export function AIChat({ userData }: AIChatProps) {
         container.scrollTop = 0;
       } else {
         // 使用平滑滚动效果
-        scrollToBottom(container, true);
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
       }
     }
   };
@@ -1213,7 +1216,11 @@ export function AIChat({ userData }: AIChatProps) {
         setTimeout(() => {
           // 使用立即滚动(false)而非平滑滚动
           if (messagesContainerRef.current) {
-            scrollToBottom(messagesContainerRef.current, false);
+            // 滚动到底部
+messagesContainerRef.current.scrollTo({
+  top: messagesContainerRef.current.scrollHeight,
+  behavior: 'auto'
+});
           }
         }, 50); // 短暂延迟确保DOM已更新
       }
