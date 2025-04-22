@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
-import StaticKnowledgeGraph from '@/components/StaticKnowledgeGraph';
+import ForceGraphKnowledgeGraph from '@/components/ForceGraphKnowledgeGraph';
 import { preloadKnowledgeGraphData, getKnowledgeGraphData, clearKnowledgeGraphCache } from '@/lib/knowledge-graph-preloader';
 
 interface SimpleNode {
@@ -179,7 +179,7 @@ export default function KnowledgeGraphView() {
           </div>
         ) : graphData && graphData.nodes.length > 0 ? (
           <div className="w-full h-full">
-            <StaticKnowledgeGraph
+            <ForceGraphKnowledgeGraph
               nodes={graphData.nodes}
               links={graphData.links}
               width={window.innerWidth}
@@ -195,6 +195,7 @@ export default function KnowledgeGraphView() {
                   alert(`${nodeType}: ${node.label}`);
                 }
               }}
+              onBackgroundClick={() => console.log('点击了背景')}
             />
           </div>
         ) : (

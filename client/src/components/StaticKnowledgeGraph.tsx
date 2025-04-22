@@ -977,24 +977,25 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
           const targetX = targetPos.x - (dx / distance) * targetSize;
           const targetY = targetPos.y - (dy / distance) * targetSize;
           
-          // 确定连接线颜色和透明度 - 增强可见度
+          // 确定连接线颜色和透明度 - 显著增强可见度
           let linkColor = colorScheme.link.default;
-          let linkWidth = 2.5 / scale; // 增加基础线宽以提升可见度
-          let linkOpacity = 0.7; // 增加透明度以提高清晰度
+          let linkWidth = 3.5 / scale; // 大幅增加基础线宽
+          let linkOpacity = 0.9; // 增加不透明度使线更明显
           
           if (link.type === 'contains') {
             linkColor = colorScheme.link.contains;
-            linkWidth = 3 / scale; // 增加包含关系的线宽
-            linkOpacity = 0.85; // 增加透明度
+            linkWidth = 4 / scale; // 增加包含关系的线宽
+            linkOpacity = 0.95; // 几乎不透明
           } else if (link.type === 'related') {
             linkColor = colorScheme.link.related;
-            linkWidth = 2.8 / scale; // 增加相关关系的线宽
-            linkOpacity = 0.8; // 增加透明度
+            linkWidth = 3.8 / scale; // 增加相关关系的线宽
+            linkOpacity = 0.9; // 高不透明度
           }
           
-          // 根据link.value调整线的宽度
+          // 根据link.value调整线的宽度，但保持最小宽度
           if (link.value) {
-            linkWidth = (1 + (link.value * 2)) / scale;
+            // 确保即使value很小，线也不会太细
+            linkWidth = Math.max(3.5 / scale, (2 + (link.value * 3)) / scale);
           }
           
           // 如果源节点或目标节点被悬停，高亮连接线
@@ -1003,10 +1004,19 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
             linkOpacity = 0.9;
           }
           
-          // 绘制连接线发光效果
+          // 绘制连接线外围发光 - 添加两层发光效果，显著提高可见性
+          // 第一层 - 最外层柔和发光
           ctx.beginPath();
-          ctx.strokeStyle = linkColor.replace(/[\d.]+\)$/, `${linkOpacity * 0.3})`);
-          ctx.lineWidth = linkWidth + (4 / scale);
+          ctx.strokeStyle = linkColor.replace(/[\d.]+\)$/, `${linkOpacity * 0.2})`);
+          ctx.lineWidth = linkWidth + (8 / scale);
+          ctx.moveTo(sourceX, sourceY);
+          ctx.lineTo(targetX, targetY);
+          ctx.stroke();
+          
+          // 第二层 - 中间发光层
+          ctx.beginPath();
+          ctx.strokeStyle = linkColor.replace(/[\d.]+\)$/, `${linkOpacity * 0.5})`);
+          ctx.lineWidth = linkWidth + (5 / scale);
           ctx.moveTo(sourceX, sourceY);
           ctx.lineTo(targetX, targetY);
           ctx.stroke();
