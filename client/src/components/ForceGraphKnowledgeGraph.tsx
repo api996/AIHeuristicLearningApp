@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { useDeviceDetect } from '../hooks/useDeviceDetect';
 
 // 图谱节点类型
 interface GraphNode {
@@ -48,7 +47,32 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
 }) => {
   const graphRef = useRef<any>();
   const [graphData, setGraphData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] });
-  const { isMobile } = useDeviceDetect();
+  // 内联设备检测
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  
+  // 设备检测逻辑
+  useEffect(() => {
+    const checkIfMobile = () => {
+      const userAgent = navigator.userAgent;
+      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+      const isMobileDevice = mobileRegex.test(userAgent);
+      const isTablet = /(iPad|Android(?!.*Mobile))/i.test(userAgent);
+      
+      // 如果是平板，不视为移动设备
+      setIsMobile(isMobileDevice && !isTablet);
+      
+      if (isMobileDevice) {
+        console.log("检测到移动设备，应用性能优化");
+      }
+    };
+    
+    checkIfMobile();
+    window.addEventListener('resize', checkIfMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkIfMobile);
+    };
+  }, []);
 
   // 转换输入数据为图形库所需格式
   useEffect(() => {
@@ -187,7 +211,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     if (graphRef.current) {
       // 启动力布局的模拟
       graphRef.current.d3Force('charge').strength(-120);
-      graphRef.current.d3Force('link').distance(link => {
+      graphRef.current.d3Force('link').distance((link: any) => {
         // 根据连接类型调整距离
         if (link.type === 'contains') return 80;
         if (link.type === 'related') return 120;
