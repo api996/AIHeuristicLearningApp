@@ -36,6 +36,7 @@ export interface CustomMCPSearchResult {
     url: string;
     content: string;
     relevanceToIntent?: number; // 与用户意图的相关性
+    sourceQuality?: number;     // 来源质量评分
   }[];
   timestamp: number;       // 搜索时间戳
 }
@@ -351,31 +352,42 @@ export class WebSearchService {
 搜索结果:
 ${searchContext}
 
-您的任务包括两个步骤:
+您的任务包括三个步骤:
 1. 首先分析用户查询的真实意图和需求。考虑：
-   - 用户可能想要找什么信息？
+   - 用户可能想要找什么具体信息？
    - 什么结果最符合他们需要解决的问题？
-   - 用户最可能想要哪类事实信息或观点？
+   - 用户最可能想要哪类事实信息、学术内容或专业观点？
 
-2. 基于对用户意图的理解，评估每条搜索结果的真实相关性和信息价值，然后以JSON格式输出：
+2. 评估每个来源的质量和可信度，使用以下标准：
+   - 高质量来源(8-10分)：学术论文(如arXiv)、科学期刊、大学网站、政府机构、知名研究机构、专业文档
+   - 中等质量来源(5-7分)：知名新闻媒体、行业网站、主流博客、官方文档
+   - 低质量来源(1-4分)：社交媒体帖子、营销网站、百度百家号、内容农场、无作者标识的文章
+   - 应完全忽略的来源(0分)：明显包含虚假信息、纯广告内容、标题党网站
+
+3. 基于对用户意图的理解和来源质量评估，选择最相关且高质量的内容，然后以JSON格式输出：
 
 {
-  "userIntent": "对用户意图的简洁理解，不超过30字",
-  "summary": "基于用户真实意图的搜索结果综合摘要，简洁但包含关键事实和信息，不超过100字",
-  "relevance": "搜索结果与用户真实需求的相关性评分，只使用1-10的整数，高度相关为8-10，一般相关为5-7，几乎不相关为1-4",
-  "keyPoints": ["与用户意图高度相关的关键信息点1", "关键信息点2", ...], // 3-5个最相关要点
+  "userIntent": "对用户意图的简洁准确理解，不超过30字",
+  "summary": "基于用户真实意图的搜索结果综合摘要，优先选择高质量来源，简洁但包含关键事实和信息，不超过100字",
+  "relevance": "搜索结果整体与用户需求的相关性评分，只使用1-10的整数，高度相关为8-10，一般相关为5-7，几乎不相关为1-4",
+  "keyPoints": ["与用户意图高度相关的关键信息点1", "关键信息点2", ...], // 3-5个最相关要点，优先从高质量来源提取
   "sources": [
     {
       "title": "来源标题",
       "url": "URL地址",
       "content": "简要内容摘录，选择与用户意图最相关的部分",
-      "relevanceToIntent": "特定来源与用户意图的相关性分数(1-10)"
+      "relevanceToIntent": "特定来源与用户意图的相关性分数(1-10)",
+      "sourceQuality": "来源质量评分(1-10)"
     },
     ...
-  ] // 仅包含3个与用户意图最相关的来源
+  ] // 仅包含3个最相关且高质量的来源，按相关性和质量排序
 }
 
-重要：确保仅选择与用户真实意图高度相关的内容，而不是仅与搜索词表面相关的内容。`;
+重要指导原则：
+1. 优先选择学术、专业和权威来源(arXiv、知名大学、研究机构)
+2. 完全忽略低质量内容农场和营销号(如百度百家号、内容聚合网站)
+3. 确保仅选择与用户真实意图高度相关的内容，而不是仅与搜索词表面相关的内容
+4. 优先保留有实质性信息内容的来源，而不是纯推广或转载内容`;
 
       // 发送请求到模型
       const response = await model.generateContent({
@@ -414,11 +426,16 @@ ${searchContext}
             url: string;
             content: string;
             relevanceToIntent?: any;
+            sourceQuality?: any;
           }) => ({
             ...source,
             // 确保relevanceToIntent字段存在
             relevanceToIntent: source.relevanceToIntent ? 
               this.normalizeRelevanceScore(source.relevanceToIntent) : 
+              undefined,
+            // 确保sourceQuality字段存在
+            sourceQuality: source.sourceQuality ? 
+              this.normalizeRelevanceScore(source.sourceQuality) : 
               undefined
           })) : 
           [],
@@ -754,15 +771,25 @@ ${truncatedContent}
         url: string; 
         content: string;
         relevanceToIntent?: number;
+        sourceQuality?: number;
       }, index: number) => {
-        context += `[${index + 1}] ${source.title}\n`;
+        // 来源标题显示质量评分（如果有）
+        if (source.sourceQuality) {
+          context += `[${index + 1}] ${source.title} (质量评分: ${source.sourceQuality}/10)\n`;
+        } else {
+          context += `[${index + 1}] ${source.title}\n`;
+        }
+        
         context += `${source.content}\n`;
+        
         if (source.url) {
           context += `来源: ${source.url}\n`;
         }
+        
         if (source.relevanceToIntent) {
           context += `相关性: ${source.relevanceToIntent}/10\n`;
         }
+        
         context += "\n";
       });
     }
