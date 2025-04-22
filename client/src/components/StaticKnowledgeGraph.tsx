@@ -85,6 +85,7 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     // 使用节点数量作为触发条件
     if (nodes.length === 0) {
       // 如果没有数据，保持加载状态
+      console.log("知识图谱无节点数据，保持初始化状态");
       setIsInitializing(true);
       return;
     }
@@ -97,20 +98,20 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     // 快速加载，避免长时间动画可能引起的问题
     const progressInterval = setInterval(() => {
       setLoadingProgress(prev => {
-        const newProgress = prev + 5; // 更快速的进度增加
+        const newProgress = prev + 10; // 更快速的进度增加
         return newProgress > 100 ? 100 : newProgress;
       });
     }, 10); // 更快的间隔
     
-    // 缩短加载时间，避免长时间等待
+    // 立即显示图谱
     const timer = setTimeout(() => {
       clearInterval(progressInterval);
       setLoadingProgress(100);
       
       // 直接显示图谱，不需要多余的延迟
-      console.log("知识图谱立即渲染，跳过长动画");
+      console.log("知识图谱立即渲染，跳过长动画，初始化状态变更为false");
       setIsInitializing(false);
-    }, 300); // 减少等待时间
+    }, 100); // 进一步减少等待时间
     
     return () => {
       clearTimeout(timer);
@@ -134,6 +135,9 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
   
   // 用于在渲染循环中应用当前的变换
   const currentTransformRef = useRef(transform);
+  
+  // 用于调试的标志
+  const debugModeRef = useRef(true);
   
   // 预先处理节点，替换通用名称
   const processedNodes = useMemo(() => {
@@ -622,11 +626,26 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
   
   // 创建渲染动画循环
   useEffect(() => {
-    if (!canvasRef.current || processedNodes.length === 0) return;
+    console.log("渲染循环Effect触发, 初始化状态:", isInitializing, ", 节点数:", processedNodes.length);
+    
+    if (!canvasRef.current) {
+      console.error("Canvas引用不存在");
+      return;
+    }
+    
+    if (processedNodes.length === 0) {
+      console.warn("节点数据为空，放弃渲染");
+      return;
+    }
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.error("无法获取Canvas 2D上下文");
+      return;
+    }
+    
+    console.log("Canvas引用和Context已获取，准备渲染图谱");
     
     // 设置高DPI画布以获得更清晰的渲染
     const dpr = window.devicePixelRatio || 1;
@@ -785,10 +804,22 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
       const drawLinks = () => {
         // 先绘制普通连接线
         console.log(`开始绘制连接线，总数：${links.length}`);
+        console.log(`节点位置对象中键的数量: ${Object.keys(positions).length}`);
         
         // 添加调试信息
         if (links.length > 0) {
           console.log("第一条连接:", JSON.stringify(links[0]));
+          const firstLink = links[0];
+          // 安全地获取source和target ID
+          const getNodeId = (node: any): string => {
+            if (typeof node === 'string') return node;
+            if (node && typeof node === 'object' && node.id) return node.id;
+            return '';
+          };
+          const sourceId = getNodeId(firstLink.source);
+          const targetId = getNodeId(firstLink.target);
+          console.log(`第一条连接的source位置: ${JSON.stringify(positions[sourceId])}`);
+          console.log(`第一条连接的target位置: ${JSON.stringify(positions[targetId])}`);
         }
         
         // 安全地获取source和target ID
@@ -1022,9 +1053,56 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
       };
       
       // 绘制全部内容
-      drawBackground();
-      drawLinks();
-      drawNodes();
+      try {
+        // 背景先绘制
+        drawBackground();
+        
+        // 保存当前状态
+        ctx.save();
+        
+        // 重要的修复: 确保正确应用变换 - 先复位再重新应用
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // 重置变换
+        
+        // 应用变换
+        ctx.translate(currentTransformRef.current.translateX, currentTransformRef.current.translateY);
+        ctx.scale(currentTransformRef.current.scale, currentTransformRef.current.scale);
+        
+        console.log("开始绘制连接线和节点，节点数:", nodes.length);
+        
+        // 先绘制一些测试内容以验证渲染上下文是否正常
+        // 绘制测试线 - 从中心到各个方向的线条
+        const centerX = width / 2;
+        const centerY = height / 2;
+        
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+        ctx.lineWidth = 3 / currentTransformRef.current.scale;
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(centerX + 100, centerY);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(0, 255, 0, 0.7)';
+        ctx.lineWidth = 3 / currentTransformRef.current.scale;
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(centerX, centerY + 100);
+        ctx.stroke();
+        
+        // 绘制测试节点
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(0, 100, 255, 0.7)';
+        ctx.arc(centerX, centerY, 20, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 再绘制实际的连接线和节点
+        drawLinks();
+        drawNodes();
+        
+        // 恢复状态
+        ctx.restore();
+      } catch (error) {
+        console.error("绘制图谱时出错:", error);
+      }
       
       // 添加缩放控制器UI
       const drawZoomControls = () => {
