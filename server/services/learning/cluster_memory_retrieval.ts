@@ -91,32 +91,48 @@ export class ClusterMemoryRetrievalService {
    * 
    * @param userId 用户ID
    */
-  clearUserClusterCache(userId: number): void {
-    this.clusterCache.delete(userId);
-    log(`[ClusterMemoryRetrieval] 已清除用户${userId}的聚类缓存`);
+  async clearUserClusterCache(userId: number): Promise<void> {
+    try {
+      // 直接清除数据库中的缓存
+      await storage.clearClusterResultCache(userId);
+      log(`[ClusterMemoryRetrieval] 已清除用户${userId}的聚类缓存`);
+    } catch (error) {
+      log(`[ClusterMemoryRetrieval] 清除聚类缓存出错: ${error}`, "error");
+    }
   }
   
   /**
    * 获取用户的完整聚类结果
    * 供知识图谱和学习路径生成使用
+   * 使用数据库缓存提高性能
    * 
    * @param userId 用户ID
+   * @param forceRefresh 是否强制刷新缓存
    * @returns 聚类结果对象
    */
-  async getUserClusters(userId: number): Promise<ClusterResult | null> {
+  async getUserClusters(userId: number, forceRefresh: boolean = false): Promise<ClusterResult | null> {
     try {
-      log(`[trajectory] 获取用户${userId}的聚类数据`);
+      log(`[trajectory] 获取用户${userId}的聚类数据，强制刷新=${forceRefresh}`);
       
-      // 使用缓存为知识图谱加速 - 如果已有聚类结果，直接返回
-      const clusterResultCacheKey = `cluster_result_${userId}`;
-      const cachedResult = this.getFromLocalCache(clusterResultCacheKey);
-      
-      if (cachedResult) {
-        log(`[trajectory] 使用缓存的聚类数据: ${cachedResult.centroids?.length || 0} 个聚类`);
-        return cachedResult;
+      // 使用缓存为知识图谱加速 - 如果已有聚类结果且不强制刷新，直接返回
+      const clusterResultCacheKey = `cluster_${userId}`;
+
+      if (!forceRefresh) {
+        const cachedResult = await this.getFromLocalCache(clusterResultCacheKey);
+        
+        if (cachedResult) {
+          // 确保从缓存获取的对象有正确的结构
+          const clusterCount = cachedResult.centroids?.length || 0;
+          log(`[trajectory] 使用数据库缓存的聚类数据: ${clusterCount} 个聚类`);
+          return cachedResult;
+        }
+      } else {
+        // 如果强制刷新，清除缓存
+        await storage.clearClusterResultCache(userId);
+        log(`[trajectory] 已清除用户${userId}的聚类缓存`);
       }
       
-      log(`[trajectory] 缓存未命中，开始计算聚类数据`);
+      log(`[trajectory] 缓存未命中或已过期，开始计算聚类数据`);
       
       // 获取用户所有记忆
       const memories = await storage.getMemoriesByUserId(userId);
@@ -205,28 +221,62 @@ export class ClusterMemoryRetrievalService {
     }
   }
   
-  // 本地缓存方法
-  private localCache: Map<string, any> = new Map();
-  
-  private saveToLocalCache(key: string, data: any): void {
-    this.localCache.set(key, {
-      data,
-      timestamp: Date.now()
-    });
+  // 缓存方法 - 使用数据库而非内存
+  private async saveToLocalCache(key: string, data: any): Promise<void> {
+    // 提取用户ID - 期望key格式为 "cluster_userId"
+    const userId = this.extractUserIdFromKey(key);
+    if (!userId) return;
+    
+    try {
+      // 获取聚类数量和向量数量
+      const clusterCount = data?.centroids?.length || 0;
+      const vectorCount = data?.vectors?.length || data?.points?.length || 0;
+      
+      // 如果聚类数据有效，保存到数据库, 有效期24小时
+      await storage.saveClusterResultCache(
+        userId,
+        data,
+        clusterCount,
+        vectorCount,
+        24 // 24小时过期
+      );
+      
+      log(`[ClusterMemoryRetrieval] 成功将聚类结果缓存到数据库，用户ID=${userId}，聚类数=${clusterCount}`);
+    } catch (error) {
+      log(`[ClusterMemoryRetrieval] 缓存聚类结果出错: ${error}`, "error");
+    }
   }
   
-  private getFromLocalCache(key: string): any | null {
-    const cached = this.localCache.get(key);
-    if (!cached) return null;
+  private async getFromLocalCache(key: string): Promise<any | null> {
+    // 提取用户ID
+    const userId = this.extractUserIdFromKey(key);
+    if (!userId) return null;
     
-    // 检查缓存是否过期（使用12小时作为图谱数据缓存时间)
-    const now = Date.now();
-    if ((now - cached.timestamp) > 12 * 60 * 60 * 1000) {
-      this.localCache.delete(key);
+    try {
+      // 从数据库获取缓存
+      const cache = await storage.getClusterResultCache(userId);
+      
+      if (cache) {
+        log(`[ClusterMemoryRetrieval] 从数据库加载聚类结果缓存，用户ID=${userId}，聚类数=${cache.clusterCount}`);
+        return cache.clusterData;
+      }
+      
+      return null;
+    } catch (error) {
+      log(`[ClusterMemoryRetrieval] 获取缓存聚类结果出错: ${error}`, "error");
       return null;
     }
+  }
+  
+  // 从键中提取用户ID
+  private extractUserIdFromKey(key: string): number | null {
+    if (!key.startsWith('cluster_')) return null;
     
-    return cached.data;
+    // 解析用户ID
+    const userIdStr = key.substring('cluster_'.length);
+    const userId = parseInt(userIdStr, 10);
+    
+    return isNaN(userId) ? null : userId;
   }
   
   /**
