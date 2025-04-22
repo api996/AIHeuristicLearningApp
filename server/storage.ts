@@ -39,11 +39,13 @@ export interface IStorage {
 
   // Message methods
   createMessage(chatId: number, content: string, role: string, model?: string): Promise<Message>;
-  getChatMessages(chatId: number, userId: number, isAdmin: boolean): Promise<Message[]>;
-  updateMessage(messageId: number, content: string, isUserOwned: boolean): Promise<Message>;
+  getChatMessages(chatId: number, userId: number, isAdmin: boolean, activeOnly?: boolean): Promise<Message[]>;
+  updateMessage(messageId: number, content: string, isUserOwned: boolean, model?: string): Promise<Message>;
   updateMessageFeedback(messageId: number, feedback: "like" | "dislike"): Promise<Message>;
   regenerateMessage(messageId: number): Promise<Message>;
-  getMessageById(messageId: number): Promise<Message | undefined>; // Added method
+  getMessageById(messageId: number): Promise<Message | undefined>;
+  // 添加标记消息为非活跃的方法
+  deactivateMessagesAfter(chatId: number, messageId: number): Promise<void>;
 
   // Memory methods
   createMemory(userId: number, content: string, type?: string, summary?: string, timestamp?: Date): Promise<Memory>;
@@ -540,7 +542,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getChatMessages(chatId: number, userId: number, isAdmin: boolean): Promise<Message[]> {
+  async getChatMessages(chatId: number, userId: number, isAdmin: boolean, activeOnly: boolean = true): Promise<Message[]> {
     try {
       // First verify if the user has access to this chat
       const chat = await this.getChatById(chatId, userId, isAdmin);
@@ -549,10 +551,18 @@ export class DatabaseStorage implements IStorage {
       // Only return messages if the user has access to the chat
       if (!isAdmin && chat.userId !== userId) return [];
 
-      // Get messages for a specific chat
+      // 构建查询条件
+      let conditions = [eq(messages.chatId, chatId)];
+      
+      // 如果只查询活跃消息（默认行为），添加is_active条件
+      if (activeOnly) {
+        conditions.push(eq(messages.isActive, true));
+      }
+      
+      // Get messages for a specific chat with active filter if requested
       return await db.select()
         .from(messages)
-        .where(eq(messages.chatId, chatId))
+        .where(and(...conditions))
         .orderBy(asc(messages.createdAt));
     } catch (error) {
       log(`Error getting chat messages: ${error}`);
