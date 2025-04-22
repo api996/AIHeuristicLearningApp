@@ -123,6 +123,19 @@ export class MemoryService {
    */
   async analyzeMemoryClusters(userId: number, memories: Memory[], embeddings: number[][]): Promise<any> {
     try {
+      // 记录向量维度信息，用于调试
+      if (embeddings && embeddings.length > 0) {
+        const vectorDimensions = embeddings[0].length;
+        log(`[MemoryService] 记忆聚类分析: 用户ID=${userId}, 记忆数量=${memories.length}, 向量维度=${vectorDimensions}`);
+        
+        // 检查向量是否为高维向量(3072维)
+        if (vectorDimensions >= 3000) {
+          log(`[MemoryService] 检测到高维向量(${vectorDimensions}维)，将使用优化的Python聚类服务`);
+        } else {
+          log(`[MemoryService] 警告: 检测到低维向量(${vectorDimensions}维)，可能导致聚类效果不佳`, "warn");
+        }
+      }
+      
       // 确保是同一用户的记忆
       const filteredMemories = memories.filter(memory => memory.userId === userId);
       if (filteredMemories.length !== memories.length) {
@@ -140,7 +153,14 @@ export class MemoryService {
       }
       
       // 执行聚类分析
-      return clusterAnalyzer.analyzeMemoryClusters(filteredMemories, embeddings);
+      const result = await clusterAnalyzer.analyzeMemoryClusters(filteredMemories, embeddings);
+      
+      // 记录分析结果
+      if (result && result.topics) {
+        log(`[MemoryService] 聚类分析成功: 发现 ${result.topics.length} 个主题聚类`);
+      }
+      
+      return result;
     } catch (error) {
       log(`[MemoryService] 记忆聚类分析出错: ${error}`, "error");
       return { topics: [], error: "Clustering analysis failed" };
@@ -232,7 +252,57 @@ export class MemoryService {
   async getUserClusterTopics(userId: number): Promise<any[]> {
     return clusterMemoryRetrieval.getUserClusterTopics(userId);
   }
+  
+  /**
+   * 测试Python聚类服务
+   * 使用随机生成的高维向量验证聚类功能
+   */
+  async testPythonClustering(): Promise<boolean> {
+    try {
+      log(`[MemoryService] 开始测试Python聚类服务...`);
+      
+      // 创建测试向量数据
+      const testVectors = this.generateTestVectors(10, 3072);
+      log(`[MemoryService] 已生成 ${testVectors.length} 个测试向量，每个维度为 3072`);
+      
+      // 从cluster_analyzer导入pythonClusteringService
+      const { pythonClusteringService } = await import('./python_clustering');
+      
+      // 直接调用Python聚类服务
+      const result = await pythonClusteringService.clusterVectors(testVectors);
+      
+      if (result && result.centroids && result.centroids.length > 0) {
+        log(`[MemoryService] Python聚类服务测试成功，生成 ${result.centroids.length} 个聚类`);
+        return true;
+      } else {
+        log(`[MemoryService] Python聚类服务测试失败: 未能生成有效聚类`, "error");
+        return false;
+      }
+    } catch (error) {
+      log(`[MemoryService] Python聚类服务测试出错: ${error}`, "error");
+      return false;
+    }
+  }
+  
+  /**
+   * 生成测试用高维向量
+   * @param count 向量数量
+   * @param dimension 向量维度
+   */
+  private generateTestVectors(count: number, dimension: number): {id: string, vector: number[]}[] {
+    const vectors = [];
+    
+    for (let i = 0; i < count; i++) {
+      const vector = Array.from({ length: dimension }, () => Math.random() - 0.5);
+      vectors.push({
+        id: `test_${i}`,
+        vector
+      });
+    }
+    
+    return vectors;
+  }
 }
 
-// 导出服务实例
+// 创建并导出MemoryService实例
 export const memoryService = new MemoryService();
