@@ -27,6 +27,7 @@ export interface SearchSnippet {
  */
 export interface CustomMCPSearchResult {
   query: string;           // 原始查询
+  userIntent?: string;     // 用户真实意图
   summary: string;         // 结果概述
   relevance: number;       // 相关性评分 (1-10)
   keyPoints: string[];     // 关键信息点
@@ -34,6 +35,7 @@ export interface CustomMCPSearchResult {
     title: string;
     url: string;
     content: string;
+    relevanceToIntent?: number; // 与用户意图的相关性
   }[];
   timestamp: number;       // 搜索时间戳
 }
@@ -342,27 +344,38 @@ export class WebSearchService {
       
       // 构建提示词
       const prompt = `
-您是一个搜索内容处理专家，请分析以下搜索结果，并以JSON格式输出结构化信息。
+您是一个专业级搜索内容分析专家，请仔细分析用户的意图和搜索结果，提供高度相关的结构化信息。
 
 搜索查询: "${query}"
 
 搜索结果:
 ${searchContext}
 
-请以JSON格式输出以下内容:
+您的任务包括两个步骤:
+1. 首先分析用户查询的真实意图和需求。考虑：
+   - 用户可能想要找什么信息？
+   - 什么结果最符合他们需要解决的问题？
+   - 用户最可能想要哪类事实信息或观点？
+
+2. 基于对用户意图的理解，评估每条搜索结果的真实相关性和信息价值，然后以JSON格式输出：
+
 {
-  "summary": "搜索结果的综合摘要，简洁、全面、不超过100字",
-  "relevance": "搜索结果与查询相关性评分，范围1-10的整数",
-  "keyPoints": ["关键信息点1", "关键信息点2", ...], // 3-5个关键要点
+  "userIntent": "对用户意图的简洁理解，不超过30字",
+  "summary": "基于用户真实意图的搜索结果综合摘要，简洁但包含关键事实和信息，不超过100字",
+  "relevance": "搜索结果与用户真实需求的相关性评分，只使用1-10的整数，高度相关为8-10，一般相关为5-7，几乎不相关为1-4",
+  "keyPoints": ["与用户意图高度相关的关键信息点1", "关键信息点2", ...], // 3-5个最相关要点
   "sources": [
     {
       "title": "来源标题",
       "url": "URL地址",
-      "content": "简要内容摘录"
+      "content": "简要内容摘录，选择与用户意图最相关的部分",
+      "relevanceToIntent": "特定来源与用户意图的相关性分数(1-10)"
     },
     ...
-  ] // 最多包含3个最相关的来源
-}`;
+  ] // 仅包含3个与用户意图最相关的来源
+}
+
+重要：确保仅选择与用户真实意图高度相关的内容，而不是仅与搜索词表面相关的内容。`;
 
       // 发送请求到模型
       const response = await model.generateContent({
@@ -391,10 +404,24 @@ ${searchContext}
       // 构建自定义结构化搜索结果 (CustomMCP)
       const mcpResult: CustomMCPSearchResult = {
         query,
+        userIntent: mcpData.userIntent || `了解关于"${query}"的信息`,
         summary: mcpData.summary || `关于"${query}"的搜索结果`,
         relevance: this.normalizeRelevanceScore(mcpData.relevance),
         keyPoints: Array.isArray(mcpData.keyPoints) ? mcpData.keyPoints : [],
-        sources: Array.isArray(mcpData.sources) ? mcpData.sources : [],
+        sources: Array.isArray(mcpData.sources) ? 
+          mcpData.sources.map((source: {
+            title: string;
+            url: string;
+            content: string;
+            relevanceToIntent?: any;
+          }) => ({
+            ...source,
+            // 确保relevanceToIntent字段存在
+            relevanceToIntent: source.relevanceToIntent ? 
+              this.normalizeRelevanceScore(source.relevanceToIntent) : 
+              undefined
+          })) : 
+          [],
         timestamp: Date.now()
       };
       
@@ -702,6 +729,11 @@ ${truncatedContent}
     
     let context = "以下是从网络搜索中获取的相关信息：\n\n";
     
+    // 添加用户意图（如果有）
+    if (mcpResult.userIntent) {
+      context += `查询意图：${mcpResult.userIntent}\n\n`;
+    }
+    
     // 添加综合摘要
     context += `综合摘要：${mcpResult.summary}\n\n`;
     
@@ -717,11 +749,19 @@ ${truncatedContent}
     // 添加来源信息
     if (mcpResult.sources && mcpResult.sources.length > 0) {
       context += "详细信息来源：\n";
-      mcpResult.sources.forEach((source: {title: string, url: string, content: string}, index: number) => {
+      mcpResult.sources.forEach((source: {
+        title: string; 
+        url: string; 
+        content: string;
+        relevanceToIntent?: number;
+      }, index: number) => {
         context += `[${index + 1}] ${source.title}\n`;
         context += `${source.content}\n`;
         if (source.url) {
           context += `来源: ${source.url}\n`;
+        }
+        if (source.relevanceToIntent) {
+          context += `相关性: ${source.relevanceToIntent}/10\n`;
         }
         context += "\n";
       });
