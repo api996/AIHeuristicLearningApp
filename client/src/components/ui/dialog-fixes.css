@@ -1,78 +1,146 @@
-/* 
-  dialog-fixes.css - 解决iPad和其他移动设备上弹窗渲染问题
-*/
+/* 对话框相关的样式修复 */
 
-/* 全局对话框样式修复 */
-.preferences-dialog-content {
-  z-index: 9999 !important;
-  position: relative;
+/* 对话框容器修复 */
+.dialog-container {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
 }
 
-/* iPad专用样式 - 添加到设备根元素上的.ipad-device类 */
-:root.ipad-device .preferences-dialog-content {
-  position: fixed !important;
-  inset: 0 !important;
-  margin: auto !important;
-  max-width: 400px !important;
-  max-height: 80vh !important;
-  width: 90% !important;
-  background-color: #1a1a1a !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5) !important;
-  border-radius: 12px !important;
-  z-index: 9999999 !important; /* 确保在所有元素之上 */
-  transform: none !important; /* 防止可能的3D变换问题 */
-  opacity: 1 !important;
-  visibility: visible !important;
-  animation: none !important; /* 禁用可能导致问题的动画 */
+/* 修复iPad和移动设备上的对话框尺寸问题 */
+@media (max-width: 768px) {
+  .dialog-content {
+    width: 95% !important;
+    max-width: 95% !important;
+    max-height: 90vh !important;
+    max-height: calc(var(--vh, 1vh) * 90) !important;
+    margin: 0 auto;
+  }
 }
 
-/* 对话框背景 */
-:root.ipad-device .dialog-backdrop {
-  background-color: rgba(0, 0, 0, 0.5) !important;
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 999999 !important;
+@media (min-width: 769px) and (max-width: 1024px) {
+  .dialog-content {
+    width: 85% !important;
+    max-width: 85% !important;
+    max-height: 85vh !important;
+    max-height: calc(var(--vh, 1vh) * 85) !important;
+  }
 }
 
-/* 优化iPad上的对话框内容布局 */
-:root.ipad-device .preferences-dialog-content .preferences-background-upload {
-  margin-bottom: 12px !important;
+/* 修复iPad上的对话框滚动问题 */
+.dialog-scrollable {
+  max-height: 80vh;
+  max-height: calc(var(--vh, 1vh) * 80);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-:root.ipad-device .preferences-dialog-content .preferences-theme-color-section {
-  display: grid !important;
-  grid-template-columns: repeat(6, 1fr) !important;
-  gap: 8px !important;
+/* 确保对话框内容垂直居中 */
+.dialog-centered {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-/* 触摸交互优化 */
-:root.ipad-device .dialog-content button,
-:root.ipad-device .dialog-content input,
-:root.ipad-device .dialog-content .dialog-close {
-  min-height: 44px !important; /* 确保符合iOS触摸标准 */
-  touch-action: manipulation !important;
+/* 修复对话框按钮组的布局问题 */
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
 }
 
-/* 修复iPad上对话框可能出现的滚动问题 */
-:root.ipad-device .dialog-content {
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  max-height: 80vh !important;
-  padding: 20px !important;
+@media (max-width: 640px) {
+  .dialog-actions {
+    flex-direction: column;
+  }
+  
+  .dialog-actions button {
+    width: 100%;
+  }
 }
 
-/* 确保对话框关闭按钮正常工作 */
-:root.ipad-device .dialog-close-button {
-  position: absolute !important;
-  right: 10px !important;
-  top: 10px !important;
-  z-index: 999999 !important;
-  width: 44px !important;
-  height: 44px !important;
-  border-radius: 50% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  background-color: rgba(60, 60, 60, 0.5) !important;
+/* 修复对话框标题的排版问题 */
+.dialog-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+/* 修复对话框关闭按钮的位置和大小 */
+.dialog-close-button {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  border-radius: 9999px;
+  padding: 0.25rem;
+  background-color: transparent;
+  transition: background-color 0.2s;
+}
+
+.dialog-close-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* 修复对话框阴影问题 */
+.dialog-shadow {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* 修复对话框动画问题 */
+.dialog-enter {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.dialog-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.dialog-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.dialog-exit-active {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+/* 修复键盘打开时对话框布局问题 */
+@supports (-webkit-touch-callout: none) {
+  .keyboard-open .dialog-container {
+    position: absolute;
+    height: -webkit-fill-available;
+  }
+}
+
+/* 修复表单元素在对话框中的布局 */
+.dialog-form-item {
+  margin-bottom: 1rem;
+}
+
+.dialog-form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+/* 确保表单元素在移动设备上足够大 */
+@media (pointer: coarse) {
+  .dialog-form-input,
+  .dialog-form-select,
+  .dialog-form-textarea {
+    min-height: 44px;
+    font-size: 16px !important;
+  }
 }

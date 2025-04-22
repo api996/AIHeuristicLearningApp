@@ -1,80 +1,131 @@
 /**
- * D3.js补丁 - 简化版
- * 
- * 这个文件修复D3.js在SimpleKnowledgeGraph组件中使用d3-drag和d3-zoom时的兼容性问题
- * 通过全局对象初始化解决D3实例在不同模块间共享的问题
+ * D3.js库兼容性补丁
+ * 解决D3.js与React组件交互时的常见问题
  */
 
-// 在主文件加载时立即执行初始化
 (function() {
-  // 确保在浏览器环境中运行
   if (typeof window === 'undefined') return;
   
-  // 创建全局函数，确保它可以在组件内部访问
-  window.loadD3AndApplyPatch = function() {
-    try {
-      // 创建全局d3Selection和_d3Selection对象
-      if (!window._d3Selection) {
-        window._d3Selection = {
-          d3: window.d3, // 保存D3实例引用
-          event: null,
-          transform: { k: 1, x: 0, y: 0 }
-        };
-        console.log("D3直接补丁已加载 - 全局_d3Selection对象已创建");
-      }
+  // 在DOM加载完成后应用补丁
+  function applyPatch() {
+    // 检查D3对象是否存在
+    if (typeof window.d3 === 'undefined') {
+      console.warn('D3补丁警告: d3对象未定义，无法应用补丁');
       
-      if (!window.d3Selection) {
-        window.d3Selection = {
-          d3: window.d3, // 保存D3实例引用
-          event: null,
-          mouse: function(container) {
-            // 如果有自定义事件，使用事件坐标
-            if (this.event && this.event.x !== undefined && this.event.y !== undefined) {
-              return [this.event.x, this.event.y];
-            }
-            // 否则返回默认值
-            return [0, 0];
-          },
-          // 保存当前事件和变换
-          setEvent: function(event) {
-            this.event = event;
-          },
-          transform: { k: 1, x: 0, y: 0 }
-        };
-      }
+      // 定期检查D3是否已加载
+      const checkInterval = setInterval(() => {
+        if (typeof window.d3 !== 'undefined') {
+          console.log('D3对象现已可用，应用补丁');
+          clearInterval(checkInterval);
+          completePatch();
+        }
+      }, 200);
       
-      // 标记补丁已初始化
-      window._d3PatchInitialized = true;
+      // 在5秒后停止检查，避免无限循环
+      setTimeout(() => clearInterval(checkInterval), 5000);
       
-      return true;
-    } catch (e) {
-      console.warn("D3补丁初始化错误:", e);
-      return false;
+      return;
     }
-  };
-  
-  // 如果window.d3还不存在，设置一个监听器等待D3加载
-  if (!window.d3) {
-    console.warn("D3补丁警告: d3对象未定义，无法应用补丁");
     
-    // 尝试每500毫秒检查一次，共尝试10次
-    let attempts = 0;
-    const maxAttempts = 10;
-    const interval = setInterval(() => {
-      attempts++;
-      if (window.d3) {
-        clearInterval(interval);
-        window.loadD3AndApplyPatch();
-      } else if (attempts >= maxAttempts) {
-        clearInterval(interval);
-        console.warn("D3补丁警告: 多次尝试后d3对象仍未定义，无法应用补丁");
-      }
-    }, 500);
-  } else {
-    // D3已存在，直接初始化
-    window.loadD3AndApplyPatch();
+    completePatch();
   }
+  
+  // 完成补丁应用过程
+  function completePatch() {
+    if (typeof window.d3 === 'undefined') return;
+    
+    // 创建/更新全局_d3Selection对象
+    window._d3Selection = window.d3.selection;
+    
+    // 修复Safari和iOS特定的SVG渲染问题
+    fixSvgInSafari();
+    
+    // 修复触摸设备上的事件处理
+    fixTouchEvents();
+    
+    console.log('D3补丁已成功应用');
+  }
+  
+  // 修复Safari和iOS特定的SVG渲染问题
+  function fixSvgInSafari() {
+    // 检测Safari浏览器
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    
+    if (isSafari) {
+      console.log('检测到Safari浏览器，应用SVG渲染修复');
+      
+      // 观察SVG元素，确保它们在Safari中正确渲染
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'childList') {
+            mutation.addedNodes.forEach((node) => {
+              if (node.tagName === 'svg') {
+                // 修复Safari中的SVG渲染问题
+                node.setAttribute('width', node.getAttribute('width') || '100%');
+                node.setAttribute('height', node.getAttribute('height') || '100%');
+                node.style.display = 'block';
+              }
+            });
+          }
+        });
+      });
+      
+      // 配置并启动观察器
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  }
+  
+  // 修复触摸设备上的事件处理
+  function fixTouchEvents() {
+    // 检测是否为触摸设备
+    const isTouchDevice = 'ontouchstart' in window || 
+                         navigator.maxTouchPoints > 0 || 
+                         navigator.msMaxTouchPoints > 0;
+    
+    if (isTouchDevice) {
+      console.log('检测到触摸设备，应用触摸事件修复');
+      
+      // 对document添加被动事件监听器，提高性能
+      document.addEventListener('touchstart', function() {}, { passive: true });
+      document.addEventListener('touchmove', function() {}, { passive: true });
+      
+      // 监听后续添加的svg元素，优化它们的触摸交互
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'childList') {
+            mutation.addedNodes.forEach((node) => {
+              if (node.tagName === 'svg') {
+                // 为svg元素添加触摸友好的属性
+                node.style.touchAction = 'manipulation';
+                
+                // 为其子元素添加触摸友好的属性
+                const touchElements = node.querySelectorAll('circle, rect, path, line');
+                touchElements.forEach(el => {
+                  el.style.touchAction = 'manipulation';
+                  
+                  // 增大触摸目标区域，提高可用性
+                  if (el.tagName === 'circle' && parseFloat(el.getAttribute('r')) < 10) {
+                    el.setAttribute('r', '10');
+                  }
+                });
+              }
+            });
+          }
+        });
+      });
+      
+      // 配置并启动观察器
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  }
+  
+  // 在DOM加载完成后执行补丁
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyPatch);
+  } else {
+    applyPatch();
+  }
+  
+  // 监听自定义的d3Loaded事件
+  window.addEventListener('d3Loaded', completePatch);
 })();
-
-// 导出空对象 - 主要功能已通过全局函数提供
-export default {};

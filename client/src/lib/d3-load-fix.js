@@ -1,221 +1,245 @@
 /**
- * D3.js加载修复程序
- * 这个文件用于确保D3.js在应用启动时正确加载，并在页面刷新后保持可用
- * 它解决了在界面刷新后d3对象未定义导致UI样式崩溃的问题
- * 
- * @module d3-load-fix
- * @typescript
+ * D3.js加载修复脚本
+ * 确保D3.js正确加载，并提供加载失败时的备用解决方案
  */
 
-// 创建一个可靠的D3加载程序
-const ensureD3Loaded = (function() {
-  // 跟踪尝试次数
-  let attempts = 0;
-  const maxAttempts = 20; // 增加尝试次数
-  let isLoading = false;
-  let loadSuccess = false;
-  
-  // 加载d3.js的函数
-  async function loadD3() {
-    if (isLoading || loadSuccess || typeof window === 'undefined') return;
-    
-    isLoading = true;
-    console.log('开始加载D3.js库...');
-    
-    try {
-      // 检查d3是否已经加载
-      if (window.d3) {
-        console.log('D3.js已加载，正在初始化补丁...');
-        initializeD3Patches();
-        loadSuccess = true;
-        isLoading = false;
-        return true;
-      }
-      
-      // 如果没有，尝试动态加载d3
-      const loadScript = () => {
-        return new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js';
-          script.integrity = 'sha384-RnVlgLn9MKvQVPCR0tcBS/IJtgwIoLXXoXax+7WRpLBsk4i9aiNEJ2t6nQwyBl4K';
-          script.crossOrigin = 'anonymous';
-          script.onload = () => {
-            console.log('D3.js加载成功');
-            resolve(true);
-          };
-          script.onerror = () => {
-            console.warn('D3.js加载失败，尝试使用非SRI版本');
-            
-            // 如果SRI加载失败，尝试非SRI版本
-            const fallbackScript = document.createElement('script');
-            fallbackScript.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js';
-            fallbackScript.onload = () => {
-              console.log('D3.js非SRI版本加载成功');
-              resolve(true);
-            };
-            fallbackScript.onerror = () => {
-              console.error('D3.js加载失败');
-              reject(new Error('D3.js加载失败'));
-            };
-            document.head.appendChild(fallbackScript);
-          };
-          document.head.appendChild(script);
-        });
-      };
-      
-      // 尝试加载d3
-      const loaded = await loadScript();
-      
-      if (loaded && window.d3) {
-        initializeD3Patches();
-        loadSuccess = true;
-        console.log('D3.js加载并初始化成功');
-      } else {
-        console.warn('D3.js加载成功但全局对象未定义');
-      }
-    } catch (error) {
-      console.error('D3.js加载过程中发生错误:', error);
-    } finally {
-      isLoading = false;
-    }
-  }
-  
-  // 初始化D3补丁
-  function initializeD3Patches() {
-    if (!window.d3) {
-      console.warn('无法初始化D3补丁: d3对象未定义');
-      return false;
-    }
-    
-    try {
-      // 创建全局_d3Selection对象
-      window._d3Selection = window._d3Selection || {
-        event: null,
-        transform: { k: 1, x: 0, y: 0 }
-      };
-      
-      // 创建兼容性d3Selection对象
-      window.d3Selection = window.d3Selection || {
-        d3: window.d3,
-        event: null,
-        mouse: function(container) {
-          if (this.event && this.event.x !== undefined && this.event.y !== undefined) {
-            return [this.event.x, this.event.y];
-          }
-          return [0, 0];
-        },
-        setEvent: function(event) {
-          this.event = event;
-        },
-        transform: { k: 1, x: 0, y: 0 }
-      };
-      
-      // 修复d3.zoom
-      if (window.d3.zoom) {
-        const originalZoom = window.d3.zoom;
-        window.d3.zoom = function() {
-          try {
-            const zoom = originalZoom.apply(this, arguments);
-            const originalOn = zoom.on;
-            zoom.on = function(typenames, callback) {
-              if (callback) {
-                return originalOn.call(this, typenames, function(event) {
-                  try {
-                    event = event || {};
-                    event.transform = event.transform || { k: 1, x: 0, y: 0 };
-                    window._d3Selection.event = window._d3Selection.event || {};
-                    window._d3Selection.event.transform = event.transform;
-                    if (window.d3Selection) {
-                      window.d3Selection.event = window.d3Selection.event || {};
-                      window.d3Selection.event.transform = event.transform;
-                    }
-                    return callback.apply(this, arguments);
-                  } catch (err) {
-                    console.warn("D3缩放事件处理错误:", err);
-                    return undefined;
-                  }
-                });
-              }
-              return originalOn.apply(this, arguments);
-            };
-            return zoom;
-          } catch (err) {
-            console.warn("D3.zoom包装错误:", err);
-            return originalZoom.apply(this, arguments);
-          }
-        };
-      }
-      
-      console.log('D3补丁已成功应用');
-      return true;
-    } catch (error) {
-      console.error('D3补丁初始化错误:', error);
-      return false;
-    }
-  }
-  
-  // 返回加载函数
-  return function() {
-    // 如果已经成功加载，直接返回
-    if (loadSuccess && window.d3) return Promise.resolve(true);
-    
-    // 如果已经尝试太多次，放弃
-    if (attempts >= maxAttempts) {
-      console.error(`已尝试${maxAttempts}次加载D3.js，放弃加载`);
-      return Promise.resolve(false);
-    }
-    
-    attempts++;
-    
-    // 立即尝试一次加载
-    const loadPromise = loadD3();
-    
-    // 如果需要，设置轮询检查
-    if (!window.d3) {
-      const checkInterval = setInterval(() => {
-        if (window.d3) {
-          clearInterval(checkInterval);
-          initializeD3Patches();
-          loadSuccess = true;
-          console.log('D3.js检测到通过其他方式加载，正在初始化补丁');
-        } else if (attempts < maxAttempts) {
-          attempts++;
-          loadD3();
-        } else {
-          clearInterval(checkInterval);
-          console.warn(`已尝试${maxAttempts}次加载D3.js，停止尝试`);
-        }
-      }, 300);
-      
-      // 确保在页面卸载时清除定时器
-      if (typeof window !== 'undefined') {
-        window.addEventListener('beforeunload', () => {
-          clearInterval(checkInterval);
-        });
-      }
-    }
-    
-    return loadPromise;
-  };
-})();
-
-// 导出加载函数
-export { ensureD3Loaded };
-
-// 立即执行一次加载尝试
-ensureD3Loaded();
-
-// 监听DOM加载完成事件
-if (typeof window !== 'undefined') {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', ensureD3Loaded);
-  } else {
-    // 如果DOM已经加载完成，立即执行
-    setTimeout(ensureD3Loaded, 0);
-  }
-  
-  // 在window加载完成后再次尝试
-  window.addEventListener('load', ensureD3Loaded);
+/**
+ * 检查D3.js是否已成功加载
+ * @return {boolean} 是否加载成功
+ */
+function isD3Loaded() {
+  return typeof window.d3 !== 'undefined' && window.d3 !== null;
 }
 
-export default ensureD3Loaded;
+/**
+ * 尝试动态加载D3.js
+ * @return {Promise<boolean>} 加载是否成功
+ */
+async function loadD3Dynamically() {
+  return new Promise((resolve) => {
+    if (isD3Loaded()) {
+      console.log("D3.js已加载");
+      resolve(true);
+      return;
+    }
+    
+    try {
+      console.log("尝试动态加载D3.js库");
+      
+      // 创建脚本标签
+      const script = document.createElement('script');
+      script.src = 'https://d3js.org/d3.v7.min.js';
+      script.async = true;
+      
+      // 设置成功回调
+      script.onload = () => {
+        console.log("D3.js库加载成功");
+        if (isD3Loaded()) {
+          resolve(true);
+        } else {
+          console.warn("D3.js库似乎已加载，但全局变量不可用");
+          resolve(false);
+        }
+      };
+      
+      // 设置失败回调
+      script.onerror = () => {
+        console.error("无法加载D3.js库");
+        resolve(false);
+      };
+      
+      // 添加到文档中
+      document.head.appendChild(script);
+    } catch (error) {
+      console.error("加载D3.js时发生错误:", error);
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * 应用最小化的D3.js替代方案，确保基本API可用
+ */
+function applyMinimalD3Polyfill() {
+  // 引入外部替代方案
+  if (typeof window.d3 === 'undefined' || window.d3 === null) {
+    console.log("应用最小化D3.js替代方案");
+    
+    window.d3 = window.d3 || {};
+    
+    // 基本选择器方法
+    if (!window.d3.select) {
+      window.d3.select = function(selector) {
+        const element = document.querySelector(selector);
+        return element ? wrapElement(element) : null;
+      };
+    }
+    
+    if (!window.d3.selectAll) {
+      window.d3.selectAll = function(selector) {
+        const elements = document.querySelectorAll(selector);
+        return wrapElements(elements);
+      };
+    }
+    
+    // 缩放行为
+    if (!window.d3.zoom) {
+      window.d3.zoom = function() {
+        return {
+          on: () => ({}),
+          scaleExtent: () => ({ on: () => ({}) })
+        };
+      };
+    }
+    
+    // 拖拽行为
+    if (!window.d3.drag) {
+      window.d3.drag = function() {
+        return {
+          on: () => ({})
+        };
+      };
+    }
+    
+    // 创建元素包装器
+    function wrapElement(element) {
+      if (!element) return null;
+      
+      return {
+        node: () => element,
+        append: (tag) => {
+          const newElement = document.createElement(tag);
+          element.appendChild(newElement);
+          return wrapElement(newElement);
+        },
+        attr: (name, value) => {
+          if (typeof value === 'function') {
+            element.setAttribute(name, value());
+          } else {
+            element.setAttribute(name, value);
+          }
+          return wrapElement(element);
+        },
+        style: (name, value) => {
+          if (typeof value === 'function') {
+            element.style[name] = value();
+          } else {
+            element.style[name] = value;
+          }
+          return wrapElement(element);
+        },
+        text: (value) => {
+          element.textContent = value;
+          return wrapElement(element);
+        },
+        on: (eventName, handler) => {
+          element.addEventListener(eventName, handler);
+          return wrapElement(element);
+        },
+        remove: () => {
+          element.parentNode?.removeChild(element);
+          return null;
+        }
+      };
+    }
+    
+    // 创建元素集合包装器
+    function wrapElements(nodeList) {
+      return {
+        nodes: () => Array.from(nodeList),
+        each: (callback) => {
+          Array.from(nodeList).forEach((element, i) => {
+            callback.call(element, element.__data__ || {}, i);
+          });
+          return wrapElements(nodeList);
+        }
+      };
+    }
+  }
+  
+  return window.d3 !== undefined;
+}
+
+/**
+ * 增强触摸交互，优化移动设备体验
+ */
+export function enhanceTouchInteraction() {
+  if (!isD3Loaded()) return;
+  
+  try {
+    // 增强SVG元素的触摸交互
+    document.querySelectorAll('svg').forEach(svg => {
+      svg.style.touchAction = 'manipulation';
+      
+      // 为交互元素增加触摸友好性
+      svg.querySelectorAll('circle, rect, path, line').forEach(el => {
+        el.style.touchAction = 'manipulation';
+        
+        // 增大触摸目标区域
+        if (el.tagName === 'circle' && el.getAttribute('r')) {
+          const currentR = parseFloat(el.getAttribute('r'));
+          if (currentR < 10) {
+            // 设置更大的点击区域
+            el.setAttribute('data-original-r', currentR.toString());
+            el.setAttribute('data-touch-r', (currentR * 2).toString());
+            
+            // 监听触摸开始，暂时增大半径
+            el.addEventListener('touchstart', () => {
+              el.setAttribute('r', el.getAttribute('data-touch-r'));
+            });
+            
+            // 监听触摸结束，恢复原始半径
+            el.addEventListener('touchend', () => {
+              el.setAttribute('r', el.getAttribute('data-original-r'));
+            });
+          }
+        }
+      });
+    });
+    
+    console.log("已增强SVG元素的触摸交互");
+    return true;
+  } catch (error) {
+    console.error("增强触摸交互时出错:", error);
+    return false;
+  }
+}
+
+/**
+ * 确保D3.js加载并应用修复
+ */
+export async function ensureD3Loaded() {
+  // 如果已加载，直接返回
+  if (isD3Loaded()) {
+    console.log("D3.js已加载，应用增强功能");
+    enhanceTouchInteraction();
+    return true;
+  }
+  
+  // 尝试动态加载
+  console.log("D3.js未加载，尝试动态加载");
+  const loadSuccess = await loadD3Dynamically();
+  
+  if (loadSuccess) {
+    console.log("D3.js加载成功，应用增强功能");
+    enhanceTouchInteraction();
+    return true;
+  }
+  
+  // 如果动态加载失败，应用替代方案
+  console.log("D3.js加载失败，应用替代方案");
+  const polyfillSuccess = applyMinimalD3Polyfill();
+  
+  if (polyfillSuccess) {
+    console.log("成功应用D3.js替代方案");
+    return true;
+  }
+  
+  console.error("无法加载或替代D3.js");
+  return false;
+}
+
+export default {
+  ensureD3Loaded,
+  enhanceTouchInteraction
+};
