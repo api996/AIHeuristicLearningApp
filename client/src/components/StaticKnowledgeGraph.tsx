@@ -791,27 +791,36 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
           console.log("第一条连接:", JSON.stringify(links[0]));
         }
         
+        // 安全地获取source和target ID
+        const getNodeId = (node: any): string => {
+          if (typeof node === 'string') return node;
+          if (node && typeof node === 'object' && node.id) return node.id;
+          return '';
+        };
+        
         links.forEach((link, index) => {
-          // 确保source和target存在
-          if (!link.source || !link.target) {
-            console.warn(`连接 #${index} 没有有效的source或target:`);
-            console.warn(JSON.stringify(link));
+          // 确保source和target存在 - 处理可能是对象的情况
+          const sourceId = getNodeId(link.source);
+          const targetId = getNodeId(link.target);
+          
+          if (!sourceId || !targetId) {
+            console.warn(`连接 #${index} 没有有效的source或target:`, JSON.stringify(link));
             return;
           }
           
-          const sourcePos = positions[link.source];
-          const targetPos = positions[link.target];
+          const sourcePos = positions[sourceId];
+          const targetPos = positions[targetId];
           
           if (!sourcePos || !targetPos) {
-            console.warn(`连接 #${index} (${link.source} -> ${link.target})的位置未定义`);
+            console.warn(`连接 #${index} (${sourceId} -> ${targetId})的位置未定义`);
             return;
           }
           
-          const sourceNode = processedNodes.find(n => n.id === link.source);
-          const targetNode = processedNodes.find(n => n.id === link.target);
+          const sourceNode = processedNodes.find(n => n.id === sourceId);
+          const targetNode = processedNodes.find(n => n.id === targetId);
           
           if (!sourceNode || !targetNode) {
-            console.warn(`连接 #${index} (${link.source} -> ${link.target})的节点未找到`);
+            console.warn(`连接 #${index} (${sourceId} -> ${targetId})的节点未找到`);
             return;
           }
           
@@ -825,7 +834,7 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
           
           // 避免除以零
           if (distance === 0) {
-            console.warn(`连接 #${index} (${link.source} -> ${link.target})的距离为0`);
+            console.warn(`连接 #${index} (${sourceId} -> ${targetId})的距离为0`);
             return;
           }
           
@@ -855,7 +864,7 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
           }
           
           // 如果源节点或目标节点被悬停，高亮连接线
-          if (hoveredNode === link.source || hoveredNode === link.target) {
+          if (hoveredNode === sourceId || hoveredNode === targetId) {
             linkWidth *= 2;
             linkOpacity = 0.9;
           }
