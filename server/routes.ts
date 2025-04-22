@@ -20,6 +20,7 @@ import systemConfigRoutes from './routes/system-config';
 import testDataRoutes from './routes/test-data';
 import conversationTestRoutes from './routes/conversation-test';
 import mcpRoutes from './routes/mcp-routes';
+import clusteringTestRoutes from './routes/clustering-test';
 import { initializeBucket } from './services/file-bucket.service';
 
 export async function registerRoutes(app: Express): Promise<Server> {

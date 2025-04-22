@@ -109,7 +109,7 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
     
     try {
       // 导入需要的模块
-      const { memoryService } = await import('../learning/memory_service');
+      const memoryService = (await import('../learning/memory_service')).memoryService;
       const { storage } = await import('../../storage');
       
       // 获取所有记忆
@@ -265,77 +265,11 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
       };
     }
     
-    // 如果没有获取到memory-space聚类结果，回退到旧方法
-    log(`[trajectory] 回退到传统聚类方法生成学习轨迹`);
+    // 如果没有获取到memory-space聚类结果，返回默认空结果而不是尝试低效的回退方法
+    log(`[trajectory] 无法获取聚类数据，返回默认学习轨迹提示。不再使用低效回退方法。`);
     
-    // 对记忆进行聚类
-    const clusters = await clusterMemories(memories);
-    
-    if (!clusters || clusters.length === 0) {
-      log(`[trajectory] 用户 ${userId} 的记忆无法聚类，返回默认学习轨迹`);
-      return await getDefaultLearningPath(userId);
-    }
-    
-    // 计算主题之间的关系
-    const relations = calculateTopicRelations(clusters);
-    
-    // 构建知识图谱节点
-    const nodes: TrajectoryNode[] = clusters.map((cluster, index) => {
-      // 计算节点大小（基于包含的记忆数量）
-      const size = Math.max(10, Math.min(50, 10 + cluster.memoryIds.length * 5));
-      
-      return {
-        id: cluster.id,
-        label: cluster.label || `主题 ${index + 1}`,
-        size,
-        category: getCategoryFromKeywords(cluster.keywords),
-        clusterId: cluster.id
-      };
-    });
-    
-    // 构建知识图谱连接
-    const links: TrajectoryLink[] = relations.map(relation => ({
-      source: relation.source,
-      target: relation.target,
-      value: Math.max(1, Math.min(10, relation.strength * 10)) // 缩放到 1-10 的范围
-    }));
-    
-    // 生成进度数据
-    const progress: ProgressData[] = clusters.map(cluster => {
-      // 计算主题掌握程度（基于记忆数量和时间分布）
-      const score = Math.min(100, 20 + cluster.memoryIds.length * 5);
-      
-      return {
-        category: cluster.label || '',
-        score,
-        change: 0 // 暂无变化数据
-      };
-    });
-    
-    // 生成主题分布
-    const topics = clusters.map((cluster, index) => {
-      const count = cluster.memoryIds.length;
-      const totalMemories = memories.length;
-      const percentage = Math.round((count / totalMemories) * 100);
-      
-      return {
-        topic: cluster.label || `主题 ${index + 1}`,
-        id: cluster.id,
-        count,
-        percentage
-      };
-    });
-    
-    // 生成学习建议
-    const suggestions = generateSuggestionsFromClusters(clusters, memories);
-    
-    return {
-      nodes,
-      links,
-      progress,
-      suggestions,
-      topics
-    };
+    // 直接返回默认的空学习轨迹
+    return await getDefaultLearningPath(userId);
   } catch (error) {
     log(`[trajectory] 从记忆生成学习轨迹时遇到错误: ${error}`);
     return await getDefaultLearningPath(userId);
