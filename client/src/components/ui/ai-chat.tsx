@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
-import { setupViewportHeightListeners, scrollToBottom, isNearBottom, enhanceTouchInteraction, isIpadDevice } from "@/lib/viewportUtils";
+import { setupViewportHeightListeners, isIpadDevice } from "@/lib/viewportUtils";
 import "./ipad-fixes.css"; // 导入iPad专用修复样式
 import "./mobile-fixes.css"; // 导入手机设备专用修复样式
 import "./preferences-dialog-fixes.css"; // 导入偏好设置对话框的iPad滚动修复样式
@@ -868,7 +868,13 @@ export function AIChat({ userData }: AIChatProps) {
     if (messagesContainerRef.current && messages.length > 0) {
       // 立即滚动到底部，确保最新消息可见
       setTimeout(() => {
-        scrollToBottom(messagesContainerRef.current, false);
+        // 滚动到底部
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTo({
+            top: messagesContainerRef.current.scrollHeight,
+            behavior: 'auto'
+          });
+        }
       }, 100);
     }
   };
@@ -895,7 +901,11 @@ export function AIChat({ userData }: AIChatProps) {
         // 滚动到最新消息
         setTimeout(() => {
           if (messagesContainerRef.current) {
-            scrollToBottom(messagesContainerRef.current, true);
+            // 滚动到底部
+            messagesContainerRef.current.scrollTo({
+              top: messagesContainerRef.current.scrollHeight,
+              behavior: 'smooth'
+            });
           }
         }, 100);
       }

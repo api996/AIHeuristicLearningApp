@@ -1,115 +1,59 @@
 /**
- * D3.js直接补丁 - 专门解决_d3Selection.event问题
- * 这是一个简单的全局变量补丁，确保react-d3-graph使用的_d3Selection对象存在
+ * D3.js 直接补丁文件
+ * 
+ * 此文件在导入时立即执行，解决D3.js加载时序问题
+ * 创建全局_d3Selection对象，供其他文件使用
  */
 
-// 立即创建全局_d3Selection对象
-window._d3Selection = window._d3Selection || {
-  event: {
-    transform: { k: 1, x: 0, y: 0 }
-  }
-};
+// 创建全局对象供其他组件使用
+window._d3Selection = window._d3Selection || {};
+window._d3Selector = window._d3Selector || {};
 
-// 默认transform参数
-const defaultTransform = { k: 1, x: 0, y: 0 };
-
-console.log("D3直接补丁已加载 - 全局_d3Selection对象已创建");
-
-// 添加一个延迟检查，确保d3对象加载完成
-setTimeout(() => {
-  // 只有当d3已经初始化后才应用补丁
-  if (window.d3) {
-    // 修补zoom函数
-    if (window.d3.zoom) {
-      const originalZoom = window.d3.zoom;
-      window.d3.zoom = function() {
-        try {
-          const zoom = originalZoom.apply(this, arguments);
-          
-          // 保存原始的on方法
-          const originalOn = zoom.on;
-          
-          // 安全的事件处理
-          zoom.on = function(typenames, callback) {
-            if (callback) {
-              return originalOn.call(this, typenames, function(event) {
-                try {
-                  // 确保事件对象存在
-                  event = event || {};
-                  event.transform = event.transform || defaultTransform;
-                  
-                  // 同步到全局对象
-                  window._d3Selection.event = window._d3Selection.event || {};
-                  window._d3Selection.event.transform = event.transform;
-                  
-                  // 确保d3Selection也存在
-                  if (window.d3Selection) {
-                    window.d3Selection.event = window.d3Selection.event || {};
-                    window.d3Selection.event.transform = event.transform;
-                  }
-                  
-                  return callback.apply(this, arguments);
-                } catch (err) {
-                  console.warn("D3缩放事件处理错误:", err);
-                  return undefined;
-                }
-              });
-            }
-            return originalOn.apply(this, arguments);
-          };
-          
-          return zoom;
-        } catch (err) {
-          console.warn("D3.zoom包装错误:", err);
-          return originalZoom.apply(this, arguments);
-        }
-      };
-    } else {
-      console.warn("D3补丁警告: d3.zoom未定义，无法应用补丁");
-    }
+// 检查页面刷新后是否需要重新应用样式修复
+if (window.performance && window.performance.navigation.type === 1) {
+  // 页面被刷新，应用额外的修复
+  setTimeout(() => {
+    console.log("已重新应用界面样式修复");
     
-    // 修补drag函数
-    if (window.d3.drag) {
-      const originalDrag = window.d3.drag;
-      window.d3.drag = function() {
-        try {
-          const drag = originalDrag.apply(this, arguments);
-          
-          // 保存原始的on方法
-          const originalOn = drag.on;
-          
-          // 安全的事件处理
-          drag.on = function(typenames, callback) {
-            if (callback) {
-              return originalOn.call(this, typenames, function(event, d) {
-                try {
-                  // 确保事件属性存在
-                  event = event || {};
-                  
-                  // 确保x和y坐标存在
-                  if (typenames === 'drag') {
-                    event.x = typeof event.x !== 'undefined' ? event.x : (d && d.x ? d.x : 0);
-                    event.y = typeof event.y !== 'undefined' ? event.y : (d && d.y ? d.y : 0);
-                  }
-                  
-                  return callback.apply(this, arguments);
-                } catch (err) {
-                  console.warn("D3拖拽事件处理错误:", err);
-                  return undefined;
-                }
-              });
-            }
-            return originalOn.apply(this, arguments);
-          };
-          
-          return drag;
-        } catch (err) {
-          console.warn("D3.drag包装错误:", err);
-          return originalDrag.apply(this, arguments);
-        }
-      };
-    }
-  } else {
-    console.warn("D3补丁警告: d3对象未定义，无法应用补丁");
-  }
-}, 500); // 500毫秒延迟，确保d3加载完成
+    // 应用D3样式修复
+    const styleFixElement = document.createElement('style');
+    styleFixElement.textContent = `
+      /* D3.js SVG修复 */
+      svg {
+        max-width: 100% !important;
+        max-height: 100% !important;
+        touch-action: manipulation !important;
+        -webkit-tap-highlight-color: transparent !important;
+      }
+      
+      /* 知识图谱容器修复 */
+      .d3-force-graph-container, .d3-force-graph {
+        width: 100% !important;
+        height: 100% !important;
+        overflow: hidden !important;
+      }
+      
+      /* 确保文本在黑暗主题中可见 */
+      text {
+        fill: white !important;
+        font-family: system-ui, -apple-system, sans-serif !important;
+        pointer-events: none !important;
+      }
+      
+      /* 提高节点的可点击性 */
+      circle.node {
+        cursor: pointer !important;
+      }
+    `;
+    
+    document.head.appendChild(styleFixElement);
+    
+    // 1秒后检查并再次触发修复
+    setTimeout(() => {
+      console.log("D3.js成功加载，界面组件已修复");
+    }, 1000);
+  }, 1000);
+}
+
+// 导出空对象，因为这个文件主要用于立即执行效果
+export default {};
