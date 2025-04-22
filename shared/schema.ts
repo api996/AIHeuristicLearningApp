@@ -74,6 +74,7 @@ export const messages = pgTable("messages", {
   model: text("model"),  // 添加模型字段，记录消息来自哪个AI模型
   feedback: text("feedback", { enum: ["like", "dislike"] }),
   isEdited: boolean("is_edited").default(false),
+  isActive: boolean("is_active").default(true), // 标记消息是否为活动状态，用于支持重新生成中间消息后的分支管理
   createdAt: timestamp("created_at").defaultNow(),
 });
 
