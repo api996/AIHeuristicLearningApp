@@ -1,6 +1,6 @@
 """
 学习记忆分析服务
-负责聚类分析与轨迹生成
+负责聚类分析与轨迹生成、记忆存储
 """
 
 import asyncio
@@ -11,10 +11,90 @@ import numpy as np
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import uuid
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 # 配置日志格式
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('learning_memory_service')
+
+# 获取数据库连接
+def get_db_connection():
+    """获取数据库连接"""
+    try:
+        conn = psycopg2.connect(
+            os.environ.get('DATABASE_URL'),
+            cursor_factory=RealDictCursor
+        )
+        return conn
+    except Exception as e:
+        logger.error(f"数据库连接失败: {e}")
+        raise
+
+async def save_memory(user_id, content, memory_type='chat'):
+    """
+    保存一条新记忆
+    
+    参数:
+        user_id: 用户ID
+        content: 记忆内容
+        memory_type: 记忆类型，默认为'chat'
+    
+    返回:
+        dict: 包含新记忆ID的字典
+    """
+    try:
+        # 验证参数
+        user_id = int(user_id)
+        if not content or len(content.strip()) == 0:
+            logger.error("记忆内容不能为空")
+            return {"error": "记忆内容不能为空"}
+            
+        logger.info(f"为用户{user_id}保存一条新记忆，类型：{memory_type}")
+        
+        # 生成时间戳格式的ID (yyyyMMddHHmmssffffff)
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")[:20]
+        memory_id = timestamp
+        
+        # 获取摘要和关键词
+        summary = await generate_content_summary(content)
+        keywords = await extract_keywords(content)
+        
+        # 保存记忆到数据库
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # 插入记忆记录
+        try:
+            cur.execute("""
+                INSERT INTO memories (id, user_id, content, summary, memory_type, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
+                RETURNING id;
+            """, (memory_id, user_id, content, summary, memory_type))
+            
+            # 插入关键词
+            if keywords and len(keywords) > 0:
+                for keyword in keywords:
+                    if keyword and len(keyword.strip()) > 0:
+                        cur.execute("""
+                            INSERT INTO memory_keywords (memory_id, keyword)
+                            VALUES (%s, %s);
+                        """, (memory_id, keyword.strip()))
+            
+            conn.commit()
+            logger.info(f"记忆保存成功，ID：{memory_id}")
+            return {"id": memory_id, "summary": summary, "keywords": keywords}
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"保存记忆到数据库时出错: {e}")
+            raise
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        logger.error(f"保存记忆时出错: {e}")
+        return {"error": f"保存记忆失败: {str(e)}"}
 
 async def analyze_learning_path(user_id):
     """
