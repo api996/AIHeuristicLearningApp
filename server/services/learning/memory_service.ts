@@ -51,7 +51,7 @@ export class MemoryService {
       }
       
       // 5. 清除用户的聚类缓存，因为已添加新记忆
-      clusterMemoryRetrieval.clearUserClusterCache(userId);
+      await clusterMemoryRetrieval.clearUserClusterCache(userId);
       
       return memory;
     } catch (error) {
@@ -248,7 +248,7 @@ export class MemoryService {
       
       // 如果修复了记忆，清除聚类缓存
       if (repairedCount > 0) {
-        clusterMemoryRetrieval.clearUserClusterCache(userId);
+        await clusterMemoryRetrieval.clearUserClusterCache(userId);
       }
       
       return repairedCount;
@@ -270,14 +270,16 @@ export class MemoryService {
   /**
    * 获取用户的聚类数据
    * @param userId 用户ID
+   * @param forceRefresh 是否强制刷新缓存
    * @returns 聚类结果和聚类数量
    */
-  async getUserClusters(userId: number): Promise<{ clusterResult: any, clusterCount: number }> {
+  async getUserClusters(userId: number, forceRefresh: boolean = false): Promise<{ clusterResult: any, clusterCount: number }> {
     try {
-      const result = await clusterMemoryRetrieval.getUserClusters(userId);
+      // 传递forceRefresh参数到更底层的服务
+      const result = await clusterMemoryRetrieval.getUserClusters(userId, forceRefresh);
       const clusterCount = result?.centroids?.length || 0;
       
-      log(`[MemoryService] 获取用户${userId}的聚类数据: ${clusterCount}个聚类`);
+      log(`[MemoryService] 获取用户${userId}的聚类数据: ${clusterCount}个聚类, 强制刷新=${forceRefresh}`);
       
       return {
         clusterResult: result,
