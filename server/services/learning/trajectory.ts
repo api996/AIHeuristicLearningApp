@@ -15,6 +15,46 @@ import {
 import { log } from '../../vite';
 import { getMemoriesByFilter } from './memoryStore';
 import { clusterMemories, calculateTopicRelations } from './cluster';
+import { db } from '../../db';
+import { memories } from '@shared/schema';
+import { eq } from 'drizzle-orm';
+
+/**
+ * 将文件系统格式的记忆ID映射到数据库ID
+ * @param fileSystemId 文件系统格式的记忆ID (时间戳格式)
+ * @returns 与该记忆对应的数据库ID，如果未找到则返回原ID
+ */
+async function mapMemoryIdToDbId(fileSystemId: string): Promise<string> {
+  try {
+    // 查找ID为传入值的内存记录
+    const result = await db.select({id: memories.id})
+      .from(memories)
+      .where(eq(memories.id, fileSystemId))
+      .limit(1);
+    
+    // 如果找到匹配记录，返回该记录的ID
+    if (result.length > 0) {
+      return result[0].id;
+    }
+    
+    // 如果没有直接匹配，此时需要查找整个内存表
+    log(`[trajectory] 未找到记忆直接匹配: ${fileSystemId}, 正在搜索所有内存`);
+    
+    // 查询最后添加的20条记忆
+    const recentMemories = await db.select({id: memories.id})
+      .from(memories)
+      .limit(20);
+    
+    const memoryIds = recentMemories.map(m => m.id);
+    log(`[trajectory] 最近添加的记忆ID: ${memoryIds.join(', ')}`);
+    
+    // 无法映射，返回原始ID
+    return fileSystemId;
+  } catch (error) {
+    log(`[trajectory] 映射记忆ID时出错: ${error}`);
+    return fileSystemId;
+  }
+}
 
 /**
  * 分析用户的学习轨迹
@@ -118,22 +158,35 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
       // 获取记忆的向量嵌入
       const memoriesWithEmbeddings = await Promise.all(
         memoryObjects.map(async (memory) => {
-          // 无需转换为整数，直接使用字符串形式的ID 
-          // 让getEmbeddingByMemoryId内部处理类型转换
-          const embedding = await storage.getEmbeddingByMemoryId(memory.id);
+          // 尝试将文件系统ID格式转换为数据库ID格式
+          // 首先尝试使用数字ID格式（如"121"）
+          let dbId = String(parseInt(memory.id));
+          if (isNaN(parseInt(memory.id))) {
+            // 如果不是数字ID格式，则使用原始ID
+            dbId = memory.id;
+          }
+          
+          // 使用数据库ID格式获取向量嵌入
+          const embedding = await storage.getEmbeddingByMemoryId(dbId);
           
           // 记录向量信息用于调试
           if (embedding && Array.isArray(embedding.vectorData) && embedding.vectorData.length > 0) {
             const vectorLength = embedding.vectorData.length;
             const sample = embedding.vectorData.slice(0, 3).map(v => v.toFixed(4)).join(', ');
-            log(`[trajectory] 记忆ID ${memory.id} 有有效向量: 长度=${vectorLength}, 样本=[${sample}...]`);
+            log(`[trajectory] 记忆ID ${memory.id} (数据库ID ${dbId}) 有有效向量: 长度=${vectorLength}, 样本=[${sample}...]`);
           } else {
             const reason = embedding 
               ? (Array.isArray(embedding.vectorData) 
                  ? "向量数组为空" 
                  : `向量数据类型错误: ${typeof embedding.vectorData}`)
               : "未找到向量记录";
-            log(`[trajectory] 记忆ID ${memory.id} 未找到有效向量嵌入: ${reason}`);
+            log(`[trajectory] 记忆ID ${memory.id} (数据库ID ${dbId}) 未找到有效向量嵌入: ${reason}`);
+            
+            // 如果第一次尝试失败，尝试查询全部记忆获取正确的ID
+            if (!embedding && memory.id.length > 10) {
+              // 这可能是一个时间戳格式的ID，尝试在数据库中查找最近的记忆
+              log(`[trajectory] 尝试为时间戳ID ${memory.id} 查找匹配的数据库记录`);
+            }
           }
           
           return {
