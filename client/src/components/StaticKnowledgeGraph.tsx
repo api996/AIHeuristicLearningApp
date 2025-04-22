@@ -368,23 +368,28 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
   
   // 计算节点大小 - 增大节点尺寸以适应文本显示
   const getNodeSize = (node: SimpleNode): number => {
-    let baseSize = 10; // 默认大小
+    let baseSize = 6; // 减小默认大小
     
-    // 增大主题节点尺寸，以便直接在节点上显示文本
-    if (node.category === 'cluster') baseSize = 35; // 显著增大主题节点
-    else if (node.category === 'keyword') baseSize = 20;
-    else if (node.category === 'memory') baseSize = 10;
+    // 减小节点尺寸以避免拥挤
+    if (node.category === 'cluster') baseSize = 25; // 减小主题节点
+    else if (node.category === 'keyword') baseSize = 15;
+    else if (node.category === 'memory') baseSize = 7;
     
-    // 如果有自定义尺寸，应用合理的缩放
+    // 如果有自定义尺寸，使用更小的缩放因子
     if (node.size) {
-      const scaleFactor = node.category === 'cluster' ? 0.3 : 
-                         node.category === 'keyword' ? 0.2 : 0.1;
+      const scaleFactor = node.category === 'cluster' ? 0.2 : 
+                         node.category === 'keyword' ? 0.15 : 0.08;
       
-      // 限制节点尺寸范围，但保持最小尺寸较大
+      // 限制节点尺寸范围，使大节点更小
       return Math.max(
-        baseSize * 0.7, 
-        Math.min(baseSize * 2, node.size * scaleFactor)
+        baseSize * 0.6, 
+        Math.min(baseSize * 1.5, node.size * scaleFactor)
       );
+    }
+    
+    // 如果是悬停节点，稍微增大
+    if (hoveredNode === node.id) {
+      return baseSize * 1.2;
     }
     
     return baseSize;
@@ -403,13 +408,13 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     }
     
     // 记录多指触摸数据
-    const touchInfo = {
+    const touchInfo = useRef({
       lastDistance: 0,
       touchStarted: false,
       touchMoved: false,
       lastX: 0,
       lastY: 0
-    };
+    });
     
     // 获取变换后的坐标（鼠标或触摸点）
     const getTransformedCoordinates = (clientX: number, clientY: number) => {
@@ -429,13 +434,14 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     const handleEnhancedTouchStart = (e: TouchEvent) => {
       e.preventDefault(); // 防止滚动和其他默认行为
       
-      touchInfo.touchStarted = true;
-      touchInfo.touchMoved = false;
+      // 更新触摸状态
+      touchInfo.current.touchStarted = true;
+      touchInfo.current.touchMoved = false;
       
       if (e.touches.length === 1) {
         // 单指触摸 - 拖动
-        touchInfo.lastX = e.touches[0].clientX;
-        touchInfo.lastY = e.touches[0].clientY;
+        touchInfo.current.lastX = e.touches[0].clientX;
+        touchInfo.current.lastY = e.touches[0].clientY;
         
         // 检查是否点击在节点上
         const { x, y } = getTransformedCoordinates(e.touches[0].clientX, e.touches[0].clientY);
@@ -453,7 +459,7 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
           if (distance <= size + 5) {
             // 点击在节点上，设置悬停状态但不启动拖动
             setHoveredNode(node.id);
-            touchInfo.touchStarted = false; // 不启动拖动
+            touchInfo.current.touchStarted = false; // 不启动拖动
             return;
           }
         }
@@ -462,20 +468,20 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
         // 双指触摸 - 缩放
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
-        touchInfo.lastDistance = Math.sqrt(dx * dx + dy * dy);
+        touchInfo.current.lastDistance = Math.sqrt(dx * dx + dy * dy);
       }
     };
     
     const handleEnhancedTouchMove = (e: TouchEvent) => {
       e.preventDefault();
       
-      if (!touchInfo.touchStarted && e.touches.length !== 2) return;
-      touchInfo.touchMoved = true;
+      if (!touchInfo.current.touchStarted && e.touches.length !== 2) return;
+      touchInfo.current.touchMoved = true;
       
       if (e.touches.length === 1) {
         // 单指拖动
-        const dx = e.touches[0].clientX - touchInfo.lastX;
-        const dy = e.touches[0].clientY - touchInfo.lastY;
+        const dx = e.touches[0].clientX - touchInfo.current.lastX;
+        const dy = e.touches[0].clientY - touchInfo.current.lastY;
         
         setTransform(prev => ({
           ...prev,
@@ -483,8 +489,8 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
           translateY: prev.translateY + dy
         }));
         
-        touchInfo.lastX = e.touches[0].clientX;
-        touchInfo.lastY = e.touches[0].clientY;
+        touchInfo.current.lastX = e.touches[0].clientX;
+        touchInfo.current.lastY = e.touches[0].clientY;
       } 
       else if (e.touches.length === 2) {
         // 双指缩放
@@ -492,8 +498,8 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        if (touchInfo.lastDistance > 0) {
-          const scaleFactor = distance / touchInfo.lastDistance;
+        if (touchInfo.current.lastDistance > 0) {
+          const scaleFactor = distance / touchInfo.current.lastDistance;
           
           // 计算两指中心点
           const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
@@ -516,12 +522,12 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
           });
         }
         
-        touchInfo.lastDistance = distance;
+        touchInfo.current.lastDistance = distance;
       }
     };
     
     const handleEnhancedTouchEnd = (e: TouchEvent) => {
-      if (!touchInfo.touchMoved && e.changedTouches.length === 1) {
+      if (!touchInfo.current.touchMoved && e.changedTouches.length === 1) {
         // 如果是单击而非拖动，处理节点点击
         const { x, y } = getTransformedCoordinates(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
         
@@ -545,9 +551,9 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
       }
       
       // 重置触摸状态
-      touchInfo.touchStarted = false;
-      touchInfo.touchMoved = false;
-      touchInfo.lastDistance = 0;
+      touchInfo.current.touchStarted = false;
+      touchInfo.current.touchMoved = false;
+      touchInfo.current.lastDistance = 0;
     };
     
     // 鼠标移动处理
