@@ -226,7 +226,7 @@ router.post('/', async (req, res) => {
         }
         
         repairedCount++;
-        log(`修复记忆ID ${memory.id} 的向量嵌入成功，向量维度: ${embedding.length}`, 'info');
+        log(`修复记忆ID ${memory.id} 的向量嵌入成功，向量维度: ${embedding.length}，前5个值: [${embedding.slice(0, 5).map(v => v.toFixed(4)).join(', ')}...]`, 'info');
       } catch (error: any) {
         log(`修复记忆ID ${memory.id} 时出错: ${error.message || error}`, 'error');
       }

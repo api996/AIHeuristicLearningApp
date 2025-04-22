@@ -136,6 +136,12 @@ export class MemoryService {
         const vectorDimensions = embeddings[0].length;
         log(`[MemoryService] 记忆聚类分析: 用户ID=${userId}, 记忆数量=${memories.length}, 向量维度=${vectorDimensions}`);
         
+        // 记录第一个向量的前5个值，以便调试
+        if (embeddings[0] && embeddings[0].length > 5) {
+          const sample = embeddings[0].slice(0, 5).map(v => v.toFixed(4)).join(', ');
+          log(`[MemoryService] 向量样本 [${sample}...]`);
+        }
+        
         // 检查向量是否为高维向量(3072维)
         if (vectorDimensions >= 3000) {
           log(`[MemoryService] 检测到高维向量(${vectorDimensions}维)，将使用优化的Python聚类服务`);
