@@ -1,0 +1,163 @@
+模块名称：TopicGraphBuilder（主题图谱构建智能体）
+
+⸻
+
+一、总体架构与使用模型
+	•	大语言模型：Google Gemini 2.0 Flash
+	•	调用方式：通过已集成的 callGemini(prompt, {model: 'gemini-2.0-flash'}) 接口
+	•	前端渲染：React + Vite，react-force-graph-2d/3d 的“Text”渲染模式
+
+⸻
+
+二、输入数据
+
+interface ClusterCenter {
+  id: string;            // e.g. "cluster_0"
+  texts: string[];       // 聚类后属于此中心的原始文本段落列表
+}
+
+前置步骤已完成：
+	1.	文本嵌入 → KMeans/HDBSCAN 聚类 → 得到若干 ClusterCenter；
+	2.	ClusterCenter.texts 已就绪。
+
+⸻
+
+三、处理流程
+
+Step 1：从聚类中心生成“主题名称”
+	•	目标：把一堆同质化文本，转化为一句话中文主题（20 字以内、自然流畅）。
+	•	调用示例：
+
+async function extractTopicName(center: ClusterCenter): Promise<string> {
+  const prompt = `
+给定以下同一主题的若干文本片段，请提炼出一句精准的中文主题名称（不超过20字）：
+${center.texts.map((t,i) => `${i+1}. ${t}`).join('\n')}
+只输出主题名称，不要其它说明。`;
+  const resp = await callGemini(prompt, { model: 'gemini-2.0-flash' });
+  return resp.trim();
+}
+
+
+
+⸻
+
+Step 2：两两主题关系抽取
+	•	目标：对所有主题两两组合，判断关系类型并给出简短理由。
+	•	支持关系类型：
+	1.	包含
+	2.	引用
+	3.	应用
+	4.	相似/对比
+	5.	无明显关系
+	•	调用示例：
+
+type Relation = { source: string; target: string; type: string; reason: string; };
+
+async function extractRelations(topics: string[]): Promise<Relation[]> {
+  const rels: Relation[] = [];
+  for (let i = 0; i < topics.length; i++) {
+    for (let j = i + 1; j < topics.length; j++) {
+      const A = topics[i], B = topics[j];
+      const prompt = `
+判断下面两个中文主题之间的语义关系，只能在【包含/引用/应用/相似/无明显关系】中选择，并给出一句原因：
+A: ${A}
+B: ${B}
+输出格式：A → B（关系类型）：原因说明`;
+      const resp = await callGemini(prompt, { model: 'gemini-2.0-flash' });
+      const m = resp.match(/(.+?) → (.+?)（(.+?)）：(.+)/);
+      if (m) rels.push({
+        source: m[1].trim(), target: m[2].trim(),
+        type: m[3].trim(), reason: m[4].trim()
+      });
+    }
+  }
+  return rels;
+}
+
+
+
+⸻
+
+Step 3：生成前端可用 GraphData
+	•	输出格式：
+
+interface GraphData {
+  nodes: { id: string }[];
+  links: { source: string; target: string; label: string; reason: string }[];
+}
+
+	•	组合示例：
+
+async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
+  // 1. 提取主题名称
+  const topics = await Promise.all(
+    centers.map(c => extractTopicName(c))
+  );
+  // 2. 抽取关系
+  const relations = await extractRelations(topics);
+  // 3. 组装 GraphData
+  return {
+    nodes: topics.map(t => ({ id: t })),
+    links: relations.map(r => ({
+      source: r.source, target: r.target,
+      label: r.type, reason: r.reason
+    }))
+  };
+}
+
+
+
+⸻
+
+四、前端渲染优化
+	•	节点：仅用彩色文本（中文主题名称），不绘制圆圈／阴影
+	•	推荐库：
+	•	2D：react-force-graph-2d + nodeCanvasObject
+	•	3D：react-force-graph-3d + nodeThreeObject
+
+2D 渲染示例
+
+<ForceGraph2D
+  graphData={graphData}
+  nodeCanvasObject={(node, ctx, scale) => {
+    const label = node.id as string;
+    ctx.font = `${16/scale}px sans-serif`;
+    ctx.fillStyle = /* 根据 node.group 上色 */;
+    ctx.textAlign = 'center';
+    ctx.fillText(label, node.x!, node.y!);
+  }}
+  linkLabel={(link) => `${link.label}: ${link.reason}`}
+  linkColor={() => '#999'}
+/>
+
+3D 渲染示例
+
+<ForceGraph3D
+  graphData={graphData}
+  nodeThreeObject={(node) => {
+    const sprite = new SpriteText(node.id);
+    sprite.color = /* 根据 group 着色 */;
+    sprite.textHeight = 8;
+    return sprite;
+  }}
+  linkLabel={(link) => `${link.label}: ${link.reason}`}
+  linkWidth={1}
+/>
+
+注：SpriteText 来源于 three-spritetext。
+
+⸻
+
+五、部署与集成
+	1.	后端/脚本：将 buildGraph(...) 封装为 API，前端点击时请求；
+	2.	按需刷新：用户上传新数据或点击“重构图谱”时触发；
+	3.	渲染切换：提供 2D/3D 切换开关，默认 2D；
+	4.	性能提示：15 个节点+几十条边，3D 模式完全流畅。
+
+⸻
+
+以上即为TopicGraphBuilder 智能体的技术需求文档与代码示例。你只需将这些模块化函数集成到现有工程中，即可自动完成：
+	1.	从聚类中心提炼中文主题；
+	2.	两两判断关系并生成解释；
+	3.	输出前端渲染友好的 GraphData；
+	4.	在画布上用纯文本节点、高级感十足地展示。
