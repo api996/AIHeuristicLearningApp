@@ -55,6 +55,26 @@ async function getMemoriesWithoutEmbeddings() {
     WHERE me.id IS NULL
     AND m.content IS NOT NULL
     AND length(m.content) > 10
+    ORDER BY m.created_at DESC
+    LIMIT 50
+  `;
+  const result = await pool.query(query);
+  return result.rows;
+}
+
+/**
+ * 获取所有没有有效向量嵌入的时间戳格式ID记忆
+ */
+async function getTimeStampMemoriesWithoutEmbeddings() {
+  const query = `
+    SELECT m.id, m.content
+    FROM memories m
+    LEFT JOIN memory_embeddings me ON m.id = me.memory_id
+    WHERE me.id IS NULL
+    AND m.content IS NOT NULL
+    AND length(m.content) > 10
+    AND m.id ~ '^\\d{20}$'
+    ORDER BY m.created_at DESC
     LIMIT 50
   `;
   const result = await pool.query(query);
@@ -124,62 +144,87 @@ async function saveMemoryEmbedding(memoryId, vectorData) {
 }
 
 /**
+ * 处理一批记忆的向量嵌入生成
+ */
+async function processMemoryBatch(memories) {
+  let successCount = 0;
+  let failCount = 0;
+
+  // 初始化GenAI服务
+  await genAiService.init();
+  console.log("GenAI服务初始化完成");
+  
+  for (const memory of memories) {
+    console.log(`处理记忆 ${memory.id}...`);
+    
+    // 生成向量嵌入
+    const embedding = await generateEmbedding(memory.content);
+    
+    if (embedding) {
+      // 保存向量嵌入
+      const success = await saveMemoryEmbedding(memory.id, embedding);
+      
+      if (success) {
+        console.log(`成功为记忆 ${memory.id} 生成并保存向量嵌入`);
+        successCount++;
+      } else {
+        console.log(`保存记忆 ${memory.id} 的向量嵌入失败`);
+        failCount++;
+      }
+    } else {
+      console.log(`为记忆 ${memory.id} 生成向量嵌入失败`);
+      failCount++;
+    }
+    
+    // 添加小延迟
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
+  return { successCount, failCount };
+}
+
+/**
  * 主函数
  */
 async function main() {
   try {
     console.log("=== 开始为记忆生成向量嵌入 ===");
     
-    // 获取没有向量嵌入的记忆
-    const memoriesWithoutEmbeddings = await getMemoriesWithoutEmbeddings();
-    console.log(`找到 ${memoriesWithoutEmbeddings.length} 条没有向量嵌入的记忆`);
+    // 优先处理时间戳格式ID的记忆
+    const timestampMemories = await getTimeStampMemoriesWithoutEmbeddings();
+    console.log(`找到 ${timestampMemories.length} 条时间戳格式ID未有嵌入的记忆`);
     
-    if (memoriesWithoutEmbeddings.length === 0) {
-      console.log("没有需要处理的记忆，脚本完成");
-      await pool.end();
-      return;
-    }
-    
-    // 为每个记忆生成向量嵌入
-    let successCount = 0;
-    let failCount = 0;
-    
-    // 初始化GenAI服务
-    await genAiService.init();
-    console.log("GenAI服务初始化完成");
-    
-    for (const memory of memoriesWithoutEmbeddings) {
-      console.log(`处理记忆 ${memory.id}...`);
+    if (timestampMemories.length > 0) {
+      console.log("开始处理时间戳格式ID记忆...");
+      const { successCount, failCount } = await processMemoryBatch(timestampMemories);
       
-      // 生成向量嵌入
-      const embedding = await generateEmbedding(memory.content);
-      
-      if (embedding) {
-        // 保存向量嵌入
-        const success = await saveMemoryEmbedding(memory.id, embedding);
-        
-        if (success) {
-          console.log(`成功为记忆 ${memory.id} 生成并保存向量嵌入`);
-          successCount++;
-        } else {
-          console.log(`保存记忆 ${memory.id} 的向量嵌入失败`);
-          failCount++;
-        }
-      } else {
-        console.log(`为记忆 ${memory.id} 生成向量嵌入失败`);
-        failCount++;
-      }
-      
-      // 添加小延迟
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-    
-    console.log(`
-=== 处理完成 ===
+      console.log(`
+=== 时间戳格式ID记忆处理完成 ===
 成功: ${successCount}
 失败: ${failCount}
-总计: ${memoriesWithoutEmbeddings.length}
-    `);
+总计: ${timestampMemories.length}
+      `);
+    } else {
+      // 如果时间戳格式ID记忆已全部处理完毕，则处理任何剩余的记忆
+      const otherMemories = await getMemoriesWithoutEmbeddings();
+      console.log(`找到 ${otherMemories.length} 条其他格式ID未有嵌入的记忆`);
+      
+      if (otherMemories.length === 0) {
+        console.log("没有需要处理的记忆，脚本完成");
+        await pool.end();
+        return;
+      }
+      
+      console.log("开始处理其他记忆...");
+      const { successCount, failCount } = await processMemoryBatch(otherMemories);
+      
+      console.log(`
+=== 其他记忆处理完成 ===
+成功: ${successCount}
+失败: ${failCount}
+总计: ${otherMemories.length}
+      `);
+    }
     
     // 关闭数据库连接
     await pool.end();
