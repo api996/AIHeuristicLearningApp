@@ -1049,7 +1049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 重新生成AI回复
   app.post("/api/messages/:messageId/regenerate", async (req, res) => {
     try {
-      const { userId, userRole, chatId, model } = req.body;
+      const { userId, userRole, chatId, model, useWebSearch } = req.body;
       const messageId = parseInt(req.params.messageId, 10);
 
       if (isNaN(messageId) || !userId || !chatId) {
@@ -1061,7 +1061,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 记录关键信息，用于调试
-      log(`开始重新生成消息: messageId=${messageId}, userId=${userId}, chatId=${chatId}, model=${model}`);
+      log(`开始重新生成消息: messageId=${messageId}, userId=${userId}, chatId=${chatId}, model=${model}, 使用网络搜索=${useWebSearch}`);
 
       // 验证用户对此聊天的访问权限
       const isAdmin = userRole === "admin";
@@ -1075,6 +1075,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const modelToUse = model || chat.model || "deep";
       log(`重新生成将使用模型: ${modelToUse}`);
       chatService.setModel(modelToUse);
+      
+      // 判断是否使用网络搜索
+      const shouldUseSearch = (useWebSearch === true);
+      log(`重新生成是否使用网络搜索: ${shouldUseSearch}`);
+      
+      // 如果需要搜索API key但未设置
+      if (shouldUseSearch && !process.env.SERPER_API_KEY) {
+        log('请求网络搜索，但SERPER_API_KEY未设置');
+        return res.status(400).json({
+          message: "搜索功能需要设置SERPER_API_KEY环境变量",
+          error: "MISSING_SEARCH_API_KEY"
+        });
+      }
 
       try {
         // 尝试直接获取消息
@@ -1116,9 +1129,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             log(`未找到相关用户提问，使用默认提示`);
           }
 
-          // 重新生成回复，传入userId用于记忆检索
-          log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."`);
-          const response = await chatService.sendMessage(promptMessage, userId, Number(chatId));
+          // 重新生成回复，传入userId用于记忆检索，并传入网络搜索参数
+          log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."，使用网络搜索=${shouldUseSearch}`);
+          const response = await chatService.sendMessage(promptMessage, userId, Number(chatId), shouldUseSearch);
 
           // 更新数据库中的消息，包括模型信息
           const updatedMessage = await storage.updateMessage(messageId, response.text, false, response.model);
