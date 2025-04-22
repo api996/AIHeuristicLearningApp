@@ -4,16 +4,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle, RefreshCw, Maximize, Minimize } from "lucide-react";
+import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle, RefreshCw, Maximize, Minimize, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
 import ForceGraphKnowledgeGraph from "@/components/ForceGraphKnowledgeGraph";
+import TopicGraphToggleView from "@/components/TopicGraphToggleView";
 // 导入学习轨迹页面的iPad滚动修复CSS
 import "@/components/ui/learning-path-fixes.css";
 // 导入知识图谱样式
 import "@/components/ui/knowledge-graph-fixes.css";
 // 导入知识图谱预加载器
 import { preloadKnowledgeGraphData } from '@/lib/knowledge-graph-preloader';
+// 导入主题图谱预加载器
+import { preloadTopicGraphData } from '@/lib/topic-graph-preloader';
 
 // 定义知识图谱节点类型
 interface KnowledgeNode {
@@ -561,66 +564,8 @@ export default function LearningPath() {
                 {/* 知识图谱可视化区域 */}
                 <div className="h-[calc(100%-60px)] w-full relative rounded-lg bg-indigo-950/10 border border-indigo-900/10 overflow-hidden">
                   <div className="absolute inset-0" style={{ backdropFilter: 'blur(2px)' }}>
-                    <ForceGraphKnowledgeGraph
-                      nodes={knowledgeGraph.nodes}
-                      links={knowledgeGraph.links}
-                      width={window.innerWidth - 80} // 留出边距
-                      height={window.innerHeight - 280} // 留出页面头部和底部的空间
-                      onNodeClick={(nodeId) => {
-                        const node = knowledgeGraph.nodes.find((n: any) => n.id === nodeId);
-                        if (node) {
-                          console.log(`点击了节点: ${node.label || nodeId}`);
-                          
-                          // 提供更美观的节点信息展示，不使用原生alert
-                          const nodeType = node.category === 'cluster' ? '主题' : 
-                                          node.category === 'keyword' ? '关键词' : '记忆';
-                          
-                          // 使用自定义样式而非alert
-                          const infoDiv = document.createElement('div');
-                          infoDiv.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/90 p-4 rounded-lg border border-indigo-500 z-50 max-w-md backdrop-blur-md shadow-lg';
-                          infoDiv.style.animation = 'fadeIn 0.2s ease-out';
-                          
-                          let typeColor = node.category === 'cluster' ? 'text-indigo-400' : 
-                                        node.category === 'keyword' ? 'text-emerald-400' : 'text-amber-400';
-                          
-                          infoDiv.innerHTML = `
-                            <div class="flex items-center mb-2">
-                              <div class="h-3 w-3 rounded-full ${node.category === 'cluster' ? 'bg-indigo-500' : 
-                                                              node.category === 'keyword' ? 'bg-emerald-500' : 'bg-amber-500'} mr-2"></div>
-                              <span class="${typeColor} font-medium">${nodeType}</span>
-                            </div>
-                            <div class="text-white text-lg font-bold mb-1">${node.label}</div>
-                            <div class="flex justify-end mt-3">
-                              <button class="bg-gray-800 hover:bg-gray-700 text-gray-200 px-3 py-1 rounded text-sm">关闭</button>
-                            </div>
-                          `;
-                          
-                          document.body.appendChild(infoDiv);
-                          
-                          // 点击关闭或点击外部区域关闭
-                          const closeBtn = infoDiv.querySelector('button');
-                          const closeInfo = () => {
-                            infoDiv.style.animation = 'fadeOut 0.2s ease-out forwards';
-                            setTimeout(() => {
-                              if (document.body.contains(infoDiv)) {
-                                document.body.removeChild(infoDiv);
-                              }
-                            }, 200);
-                          };
-                          
-                          closeBtn?.addEventListener('click', closeInfo);
-                          document.addEventListener('click', function onDocClick(e) {
-                            if (!infoDiv.contains(e.target as Node)) {
-                              closeInfo();
-                              document.removeEventListener('click', onDocClick);
-                            }
-                          }, { once: true });
-                          
-                          // 自动消失
-                          setTimeout(closeInfo, 4000);
-                        }
-                      }}
-                    />
+                    {/* 整合新的主题图谱切换组件 */}
+                    {user?.userId && <TopicGraphToggleView userId={user.userId} />}
                   </div>
                 </div>
                 
