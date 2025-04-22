@@ -1,567 +1,142 @@
-/* iPad和平板设备特定修复 - 全新响应式布局技术 */
-
 /**
- * 新的主布局策略:
- * 1. 使用CSS Grid和Flexbox实现真正的响应式布局
- * 2. 固定底部输入框，默认贴底
- * 3. 美化输入框样式，实现玻璃态效果
- * 4. 完全避免任何绝对定位
+ * iPad专用样式修复
+ * 解决iPad和高DPI设备上常见的UI布局问题
  */
 
-/* 管理员界面全局滚动修复，适用于所有设备 */
-.admin-dashboard {
-  min-height: 100vh !important;
-  overflow-y: auto !important;
-  max-height: 100vh !important;
+/* 全局优化 */
+html.ipad-device {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* 修复iPad上点击闪烁问题 */
+html.ipad-device * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 修复输入框问题 */
+html.ipad-device input,
+html.ipad-device textarea,
+html.ipad-device select,
+html.ipad-device button {
+  font-size: 16px !important; /* 防止iOS自动缩放 */
+  touch-action: manipulation;
+}
+
+/* 修复软键盘弹出时的布局问题 */
+html.ipad-device.keyboard-open {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+body.keyboard-open {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* 修复滚动容器 */
+html.ipad-device .scroll-container {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  position: relative;
+}
+
+/* 修复SVG渲染问题 */
+html.ipad-device svg {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* 增强页面滚动体验 */
+html.ipad-device .page-container {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* 修复按钮点击区域 */
+html.ipad-device button,
+html.ipad-device .button,
+html.ipad-device [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 16px;
+  touch-action: manipulation;
+}
+
+/* 修复图表容器在iPad上的显示 */
+html.ipad-device .d3-force-graph-container {
   width: 100% !important;
-  max-width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  touch-action: manipulation;
 }
 
-.admin-dashboard > div {
-  height: auto !important;
-  min-height: 100vh !important;
-  overflow: visible !important;
+html.ipad-device .d3-force-graph {
   width: 100% !important;
+  height: 100% !important;
+  touch-action: manipulation;
 }
 
-/* 修复所有容器式卡片的滚动问题 */
-.admin-dashboard .card {
-  overflow: auto !important;
-  max-height: calc(100vh - 100px) !important;
+/* 修复知识图谱专有问题 */
+html.ipad-device .knowledge-graph-container {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
 }
 
-/* 确保表格可滚动 */
-.admin-dashboard table {
+html.ipad-device .knowledge-graph-navigation {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
   width: 100% !important;
-  overflow-x: auto !important;
-  display: block !important;
+  z-index: 100 !important;
 }
 
-/* ===== iPad/平板专用布局(768px-1366px) ===== */
-@media screen and (min-width: 768px) and (max-width: 1366px) {
-  /* ===== 基础容器结构 ===== */
-  .ipad-device #root,
-  .tablet-device #root {
-    width: 100vw !important;
-    height: 100vh !important;
-    overflow: auto !important; /* 修复滚动问题 */
-    position: relative !important; /* 改为相对定位，允许自然滚动 */
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-  }
-
-  /* 主容器布局结构 - 使用二栏布局grid */
-  .ipad-device .flex.h-screen,
-  .tablet-device .flex.h-screen {
-    display: grid !important;
-    grid-template-columns: 256px 1fr !important; /* 固定宽度侧边栏 + 自适应内容区 */
-    height: 100vh !important;
-    max-height: 100vh !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: auto !important; /* 修复滚动问题 */
-  }
-
-  /* ===== 侧边栏样式 ===== */
-  /* 侧边栏容器 - 完全流体布局 */
-  .ipad-device .sidebar-container,
-  .tablet-device .sidebar-container {
-    position: relative !important; /* 使用相对定位 */
-    width: 100% !important;
-    height: 100% !important;
-    overflow-y: auto !important;
-    background-color: rgba(0, 0, 0, 0.8) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
-    max-width: 256px !important;
-    z-index: 40 !important;
-  }
-
-  /* ===== 主内容区域样式 ===== */
-  /* 主内容容器 - 完全流体布局 */
-  .ipad-device .chat-content-area,
-  .tablet-device .chat-content-area {
-    position: relative !important;
-    width: 100% !important;
-    height: 100vh !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: auto !important; /* 修复滚动问题 */
-    margin: 0 !important;
-    padding: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-  }
-
-  /* ===== 聊天消息容器样式 ===== */
-  /* 聊天消息外层容器 - 流体布局 - 完全改进版 */
-  .ipad-device .chat-message-container,
-  .tablet-device .chat-message-container {
-    flex: 1 !important;
-    width: 100% !important;
-    position: relative !important;
-    overflow-y: auto !important;
-    display: flex !important;
-    flex-direction: column !important;
-    padding-bottom: 120px !important; /* 为底部输入框留出空间 */
-    padding-left: 0 !important; /* 移除左侧内边距 */
-    box-sizing: border-box !important;
-  }
-
-  /* 当侧边栏显示时设置正确的内容区域 */
-  .ipad-device .sidebar-container:not(.hidden) ~ .chat-content-area .chat-message-container,
-  .tablet-device .sidebar-container:not(.hidden) ~ .chat-content-area .chat-message-container {
-    padding-left: 0 !important;
-  }
-
-  /* 内容真正居中的容器 - 改为右对齐 */
-  .ipad-device .chat-message-container > div,
-  .tablet-device .chat-message-container > div {
-    width: 100% !important;
-    max-width: 650px !important; /* 限制最大宽度，与输入框一致 */
-    margin-left: auto !important;
-    margin-right: 16px !important; /* 修改为右对齐，保留小边距 */
-    padding: 0 !important; /* 移除内边距，由子元素控制 */
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-end !important; /* 子元素右对齐 */
-  }
-
-  /* 消息区域滚动容器 */
-  .ipad-device .vh-chat-messages,
-  .tablet-device .vh-chat-messages {
-    width: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-  }
-
-  /* 每条消息容器 - 设置合理的最大宽度 */
-  .ipad-device .message-appear,
-  .tablet-device .message-appear,
-  .ipad-device .chat-message-item,
-  .tablet-device .chat-message-item,
-  .ipad-device .chat-message-container > div > div,
-  .tablet-device .chat-message-container > div > div {
-    width: 100% !important;
-    max-width: 85% !important; /* 限制宽度使消息更集中 */
-    margin-left: auto !important;
-    margin-right: auto !important;
-    box-shadow: none !important;
-    -webkit-box-shadow: none !important;
-    filter: none !important;
-    background-image: none !important; /* 防止背景图像造成阴影效果 */
-    border: none !important; /* 强制移除所有边框 */
-    border-width: 0 !important; /* 确保边框宽度为0 */
-    outline: none !important; /* 移除轮廓线 */
-    background-color: transparent !important; /* 确保背景透明 */
-  }
-
-  /* 完全删除iPad设备上外部方形框架，但保留气泡自身磨砂效果 */
-  .ipad-device [class*="flex items-start"],
-  .tablet-device [class*="flex items-start"],
-  .ipad-device [class*="chat-message-wrapper"],
-  .tablet-device [class*="chat-message-wrapper"],
-  .ipad-device .message-appear,
-  .tablet-device .message-appear,
-  .ipad-device .w-full.max-w-3xl.mx-auto.px-4.py-2,
-  .tablet-device .w-full.max-w-3xl.mx-auto.px-4.py-2 {
-    box-shadow: none !important;
-    background-image: none !important;
-    filter: none !important;
-    background: transparent !important;
-    background-color: transparent !important;
-    border: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  /* 保留气泡本身的磨砂效果 */
-  .ipad-device .py-3.px-4.rounded-2xl,
-  .tablet-device .py-3.px-4.rounded-2xl {
-    backdrop-filter: blur(15px) !important;
-    -webkit-backdrop-filter: blur(15px) !important;
-  }
-
-
-  /* ===== 改进聊天输入区样式 ===== */
-  /* 输入区域容器 - 核心修复：完全重写，不再使用固定偏移 */
-  .ipad-device .chat-input-area,
-  .tablet-device .chat-input-area {
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100% !important; /* 占满整个宽度 */
-    z-index: 50 !important;
-    padding: 16px 0 !important; /* 移除横向内边距，由内部元素控制 */
-    background: rgba(30, 30, 30, 0.8) !important;
-    backdrop-filter: blur(15px) !important;
-    -webkit-backdrop-filter: blur(15px) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-    transition: all 0.3s ease !important;
-
-    /* 居中布局 */
-    display: flex !important;
-    justify-content: center !important;
-    padding-left: 0 !important; /* 移除左侧内边距 */
-    box-sizing: border-box !important;
-  }
-
-  /* 当侧边栏显示时正确调整输入区域 */
-  .ipad-device .sidebar-container:not(.hidden) ~ .chat-content-area .chat-input-area,
-  .tablet-device .sidebar-container:not(.hidden) ~ .chat-content-area .chat-input-area {
-    left: 256px !important; /* 侧边栏宽度 */
-    width: calc(100% - 256px) !important; /* 减去侧边栏宽度 */
-  }
-
-  /* 输入区域内容容器 - 改为右对齐 */
-  .ipad-device .chat-input-area > div,
-  .tablet-device .chat-input-area > div {
-    max-width: 700px !important;
-    width: 100% !important;
-    padding: 0 !important;
-    margin-left: auto !important;
-    margin-right: 16px !important; /* 保持统一的右侧小边距 */
-  }
-
-  /* 键盘打开时的特殊处理 - 非常重要！ */
-  .ipad-device.keyboard-open .chat-input-area,
-  .tablet-device.keyboard-open .chat-input-area {
-    position: fixed !important;
-    bottom: 0 !important;
-    padding-left: 0 !important; /* 键盘打开时不要左偏移！ */
-    justify-content: center !important;
-    z-index: 9999 !important;
-    transform: translateY(0) !important;
-    width: 100% !important;
-    left: 0 !important;
-    right: 0 !important;
-  }
-
-  /* 美化输入框外观 */
-  .ipad-device .chat-input-area .relative.rounded-xl,
-  .tablet-device .chat-input-area .relative.rounded-xl {
-    border-radius: 24px !important;
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    overflow: hidden !important;
-  }
-
-  /* 发送按钮美化 */
-  .ipad-device .chat-input-area button[class*="rounded-full"],
-  .tablet-device .chat-input-area button[class*="rounded-full"] {
-    background: linear-gradient(to right, #6366f1, #8b5cf6) !important;
-    border: none !important;
-    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.5) !important;
-    transform: scale(1.1) !important;
-  }
+/* 修复Admin面板在iPad上的显示 */
+html.ipad-device .admin-panel {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
-/* ===== 专门针对iPad Pro(12.9英寸)的优化 ===== */
-@media screen and (min-width: 1024px) and (max-width: 1366px) {
-  .ipad-device .chat-message-container > div,
-  .tablet-device .chat-message-container > div,
-  .ipad-device .chat-input-area > div,
-  .tablet-device .chat-input-area > div {
-    max-width: 800px !important; /* 更大屏幕允许更宽的内容 */
-  }
-
-  .ipad-device .message-appear,
-  .tablet-device .message-appear {
-    max-width: 80% !important; /* 在大屏上可以稍微窄一点 */
-  }
+html.ipad-device .tabs-container [role="tablist"] {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  overflow-x: auto;
+  white-space: nowrap;
 }
 
-/* ===== 记忆空间、知识图谱和学习轨迹页面的iPad滚动修复 ===== */
-/* 支持所有屏幕尺寸，包括手机 */
-@media screen {
-  /* 全局页面容器滚动修复 */
-  .ipad-device .container.mx-auto.py-6.flex-1.flex.flex-col,
-  .tablet-device .container.mx-auto.py-6.flex-1.flex.flex-col,
-  .iphone-device .container.mx-auto.py-6.flex-1.flex.flex-col,
-  .mobile-device .container.mx-auto.py-6.flex-1.flex.flex-col {
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding-bottom: 120px !important;
-    height: auto !important;
-    min-height: 100vh !important;
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-  
-  /* 确保主要容器的内部可滚动 */
-  .ipad-device .flex.flex-col.min-h-screen.bg-background, 
-  .tablet-device .flex.flex-col.min-h-screen.bg-background,
-  .iphone-device .flex.flex-col.min-h-screen.bg-background,
-  .mobile-device .flex.flex-col.min-h-screen.bg-background {
-    position: relative !important;
-    height: 100% !important;
-    min-height: 100vh !important;
-    overflow: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-  
-  /* 修复选项卡内容区域滚动问题 */
-  .ipad-device .tabs-content,
-  .tablet-device .tabs-content,
-  .iphone-device .tabs-content,
-  .mobile-device .tabs-content,
-  .ipad-device [role="tabpanel"],
-  .tablet-device [role="tabpanel"],
-  .iphone-device [role="tabpanel"],
-  .mobile-device [role="tabpanel"],
-  .ipad-device [data-state="active"],
-  .tablet-device [data-state="active"],
-  .iphone-device [data-state="active"],
-  .mobile-device [data-state="active"] {
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    height: auto !important;
-    min-height: 500px !important;
-    overflow-x: hidden !important;
-  }
-  
-  /* 修复网格列表滚动问题 */
-  .ipad-device .grid.gap-4,
-  .tablet-device .grid.gap-4 {
-    overflow: visible !important;
-    height: auto !important;
-    min-height: 300px !important;
-  }
-  
-  /* 知识图谱和d3图表区域修复 */
-  .ipad-device .h-\[600px\],
-  .tablet-device .h-\[600px\],
-  .ipad-device .h-\[400px\],
-  .tablet-device .h-\[400px\],
-  .ipad-device .h-\[350px\],
-  .tablet-device .h-\[350px\],
-  .ipad-device .h-\[70vh\],
-  .tablet-device .h-\[70vh\] {
-    height: auto !important;
-    min-height: 400px !important;
-    max-height: 600px !important;
-    overflow: visible !important;
-    position: relative !important;
-    touch-action: pan-x pan-y !important;
-  }
-  
-  /* 确保图表容器不会被隐藏或裁剪 */
-  .ipad-device svg,
-  .tablet-device svg,
-  .ipad-device svg.d3-graph,
-  .tablet-device svg.d3-graph,
-  .ipad-device .relative svg,
-  .tablet-device .relative svg {
-    touch-action: pan-x pan-y !important;
-    overflow: visible !important;
-    height: 100% !important;
-    width: 100% !important;
-  }
-
-  /* 记忆空间页面卡片修复 */
-  .ipad-device .grid.gap-4.md\:grid-cols-2.lg\:grid-cols-3 > .card,
-  .tablet-device .grid.gap-4.md\:grid-cols-2.lg\:grid-cols-3 > .card {
-    height: auto !important;
-    overflow: visible !important;
-    transform: translateZ(0) !important; /* 启用硬件加速 */
-  }
-  
-  /* 知识图谱详情页面特定修复 */
-  .ipad-device .knowledge-graph-container,
-  .tablet-device .knowledge-graph-container,
-  .iphone-device .knowledge-graph-container,
-  .mobile-device .knowledge-graph-container {
-    width: 100% !important;
-    height: auto !important;
-    min-height: 70vh !important;
-    position: relative !important;
-    overflow: visible !important;
-    touch-action: manipulation !important;
-  }
-  
-  /* 确保知识图谱详情页的卡片内容可滚动 */
-  .ipad-device .flex-1.overflow-hidden,
-  .tablet-device .flex-1.overflow-hidden,
-  .iphone-device .flex-1.overflow-hidden,
-  .mobile-device .flex-1.overflow-hidden,
-  .ipad-device .card-container-for-fullscreen,
-  .tablet-device .card-container-for-fullscreen,
-  .iphone-device .card-container-for-fullscreen,
-  .mobile-device .card-container-for-fullscreen {
-    overflow: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    height: auto !important;
-    min-height: 70vh !important;
-  }
-  
-  /* 强制启用触摸滑动 */
-  .ipad-device .knowledge-graph-container svg, 
-  .tablet-device .knowledge-graph-container svg,
-  .iphone-device .knowledge-graph-container svg,
-  .mobile-device .knowledge-graph-container svg {
-    touch-action: manipulation !important;
-    -webkit-user-select: none !important;
-    user-select: none !important;
-    -webkit-touch-callout: none !important;
-  }
-  
-  /* 知识图谱SVG内部元素样式 */
-  .ipad-device .knowledge-graph-container g,
-  .tablet-device .knowledge-graph-container g,
-  .iphone-device .knowledge-graph-container g,
-  .mobile-device .knowledge-graph-container g {
-    touch-action: manipulation !important;
-  }
-  
-  /* 知识图谱详情页独立修复 - 添加高优先级修复 */
-  .knowledge-graph-detail-page {
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    min-height: 100vh !important;
-    max-height: none !important;
-    height: auto !important;
-  }
-  
-  /* 针对全屏模式的额外处理 */
-  .fullscreened-graph,
-  .card-container-for-fullscreen:fullscreen,
-  .knowledge-graph-container:fullscreen,
-  :fullscreen {
-    width: 100vw !important;
-    height: 100vh !important;
-    overflow: auto !important;
-    background: rgba(3, 7, 18, 0.95) !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    z-index: 9999 !important;
-    padding: 1rem !important;
-    touch-action: manipulation !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-  
-  /* 缩放按钮和全屏按钮修复 */
-  .ipad-device button[size="icon"],
-  .tablet-device button[size="icon"] {
-    transform: scale(1.0) !important;
-    margin: 0 4px !important;
-  }
-  
-  /* 学习轨迹标签页内容修复 */
-  .ipad-device [data-radix-tabs-content-wrapper],
-  .tablet-device [data-radix-tabs-content-wrapper],
-  .iphone-device [data-radix-tabs-content-wrapper],
-  .mobile-device [data-radix-tabs-content-wrapper] {
-    height: auto !important;
-    min-height: 70vh !important;
-    max-height: none !important;
-  }
-  
-  /* 学习轨迹标签内容修复 - 特定针对无法滚动的内容 */
-  .ipad-device [data-orientation="horizontal"] > [data-state="active"],
-  .tablet-device [data-orientation="horizontal"] > [data-state="active"],
-  .iphone-device [data-orientation="horizontal"] > [data-state="active"],
-  .mobile-device [data-orientation="horizontal"] > [data-state="active"] {
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    height: auto !important;
-    min-height: 50vh !important;
-    padding-bottom: 50px !important;
-  }
-  
-  /* 修复管理员页面标签样式 */
-  .ipad-device [data-orientation="horizontal"],
-  .tablet-device [data-orientation="horizontal"],
-  .iphone-device [data-orientation="horizontal"],
-  .mobile-device [data-orientation="horizontal"] {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    height: auto !important;
-    width: 100% !important;
-  }
+html.ipad-device .tabs-container [role="tablist"]::-webkit-scrollbar {
+  display: none;
 }
 
-/* ===== 处理iPad横屏/竖屏特定情况 ===== */
-/* 横屏模式 - 布局更宽 */
-@media screen and (min-width: 768px) and (max-width: 1366px) and (orientation: landscape) {
-  .ipad-device.landscape .chat-message-container > div,
-  .tablet-device.landscape .chat-message-container > div {
-    max-width: 800px !important;
-    padding: 0 30px !important;
-  }
+/* 修复对话框在iPad上的滚动问题 */
+html.ipad-device [role="dialog"] {
+  max-height: 80vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* 竖屏模式 - 布局更窄 */
-@media screen and (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
-  .ipad-device.portrait .chat-message-container > div,
-  .tablet-device.portrait .chat-message-container > div {
-    max-width: 650px !important;
-    padding: 0 24px !important;
-  }
+/* 修复表单在iPad上的显示 */
+html.ipad-device form input,
+html.ipad-device form textarea,
+html.ipad-device form select {
+  font-size: 16px !important;
+  padding: 12px !important;
 }
 
-/* ===== 头部调整 - 左侧与历史记录栏对齐 ===== */
-  .ipad-device header,
-  .tablet-device header,
-  .ipad-device header.h-16,
-  .tablet-device header.h-16 {
-    height: 56px !important;
-    padding-left: 0 !important; /* 移除左侧内边距，使其与侧边栏对齐 */
-    padding-right: 16px !important;
-    width: 100% !important;
-    display: flex !important;
-    justify-content: space-between !important; /* 左右两端对齐 */
-  }
-
-  /* 头部内容容器两端对齐 */
-  .ipad-device header > div,
-  .tablet-device header > div {
-    width: 100% !important;
-    max-width: 100% !important; /* 允许完全宽度 */
-    margin-left: 0 !important; /* 左侧不自动 */
-    padding-left: 16px !important; /* 左侧添加内边距与侧边栏内容对齐 */
-    margin-right: 16px !important; /* 右侧保留小间距 */
-    display: flex !important;
-    justify-content: space-between !important; /* 子元素两端对齐 */
-  }
-  
-  /* 导航栏中所有子元素正常间距 */
-  .ipad-device header > div > *,
-  .tablet-device header > div > * {
-    margin-left: 0 !important; /* 移除左侧强制间距 */
-    margin-right: 16px !important; /* 添加右侧间距 */
-  }
-  
-  /* 移除特殊对齐，恢复正常排序 */
-  .ipad-device header h1,
-  .tablet-device header h1,
-  .ipad-device header button,
-  .tablet-device header button,
-  .ipad-device header .button,
-  .tablet-device header .button,
-  .ipad-device header [class*="new-chat"],
-  .tablet-device header [class*="new-chat"] {
-    margin-left: 0 !important; /* 移除强制右对齐 */
-  }
-  
-  /* 恢复左侧元素的正常位置 */
-  .ipad-device header > div > div:first-child,
-  .tablet-device header > div > div:first-child {
-    margin-right: 0 !important; /* 移除强制间距 */
-    order: 0 !important; /* 恢复正常排序 */
-  }
-  
-  /* 恢复新对话按钮的正常位置 */
-  .ipad-device header [class*="new-chat"],
-  .tablet-device header [class*="new-chat"] {
-    order: 0 !important; /* 恢复正常排序 */
-  }
+/* 修复下拉菜单在iPad上的显示 */
+html.ipad-device [role="menu"] {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  max-height: 60vh;
+}

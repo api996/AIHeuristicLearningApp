@@ -1,51 +1,140 @@
 /**
- * D3.js库特定修复样式
- * 修复在iPad和浏览器刷新后的SVG渲染问题
+ * D3.js适配修复
+ * 解决D3.js在iPad和高分辨率设备上的渲染和交互问题
  */
 
-/* 确保SVG元素正确渲染 */
-svg {
-  max-width: 100%;
-  max-height: 100%;
-}
-
-/* 修复SVG在iOS/iPad上的触摸交互 */
-svg {
+/* 通用D3可视化容器样式 */
+.d3-visualization {
+  width: 100%;
+  height: 100%;
   touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  position: relative;
 }
 
-/* 确保图形元素在高DPI屏幕上清晰 */
-svg path,
-svg circle,
-svg rect,
-svg line {
-  shape-rendering: geometricPrecision;
-}
-
-/* 增强节点的点击区域 */
-circle.node {
-  stroke-width: 2px;
-  cursor: pointer;
-}
-
-/* 确保文本标签在黑暗主题中可见 */
-text {
-  fill: white;
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 12px;
-  pointer-events: none;
-}
-
-/* 修复浏览器刷新后D3容器溢出问题 */
-.d3-container {
+/* 修复svg渲染问题 */
+.d3-container svg {
   width: 100% !important;
   height: 100% !important;
-  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-/* 修复iOS上的拖动行为 */
-svg {
-  -webkit-user-drag: none;
-  user-drag: none;
+/* 使D3节点在触摸设备上更容易点击 */
+.d3-container svg .node {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.d3-container svg .node circle,
+.d3-container svg .node rect {
+  stroke-width: 2px;
+  touch-action: manipulation;
+}
+
+/* 增强触摸设备上的链接可视性 */
+.d3-container svg .link {
+  stroke-width: 2px;
+}
+
+/* 增强D3文本标签在高DPI设备上的可读性 */
+.d3-container svg text {
+  font-size: 14px;
+  font-weight: 600;
+  -webkit-user-select: none;
+  user-select: none;
+  dominant-baseline: middle;
+  text-anchor: middle;
+}
+
+/* D3控制面板优化 */
+.d3-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.d3-controls button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.d3-controls button:active {
+  transform: translateY(1px);
+}
+
+/* iPad专用D3修复 */
+html.ipad-device .d3-container {
+  position: relative !important;
+  touch-action: manipulation;
+  height: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* 修复D3与页面的交互 */
+html.ipad-device .d3-svg-root {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: visible !important;
+  touch-action: manipulation;
+}
+
+/* 修复D3tooltip在iPad上的定位问题 */
+html.ipad-device .d3-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 100;
+  max-width: 300px;
+  font-size: 14px;
+  transform: translate(-50%, -100%);
+  margin-top: -10px;
+}
+
+/* 修复D3缩放行为 */
+html.ipad-device .d3-zoom-controls {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+/* 高DPI设备特定优化 */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .d3-container svg text {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  
+  .d3-container svg .node circle,
+  .d3-container svg .node rect {
+    stroke-width: 2.5px;
+  }
+  
+  .d3-container svg .link {
+    stroke-width: 2.5px;
+  }
 }
