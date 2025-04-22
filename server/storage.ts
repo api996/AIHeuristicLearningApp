@@ -44,7 +44,7 @@ export interface IStorage {
   createMessage(chatId: number, content: string, role: string, model?: string): Promise<Message>;
   getChatMessages(chatId: number, userId: number, isAdmin: boolean, activeOnly?: boolean): Promise<Message[]>;
   updateMessage(messageId: number, content: string, isUserOwned: boolean, model?: string): Promise<Message>;
-  updateMessageFeedback(messageId: number, feedback: "like" | "dislike"): Promise<Message>;
+  updateMessageFeedback(messageId: number, feedback: "like" | "dislike", feedbackText?: string): Promise<Message>;
   regenerateMessage(messageId: number): Promise<Message>;
   getMessageById(messageId: number): Promise<Message | undefined>;
   // 添加标记消息为非活跃的方法
@@ -488,7 +488,11 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateMessageFeedback(messageId: number, feedback: "like" | "dislike"): Promise<Message> {
+  async updateMessageFeedback(
+    messageId: number, 
+    feedback: "like" | "dislike", 
+    feedbackText?: string
+  ): Promise<Message> {
     try {
       if (!messageId || isNaN(messageId)) {
         log(`Invalid message ID for feedback: ${messageId}`);
@@ -507,13 +511,21 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Message not found or not an AI message");
       }
 
+      // 准备更新字段
+      const updateFields: any = { feedback };
+      
+      // 如果提供了文本反馈，也进行更新
+      if (feedbackText) {
+        updateFields.feedbackText = feedbackText;
+      }
+
       // 更新消息反馈
       const [updatedMessage] = await db.update(messages)
-        .set({ feedback })
+        .set(updateFields)
         .where(eq(messages.id, messageId))
         .returning();
 
-      log(`Feedback ${feedback} applied to message ${messageId}`);
+      log(`Feedback ${feedback} applied to message ${messageId}${feedbackText ? ' with text feedback' : ''}`);
       return updatedMessage;
     } catch (error) {
       log(`Error updating message feedback: ${error}`);
