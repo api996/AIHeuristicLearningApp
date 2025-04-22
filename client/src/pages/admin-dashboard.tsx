@@ -18,11 +18,13 @@ import {
   ChevronRight,
   Settings,
   Shield,
+  ThumbsUp,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { PromptTemplateManager } from "@/components/admin/PromptTemplateManager";
 import { ContentModerationSettings } from "@/components/admin/ContentModerationSettings";
 import { SystemSettings } from "@/components/admin/SystemSettings";
+import { FeedbackAnalytics } from "@/components/admin/FeedbackAnalytics";
 
 interface ChatStats {
   total: number;
@@ -126,6 +128,7 @@ export default function AdminDashboard() {
             <TabsList className="bg-neutral-800 mt-2">
               <TabsTrigger value="dashboard">控制面板</TabsTrigger>
               <TabsTrigger value="security">安全设置</TabsTrigger>
+              <TabsTrigger value="feedback">反馈分析</TabsTrigger>
               <TabsTrigger value="prompts">提示词模板</TabsTrigger>
               <TabsTrigger value="moderation">内容审查</TabsTrigger>
             </TabsList>
@@ -280,6 +283,26 @@ export default function AdminDashboard() {
                   </Card>
                 </div>
                 <SystemSettings />
+              </div>
+            </TabsContent>
+
+            {/* 反馈分析标签页 */}
+            <TabsContent value="feedback" className="admin-dashboard-tabs-content">
+              <div className="py-8">
+                <div className="container mx-auto px-4 mb-6">
+                  <Card className="bg-neutral-900 border-neutral-800">
+                    <CardHeader>
+                      <div className="flex items-center">
+                        <ThumbsUp className="h-6 w-6 text-green-500 mr-2" />
+                        <CardTitle className="text-white">用户反馈统计分析</CardTitle>
+                      </div>
+                      <CardDescription>
+                        分析用户对不同AI模型回复的反馈数据，优化AI表现和用户体验
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </div>
+                <FeedbackAnalytics />
               </div>
             </TabsContent>
 
