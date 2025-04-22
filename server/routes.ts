@@ -22,6 +22,7 @@ import conversationTestRoutes from './routes/conversation-test';
 import mcpRoutes from './routes/mcp-routes';
 import clusteringTestRoutes from './routes/clustering-test';
 import repairMemoryRoutes from './routes/repair-memory';
+import topicGraphRoutes from './routes/topic-graph';
 import { initializeBucket } from './services/file-bucket.service';
 
 export async function registerRoutes(app: Express): Promise<Server> {
