@@ -49,11 +49,11 @@ function isTimestampId(id) {
 }
 
 /**
- * 获取所有需要转换的记忆记录
+ * 获取一批需要转换的记忆记录
  */
-async function getMemoriesToFix() {
-  const query = `SELECT id FROM memories WHERE id ~ '^\\d+$' AND length(id) < 10`;
-  const result = await pool.query(query);
+async function getMemoriesToFix(batchSize = 50) {
+  const query = `SELECT id FROM memories WHERE id ~ '^\\d+$' AND length(id) < 10 LIMIT $1`;
+  const result = await pool.query(query, [batchSize]);
   return result.rows;
 }
 
@@ -105,40 +105,70 @@ async function main() {
   try {
     console.log("=== 开始修复记忆ID格式 ===");
     
-    // 获取需要修复的记忆
-    const memoriesToFix = await getMemoriesToFix();
-    console.log(`找到 ${memoriesToFix.length} 条需要转换的记忆记录`);
+    let totalProcessed = 0;
+    let totalSuccess = 0;
+    let totalFail = 0;
+    let batchNumber = 1;
+    let hasMore = true;
     
-    if (memoriesToFix.length === 0) {
-      console.log("没有需要修复的记忆ID，脚本完成");
-      await pool.end();
-      return;
-    }
-    
-    // 更新记忆ID
-    let successCount = 0;
-    let failCount = 0;
-    
-    for (const memory of memoriesToFix) {
-      const oldId = memory.id;
-      const newId = generateTimestampId();
+    // 批量处理记忆ID转换
+    while (hasMore) {
+      console.log(`\n执行批次 #${batchNumber}...`);
       
-      const success = await updateMemoryId(oldId, newId);
-      if (success) {
-        successCount++;
-      } else {
-        failCount++;
+      // 获取一批需要修复的记忆
+      const memoriesToFix = await getMemoriesToFix(50);
+      console.log(`找到 ${memoriesToFix.length} 条需要转换的记忆记录`);
+      
+      if (memoriesToFix.length === 0) {
+        console.log("没有更多需要修复的记忆ID");
+        hasMore = false;
+        break;
       }
       
-      // 添加小延迟，防止ID冲突
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // 更新记忆ID
+      let batchSuccess = 0;
+      let batchFail = 0;
+      
+      for (const memory of memoriesToFix) {
+        const oldId = memory.id;
+        const newId = generateTimestampId();
+        
+        const success = await updateMemoryId(oldId, newId);
+        if (success) {
+          batchSuccess++;
+          totalSuccess++;
+        } else {
+          batchFail++;
+          totalFail++;
+        }
+        
+        // 添加小延迟，防止ID冲突
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      totalProcessed += memoriesToFix.length;
+      
+      console.log(`
+批次 #${batchNumber} 结果:
+成功: ${batchSuccess}
+失败: ${batchFail}
+本批次总计: ${memoriesToFix.length}
+      `);
+      
+      batchNumber++;
+      
+      // 防止脚本运行时间过长，每处理3批次后退出
+      if (batchNumber > 3) {
+        console.log("已达到最大批次数，脚本将退出。请再次运行以继续处理剩余记录。");
+        break;
+      }
     }
     
     console.log(`
-=== 修复完成 ===
-成功: ${successCount}
-失败: ${failCount}
-总计: ${memoriesToFix.length}
+=== 修复总结 ===
+成功: ${totalSuccess}
+失败: ${totalFail}
+总计处理: ${totalProcessed}
     `);
     
     // 关闭数据库连接
