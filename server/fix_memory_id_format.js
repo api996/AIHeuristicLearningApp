@@ -3,8 +3,11 @@
  * 将数据库中的简单数字ID转换为时间戳格式ID
  */
 
-const { Pool } = require('@neondatabase/serverless');
-const ws = require('ws');
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import * as fs from 'fs';
 
 // 配置数据库连接
 const { DATABASE_URL } = process.env;
@@ -16,7 +19,6 @@ if (!DATABASE_URL) {
 }
 
 // 配置数据库连接
-const neonConfig = require('@neondatabase/serverless').neonConfig;
 neonConfig.webSocketConstructor = ws;
 const pool = new Pool({ connectionString: DATABASE_URL });
 
