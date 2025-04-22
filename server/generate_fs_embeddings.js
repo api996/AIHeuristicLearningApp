@@ -29,6 +29,8 @@ const pool = new Pool({ connectionString: DATABASE_URL });
 let importedCount = 0;
 let existingCount = 0;
 let errorCount = 0;
+let embeddingFromFileCount = 0;
+let embeddingGeneratedCount = 0;
 let processedMemories = 0;
 
 /**
@@ -88,7 +90,7 @@ async function hasVectorEmbedding(memoryId) {
 /**
  * 将记忆导入到数据库
  */
-async function importMemoryToDatabase(memory, fileName) {
+async function importMemoryToDatabase(memory, fileName, userId) {
   try {
     // 从文件名中提取ID
     const id = fileName.replace('.json', '');
@@ -101,7 +103,7 @@ async function importMemoryToDatabase(memory, fileName) {
       summary = ''
     } = memory;
     
-    // 用户ID是从目录名称设置的 
+    // 用户ID是参数传入的
     const user_id = userId;
     
     // 检查记忆是否已存在
@@ -152,7 +154,7 @@ async function importMemoryToDatabase(memory, fileName) {
 /**
  * 生成并保存向量嵌入
  */
-async function generateAndSaveEmbedding(memoryId, content) {
+async function generateAndSaveEmbedding(memoryId, content, existingEmbedding = null) {
   // 检查记忆是否已有向量嵌入
   if (await hasVectorEmbedding(memoryId)) {
     console.log(`记忆 ${memoryId} 已有向量嵌入`);
@@ -160,22 +162,33 @@ async function generateAndSaveEmbedding(memoryId, content) {
   }
   
   try {
-    // 清理文本，移除多余空白
-    const cleanedText = content
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    // 截断文本，如果过长
-    const truncatedText = cleanedText.length > 8000 
-      ? cleanedText.substring(0, 8000)
-      : cleanedText;
+    let embedding = null;
     
-    // 生成向量嵌入
-    await genAiService.init();
-    const embedding = await genAiService.generateEmbedding(truncatedText);
+    // 如果提供了现有嵌入，优先使用它
+    if (existingEmbedding && Array.isArray(existingEmbedding) && existingEmbedding.length > 0) {
+      console.log(`使用记忆文件中现有的向量嵌入 (维度=${existingEmbedding.length})`);
+      embedding = existingEmbedding;
+      embeddingFromFileCount++;
+    } else {
+      // 没有现有嵌入，生成新的
+      // 清理文本，移除多余空白
+      const cleanedText = content
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      // 截断文本，如果过长
+      const truncatedText = cleanedText.length > 8000 
+        ? cleanedText.substring(0, 8000)
+        : cleanedText;
+      
+      // 生成向量嵌入
+      await genAiService.init();
+      embedding = await genAiService.generateEmbedding(truncatedText);
+      embeddingGeneratedCount++;
+    }
     
     if (!embedding) {
-      console.log(`为记忆 ${memoryId} 生成向量嵌入失败`);
+      console.log(`为记忆 ${memoryId} 生成或获取向量嵌入失败`);
       return false;
     }
     
@@ -187,7 +200,7 @@ async function generateAndSaveEmbedding(memoryId, content) {
     `;
     
     await pool.query(query, [memoryId, JSON.stringify(embedding)]);
-    console.log(`成功为记忆 ${memoryId} 生成并保存向量嵌入`);
+    console.log(`成功为记忆 ${memoryId} 保存向量嵌入`);
     return true;
   } catch (error) {
     console.error(`为记忆 ${memoryId} 生成向量嵌入时出错: ${error}`);
@@ -209,11 +222,11 @@ async function processMemoryFile(filePath, userId) {
     const memoryId = fileName.replace('.json', '');
     
     // 尝试导入记忆到数据库
-    const imported = await importMemoryToDatabase(memory, fileName);
+    const imported = await importMemoryToDatabase(memory, fileName, userId);
     
     if (imported && memory.content) {
-      // 生成并保存向量嵌入
-      await generateAndSaveEmbedding(memoryId, memory.content);
+      // 使用文件中的向量嵌入（如果有）
+      await generateAndSaveEmbedding(memoryId, memory.content, memory.embedding);
     }
     
     processedMemories++;
@@ -297,6 +310,8 @@ async function main() {
 导入记忆: ${importedCount}
 已存在记忆: ${existingCount}
 出错记忆: ${errorCount}
+使用文件嵌入: ${embeddingFromFileCount}
+生成新嵌入: ${embeddingGeneratedCount}
 总处理: ${processedMemories}
     `);
     
