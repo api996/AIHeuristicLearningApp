@@ -1868,6 +1868,61 @@ asyncio.run(test_memory())
   // 注册聚类测试路由
   app.use('/api/test', clusteringTestRoutes);
   
+  // 添加测试消息标记为非活跃的端点
+  app.post('/api/test/deactivate-messages', async (req, res) => {
+    try {
+      const { chatId, messageId } = req.body;
+      if (!chatId || !messageId) {
+        return res.status(400).json({ error: 'Missing required parameters' });
+      }
+      
+      log(`测试端点: 标记聊天 ${chatId} 中消息 ${messageId} 之后的消息为非活跃`);
+      await storage.deactivateMessagesAfter(chatId, messageId);
+      
+      // 验证更新效果
+      const allMessages = await storage.getChatMessages(chatId, 1, true, false); // 获取所有消息，包括非活跃的
+      const activeMessages = await storage.getChatMessages(chatId, 1, true, true); // 只获取活跃消息
+      
+      log(`消息总数: ${allMessages.length}, 活跃消息数: ${activeMessages.length}`);
+      
+      res.json({
+        success: true,
+        totalMessages: allMessages.length,
+        activeMessages: activeMessages.length,
+        deactivated: allMessages.length - activeMessages.length
+      });
+    } catch (error) {
+      log(`测试端点出错: ${error}`);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+  
+  // 添加测试端点：获取所有消息，包括非活跃消息
+  app.get('/api/test/get-all-messages', async (req, res) => {
+    try {
+      const { chatId } = req.query;
+      if (!chatId) {
+        return res.status(400).json({ error: 'Missing chatId parameter' });
+      }
+      
+      log(`测试端点: 获取聊天 ${chatId} 的所有消息，包括非活跃消息`);
+      const messages = await storage.getChatMessages(Number(chatId), 1, true, false);
+      
+      log(`获取到 ${messages.length} 条消息，其中活跃消息: ${messages.filter(m => m.isActive).length} 条`);
+      
+      res.json({
+        success: true,
+        messages,
+        total: messages.length,
+        active: messages.filter(m => m.isActive).length,
+        inactive: messages.filter(m => !m.isActive).length
+      });
+    } catch (error) {
+      log(`测试端点出错: ${error}`);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+  
   // 注册记忆修复路由
   app.use('/api/repair-memory', repairMemoryRoutes);
   app.use('/api/admin/prompts', adminPromptsRoutes);
