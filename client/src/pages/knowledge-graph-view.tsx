@@ -1,13 +1,9 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw, AlertCircle } from 'lucide-react';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
 import StaticKnowledgeGraph from '@/components/StaticKnowledgeGraph';
 import { preloadKnowledgeGraphData, getKnowledgeGraphData, clearKnowledgeGraphCache } from '@/lib/knowledge-graph-preloader';
-// 导入知识图谱修复样式
-import '@/components/ui/knowledge-graph-fixes.css';
-// 导入D3.js特定修复
-import '@/components/ui/d3-fixes.css';
 
 interface SimpleNode {
   id: string;
@@ -148,16 +144,12 @@ export default function KnowledgeGraphView() {
   };
   
   return (
-    <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-gray-950 text-white overflow-hidden knowledge-graph-container">
+    <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-gray-950 text-white overflow-hidden">
       {/* 顶部导航 */}
-      <div className="knowledge-graph-navigation">
+      <div className="absolute top-0 left-0 right-0 z-10 p-4 flex justify-between items-center bg-gradient-to-b from-gray-900/80 to-transparent">
         <div className="flex items-center">
           <Link href="/learning-path">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="text-white border-gray-700 hover:bg-gray-800 knowledge-graph-back-button"
-            >
+            <Button variant="outline" size="icon" className="text-white border-gray-700 hover:bg-gray-800">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
@@ -169,7 +161,7 @@ export default function KnowledgeGraphView() {
           size="sm" 
           onClick={handleRefresh} 
           disabled={isLoading}
-          className="bg-gray-800/70 text-white border-gray-700 hover:bg-gray-700 knowledge-graph-refresh-button"
+          className="bg-gray-800/70 text-white border-gray-700 hover:bg-gray-700"
         >
           <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
           刷新
@@ -177,14 +169,14 @@ export default function KnowledgeGraphView() {
       </div>
       
       {/* 内容区域 */}
-      <div className="w-full h-full pt-16 d3-force-graph-container">
+      <div className="w-full h-full pt-16">
         {isLoading ? (
-          <div className="w-full h-full flex flex-col items-center justify-center graph-loading-indicator">
+          <div className="w-full h-full flex flex-col items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
             <p className="text-lg text-blue-400">加载知识图谱中...</p>
           </div>
         ) : error ? (
-          <div className="w-full h-full flex flex-col items-center justify-center graph-loading-indicator">
+          <div className="w-full h-full flex flex-col items-center justify-center">
             <p className="text-red-500 mb-2">{error}</p>
             <Button variant="outline" onClick={handleRefresh} className="mt-4">
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -192,7 +184,7 @@ export default function KnowledgeGraphView() {
             </Button>
           </div>
         ) : graphData && graphData.nodes.length > 0 ? (
-          <div className="w-full h-full d3-force-graph">
+          <div className="w-full h-full">
             <StaticKnowledgeGraph
               nodes={graphData.nodes}
               links={graphData.links}
@@ -215,14 +207,6 @@ export default function KnowledgeGraphView() {
           <div className="w-full h-full flex flex-col items-center justify-center">
             <p className="text-gray-400 mb-2">暂无足够数据生成知识图谱</p>
             <p className="text-sm text-gray-500">继续与AI交流以获取更多记忆数据</p>
-            <Button 
-              variant="outline" 
-              onClick={handleRefresh}
-              className="mt-4 bg-gray-800 text-white hover:bg-gray-700"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              刷新
-            </Button>
           </div>
         )}
       </div>

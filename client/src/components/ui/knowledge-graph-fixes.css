@@ -1,112 +1,99 @@
 /**
- * 知识图谱组件特定修复
- * 解决浏览器刷新后样式和渲染问题
+ * 知识图谱UI修复样式
+ * 优化触摸和拖拽交互体验
  */
 
-/* 主要容器样式修复 */
+/* 容器基础样式 */
 .knowledge-graph-container {
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  position: fixed;
-  top: 0;
-  left: 0;
-  background: linear-gradient(to bottom, #0f172a, #020617);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  cursor: grab;
+  overflow: visible !important;
+  position: relative;
 }
 
-/* 导航栏样式 */
-.knowledge-graph-navigation {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 64px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: rgba(15, 23, 42, 0.9);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 10;
-  padding: 0 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+/* 拖拽时的光标 */
+.knowledge-graph-container:active {
+  cursor: grabbing;
 }
 
-/* 防止按钮在iPad上错位 */
-.knowledge-graph-back-button,
-.knowledge-graph-refresh-button {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* 节点基础样式 */
+.node {
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+/* 节点悬停效果 */
+.node:hover circle {
+  stroke: white;
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+}
+
+/* 提升连接线可见性 */
+.link-main {
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 1px rgba(100, 180, 255, 0.3));
+}
+
+.link-highlight {
+  stroke-linecap: round;
+}
+
+/* SVG交互优化 */
+svg {
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 修复按钮组合样式 */
-.knowledge-graph-refresh-button {
-  display: flex !important;
-  align-items: center !important;
-  padding: 0 12px !important;
-  width: auto !important;
+/* 全屏模式下的样式 */
+.fullscreened-graph {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  background-color: rgba(13, 17, 23, 0.95);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
-/* 修复图表容器样式 */
-.d3-force-graph-container {
-  width: 100vw;
-  height: calc(100vh - 64px);
-  margin-top: 64px;
-  overflow: hidden;
-}
-
-.d3-force-graph {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  touch-action: manipulation;
-}
-
-/* 修复加载指示器样式 */
-.graph-loading-indicator {
-  width: 100%;
-  height: 100%;
-}
-
-/* 确保在切换视图时图形正确卸载 */
-.react-router-unmount .d3-force-graph svg {
-  display: none;
-}
-
-/* 确保图例样式正确 */
-.graph-legend {
-  position: absolute;
-  bottom: 16px;
-  left: 16px;
-  background: rgba(15, 23, 42, 0.8);
-  border-radius: 8px;
-  padding: 12px;
-  z-index: 10;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* 修复在iPad上的触摸交互 */
-@media (hover: none) and (pointer: coarse) {
-  .knowledge-graph-navigation {
-    height: 56px;
+/* 适配移动设备 */
+@media (max-width: 768px) {
+  .node text {
+    font-size: 10px;
   }
   
-  .d3-force-graph-container {
-    height: calc(100vh - 56px);
-    margin-top: 56px;
+  .knowledge-graph-container {
+    touch-action: manipulation;
   }
-  
-  .knowledge-graph-back-button,
-  .knowledge-graph-refresh-button {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  
-  .knowledge-graph-refresh-button {
-    min-width: 80px;
-  }
+}
+
+/* 触摸滚动优化 */
+.card-container-for-fullscreen {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* 节点类型不同颜色 */
+.node[data-category="cluster"] circle {
+  fill: #3b82f6;
+}
+
+.node[data-category="keyword"] circle {
+  fill: #10b981;
+}
+
+.node[data-category="memory"] circle {
+  fill: #f59e0b;
 }

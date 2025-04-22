@@ -8,8 +8,9 @@ import "./components/ui/ipad-fixes.css";
 import "./components/ui/button-styles.css";
 import "./components/ui/icon-fixes.css"; // 导入图标大小修复
 
-// 导入D3补丁文件
-import d3PatchUtils from "./lib/d3-patch";
+// 导入D3加载修复和补丁文件
+import { ensureD3Loaded } from "./lib/d3-load-fix";
+import "./lib/d3-patch.js";
 
 // 预加载管理员组件，确保它们被包含在构建中
 import { preloadAdminComponents } from "./admin-components";
@@ -18,7 +19,7 @@ import { preloadAdminComponents } from "./admin-components";
 (async function initializeD3AndCriticalComponents() {
   try {
     // 先尝试加载D3
-    const d3Loaded = await d3PatchUtils.ensureLoaded();
+    const d3Loaded = await ensureD3Loaded();
     
     if (d3Loaded) {
       console.log("D3.js库已成功加载和初始化，可视化组件将正常运行");
@@ -44,7 +45,7 @@ import { preloadAdminComponents } from "./admin-components";
         
         console.log(`正在重试加载D3.js (${retryCount + 1}/${maxRetries})...`);
         retryCount++;
-        await d3PatchUtils.ensureLoaded();
+        await ensureD3Loaded();
       }, 2000);
     }
     

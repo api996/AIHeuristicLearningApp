@@ -15,7 +15,9 @@ import KnowledgeGraphView from "@/pages/knowledge-graph-view";
 import MemoryGraph from "@/pages/MemoryGraph";
 import PromptEditor from "@/pages/prompt-editor";
 import NotFound from "@/pages/not-found";
-// 导入D3补丁文件
+// 导入D3加载修复工具，确保D3.js正确加载
+import { ensureD3Loaded } from "./lib/d3-load-fix";
+// 导入传统D3补丁文件，作为兼容性后备
 import "./lib/d3-patch";
 // 导入直接补丁文件，确保_d3Selection全局对象可用
 import "./lib/d3-direct-patch";
@@ -69,34 +71,14 @@ function App() {
     
     console.log("已启动全局视口监听器，进行设备识别和CSS优化");
     
-    // 应用D3.js加载修复
-    try {
-      // 加载D3.js库
-      const loadD3 = async () => {
-        if (!window.d3) {
-          const script = document.createElement('script');
-          script.src = "https://d3js.org/d3.v7.min.js";
-          script.async = true;
-          document.head.appendChild(script);
-          
-          return new Promise((resolve) => {
-            script.onload = () => {
-              console.log("D3.js库已成功加载和初始化");
-              resolve(true);
-            };
-            script.onerror = () => {
-              console.warn("D3.js加载失败，某些可视化功能可能不可用");
-              resolve(false);
-            };
-          });
-        }
-        return Promise.resolve(true);
-      };
-      
-      loadD3();
-    } catch (err) {
-      console.warn("D3.js加载尝试失败，某些可视化功能可能不可用");
-    }
+    // 确保D3.js加载
+    ensureD3Loaded().then((success: boolean) => {
+      if (success) {
+        console.log("D3.js库已成功加载和初始化");
+      } else {
+        console.warn("D3.js加载失败，某些可视化功能可能不可用");
+      }
+    });
     
     // 组件卸载时清理
     return cleanup;
