@@ -555,12 +555,28 @@ export class DatabaseStorage implements IStorage {
         return;
       }
       
+      // 添加调试日志
+      log(`尝试标记以下消息为非活跃: ${JSON.stringify(laterMessagesIds)}`);
+
       // 将所有后续消息标记为非活跃
-      const result = await db.update(messages)
-        .set({ isActive: false })
-        .where(inArray(messages.id, laterMessagesIds));
-      
-      log(`已将聊天 ${chatId} 中消息 ${messageId} 之后的 ${laterMessagesIds.length} 条消息标记为非活跃`);
+      try {
+        const result = await db.update(messages)
+          .set({ isActive: false })
+          .where(inArray(messages.id, laterMessagesIds));
+        
+        log(`更新结果: ${JSON.stringify(result)}`);
+        log(`已将聊天 ${chatId} 中消息 ${messageId} 之后的 ${laterMessagesIds.length} 条消息标记为非活跃`);
+
+        // 验证更新是否成功
+        const verifyQuery = await db.select()
+          .from(messages)
+          .where(inArray(messages.id, laterMessagesIds));
+        
+        log(`验证更新结果: ${verifyQuery.length} 条记录, 第一条消息 isActive=${verifyQuery[0]?.isActive}`);
+      } catch (updateError) {
+        log(`更新消息活跃状态时出错: ${updateError}`);
+        throw updateError;
+      }
     } catch (error) {
       log(`Error deactivating messages: ${error}`);
       throw error;
@@ -606,6 +622,7 @@ export class DatabaseStorage implements IStorage {
       // 如果只查询活跃消息（默认行为），添加is_active条件
       if (activeOnly) {
         conditions.push(eq(messages.isActive, true));
+        log(`添加活跃消息过滤条件: isActive=true`);
       }
       
       // Get messages for a specific chat with active filter if requested
