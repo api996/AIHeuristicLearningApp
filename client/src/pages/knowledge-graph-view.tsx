@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Sparkles } from 'lucide-react';
 import ForceGraphKnowledgeGraph from '@/components/ForceGraphKnowledgeGraph';
+import TopicGraphToggleView from '@/components/TopicGraphToggleView';
 import { preloadKnowledgeGraphData, getKnowledgeGraphData, clearKnowledgeGraphCache } from '@/lib/knowledge-graph-preloader';
+import { getTopicGraphData, preloadTopicGraphData, clearTopicGraphCache } from '@/lib/topic-graph-preloader';
 
 interface SimpleNode {
   id: string;
@@ -177,26 +179,10 @@ export default function KnowledgeGraphView() {
               </Link>
             </div>
           </div>
-        ) : graphData && graphData.nodes.length > 0 ? (
+        ) : userId ? (
           <div className="w-full h-full">
-            <ForceGraphKnowledgeGraph
-              nodes={graphData.nodes}
-              links={graphData.links}
-              width={window.innerWidth}
-              height={window.innerHeight - 64}
-              onNodeClick={(nodeId: string) => {
-                const node = graphData.nodes.find(n => n.id === nodeId);
-                if (node) {
-                  console.log(`点击了节点: ${node.label || nodeId}`);
-                  
-                  // 提供节点类型和标签的弹窗
-                  const nodeType = node.category === 'cluster' ? '主题' : 
-                                 node.category === 'keyword' ? '关键词' : '记忆';
-                  alert(`${nodeType}: ${node.label}`);
-                }
-              }}
-              onBackgroundClick={() => console.log('点击了背景')}
-            />
+            {/* 使用新的主题图谱切换组件 */}
+            <TopicGraphToggleView userId={userId} />
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center">
