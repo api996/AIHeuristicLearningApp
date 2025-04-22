@@ -4,10 +4,11 @@ import {
   memories, memoryKeywords, memoryEmbeddings,
   promptTemplates, searchResults, conversationAnalytics,
   userFiles, userSettings, systemConfig,
+  knowledgeGraphCache, clusterResultCache,
   type Memory, type MemoryKeyword, type MemoryEmbedding,
   type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding,
   type PromptTemplate, type SearchResult, type ConversationAnalytic,
-  type SystemConfig
+  type SystemConfig, type KnowledgeGraphCache, type ClusterResultCache
 } from "@shared/schema";
 import { db } from "./db";
 import { 
@@ -67,6 +68,27 @@ export interface IStorage {
   getEmbeddingByMemoryId(memoryId: number | string): Promise<MemoryEmbedding | undefined>;
   getEmbeddingsByMemoryIds(memoryIds: (number | string)[]): Promise<Record<string, MemoryEmbedding>>;
   findSimilarMemories(userId: number, vectorData: number[], limit?: number): Promise<Memory[]>;
+  
+  // Knowledge graph methods
+  saveKnowledgeGraphCache(
+    userId: number, 
+    nodes: any[], 
+    links: any[], 
+    expiryHours?: number
+  ): Promise<KnowledgeGraphCache>;
+  getKnowledgeGraphCache(userId: number): Promise<KnowledgeGraphCache | undefined>;
+  clearKnowledgeGraphCache(userId: number): Promise<void>;
+  
+  // Cluster result methods
+  saveClusterResultCache(
+    userId: number,
+    clusterData: any,
+    clusterCount: number,
+    vectorCount: number,
+    expiryHours?: number
+  ): Promise<ClusterResultCache>;
+  getClusterResultCache(userId: number): Promise<ClusterResultCache | undefined>;
+  clearClusterResultCache(userId: number): Promise<void>;
   
   // Admin methods
   getAllUsers(): Promise<User[]>;
