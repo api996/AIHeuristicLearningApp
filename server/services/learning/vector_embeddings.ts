@@ -54,14 +54,22 @@ asyncio.run(get_embedding())
 `;
 
         // 执行Python代码并获取结果
-        const { exec } = require('child_process');
+        // 使用import.meta.require替代require
+        // 跳过Python代码，直接使用GenAI服务
+        return genAiService.generateEmbedding(truncatedText);
+        
+        /*
+        // 此代码在ESM模式下不工作，暂时禁用
+        const { exec } = (typeof require !== 'undefined' ? require : import.meta.require)('child_process');
         return new Promise((resolve, reject) => {
           // 使用Python执行代码
           const process = exec('python -c \'' + pythonCommand + '\'', {
             cwd: process.cwd(),
             maxBuffer: 10 * 1024 * 1024 // 10MB buffer
           });
+        */
           
+        /*
           let output = '';
           process.stdout.on('data', (data) => {
             output += data.toString();
@@ -92,9 +100,10 @@ asyncio.run(get_embedding())
             genAiService.generateEmbedding(truncatedText).then(resolve).catch(reject);
           });
         });
+        */
       } catch (pythonError) {
-        log(`[vector_embeddings] Python嵌入调用出错: ${pythonError}`, 'error');
-        // 如果Python调用出错，回退到GenAI服务
+        log(`[vector_embeddings] 嵌入调用出错: ${pythonError}`, 'error');
+        // 回退到GenAI服务
         const embedding = await genAiService.generateEmbedding(truncatedText);
         return embedding;
       }
