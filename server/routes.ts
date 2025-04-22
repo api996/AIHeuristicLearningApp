@@ -1814,6 +1814,9 @@ asyncio.run(test_memory())
   app.use('/api/system-config', systemConfigRoutes);
   app.use('/api/memory-test', memoryTestRoutes);
   app.use('/api/test-data', testDataRoutes); // 只用于测试环境，生成测试数据
+  
+  // 注册聚类测试路由
+  app.use('/api/test', clusteringTestRoutes);
   app.use('/api/admin/prompts', adminPromptsRoutes);
   app.use('/api/admin/content-moderation', contentModerationRoutes);
   app.use('/api/mcp', mcpRoutes); // MCP 搜索服务路由
