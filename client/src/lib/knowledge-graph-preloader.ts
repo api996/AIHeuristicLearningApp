@@ -41,22 +41,32 @@ export async function preloadKnowledgeGraphData(userId: number, forceRefresh: bo
   
   // 显示预计处理时间信息
   const startTime = performance.now();
-  console.log("知识图谱数据处理时间估计：高维向量聚类<1秒，总加载时间<5秒");
   
   // 如果强制刷新，清除现有缓存
   if (forceRefresh) {
     console.log(`强制刷新用户${userId}的知识图谱缓存`);
     cachedGraphData.delete(userId);
     pendingPromises.delete(userId);
+  } else {
+    // 检查内存中是否有缓存
+    if (cachedGraphData.has(userId)) {
+      const cachedData = cachedGraphData.get(userId)!;
+      console.log(`使用内存缓存的知识图谱数据: ${cachedData.nodes.length}个节点`);
+      return cachedData;
+    }
   }
   
   // 检查是否已经有正在进行的请求
   if (pendingPromises.has(userId)) {
+    console.log(`已有相同的请求正在处理中，等待结果...`);
     return pendingPromises.get(userId)!;
   }
   
-  // 创建新的获取请求，使用包装函数增加错误恢复机制
-  const promise = fetchKnowledgeGraphDataWithRetry(userId);
+  // 创建新的获取请求
+  const promise = forceRefresh 
+    ? fetchKnowledgeGraphDataForceRefresh(userId)  // 强制刷新时使用缓存破坏版本
+    : fetchKnowledgeGraphData(userId);             // 正常情况使用不破坏缓存的版本
+    
   pendingPromises.set(userId, promise);
   
   try {
@@ -67,14 +77,34 @@ export async function preloadKnowledgeGraphData(userId: number, forceRefresh: bo
     
     // 计算加载时间并显示性能指标
     const loadTime = (performance.now() - startTime).toFixed(0);
-    console.log(`知识图谱数据加载完成: ${data.nodes.length}个节点, ${data.links.length}个连接，总耗时: ${loadTime}ms`);
+    console.log(`知识图谱数据预加载成功: ${data.nodes.length}个节点, ${data.links.length}个连接，总耗时: ${loadTime}ms`);
     
     return data;
   } catch (error) {
     // 请求失败时也移除进行中的请求，允许重试
     pendingPromises.delete(userId);
-    console.error("预加载图谱数据失败:", error);
-    throw error;
+    console.error("预加载知识图谱数据失败:", error);
+    
+    // 如果失败但存在有效缓存，返回缓存数据
+    if (cachedGraphData.has(userId)) {
+      console.log(`请求失败但发现有效缓存，使用缓存数据`);
+      return cachedGraphData.get(userId)!;
+    }
+    
+    // 创建一个最小默认图谱
+    console.log(`无法获取知识图谱数据且无缓存，返回空图谱`);
+    return {
+      nodes: [
+        {
+          id: 'default-node',
+          label: '暂无数据',
+          size: 20,
+          category: 'cluster',
+          color: '#888888'
+        }
+      ],
+      links: []
+    };
   }
 }
 
@@ -118,65 +148,17 @@ export function clearKnowledgeGraphCache(userId?: number): void {
 }
 
 /**
- * 带重试功能的知识图谱数据获取函数
- * @param userId 用户ID
- * @param retryCount 重试次数，默认3次
- * @returns 承诺知识图谱数据
- */
-async function fetchKnowledgeGraphDataWithRetry(userId: number, retryCount: number = 3): Promise<KnowledgeGraphData> {
-  let lastError: any = null;
-  
-  // 尝试获取数据，最多重试指定次数
-  for (let attempt = 0; attempt <= retryCount; attempt++) {
-    try {
-      if (attempt > 0) {
-        console.log(`第${attempt}次重试获取知识图谱数据...`);
-        // 稍微延迟再重试，增加成功率
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      const data = await fetchKnowledgeGraphData(userId);
-      
-      // 如果获取成功，直接返回数据
-      return data;
-    } catch (err) {
-      lastError = err;
-      console.warn(`获取知识图谱失败，尝试${attempt}/${retryCount}:`, err);
-    }
-  }
-  
-  // 如果所有重试都失败，返回一个最小的默认图谱
-  console.error(`所有${retryCount}次获取知识图谱尝试均失败，使用默认空图谱`);
-  
-  // 创建一个最小默认图谱
-  return {
-    nodes: [
-      {
-        id: 'default-node',
-        label: '暂无数据',
-        size: 20,
-        category: 'cluster',
-        color: '#888888'
-      }
-    ],
-    links: []
-  };
-}
-
-/**
- * 实际获取知识图谱数据的函数
+ * 简化版知识图谱数据获取函数 - 无缓存破坏版本
  * @param userId 用户ID
  * @returns 承诺知识图谱数据
  */
 async function fetchKnowledgeGraphData(userId: number): Promise<KnowledgeGraphData> {
   try {
-    // 添加时间戳参数避免浏览器缓存
-    const timestamp = Date.now();
-    const response = await fetch(`/api/learning-path/${userId}/knowledge-graph?t=${timestamp}`, {
+    // 不再添加缓存破坏参数，除非明确要求刷新
+    const response = await fetch(`/api/learning-path/${userId}/knowledge-graph`, {
       headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        // 允许使用缓存
+        'Cache-Control': 'max-age=300' // 5分钟缓存
       }
     });
     
@@ -192,19 +174,53 @@ async function fetchKnowledgeGraphData(userId: number): Promise<KnowledgeGraphDa
       throw new Error("知识图谱数据格式无效");
     }
     
-    console.log("预加载知识图谱数据成功:", data.nodes.length, "个节点,", data.links.length, "个连接");
+    console.log("知识图谱数据成功获取:", data.nodes.length, "个节点,", data.links.length, "个连接");
     
-    // 检查数据示例
-    if (data.nodes.length > 0) {
-      console.log("节点示例:", data.nodes[0]);
-    }
-    if (data.links.length > 0) {
-      console.log("连接示例:", data.links[0]);
+    // 检查数据示例 (只记录日志，不影响流程)
+    if (data.nodes.length > 0 && data.links.length > 0) {
+      console.log("数据示例 - 节点:", data.nodes[0], "连接:", data.links[0]);
     }
     
     return data;
   } catch (error) {
-    console.error("预加载知识图谱数据失败:", error);
+    console.error("获取知识图谱数据失败:", error);
+    throw error;
+  }
+}
+
+/**
+ * 带缓存破坏的知识图谱数据获取函数 - 仅用于强制刷新
+ * @param userId 用户ID
+ * @returns 承诺知识图谱数据
+ */
+async function fetchKnowledgeGraphDataForceRefresh(userId: number): Promise<KnowledgeGraphData> {
+  try {
+    // 添加时间戳参数避免浏览器缓存，但只在强制刷新时使用
+    const timestamp = Date.now();
+    const response = await fetch(`/api/learning-path/${userId}/knowledge-graph?refresh=true&t=${timestamp}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`获取知识图谱失败: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // 验证数据结构有效性
+    if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
+      console.error("刷新后收到无效的知识图谱数据格式:", data);
+      throw new Error("知识图谱数据格式无效");
+    }
+    
+    console.log("知识图谱数据刷新成功:", data.nodes.length, "个节点", data.links.length, "个连接");
+    return data;
+  } catch (error) {
+    console.error("刷新知识图谱数据失败:", error);
     throw error;
   }
 }

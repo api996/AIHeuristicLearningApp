@@ -56,7 +56,7 @@ export default function KnowledgeGraphView() {
     }
   }, []);
   
-  // 加载知识图谱数据
+  // 加载知识图谱数据 - 简化版
   useEffect(() => {
     if (!userId) return;
     
@@ -67,67 +67,15 @@ export default function KnowledgeGraphView() {
         setIsLoading(true);
         setError(null); // 重置错误状态
         
-        // 使用内置重试机制的函数获取数据
-        let data;
-        try {
-          // 先尝试获取预加载/缓存数据
-          if (userId !== null) {
-            data = await getKnowledgeGraphData(userId);
-            if (data && Array.isArray(data.nodes)) {
-              console.log(`已获取缓存的知识图谱数据: ${data.nodes.length}个节点`);
-              if (isMounted) {
-                setGraphData(data);
-                setIsLoading(false);
-              }
-              return;
-            }
-          }
-        } catch (e) {
-          console.warn('无法获取预加载数据，将直接从API获取:', e);
-        }
+        // 直接使用预加载器获取数据，它会处理缓存逻辑
+        const data = await preloadKnowledgeGraphData(userId as number);
         
-        // 如果没有预加载数据或获取失败，直接从API获取
-        console.log('缓存获取失败，直接请求知识图谱数据...');
-        
-        try {
-          // 添加随机参数避免浏览器缓存
-          const timestamp = Date.now();
-          const rand = Math.floor(Math.random() * 1000000);
-          const response = await fetch(`/api/learning-path/${userId}/knowledge-graph?t=${timestamp}&r=${rand}`, {
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache'
-            }
-          });
-          
-          if (!response.ok) {
-            throw new Error(`获取失败: ${response.status}`);
-          }
-          
-          data = await response.json();
-          console.log(`成功获取知识图谱数据: ${data.nodes?.length || 0}个节点`);
-          
-          // 验证数据结构
-          if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
-            console.error('API返回的数据格式无效:', data);
-            throw new Error('API返回的数据格式无效');
-          }
-          
-          if (isMounted) {
-            setGraphData(data);
-          }
-          
-          // 更新缓存 (后台进行，不阻塞UI)
-          if (userId !== null && isMounted) {
-            setTimeout(() => {
-              preloadKnowledgeGraphData(userId, true).catch(e => {
-                console.warn('缓存更新失败，但不影响当前显示:', e);
-              });
-            }, 100);
-          }
-        } catch (apiError) {
-          console.error('直接API获取失败:', apiError);
-          throw apiError; // 重新抛出以便被外层捕获
+        if (isMounted && data && Array.isArray(data.nodes)) {
+          console.log(`知识图谱数据节点数: ${data.nodes.length}, 连接数: ${data.links.length}`);
+          setGraphData(data);
+        } else if (isMounted) {
+          console.warn('知识图谱数据可能存在问题:', data);
+          setError('获取到的知识图谱数据格式无效');
         }
       } catch (err: any) {
         console.error('加载知识图谱失败:', err);
@@ -141,6 +89,7 @@ export default function KnowledgeGraphView() {
       }
     }
     
+    // 执行加载
     loadGraphData();
     
     // 清理函数
@@ -149,7 +98,7 @@ export default function KnowledgeGraphView() {
     };
   }, [userId]);
   
-  // 刷新数据
+  // 刷新数据 - 简化版
   const handleRefresh = async () => {
     if (!userId) return;
     
@@ -158,58 +107,23 @@ export default function KnowledgeGraphView() {
       setError(null); // 重置错误状态
       
       // 清除缓存
-      clearKnowledgeGraphCache(userId);
+      clearKnowledgeGraphCache(userId as number);
       console.log('已清除缓存，正在刷新知识图谱数据...');
       
-      // 防止浏览器缓存
-      const timestamp = Date.now();
-      const rand = Math.floor(Math.random() * 1000000);
-      
-      // 从API获取新数据
-      const response = await fetch(
-        `/api/learning-path/${userId}/knowledge-graph?t=${timestamp}&r=${rand}`, 
-        {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error(`获取失败: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
+      // 直接使用预加载器的强制刷新模式
+      const data = await preloadKnowledgeGraphData(userId as number, true);
       
       // 验证数据结构
       if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
-        console.error('API返回的数据格式无效:', data);
-        throw new Error('API返回的数据格式无效');
+        console.error('获取到的数据格式无效:', data);
+        throw new Error('知识图谱数据格式无效');
       }
       
       console.log(`刷新成功: ${data.nodes.length}个节点, ${data.links.length}个连接`);
       setGraphData(data);
-      
-      // 在后台更新缓存，不阻塞UI
-      if (userId !== null) {
-        setTimeout(() => {
-          preloadKnowledgeGraphData(userId, true).catch(e => {
-            console.warn('缓存更新失败，但不影响当前显示:', e);
-          });
-        }, 100);
-      }
     } catch (err: any) {
       console.error('刷新知识图谱失败:', err);
       setError('刷新数据失败: ' + (err?.message || '未知错误'));
-      
-      // 防止失败后用户被困住，添加返回选项
-      setTimeout(() => {
-        if (!graphData || graphData.nodes.length === 0) {
-          console.log('刷新失败且无数据，提供返回选项');
-        }
-      }, 2000);
     } finally {
       setIsLoading(false);
     }
