@@ -1594,6 +1594,183 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  // 知识图谱缓存方法
+  async saveKnowledgeGraphCache(
+    userId: number, 
+    nodes: any[], 
+    links: any[], 
+    expiryHours: number = 24
+  ): Promise<KnowledgeGraphCache> {
+    try {
+      // 计算过期时间
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + expiryHours);
+      
+      // 先检查该用户是否已有缓存
+      const existingCache = await this.getKnowledgeGraphCache(userId);
+      
+      if (existingCache) {
+        // 如果存在，则更新现有记录
+        const [updated] = await db.update(knowledgeGraphCache)
+          .set({
+            nodes: nodes as any,
+            links: links as any,
+            version: existingCache.version + 1,
+            updatedAt: new Date(),
+            expiresAt
+          })
+          .where(eq(knowledgeGraphCache.userId, userId))
+          .returning();
+        
+        log(`为用户 ${userId} 更新知识图谱缓存，版本 ${updated.version}`);
+        return updated;
+      } else {
+        // 如果不存在，则创建新记录
+        const [newCache] = await db.insert(knowledgeGraphCache)
+          .values({
+            userId,
+            nodes: nodes as any,
+            links: links as any,
+            version: 1,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            expiresAt
+          })
+          .returning();
+        
+        log(`为用户 ${userId} 创建知识图谱缓存`);
+        return newCache;
+      }
+    } catch (error) {
+      log(`保存知识图谱缓存错误: ${error}`);
+      throw error;
+    }
+  }
+  
+  async getKnowledgeGraphCache(userId: number): Promise<KnowledgeGraphCache | undefined> {
+    try {
+      const [cache] = await db.select()
+        .from(knowledgeGraphCache)
+        .where(
+          and(
+            eq(knowledgeGraphCache.userId, userId),
+            sql`${knowledgeGraphCache.expiresAt} > NOW() OR ${knowledgeGraphCache.expiresAt} IS NULL`
+          )
+        );
+      
+      if (cache) {
+        log(`为用户 ${userId} 找到有效的知识图谱缓存，版本 ${cache.version}`);
+      }
+      
+      return cache;
+    } catch (error) {
+      log(`获取知识图谱缓存错误: ${error}`);
+      throw error;
+    }
+  }
+  
+  async clearKnowledgeGraphCache(userId: number): Promise<void> {
+    try {
+      await db.delete(knowledgeGraphCache)
+        .where(eq(knowledgeGraphCache.userId, userId));
+      
+      log(`已清除用户 ${userId} 的知识图谱缓存`);
+    } catch (error) {
+      log(`清除知识图谱缓存错误: ${error}`);
+      throw error;
+    }
+  }
+  
+  // 聚类结果缓存方法
+  async saveClusterResultCache(
+    userId: number,
+    clusterData: any,
+    clusterCount: number,
+    vectorCount: number,
+    expiryHours: number = 24
+  ): Promise<ClusterResultCache> {
+    try {
+      // 计算过期时间
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + expiryHours);
+      
+      // 先检查该用户是否已有缓存
+      const existingCache = await this.getClusterResultCache(userId);
+      
+      if (existingCache) {
+        // 如果存在，则更新现有记录
+        const [updated] = await db.update(clusterResultCache)
+          .set({
+            clusterData: clusterData as any,
+            clusterCount,
+            vectorCount,
+            version: existingCache.version + 1,
+            updatedAt: new Date(),
+            expiresAt
+          })
+          .where(eq(clusterResultCache.userId, userId))
+          .returning();
+        
+        log(`为用户 ${userId} 更新聚类结果缓存，版本 ${updated.version}，包含 ${clusterCount} 个聚类，${vectorCount} 个向量`);
+        return updated;
+      } else {
+        // 如果不存在，则创建新记录
+        const [newCache] = await db.insert(clusterResultCache)
+          .values({
+            userId,
+            clusterData: clusterData as any,
+            clusterCount,
+            vectorCount,
+            version: 1,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            expiresAt
+          })
+          .returning();
+        
+        log(`为用户 ${userId} 创建聚类结果缓存，包含 ${clusterCount} 个聚类，${vectorCount} 个向量`);
+        return newCache;
+      }
+    } catch (error) {
+      log(`保存聚类结果缓存错误: ${error}`);
+      throw error;
+    }
+  }
+  
+  async getClusterResultCache(userId: number): Promise<ClusterResultCache | undefined> {
+    try {
+      const [cache] = await db.select()
+        .from(clusterResultCache)
+        .where(
+          and(
+            eq(clusterResultCache.userId, userId),
+            sql`${clusterResultCache.expiresAt} > NOW() OR ${clusterResultCache.expiresAt} IS NULL`
+          )
+        );
+      
+      if (cache) {
+        log(`为用户 ${userId} 找到有效的聚类结果缓存，版本 ${cache.version}，包含 ${cache.clusterCount} 个聚类`);
+      }
+      
+      return cache;
+    } catch (error) {
+      log(`获取聚类结果缓存错误: ${error}`);
+      throw error;
+    }
+  }
+  
+  async clearClusterResultCache(userId: number): Promise<void> {
+    try {
+      await db.delete(clusterResultCache)
+        .where(eq(clusterResultCache.userId, userId));
+      
+      log(`已清除用户 ${userId} 的聚类结果缓存`);
+    } catch (error) {
+      log(`清除聚类结果缓存错误: ${error}`);
+      throw error;
+    }
+  }
 }
 
 // Export a single instance of the storage
