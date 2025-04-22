@@ -139,6 +139,24 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
   // 用于调试的标志
   const debugModeRef = useRef(true);
   
+  // 创建一些测试节点和连接 - 用于测试渲染功能
+  const testNodes = useMemo(() => {
+    if (nodes.length > 0) return [];
+    return [
+      { id: 'test1', label: '测试节点1', category: 'cluster', size: 100 },
+      { id: 'test2', label: '测试节点2', category: 'keyword', size: 50 },
+      { id: 'test3', label: '测试节点3', category: 'memory', size: 30 }
+    ] as SimpleNode[];
+  }, [nodes.length]);
+  
+  const testLinks = useMemo(() => {
+    if (nodes.length > 0) return [];
+    return [
+      { source: 'test1', target: 'test2', value: 1 },
+      { source: 'test2', target: 'test3', value: 0.5 }
+    ] as SimpleLink[];
+  }, [nodes.length]);
+  
   // 预先处理节点，替换通用名称
   const processedNodes = useMemo(() => {
     return nodes.map(node => {
@@ -156,6 +174,7 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
   
   // 计算节点位置 - 使用记忆化以避免每次重新计算
   const positions = useMemo<{[key: string]: NodePosition}>(() => {
+    // 如果没有实际节点数据，创建一个空对象 - 测试节点将有自己的位置计算
     if (processedNodes.length === 0) return {};
     
     const result: {[key: string]: NodePosition} = {};
@@ -1067,36 +1086,107 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
         ctx.translate(currentTransformRef.current.translateX, currentTransformRef.current.translateY);
         ctx.scale(currentTransformRef.current.scale, currentTransformRef.current.scale);
         
-        console.log("开始绘制连接线和节点，节点数:", nodes.length);
+        // 确定要使用的节点和连接 - 如果没有真实数据则使用测试数据
+        const nodesForRender = processedNodes.length > 0 ? processedNodes : testNodes;
+        const linksForRender = links.length > 0 ? links : testLinks;
+        
+        console.log("开始绘制连接线和节点，节点数:", nodesForRender.length, "连接数:", linksForRender.length);
         
         // 先绘制一些测试内容以验证渲染上下文是否正常
-        // 绘制测试线 - 从中心到各个方向的线条
         const centerX = width / 2;
         const centerY = height / 2;
         
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
-        ctx.lineWidth = 3 / currentTransformRef.current.scale;
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(centerX + 100, centerY);
-        ctx.stroke();
-        
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(0, 255, 0, 0.7)';
-        ctx.lineWidth = 3 / currentTransformRef.current.scale;
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(centerX, centerY + 100);
-        ctx.stroke();
-        
-        // 绘制测试节点
-        ctx.beginPath();
-        ctx.fillStyle = 'rgba(0, 100, 255, 0.7)';
-        ctx.arc(centerX, centerY, 20, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // 再绘制实际的连接线和节点
-        drawLinks();
-        drawNodes();
+        // 绘制测试节点数据 - 简单直接，无需复杂计算
+        if (nodesForRender === testNodes) {
+          console.log("使用测试节点数据进行渲染");
+          
+          // 创建测试位置
+          const testPositions: Record<string, NodePosition> = {
+            'test1': { x: centerX - 100, y: centerY },
+            'test2': { x: centerX + 100, y: centerY - 50 },
+            'test3': { x: centerX, y: centerY + 100 }
+          };
+          
+          // 绘制测试连接线
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(255, 100, 0, 0.8)';
+          ctx.lineWidth = 4;
+          ctx.moveTo(testPositions.test1.x, testPositions.test1.y);
+          ctx.lineTo(testPositions.test2.x, testPositions.test2.y);
+          ctx.stroke();
+          
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(0, 200, 100, 0.8)';
+          ctx.lineWidth = 3;
+          ctx.moveTo(testPositions.test2.x, testPositions.test2.y);
+          ctx.lineTo(testPositions.test3.x, testPositions.test3.y);
+          ctx.stroke();
+          
+          // 绘制测试节点
+          // 绘制节点1 - 大圆形
+          ctx.beginPath();
+          ctx.fillStyle = 'rgba(100, 0, 255, 0.7)';
+          ctx.arc(testPositions.test1.x, testPositions.test1.y, 30, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'white';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // 绘制节点2 - 中圆形
+          ctx.beginPath();
+          ctx.fillStyle = 'rgba(0, 200, 100, 0.7)';
+          ctx.arc(testPositions.test2.x, testPositions.test2.y, 20, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'white';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // 绘制节点3 - 小圆形
+          ctx.beginPath();
+          ctx.fillStyle = 'rgba(255, 100, 0, 0.7)';
+          ctx.arc(testPositions.test3.x, testPositions.test3.y, 15, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'white';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // 绘制标签
+          ctx.font = 'bold 14px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = 'white';
+          
+          // 带背景的标签
+          for (const [id, pos] of Object.entries(testPositions)) {
+            const node = testNodes.find(n => n.id === id);
+            if (node) {
+              const textWidth = ctx.measureText(node.label).width;
+              ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+              ctx.fillRect(pos.x - textWidth/2 - 5, pos.y - 10, textWidth + 10, 20);
+              ctx.fillStyle = 'white';
+              ctx.fillText(node.label, pos.x, pos.y);
+            }
+          }
+        } else {
+          // 使用实际节点数据 - 使用positions对象中的位置
+          console.log("使用实际节点数据进行渲染，位置对象中键的数量:", Object.keys(positions).length);
+          
+          // 首先尝试在节点中心绘制一个十字线，便于调试
+          Object.entries(positions).forEach(([nodeId, pos]) => {
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.moveTo(pos.x - 20, pos.y);
+            ctx.lineTo(pos.x + 20, pos.y);
+            ctx.moveTo(pos.x, pos.y - 20);
+            ctx.lineTo(pos.x, pos.y + 20);
+            ctx.stroke();
+          });
+          
+          // 再绘制实际的连接线和节点
+          drawLinks();
+          drawNodes();
+        }
         
         // 恢复状态
         ctx.restore();
@@ -1200,7 +1290,7 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [processedNodes, links, positions, width, height, hoveredNode]);
+  }, [processedNodes, links, positions, width, height, hoveredNode, testNodes, testLinks]);
   
   // 处理缩放按钮点击
   const handleControlClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
