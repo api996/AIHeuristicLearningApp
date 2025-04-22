@@ -1188,9 +1188,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // 重新生成回复
-      log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."`);
-      const response = await chatService.sendMessage(promptMessage, userId, Number(chatId));
+      // 重新生成回复，传入网络搜索参数
+      log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."，使用网络搜索=${shouldUseSearch}`);
+      const response = await chatService.sendMessage(promptMessage, userId, Number(chatId), shouldUseSearch);
 
       // 更新数据库中的消息，包括模型信息
       const updatedMessage = await storage.updateMessage(lastAiMessage.id, response.text, false, response.model);

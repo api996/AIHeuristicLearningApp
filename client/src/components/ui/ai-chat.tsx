@@ -404,7 +404,8 @@ export function AIChat({ userData }: AIChatProps) {
           userId: userData.userId,
           userRole: userData.role,
           chatId: currentChatId,
-          model: currentModel // 添加当前选择的模型信息
+          model: currentModel, // 添加当前选择的模型信息
+          useWebSearch: useWebSearch // 添加网络搜索参数
         })
       });
       
