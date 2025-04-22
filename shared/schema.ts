@@ -192,6 +192,31 @@ export const conversationAnalytics = pgTable("conversation_analytics", {
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
+// 知识图谱缓存表：存储预计算的知识图谱数据
+export const knowledgeGraphCache = pgTable("knowledge_graph_cache", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  nodes: json("nodes").notNull(), // 图谱节点数据
+  links: json("links").notNull(), // 图谱连接数据
+  version: integer("version").notNull().default(1), // 版本号用于刷新缓存
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // 缓存过期时间
+});
+
+// 聚类结果缓存表：存储记忆聚类分析结果
+export const clusterResultCache = pgTable("cluster_result_cache", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  clusterData: json("cluster_data").notNull(), // 聚类结果数据
+  clusterCount: integer("cluster_count").notNull(), // 聚类数量
+  vectorCount: integer("vector_count").notNull(), // 向量数量
+  version: integer("version").notNull().default(1), // 版本号
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // 缓存过期时间
+});
+
 export const insertMemorySchema = createInsertSchema(memories);
 export const insertMemoryKeywordSchema = createInsertSchema(memoryKeywords);
 export const insertMemoryEmbeddingSchema = createInsertSchema(memoryEmbeddings);
@@ -216,6 +241,8 @@ export type ConversationAnalytic = typeof conversationAnalytics.$inferSelect;
 export type UserFile = typeof userFiles.$inferSelect;
 export type UserSetting = typeof userSettings.$inferSelect;
 export type SystemConfig = typeof systemConfig.$inferSelect;
+export type KnowledgeGraphCache = typeof knowledgeGraphCache.$inferSelect;
+export type ClusterResultCache = typeof clusterResultCache.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertChat = z.infer<typeof insertChatSchema>;
