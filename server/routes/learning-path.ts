@@ -16,6 +16,7 @@ import { utils } from '../utils';
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import { storage } from '../storage';
 
 // 创建路由
 const router = Router();
@@ -245,8 +246,13 @@ router.get('/:userId/knowledge-graph', async (req, res) => {
     
     // 如果是刷新请求，清除缓存
     if (refresh) {
-      await storage.clearKnowledgeGraphCache(userId);
-      log(`[API] 已清除用户 ${userId} 的知识图谱缓存`);
+      try {
+        await storage.clearKnowledgeGraphCache(userId);
+        log(`[API] 已清除用户 ${userId} 的知识图谱缓存`);
+      } catch (error) {
+        log(`[API] 清除知识图谱缓存时出错: ${error}`);
+        // 清除缓存失败不应阻止生成新的知识图谱
+      }
     }
     
     // 设置响应头
