@@ -1965,6 +1965,27 @@ asyncio.run(test_memory())
       res.status(500).json({ message: "Failed to fetch system info" });
     }
   });
+  
+  // 管理员API: 获取用户反馈统计数据
+  app.get("/api/admin/feedback-stats", async (req, res) => {
+    try {
+      // 安全检查：确认请求来自管理员
+      const userId = req.session.userId;
+      const userRole = req.session.userRole;
+      
+      if (!userId || userRole !== "admin") {
+        log(`非管理员尝试访问反馈统计API: userId=${userId}, role=${userRole}`);
+        return res.status(403).json({ message: "仅管理员可访问此API" });
+      }
+      
+      log(`管理员(${userId})请求反馈统计数据`);
+      const stats = await storage.getFeedbackStats();
+      res.json(stats);
+    } catch (error) {
+      log(`获取反馈统计数据时出错: ${error}`);
+      res.status(500).json({ message: "获取反馈统计数据失败", error: error.message });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
