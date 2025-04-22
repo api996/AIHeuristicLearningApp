@@ -258,7 +258,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
   }, [highlightedNodeId]);
   
   // 链接标签渲染
-  const linkCanvasObject = useCallback((link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+  const linkCanvasObject = useCallback((link: GraphLink & {source: any; target: any; width: number}, ctx: CanvasRenderingContext2D, globalScale: number) => {
     // 获取连接的源和目标节点
     const sourceNode = graphData.nodes.find(n => n.id === link.source.id || n.id === link.source);
     const targetNode = graphData.nodes.find(n => n.id === link.target.id || n.id === link.target);
@@ -277,7 +277,9 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     
     // 绘制发光效果
     ctx.beginPath();
-    ctx.strokeStyle = link.color.replace(/[\d.]+\)$/, '0.3)');
+    // 使用默认颜色或link.color
+    const color = link.color || 'rgba(100, 100, 100, 0.7)';
+    ctx.strokeStyle = color.replace(/[\d.]+\)$/, '0.3)');
     ctx.lineWidth = glowWidth;
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
@@ -285,7 +287,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     
     // 绘制主线
     ctx.beginPath();
-    ctx.strokeStyle = link.color;
+    ctx.strokeStyle = color;
     ctx.lineWidth = width;
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);

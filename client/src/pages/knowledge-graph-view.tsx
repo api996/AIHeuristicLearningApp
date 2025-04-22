@@ -184,7 +184,7 @@ export default function KnowledgeGraphView() {
               links={graphData.links}
               width={window.innerWidth}
               height={window.innerHeight - 64}
-              onNodeClick={(nodeId) => {
+              onNodeClick={(nodeId: string) => {
                 const node = graphData.nodes.find(n => n.id === nodeId);
                 if (node) {
                   console.log(`点击了节点: ${node.label || nodeId}`);
