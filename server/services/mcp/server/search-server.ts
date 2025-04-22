@@ -374,7 +374,12 @@ const mcpWebSearchService = new MCPWebSearchService();
 // 创建 MCP Server (提示：如果SDK有变更，这里可能需要适配)
 const server = new McpServer({ 
   name: "mcp-search-server", 
-  version: "1.0.0" 
+  version: "1.0.0",
+  // 添加自定义信息，确保新版SDK客户端能获取服务器信息
+  capabilities: ["webSearch"],
+  info: {
+    description: "MCP搜索服务，支持多种搜索模式"
+  }
 });
 
 // 设置 stdio Transport

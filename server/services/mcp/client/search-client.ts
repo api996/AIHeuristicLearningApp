@@ -74,11 +74,21 @@ export class McpSearchClient {
       
       // 初始化握手 (使用try/catch捕获可能的错误)
       try {
-        // 如果 SDK 类型匹配，则可以执行以下代码
+        // 新的MCP SDK版本可能不需要或不支持显式初始化
+        // 尝试获取服务器信息而不是调用initialize
         // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
-        const init = await this.client.initialize();
-        log(`MCP 服务器握手成功，服务名称: ${init?.serverInfo?.name || '未知'}, 版本: ${init?.serverInfo?.version || '未知'}`);
-        log(`可用功能: ${JSON.stringify(init?.capabilities || [])}`);
+        if (typeof this.client.initialize === 'function') {
+          const init = await this.client.initialize();
+          log(`MCP 服务器握手成功，服务名称: ${init?.serverInfo?.name || '未知'}, 版本: ${init?.serverInfo?.version || '未知'}`);
+          log(`可用功能: ${JSON.stringify(init?.capabilities || [])}`);
+        } else if (typeof this.client.getServerInfo === 'function') {
+          // 尝试使用getServerInfo作为替代
+          const serverInfo = await this.client.getServerInfo();
+          log(`MCP 服务器信息获取成功: ${JSON.stringify(serverInfo)}`);
+        } else {
+          // 如果两种方法都不存在，假设不需要初始化
+          log(`MCP SDK版本不支持显式初始化，将直接使用已连接的客户端`);
+        }
       } catch (initError) {
         log(`MCP 初始化握手失败，继续执行: ${initError}`);
         // 继续执行，因为某些 SDK 版本可能不需要显式初始化
@@ -148,14 +158,27 @@ export class McpSearchClient {
           
           // 直接传递query参数，避免嵌套结构导致的问题
           // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
-          const result = await this.client.callTool({
-            name: "webSearch",
-            arguments: {
-              query: query, // 仅传递查询字符串
+          let result;
+          // 首先检查callTool方法是否存在
+          if (typeof this.client.callTool === 'function') {
+            result = await this.client.callTool({
+              name: "webSearch",
+              arguments: {
+                query: query, // 仅传递查询字符串
+                useMCP: useMCP,
+                numResults: numResults
+              }
+            });
+          } else if (typeof this.client.runTool === 'function') {
+            // 尝试替代方法
+            result = await this.client.runTool("webSearch", {
+              query: query,
               useMCP: useMCP,
               numResults: numResults
-            }
-          });
+            });
+          } else {
+            throw new Error("MCP客户端不支持工具调用方法");
+          }
           
           return { 
             success: true, 
