@@ -104,15 +104,15 @@ export class MemoryService {
       if (this.useClusterRetrieval) {
         // 使用基于聚类的检索方法
         log(`[MemoryService] 使用聚类记忆检索，用户ID=${userId}，查询="${query.substring(0, 30)}..."`);
-        return clusterMemoryRetrieval.retrieveClusterMemories(userId, query, limit);
+        return clusterMemoryRetrieval.retrieveClusterMemories(userId, query, options.limit || 5);
       } else {
         // 使用标准向量检索方法
         log(`[MemoryService] 使用标准向量记忆检索，用户ID=${userId}，查询="${query.substring(0, 30)}..."`);
-        return vectorEmbeddingsService.findSimilarMemories(userId, query, limit);
+        return vectorEmbeddingsService.findSimilarMemories(userId, query, options.limit || 5);
       }
     } catch (error) {
       log(`[MemoryService] 找不到相似记忆，回退到标准检索: ${error}`, "warn");
-      return vectorEmbeddingsService.findSimilarMemories(userId, query, limit);
+      return vectorEmbeddingsService.findSimilarMemories(userId, query, options.limit || 5);
     }
   }
 
@@ -140,8 +140,11 @@ export class MemoryService {
         
         // 记录第一个向量的前5个值，以便调试
         if (embeddings[0] && embeddings[0].length > 5) {
-          const sample = embeddings[0].slice(0, 5).map(v => v.toFixed(4)).join(', ');
-          log(`[MemoryService] 向量样本 [${sample}...]`);
+          // 只在真正需要调试时记录向量样本数据
+          if (process.env.DEBUG_VECTORS === 'true') {
+            const sample = embeddings[0].slice(0, 5).map(v => v.toFixed(4)).join(', ');
+            log(`[MemoryService] 向量样本 [${sample}...]`);
+          }
         }
         
         // 检查向量是否为高维向量(3072维)
