@@ -8,6 +8,7 @@ import { vectorEmbeddingsService } from "./vector_embeddings";
 import { clusterAnalyzer, ClusterTopic } from "./cluster_analyzer";
 import { storage } from "../../storage";
 import { Memory } from "@shared/schema";
+import { ClusterResult } from "./kmeans_clustering";
 
 export class ClusterMemoryRetrievalService {
   // 上次聚类结果缓存
@@ -93,6 +94,92 @@ export class ClusterMemoryRetrievalService {
   clearUserClusterCache(userId: number): void {
     this.clusterCache.delete(userId);
     log(`[ClusterMemoryRetrieval] 已清除用户${userId}的聚类缓存`);
+  }
+  
+  /**
+   * 获取用户的完整聚类结果
+   * 供知识图谱和学习路径生成使用
+   * 
+   * @param userId 用户ID
+   * @returns 聚类结果对象
+   */
+  async getUserClusters(userId: number): Promise<ClusterResult | null> {
+    try {
+      log(`[trajectory] 获取用户${userId}的聚类数据`);
+      
+      // 获取用户所有记忆
+      const memories = await storage.getMemoriesByUserId(userId);
+      
+      if (!memories || memories.length < 5) {
+        log(`[trajectory] 用户记忆数量不足，无法执行聚类，用户ID=${userId}`);
+        return null;
+      }
+      
+      // 获取记忆的向量嵌入
+      const memoryVectors: { id: string | number; vector: number[] }[] = [];
+      
+      for (const memory of memories) {
+        const embedding = await storage.getEmbeddingByMemoryId(memory.id);
+        if (embedding && Array.isArray(embedding.vectorData)) {
+          memoryVectors.push({
+            id: memory.id,
+            vector: embedding.vectorData
+          });
+        }
+      }
+      
+      if (memoryVectors.length < 5) {
+        log(`[trajectory] 向量数量不足，用户ID=${userId}`);
+        return null;
+      }
+      
+      log(`[trajectory] 找到 ${memories.length} 条记忆数据，其中 ${memoryVectors.length} 条有有效向量嵌入`);
+      
+      // 检查向量维度并筛选维度一致的向量
+      const dimensionCounts = new Map<number, number>();
+      memoryVectors.forEach(vec => {
+        const dim = vec.vector.length;
+        dimensionCounts.set(dim, (dimensionCounts.get(dim) || 0) + 1);
+      });
+      
+      // 选择最常见的维度
+      let primaryDimension = 0;
+      let maxCount = 0;
+      
+      dimensionCounts.forEach((count, dimension) => {
+        if (count > maxCount) {
+          maxCount = count;
+          primaryDimension = dimension;
+        }
+      });
+      
+      const filteredVectors = memoryVectors.filter(vec => vec.vector.length === primaryDimension);
+      
+      if (filteredVectors.length < 5) {
+        log(`[trajectory] 筛选后的向量数量不足`);
+        return null;
+      }
+      
+      log(`[MemoryService] 记忆聚类分析: 用户ID=${userId}, 记忆数量=${filteredVectors.length}, 向量维度=${primaryDimension}`);
+      
+      // 从cluster_analyzer导入pythonClusteringService
+      const { pythonClusteringService } = await import('./python_clustering');
+      
+      // 执行聚类
+      const clusterResult = await pythonClusteringService.clusterVectors(filteredVectors);
+      
+      if (!clusterResult || !clusterResult.centroids || clusterResult.centroids.length === 0) {
+        log(`[trajectory] 聚类失败，未找到任何聚类`);
+        return null;
+      }
+      
+      log(`[trajectory] 成功从memory_service获取聚类数据: ${clusterResult.centroids.length} 个聚类`);
+      
+      return clusterResult;
+    } catch (error) {
+      log(`[trajectory] 获取用户聚类数据出错: ${error}`);
+      return null;
+    }
   }
   
   /**

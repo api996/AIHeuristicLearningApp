@@ -268,6 +268,31 @@ export class MemoryService {
   }
   
   /**
+   * 获取用户的聚类数据
+   * @param userId 用户ID
+   * @returns 聚类结果和聚类数量
+   */
+  async getUserClusters(userId: number): Promise<{ clusterResult: any, clusterCount: number }> {
+    try {
+      const result = await clusterMemoryRetrieval.getUserClusters(userId);
+      const clusterCount = result?.centroids?.length || 0;
+      
+      log(`[MemoryService] 获取用户${userId}的聚类数据: ${clusterCount}个聚类`);
+      
+      return {
+        clusterResult: result,
+        clusterCount: clusterCount
+      };
+    } catch (error) {
+      log(`[MemoryService] 获取用户聚类数据出错: ${error}`, "error");
+      return {
+        clusterResult: null,
+        clusterCount: 0
+      };
+    }
+  }
+  
+  /**
    * 测试Python聚类服务
    * 使用随机生成的高维向量验证聚类功能
    */
