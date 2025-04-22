@@ -1,59 +1,189 @@
-/* 记忆空间页面在iPad上的布局修复 */
+/* 记忆空间特定的样式修复 */
 
-/* 确保在iPad设备上页面布局正确 */
+/* 主容器修复 */
 .memory-space-container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  max-height: 100vh;
+  width: 100%;
+  height: 100%;
+  position: relative;
   overflow: hidden;
 }
 
-/* 修复iPad特有的滚动问题 */
-.memory-list {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch; /* iOS滚动优化 */
-  padding-bottom: 100px; /* 确保底部内容可见 */
+/* 针对iPad的特殊修复 */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .memory-space-container {
+    height: calc(100vh - 60px);
+    height: calc(var(--vh, 1vh) * 100 - 60px);
+  }
 }
 
-/* 修复iPad上的滚动区域高度计算 */
-@media (max-width: 1024px) {
-  .memory-list {
-    max-height: calc(100vh - 200px);
+/* 确保图表容器正确显示 */
+.graph-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* 防止在移动设备上的溢出问题 */
+.canvas-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: pan-x pan-y;
+}
+
+/* SVG元素的基本样式修复 */
+.memory-space-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 修复节点渲染问题 */
+.node {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+/* 修复边线渲染问题 */
+.link {
+  stroke-width: 1px;
+  transition: opacity 0.2s ease;
+}
+
+/* 增强触摸设备上的节点可点击性 */
+@media (pointer: coarse) {
+  .node circle {
+    r: 15; /* 增大节点半径 */
   }
   
-  .memory-card {
-    margin-bottom: 12px;
+  .link {
+    stroke-width: 2px; /* 加粗连接线 */
   }
 }
 
-/* 修复iPad上的标题栏在横屏模式下的位置 */
-@media (orientation: landscape) and (max-width: 1180px) {
-  .memory-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: rgba(0, 0, 0, 0.9);
+/* 修复标签文本显示问题 */
+.node-label {
+  font-size: 12px;
+  text-anchor: middle;
+  pointer-events: none;
+  fill: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+@media (pointer: coarse) {
+  .node-label {
+    font-size: 14px;
   }
 }
 
-/* 修复记忆卡片在iPad上的布局 */
-.memory-card {
-  width: 100%;
-  border-radius: 8px;
-  overflow: hidden;
-  transition: all 0.2s ease;
-}
-
-/* 修复iPad上触摸交互问题 */
-.touch-scroll-container {
-  -webkit-overflow-scrolling: touch;
-  overflow-y: auto;
-}
-
-/* 修复关键词标签在iPad上的显示 */
-.memory-keywords {
+/* 修复按钮样式问题 */
+.control-button {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  color: #1f2937;
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  transition: background-color 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.control-button:hover {
+  background-color: #f9fafb;
+}
+
+.control-button:active {
+  background-color: #f3f4f6;
+}
+
+/* 修复控制面板布局问题 */
+.control-panel {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 10;
+}
+
+/* 确保工具提示正常显示 */
+.tooltip {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  pointer-events: none;
+  max-width: 300px;
+  z-index: 20;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* 修复图例显示问题 */
+.legend {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.legend-color {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+}
+
+/* 加载状态修复 */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.7);
+  z-index: 50;
+}
+
+/* 空状态消息修复 */
+.empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  padding: 1rem;
+  max-width: 90%;
+}
+
+/* 修复图表交互状态 */
+.is-dragging .node,
+.is-dragging .link {
+  pointer-events: none;
+}
+
+/* 修复高亮状态 */
+.node.highlighted circle {
+  stroke-width: 3px;
+  stroke: #3b82f6;
 }
