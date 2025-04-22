@@ -809,14 +809,20 @@ ${searchResults}
     return processedPrompt;
   }
 
-  async sendMessage(message: string, userId?: number, chatId?: number, useWebSearch?: boolean) {
+  async sendMessage(
+    message: string, 
+    userId?: number, 
+    chatId?: number, 
+    useWebSearch?: boolean,
+    contextMessages?: Message[] // 新增参数：用于指定上下文消息
+  ) {
     try {
       // 如果提供了参数，则更新搜索设置
       if (useWebSearch !== undefined) {
         this.setWebSearchEnabled(useWebSearch);
       }
       
-      log(`Processing message with ${this.currentModel} model: ${message}, web search: ${this.useWebSearch}`);
+      log(`Processing message with ${this.currentModel} model: ${message.substring(0, 50)}..., web search: ${this.useWebSearch}, context messages: ${contextMessages ? contextMessages.length : 'none'}`);
       const config = this.modelConfigs[this.currentModel];
       
       // 对用户输入进行内容审查 - 前置审查
@@ -844,8 +850,8 @@ ${searchResults}
       // 如果有chatId，尝试分析当前对话阶段并获取动态提示词
       if (chatId && userId) {
         try {
-          // 如果有聊天历史，获取最近的消息进行分析
-          const messages = await storage.getChatMessages(chatId, userId, false);
+          // 优先使用提供的上下文消息，否则获取聊天历史
+          const messages = contextMessages || await storage.getChatMessages(chatId, userId, false);
           
           if (messages && messages.length > 0) {
             // 添加当前用户消息到分析列表（因为它还未保存到数据库）
@@ -857,7 +863,8 @@ ${searchResults}
               createdAt: new Date(),
               model: null,
               feedback: null,
-              isEdited: null
+              isEdited: null,
+              isActive: true
             };
             
             const messagesWithCurrent: Message[] = [

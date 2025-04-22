@@ -1165,9 +1165,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
           log(`为消息 ${messageId} 准备重新生成，使用 ${contextMessages.length} 条消息作为上下文`);
           
-          // 重新生成回复，传入userId用于记忆检索，并传入网络搜索参数
-          log(`使用提示重新生成回复: "${promptMessage.substring(0, 50)}..."，使用网络搜索=${shouldUseSearch}`);
-          const response = await chatService.sendMessage(promptMessage, userId, Number(chatId), shouldUseSearch);
+          // 使用上下文消息进行重新生成，确保只使用目标消息之前的对话
+          log(`使用自定义上下文重新生成回复: "${promptMessage.substring(0, 50)}..."，上下文消息数量=${contextMessages.length}，使用网络搜索=${shouldUseSearch}`);
+          const response = await chatService.sendMessage(promptMessage, userId, Number(chatId), shouldUseSearch, contextMessages);
 
           // 更新数据库中的消息，包括模型信息
           const updatedMessage = await storage.updateMessage(messageId, response.text, false, response.model);
