@@ -158,34 +158,28 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
       // 获取记忆的向量嵌入
       const memoriesWithEmbeddings = await Promise.all(
         memoryObjects.map(async (memory) => {
-          // 尝试将文件系统ID格式转换为数据库ID格式
-          // 首先尝试使用数字ID格式（如"121"）
-          let dbId = String(parseInt(memory.id));
-          if (isNaN(parseInt(memory.id))) {
-            // 如果不是数字ID格式，则使用原始ID
-            dbId = memory.id;
-          }
+          // 直接使用记忆ID，因为所有记忆ID现在都是统一的时间戳格式字符串
+          const memoryId = memory.id;
           
-          // 使用数据库ID格式获取向量嵌入
-          const embedding = await storage.getEmbeddingByMemoryId(dbId);
+          // 使用记忆ID获取向量嵌入
+          const embedding = await storage.getEmbeddingByMemoryId(memoryId);
           
           // 记录向量信息用于调试
           if (embedding && Array.isArray(embedding.vectorData) && embedding.vectorData.length > 0) {
             const vectorLength = embedding.vectorData.length;
             const sample = embedding.vectorData.slice(0, 3).map(v => v.toFixed(4)).join(', ');
-            log(`[trajectory] 记忆ID ${memory.id} (数据库ID ${dbId}) 有有效向量: 长度=${vectorLength}, 样本=[${sample}...]`);
+            log(`[trajectory] 记忆ID ${memoryId} 有有效向量: 长度=${vectorLength}, 样本=[${sample}...]`);
           } else {
             const reason = embedding 
               ? (Array.isArray(embedding.vectorData) 
                  ? "向量数组为空" 
                  : `向量数据类型错误: ${typeof embedding.vectorData}`)
               : "未找到向量记录";
-            log(`[trajectory] 记忆ID ${memory.id} (数据库ID ${dbId}) 未找到有效向量嵌入: ${reason}`);
+            log(`[trajectory] 记忆ID ${memoryId} 未找到有效向量嵌入: ${reason}`);
             
-            // 如果第一次尝试失败，尝试查询全部记忆获取正确的ID
-            if (!embedding && memory.id.length > 10) {
-              // 这可能是一个时间戳格式的ID，尝试在数据库中查找最近的记忆
-              log(`[trajectory] 尝试为时间戳ID ${memory.id} 查找匹配的数据库记录`);
+            // 如果ID不是时间戳格式，尝试运行修复脚本
+            if (!memoryId.match(/^\d{20}$/)) {
+              log(`[trajectory] 警告：记忆ID ${memoryId} 不是标准的时间戳格式，建议运行修复脚本`);
             }
           }
           
