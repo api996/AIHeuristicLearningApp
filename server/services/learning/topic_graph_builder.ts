@@ -4,10 +4,10 @@
  */
 
 import { log } from "../../vite";
-import { callGemini } from '../ai/genai_service';
+import { callGemini } from '../genai/genai_service';
 import { db } from "../../db";
 import { memories, memoryKeywords, knowledgeGraphCache } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 // 聚类中心类型定义
 interface ClusterCenter {
@@ -254,7 +254,7 @@ export async function buildUserKnowledgeGraph(userId: number): Promise<GraphData
         set: {
           nodes: graphData.nodes,
           links: graphData.links,
-          version: sql\`\${knowledgeGraphCache.version} + 1\`,
+          version: sql`${knowledgeGraphCache.version} + 1`,
           updatedAt: new Date(),
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
         }
@@ -311,5 +311,4 @@ export async function testTopicGraphBuilder() {
   }
 }
 
-// 导入需要的SQL函数
-import { sql } from "drizzle-orm";
+// SQL函数已在顶部导入
