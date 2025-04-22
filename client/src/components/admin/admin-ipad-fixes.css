@@ -1,139 +1,60 @@
-/**
- * 管理员后台界面iPad专用修复样式
- * 用于解决在iPad设备上管理员后台界面刷新后标签页和表单元素样式崩溃问题
- */
+/* 管理员界面在iPad上的特定布局修复 */
 
-/* 管理员页面基础样式修复 */
-.ipad-device .admin-dashboard-container {
-  width: 100% !important;
-  height: auto !important;
-  min-height: 100vh !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow-x: hidden !important;
-  padding-bottom: 50px !important;
+/* 修复整体容器在iPad上的布局 */
+.admin-dashboard-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
-/* 标签页修复 */
-.ipad-device .admin-dashboard-container [role="tablist"] {
-  display: flex !important;
-  flex-direction: row !important;
-  width: 100% !important;
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  scrollbar-width: none !important; /* Firefox */
-  border-bottom: 1px solid hsl(var(--border)) !important;
-  margin-bottom: 1rem !important;
-}
-
-/* 隐藏滚动条 */
-.ipad-device .admin-dashboard-container [role="tablist"]::-webkit-scrollbar {
-  display: none !important;
-}
-
-/* 标签按钮修复 */
-.ipad-device .admin-dashboard-container [role="tab"] {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  height: 40px !important;
-  padding: 0 16px !important;
-  white-space: nowrap !important;
-  flex-shrink: 0 !important;
-  border-radius: 0 !important;
-  border-bottom: 2px solid transparent !important;
-  min-width: 100px !important;
-}
-
-/* 活跃标签修复 */
-.ipad-device .admin-dashboard-container [role="tab"][data-state="active"] {
-  border-bottom: 2px solid hsl(var(--primary)) !important;
-  font-weight: 500 !important;
-}
-
-/* 标签内容区域修复 */
-.ipad-device .admin-dashboard-container [role="tabpanel"] {
-  width: 100% !important;
-  height: auto !important;
-  padding: 1rem 0 !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-}
-
-/* 卡片修复 */
-.ipad-device .admin-dashboard-container .card {
-  width: 100% !important;
-  height: auto !important;
-  min-height: 100px !important;
-  margin-bottom: 1rem !important;
+/* 修复标签页在iPad上的布局问题 */
+.admin-tabs {
+  width: 100%;
   overflow: visible !important;
 }
 
-/* 表格修复 */
-.ipad-device .admin-dashboard-container table {
+/* 修复标签内容垂直渲染问题 */
+.admin-dashboard-tabs-content {
+  display: block !important;
   width: 100% !important;
-  border-collapse: collapse !important;
-  table-layout: fixed !important;
-}
-
-/* 确保设置表单正确显示 */
-.ipad-device .admin-dashboard-container form {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 1rem !important;
-  width: 100% !important;
-}
-
-/* 表单项修复 */
-.ipad-device .admin-dashboard-container .form-item {
-  width: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-/* 确保按钮正常显示 */
-.ipad-device .admin-dashboard-container button {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
   height: auto !important;
-  min-height: 36px !important;
-  padding: 0.5rem 1rem !important;
 }
 
-/* 统计卡片修复 */
-.ipad-device .admin-dashboard-container .stats-container {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)) !important;
-  gap: 1rem !important;
-  width: 100% !important;
+/* 保持正确的文本方向 */
+.admin-tabs .tabs-trigger {
+  writing-mode: horizontal-tb !important;
 }
 
-/* 确保统计卡片内容垂直布局 */
-.ipad-device .admin-dashboard-container .stats-card {
-  display: flex !important;
-  flex-direction: column !important;
-  height: auto !important;
-  min-height: 120px !important;
+/* 修复标签在iPad上的显示 */
+@media (max-width: 1024px) {
+  .admin-tabs .tabs-list {
+    display: flex !important;
+    flex-direction: row !important;
+    width: 100% !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .admin-tabs .tabs-trigger {
+    flex: none !important;
+    min-width: auto !important;
+    padding: 0.5rem 1rem !important;
+  }
 }
 
-/* 修复页面滚动 */
-.ipad-device .admin-dashboard-scrollable {
-  max-height: 100vh !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  padding-bottom: 50px !important;
+/* 修复iPad上卡片在横屏模式下的宽度 */
+@media (orientation: landscape) and (max-width: 1180px) {
+  .admin-dashboard .card {
+    width: 100% !important;
+  }
+  
+  .admin-dashboard .grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  }
 }
 
-/* 图标大小和间距修复 */
-.ipad-device .admin-dashboard-container svg {
-  flex-shrink: 0 !important;
-}
-
-/* 管理员设置组件修复 */
-.ipad-device .admin-settings-container {
-  display: flex !important;
-  flex-direction: column !important;
-  width: 100% !important;
-  gap: 1rem !important;
+/* 修复拖拽和滚动冲突问题 */
+.admin-dashboard-container * {
+  touch-action: pan-y;
 }
