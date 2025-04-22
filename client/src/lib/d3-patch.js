@@ -1,194 +1,80 @@
 /**
- * D3.js 库补丁文件
- * 确保D3库在各种环境下正确加载，支持iPad和高分辨率屏幕
+ * D3.js补丁 - 简化版
+ * 
+ * 这个文件修复D3.js在SimpleKnowledgeGraph组件中使用d3-drag和d3-zoom时的兼容性问题
+ * 通过全局对象初始化解决D3实例在不同模块间共享的问题
  */
 
-// 创建全局补丁对象
-window._d3Patch = window._d3Patch || {
-  loaded: false,
-  retryCount: 0,
-  maxRetries: 3
-};
-
-// 导出加载检查函数
-export const ensureD3Loaded = () => {
-  return new Promise((resolve) => {
-    if (window.d3) {
-      resolve(true);
-      return;
-    }
-    
-    // 如果D3未加载，尝试加载
-    loadD3Library().then(success => {
-      resolve(success);
-    });
-  });
-};
-
-// 加载D3库
-function loadD3Library() {
-  return new Promise((resolve) => {
+// 在主文件加载时立即执行初始化
+(function() {
+  // 确保在浏览器环境中运行
+  if (typeof window === 'undefined') return;
+  
+  // 创建全局函数，确保它可以在组件内部访问
+  window.loadD3AndApplyPatch = function() {
     try {
-      const script = document.createElement('script');
-      script.src = "https://d3js.org/d3.v7.min.js";
-      script.async = true;
-      
-      script.onload = function() {
-        window._d3Patch.loaded = true;
-        applyD3Patches();
-        resolve(true);
-      };
-      
-      script.onerror = function() {
-        window._d3Patch.retryCount++;
-        if (window._d3Patch.retryCount < window._d3Patch.maxRetries) {
-          setTimeout(() => loadD3Library().then(resolve), 1000);
-        } else {
-          resolve(false);
-        }
-      };
-      
-      document.head.appendChild(script);
-    } catch (err) {
-      resolve(false);
-    }
-  });
-}
-
-// 应用D3补丁
-function applyD3Patches() {
-  if (!window.d3) return;
-  
-  // 修复触摸事件
-  if (typeof window.d3.select === 'function') {
-    const originalSelect = window.d3.select;
-    window.d3.select = function() {
-      const selection = originalSelect.apply(this, arguments);
-      enhanceSelection(selection);
-      return selection;
-    };
-  }
-  
-  if (typeof window.d3.selectAll === 'function') {
-    const originalSelectAll = window.d3.selectAll;
-    window.d3.selectAll = function() {
-      const selection = originalSelectAll.apply(this, arguments);
-      enhanceSelection(selection);
-      return selection;
-    };
-  }
-  
-  // 检测是否为iPad，应用专用修复
-  if (isIPadDevice()) {
-    applyIPadSpecificFixes();
-  }
-}
-
-// 增强选择集
-function enhanceSelection(selection) {
-  if (!selection || !selection.on) return selection;
-  
-  // 保存原始on方法
-  const originalOn = selection.on;
-  
-  // 增强on方法，自动添加触摸事件支持
-  selection.on = function(typenames, listener, capture) {
-    if (typenames && typeof typenames === 'string' && listener) {
-      // 为鼠标事件添加对应的触摸事件
-      const touchMapping = {
-        'mousedown': 'touchstart',
-        'mousemove': 'touchmove',
-        'mouseup': 'touchend',
-        'click': 'touchend'
-      };
-      
-      const touchEvent = touchMapping[typenames];
-      if (touchEvent) {
-        // 包装触摸事件监听器，使其模拟鼠标事件
-        const touchListener = function(event) {
-          if (event.touches && event.touches[0]) {
-            // 创建模拟鼠标事件
-            const touch = event.touches[0];
-            const simulatedEvent = {
-              ...event,
-              clientX: touch.clientX,
-              clientY: touch.clientY,
-              pageX: touch.pageX,
-              pageY: touch.pageY,
-              screenX: touch.screenX,
-              screenY: touch.screenY
-            };
-            
-            // 调用原始监听器
-            listener.call(this, simulatedEvent);
-          }
+      // 创建全局d3Selection和_d3Selection对象
+      if (!window._d3Selection) {
+        window._d3Selection = {
+          d3: window.d3, // 保存D3实例引用
+          event: null,
+          transform: { k: 1, x: 0, y: 0 }
         };
-        
-        // 添加触摸事件监听器
-        originalOn.call(this, touchEvent, touchListener, capture);
+        console.log("D3直接补丁已加载 - 全局_d3Selection对象已创建");
       }
+      
+      if (!window.d3Selection) {
+        window.d3Selection = {
+          d3: window.d3, // 保存D3实例引用
+          event: null,
+          mouse: function(container) {
+            // 如果有自定义事件，使用事件坐标
+            if (this.event && this.event.x !== undefined && this.event.y !== undefined) {
+              return [this.event.x, this.event.y];
+            }
+            // 否则返回默认值
+            return [0, 0];
+          },
+          // 保存当前事件和变换
+          setEvent: function(event) {
+            this.event = event;
+          },
+          transform: { k: 1, x: 0, y: 0 }
+        };
+      }
+      
+      // 标记补丁已初始化
+      window._d3PatchInitialized = true;
+      
+      return true;
+    } catch (e) {
+      console.warn("D3补丁初始化错误:", e);
+      return false;
     }
-    
-    // 调用原始方法
-    return originalOn.apply(this, arguments);
   };
   
-  return selection;
-}
-
-// 检测iPad设备
-function isIPadDevice() {
-  const userAgent = navigator.userAgent.toLowerCase();
-  return /ipad/.test(userAgent) || 
-         (/macintosh/.test(userAgent) && 'ontouchend' in document);
-}
-
-// 应用iPad专用修复
-function applyIPadSpecificFixes() {
-  // 添加触摸优化样式
-  const style = document.createElement('style');
-  style.textContent = `
-    svg {
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    .d3-force-graph-container {
-      touch-action: pan-x pan-y;
-    }
-    .d3-force-graph {
-      touch-action: manipulation;
-    }
-  `;
-  document.head.appendChild(style);
-  
-  // 监听窗口大小变化，触发SVG更新
-  window.addEventListener('resize', function() {
-    if (window.d3) {
-      document.querySelectorAll('svg').forEach(svg => {
-        // 触发重新渲染
-        const event = new Event('resize-svg');
-        svg.dispatchEvent(event);
-      });
-    }
-  });
-  
-  console.log("已应用iPad设备D3.js优化");
-}
-
-// DOM加载完成后检查D3状态
-document.addEventListener('DOMContentLoaded', function() {
-  if (window.d3 && !window._d3Patch.loaded) {
-    window._d3Patch.loaded = true;
-    applyD3Patches();
-    console.log("检测到D3.js已加载，应用补丁");
+  // 如果window.d3还不存在，设置一个监听器等待D3加载
+  if (!window.d3) {
+    console.warn("D3补丁警告: d3对象未定义，无法应用补丁");
+    
+    // 尝试每500毫秒检查一次，共尝试10次
+    let attempts = 0;
+    const maxAttempts = 10;
+    const interval = setInterval(() => {
+      attempts++;
+      if (window.d3) {
+        clearInterval(interval);
+        window.loadD3AndApplyPatch();
+      } else if (attempts >= maxAttempts) {
+        clearInterval(interval);
+        console.warn("D3补丁警告: 多次尝试后d3对象仍未定义，无法应用补丁");
+      }
+    }, 500);
+  } else {
+    // D3已存在，直接初始化
+    window.loadD3AndApplyPatch();
   }
-});
+})();
 
-// 导出实用函数
-export default {
-  isLoaded: () => !!window.d3,
-  applyPatches: applyD3Patches,
-  ensureLoaded: ensureD3Loaded
-};
+// 导出空对象 - 主要功能已通过全局函数提供
+export default {};

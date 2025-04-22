@@ -694,6 +694,13 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
     
     // 创建渲染函数 - 支持变换和缩放
     const render = () => {
+      // 如果在初始化状态，绘制加载动画，但只显示2秒后强制显示图谱
+      // 确保即使动画代码有问题也能显示图谱
+      if (isInitializing && loadingProgress < 95) {
+        drawLoadingIndicator();
+        return;
+      }
+      
       // 清除画布
       ctx.clearRect(0, 0, width, height);
       
@@ -706,18 +713,6 @@ const StaticKnowledgeGraph: React.FC<StaticKnowledgeGraphProps> = ({
       // 应用平移和缩放
       ctx.translate(translateX, translateY);
       ctx.scale(scale, scale);
-      
-      // 如果在初始化状态，绘制加载动画，但最多显示2秒
-      // 这样可以确保即使数据还没完全准备好，界面也能响应
-      if (isInitializing && loadingProgress < 95) {
-        drawLoadingIndicator();
-        // 强制继续渲染图形，确保不会卡在加载画面
-        setTimeout(() => {
-          if (canvasRef.current) {
-            setIsInitializing(false);
-          }
-        }, 2000);
-      }
       
       // 绘制图谱背景 - 添加渐变和网格
       const drawBackground = () => {
