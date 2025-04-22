@@ -153,8 +153,9 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
         // 由于类型不兼容，转换为memory_service需要的格式
         // 我们先做类型转换，确保ID是数字，并且时间戳是Date对象
         const convertedMemories = validMemories.map(m => {
-          // 确保ID是数字
-          const memoryId = typeof m.id === 'string' ? parseInt(m.id, 10) : (m.id as unknown as number);
+          // 使用原始ID字符串，避免ID转换问题
+          // 记忆ID保持原始字符串格式，以确保数据库查询匹配
+          const memoryId = m.id; // 保持原始ID格式
           const userIdNum = typeof m.userId === 'string' ? parseInt(m.userId, 10) : (m.userId as unknown as number);
           
           // 确保timestamp和createdAt是Date对象
