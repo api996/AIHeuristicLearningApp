@@ -12,7 +12,7 @@ import { log } from "../vite";
 const router = Router();
 
 // 记忆修复API
-router.get('/repair-memory', async (req, res) => {
+router.get('/', async (req, res) => {
   const { userId } = req.query;
   const userIdNumber = Number(userId);
   
