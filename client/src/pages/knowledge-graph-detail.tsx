@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, RefreshCw, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 // 使用组件
-import StaticKnowledgeGraph from "@/components/StaticKnowledgeGraph";
+import ForceGraphKnowledgeGraph from "@/components/ForceGraphKnowledgeGraph";
 import SimpleGraphChart from "@/components/SimpleGraphChart";
 // 导入iPad滚动修复CSS
 import '@/components/ui/knowledge-graph-fixes.css';
@@ -613,7 +613,7 @@ export default function KnowledgeGraphDetail() {
                   alignItems: 'center'
                 }}
               >
-                <StaticKnowledgeGraph
+                <ForceGraphKnowledgeGraph
                   nodes={graphData.nodes}
                   links={graphData.links}
                   width={isFullScreen ? window.innerWidth - 40 : window.innerWidth > 768 ? 800 : window.innerWidth - 20}
