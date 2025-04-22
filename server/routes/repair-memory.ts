@@ -59,8 +59,25 @@ router.get('/', async (req, res) => {
           continue;
         }
         
-        // 使用向量服务生成向量嵌入
-        const embedding = await vectorEmbeddingsService.generateEmbedding(memory.content);
+        // 使用向量服务生成向量嵌入，使用备用方法
+        // 由于Python服务可能出现问题，直接使用GenAI服务生成嵌入
+        let embedding;
+        try {
+          log(`为记忆ID ${memory.id} 生成向量嵌入，内容长度: ${memory.content.length}`, 'info');
+          embedding = await vectorEmbeddingsService.generateEmbedding(memory.content);
+        } catch (embedError: any) {
+          log(`使用主服务生成向量嵌入失败: ${embedError.message || embedError}，尝试备用方法`, 'warn');
+          
+          // 导入GenAI服务作为备用
+          const { genAiService } = await import('../services/genai/genai_service');
+          embedding = await genAiService.generateEmbedding(memory.content);
+          
+          if (!embedding) {
+            log(`备用方法也无法生成向量嵌入`, 'error');
+          } else {
+            log(`成功使用备用方法生成向量嵌入，维度: ${embedding.length}`, 'info');
+          }
+        }
         
         if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
           log(`记忆ID ${memory.id} 向量化失败，跳过`, 'warn');
