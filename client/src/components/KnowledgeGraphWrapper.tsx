@@ -93,6 +93,28 @@ const KnowledgeGraphWrapper: React.FC<KnowledgeGraphWrapperProps> = ({
     try {
       if (errorState) {
         console.error("知识图谱渲染错误:", errorState);
+        
+        // 尝试恢复 - 确保全局D3对象存在
+        if (typeof window !== 'undefined') {
+          if (!window.d3 && typeof d3 !== 'undefined') {
+            window.d3 = d3;
+            console.log("已恢复全局d3对象");
+          }
+          
+          if (!window._d3Selection) {
+            window._d3Selection = {
+              event: {
+                transform: { k: 1, x: 0, y: 0 }
+              }
+            };
+            console.log("已恢复全局_d3Selection对象");
+          }
+          
+          // 延迟清除错误状态，尝试恢复
+          setTimeout(() => {
+            setErrorState(null);
+          }, 2000);
+        }
       }
     } catch (err) {
       console.error("渲染错误处理失败:", err);
