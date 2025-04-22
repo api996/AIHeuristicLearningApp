@@ -1,101 +1,112 @@
 /**
- * 知识图谱页面专用修复样式
- * 确保在iPad和浏览器刷新后保持正确的布局
+ * 知识图谱组件特定修复
+ * 解决浏览器刷新后样式和渲染问题
  */
 
-/* 修复知识图谱容器样式 */
+/* 主要容器样式修复 */
 .knowledge-graph-container {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: linear-gradient(to bottom, #0f172a, #020617);
+}
+
+/* 导航栏样式 */
+.knowledge-graph-navigation {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 100%;
+  height: 64px;
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 10;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 防止按钮在iPad上错位 */
+.knowledge-graph-back-button,
+.knowledge-graph-refresh-button {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 修复按钮组合样式 */
+.knowledge-graph-refresh-button {
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 12px !important;
+  width: auto !important;
+}
+
+/* 修复图表容器样式 */
+.d3-force-graph-container {
+  width: 100vw;
+  height: calc(100vh - 64px);
+  margin-top: 64px;
   overflow: hidden;
 }
 
-/* 确保SVG视图容器正确渲染 */
-.d3-force-graph-container {
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 70vh;
-  position: relative;
-}
-
-/* 修复iPad专用样式 */
-@media (max-width: 1024px) {
-  .d3-force-graph-container {
-    min-height: 60vh;
-  }
-}
-
-/* 确保节点和链接正确渲染 */
-.d3-force-graph-container .nodes circle {
-  fill: currentColor;
-  stroke: #333;
-  stroke-width: 1px;
-}
-
-.d3-force-graph-container .links line {
-  stroke: rgba(255, 255, 255, 0.2);
-  stroke-opacity: 0.6;
-}
-
-/* 修复返回按钮样式 */
-.knowledge-graph-back-button {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  z-index: 100;
-  background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-/* 修复刷新按钮样式 */
-.knowledge-graph-refresh-button {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 100;
-  background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-/* 确保节点标签正确显示 */
-.node-label {
-  font-size: 12px;
-  fill: white;
-  text-anchor: middle;
-  pointer-events: none;
+.d3-force-graph {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: manipulation;
 }
 
 /* 修复加载指示器样式 */
 .graph-loading-indicator {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background-color: rgba(0, 0, 0, 0.7);
-  border-radius: 8px;
-  color: white;
+  width: 100%;
+  height: 100%;
 }
 
-/* 修复导航链接样式 */
-.knowledge-graph-navigation {
-  display: flex;
-  justify-content: space-between;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+/* 确保在切换视图时图形正确卸载 */
+.react-router-unmount .d3-force-graph svg {
+  display: none;
+}
+
+/* 确保图例样式正确 */
+.graph-legend {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: rgba(15, 23, 42, 0.8);
+  border-radius: 8px;
+  padding: 12px;
   z-index: 10;
-  padding: 15px;
-  background-color: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 修复在iPad上的触摸交互 */
+@media (hover: none) and (pointer: coarse) {
+  .knowledge-graph-navigation {
+    height: 56px;
+  }
+  
+  .d3-force-graph-container {
+    height: calc(100vh - 56px);
+    margin-top: 56px;
+  }
+  
+  .knowledge-graph-back-button,
+  .knowledge-graph-refresh-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .knowledge-graph-refresh-button {
+    min-width: 80px;
+  }
 }
