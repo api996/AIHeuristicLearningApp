@@ -41,8 +41,8 @@ async function testMCPSearch() {
   try {
     colorLog(`测试调用搜索API，查询: "${testQuery}"`, 'info');
     
-    // 使用服务器实际的端点
-    const apiResponse = await fetch('http://localhost:5000/api/web-search', {
+    // 使用正确的MCP搜索API端点
+    const apiResponse = await fetch('http://localhost:5000/api/mcp/search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -85,7 +85,7 @@ async function testMCPSearch() {
     colorLog(`\n测试MCP搜索服务，查询: "${testQuery}"`, 'info');
     
     // 直接调用MCP搜索单独的API
-    const searchResponse = await fetch('http://localhost:5000/api/mcp-search', {
+    const searchResponse = await fetch('http://localhost:5000/api/mcp/search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
