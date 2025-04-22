@@ -117,11 +117,19 @@ export class MemoryService {
   /**
    * 分析记忆聚类，找出主题和学习模式
    * @param userId 用户ID
-   * @param memories 记忆对象数组
+   * @param memories 记忆对象数组（ID必须为字符串类型）
    * @param embeddings 记忆向量数组
    * @returns 聚类结果
    */
-  async analyzeMemoryClusters(userId: number, memories: Memory[], embeddings: number[][]): Promise<any> {
+  async analyzeMemoryClusters(userId: number, memories: { 
+    id: string; 
+    userId: number; 
+    content: string; 
+    type: string; 
+    timestamp: Date | null; 
+    summary: string | null; 
+    createdAt: Date | null; 
+  }[], embeddings: number[][]): Promise<any> {
     try {
       // 记录向量维度信息，用于调试
       if (embeddings && embeddings.length > 0) {
