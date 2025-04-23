@@ -46,6 +46,13 @@ export interface GenAIService {
    * @returns 文本摘要
    */
   generateSummary(text: string): Promise<string | null>;
+  
+  /**
+   * 为聚类生成主题名称
+   * @param memoryIds 记忆ID数组
+   * @returns 聚类主题名称
+   */
+  generateClusterTopic(memoryIds: string[]): Promise<string | null>;
 
   /**
    * 从文本中提取关键词
@@ -305,6 +312,24 @@ class FallbackService implements GenAIService {
     log("[genai_service] 使用简单关键词作为后备主题生成", "warn");
     const keywords = await this.extractKeywords(texts.join(" "));
     return keywords && keywords.length > 0 ? keywords[0] : "记忆集合";
+  }
+  
+  /**
+   * 为聚类生成主题名称
+   * @param memoryIds 记忆ID数组
+   * @returns 聚类主题名称
+   */
+  async generateClusterTopic(memoryIds: string[]): Promise<string | null> {
+    try {
+      // 由于我们仅有ID，需要先获取记忆内容
+      log(`[genai_service] 为聚类生成主题，ID数量: ${memoryIds.length}`);
+      
+      // 使用简单主题生成，后续可增强复杂度
+      return `主题 ${Math.floor(Math.random() * 1000)}`;
+    } catch (error) {
+      log(`[genai_service] 生成聚类主题失败: ${error}`, "error");
+      return "未命名主题";
+    }
   }
 }
 
