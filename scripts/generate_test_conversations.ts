@@ -4,7 +4,7 @@
  */
 
 import { pool, db } from '../server/db';
-import { GenAIServiceImpl } from '../server/services/genai/genai_service';
+import { default as genAIService } from '../server/services/genai/genai_service';
 import { storage } from '../server/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { memories, memoryVectors } from '../shared/schema';
