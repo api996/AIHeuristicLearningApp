@@ -197,10 +197,10 @@ ${subtopic}的应用非常广泛，从基础研究到工业实践都有重要价
           );
         }
         
-        // 插入向量嵌入 - 使用SQL语句
+        // 插入向量嵌入 - 使用SQL语句，确保向量数据被正确序列化为JSON
         await db.execute(
           sql`INSERT INTO memory_embeddings ("memory_id", "vector_data") 
-              VALUES (${memoryId}, ${vector})`
+              VALUES (${memoryId}, ${JSON.stringify(vector)}::json)`
         );
         
       } catch (insertError) {
