@@ -343,12 +343,38 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
 
 /**
  * 从用户记忆数据中构建聚类中心并生成图谱
+ * 使用记忆服务提供的聚类结果生成更有意义的主题图谱
  * @param userId 用户ID
  * @returns 图谱数据
  */
 export async function buildUserKnowledgeGraph(userId: number): Promise<GraphData> {
   try {
-    // 1. 获取用户的记忆数据
+    // 1. 从Learning Path API获取用户的聚类数据
+    // 这个端点会自动调用Python聚类服务并返回结果
+    log(`[TopicGraphBuilder] 为用户 ${userId} 从记忆服务获取聚类数据`);
+    
+    const response = await fetch(`http://localhost:5000/api/learning-path/${userId}`);
+    if (!response.ok) {
+      throw new Error(`获取学习路径数据失败: ${response.status}`);
+    }
+    
+    const learningPathData = await response.json();
+    log(`[TopicGraphBuilder] 获取到用户 ${userId} 的学习路径数据`);
+    
+    // 2. 提取聚类主题数据
+    // 从学习路径中提取主题节点 (类型为"cluster"的节点)
+    const clusterNodes = learningPathData.nodes.filter((node: any) => 
+      node.category === 'cluster' || node.type === 'cluster'
+    );
+    
+    if (clusterNodes.length === 0) {
+      log(`[TopicGraphBuilder] 用户 ${userId} 没有有效的聚类数据`);
+      return { nodes: [], links: [] };
+    }
+    
+    log(`[TopicGraphBuilder] 从学习路径数据中找到 ${clusterNodes.length} 个聚类`);
+    
+    // 3. 获取每个聚类的记忆内容，以便进行主题提取
     const userMemories = await db.select({
       id: memories.id,
       content: memories.content,
@@ -364,22 +390,46 @@ export async function buildUserKnowledgeGraph(userId: number): Promise<GraphData
     
     log(`[TopicGraphBuilder] 为用户 ${userId} 加载了 ${userMemories.length} 条记忆`);
     
-    // 2. 简单地按ID分组，每5个记忆形成一个聚类
-    // 在实际实现中，应该使用更复杂的聚类算法
-    const clusterSize = 5;
+    // 4. 根据聚类ID找到对应的记忆，创建聚类中心数据
     const clusters: ClusterCenter[] = [];
     
-    for (let i = 0; i < userMemories.length; i += clusterSize) {
-      const clusterMemories = userMemories.slice(i, i + clusterSize);
+    // 遍历每个聚类节点
+    for (const clusterNode of clusterNodes) {
+      const clusterId = clusterNode.clusterId || clusterNode.id.replace('cluster_', '');
+      
+      // 获取该聚类中所有记忆的ID (从学习路径中的记忆节点)
+      const clusterMemoryIds = new Set<string>();
+      learningPathData.links
+        .filter((link: any) => 
+          (link.source === clusterNode.id && link.target.startsWith('memory_')) ||
+          (link.target === clusterNode.id && link.source.startsWith('memory_'))
+        )
+        .forEach((link: any) => {
+          const memoryNode = link.source.startsWith('memory_') ? link.source : link.target;
+          clusterMemoryIds.add(memoryNode.replace('memory_', ''));
+        });
+      
+      // 查找聚类对应的记忆内容
+      const clusterMemories = userMemories.filter(memory => 
+        clusterMemoryIds.has(memory.id)
+      );
+      
+      // 如果没有找到记忆，使用随机抽样
+      const memoriesToUse = clusterMemories.length > 0 
+        ? clusterMemories 
+        : userMemories
+            .sort(() => 0.5 - Math.random()) // 随机排序
+            .slice(0, Math.min(5, userMemories.length)); // 取前5个
+      
       clusters.push({
-        id: `cluster_${Math.floor(i / clusterSize)}`,
-        texts: clusterMemories.map(m => m.summary || m.content)
+        id: `cluster_${clusterId}`,
+        texts: memoriesToUse.map(m => m.summary || m.content)
       });
     }
     
     log(`[TopicGraphBuilder] 创建了 ${clusters.length} 个聚类中心`);
     
-    // 3. 根据聚类构建图谱
+    // 5. 根据聚类构建图谱
     const graphData = await buildGraph(clusters);
     
     // 4. 保存图谱到缓存
