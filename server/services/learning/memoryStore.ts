@@ -302,9 +302,79 @@ export async function getMemoriesByFilter(filter: MemoryFilter): Promise<Memory[
     if (!userId) {
       throw new Error('必须提供用户ID');
     }
-
+    
+    log(`[memoryStore] 开始从数据库查询用户ID=${userId}的记忆`);
+    
+    // 首先尝试从数据库读取记忆
+    try {
+      const { db } = await import('../../db');
+      const { memories: memoriesTable } = await import('@shared/schema');
+      const { eq, and, gte, lte, inArray } = await import('drizzle-orm');
+      
+      // 构建基本查询条件
+      let conditions = [eq(memoriesTable.userId, userId)];
+      
+      // 添加可选查询条件
+      if (types && types.length > 0) {
+        conditions.push(inArray(memoriesTable.type, types));
+      }
+      
+      if (startDate) {
+        conditions.push(gte(memoriesTable.timestamp, startDate));
+      }
+      
+      if (endDate) {
+        conditions.push(lte(memoriesTable.timestamp, endDate));
+      }
+      
+      // 执行查询
+      const dbMemories = await db.select()
+        .from(memoriesTable)
+        .where(and(...conditions))
+        .orderBy(memoriesTable.timestamp);
+      
+      if (dbMemories && dbMemories.length > 0) {
+        log(`[memoryStore] 从数据库成功获取到${dbMemories.length}条记忆记录`);
+        
+        // 如果有关键词过滤，手动过滤
+        // 注意：数据库查询不能直接过滤JSONB数组成员，所以我们在这里手动处理
+        if (keywords && keywords.length > 0) {
+          // 需要检索每条记忆的关键词
+          // 获取所有记忆ID
+          const memoryIds = dbMemories.map(m => m.id);
+          
+          // 查询这些记忆的关键词
+          const keywordsQuery = await db.query.memoryKeywords.findMany({
+            where: (memKeywords, { inArray }) => inArray(memKeywords.memoryId, memoryIds)
+          });
+          
+          // 构建记忆ID到关键词的映射
+          const memoryKeywordsMap = new Map();
+          keywordsQuery.forEach(kw => {
+            if (!memoryKeywordsMap.has(kw.memoryId)) {
+              memoryKeywordsMap.set(kw.memoryId, []);
+            }
+            memoryKeywordsMap.get(kw.memoryId).push(kw.keyword);
+          });
+          
+          // 按关键词过滤
+          return dbMemories.filter(memory => {
+            const memKeywords = memoryKeywordsMap.get(memory.id) || [];
+            return memKeywords.some(k => keywords.includes(k));
+          });
+        }
+        
+        return dbMemories;
+      }
+    } catch (dbError) {
+      log(`[memoryStore] 从数据库获取记忆失败: ${dbError}，将尝试使用文件系统`);
+    }
+    
+    // 如果数据库查询失败或没有结果，回退到文件系统
+    log(`[memoryStore] 从文件系统查询记忆 (回退方法)`);
     const userDir = path.join(MEMORY_DIR, userId.toString());
     if (!fs.existsSync(userDir)) {
+      log(`[memoryStore] 用户目录不存在: ${userDir}`);
       return [];
     }
 
