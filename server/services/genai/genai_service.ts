@@ -4,6 +4,9 @@
  */
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { eq } from "drizzle-orm";
+import { db } from "../../db";
+import { memories } from "@shared/schema";
 
 // Create a simple logger that doesn't depend on vite.ts
 const log = (message: string, source = "genai_service") => {
@@ -271,6 +274,50 @@ ${combinedText}
     } catch (error) {
       log(`[genai_service] 生成主题失败: ${error}`, "error");
       return null;
+    }
+  }
+
+  /**
+   * 为聚类生成主题名称
+   * @param memoryIds 记忆ID数组
+   * @returns 聚类主题名称
+   */
+  async generateClusterTopic(memoryIds: string[]): Promise<string | null> {
+    if (!this.genAI) {
+      log("[genai_service] 无法生成聚类主题: API未初始化", "warn");
+      return null;
+    }
+
+    try {
+      log(`[genai_service] 为聚类生成主题，ID数量: ${memoryIds.length}`);
+      
+      // 从数据库获取记忆内容
+      const memoriesPromises = memoryIds.map(async (id) => {
+        try {
+          // 获取记忆详情
+          const memory = await db.select().from(memories).where(eq(memories.id, id));
+          return memory && memory.length > 0 ? memory[0].content : null;
+        } catch (error) {
+          log(`[genai_service] 获取记忆内容失败: ${error}`, "warn");
+          return null;
+        }
+      });
+      
+      // 等待所有查询完成
+      const contents = (await Promise.all(memoriesPromises))
+        .filter(content => content !== null) as string[];
+      
+      // 如果没有找到有效内容，返回默认主题
+      if (contents.length === 0) {
+        log(`[genai_service] 聚类中没有找到有效记忆内容`, "warn");
+        return "未分类内容";
+      }
+      
+      // 使用现有的主题生成方法
+      return this.generateTopicForMemories(contents);
+    } catch (error) {
+      log(`[genai_service] 生成聚类主题失败: ${error}`, "error");
+      return "未命名主题";
     }
   }
 }
