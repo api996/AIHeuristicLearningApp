@@ -55,6 +55,8 @@ interface Relation {
   target: string; 
   type: string;
   reason: string;
+  strength?: number;         // 关系强度（1-10）
+  learningOrder?: string;    // 学习顺序建议
 }
 
 // 图谱数据结构
@@ -73,6 +75,9 @@ interface GraphData {
     type?: string;
     reason?: string;
     value?: number;
+    strength?: number;
+    learningOrder?: string;
+    color?: string;
   }[];
 }
 
@@ -176,9 +181,10 @@ function extractKeywordsFromTexts(texts: string[]): string[] {
 /**
  * 提取两两主题间的关系
  * @param topics 主题列表
+ * @param centerTexts 聚类中心的文本内容，用于深度分析
  * @returns 主题间的关系列表
  */
-async function extractRelations(topics: string[]): Promise<Relation[]> {
+async function extractRelations(topics: string[], centerTexts?: Record<string, string[]>): Promise<Relation[]> {
   const rels: Relation[] = [];
   
   try {
@@ -186,40 +192,159 @@ async function extractRelations(topics: string[]): Promise<Relation[]> {
     const maxPairs = topics.length <= 5 ? topics.length * (topics.length - 1) / 2 : 10;
     let pairCount = 0;
     
-    for (let i = 0; i < topics.length && pairCount < maxPairs; i++) {
-      for (let j = i + 1; j < topics.length && pairCount < maxPairs; j++) {
-        // 每次概率性跳过一些对，如果主题太多的话
-        if (topics.length > 5 && Math.random() > 0.6) continue;
+    // 创建主题对，确保覆盖所有主题
+    const pairs: [string, string][] = [];
+    for (let i = 0; i < topics.length; i++) {
+      for (let j = i + 1; j < topics.length; j++) {
+        pairs.push([topics[i], topics[j]]);
+      }
+    }
+    
+    // 如果对太多，智能选择而不是随机选择
+    // 优先分析相邻主题，以确保图谱连通性
+    if (pairs.length > maxPairs) {
+      const selectedPairs: [string, string][] = [];
+      
+      // 确保每个主题至少有一个连接
+      const coveredTopics = new Set<string>();
+      
+      // 首先添加所有相邻主题对
+      for (let i = 0; i < topics.length - 1; i++) {
+        selectedPairs.push([topics[i], topics[i + 1]]);
+        coveredTopics.add(topics[i]);
+        coveredTopics.add(topics[i + 1]);
+      }
+      
+      // 如果还有空间，添加其他主题对
+      const remainingPairs = pairs.filter(
+        pair => !selectedPairs.some(selected => 
+          (selected[0] === pair[0] && selected[1] === pair[1]) || 
+          (selected[0] === pair[1] && selected[1] === pair[0])
+        )
+      );
+      
+      // 根据剩余的maxPairs槽位，按优先级添加其余对
+      const slotsLeft = maxPairs - selectedPairs.length;
+      if (slotsLeft > 0 && remainingPairs.length > 0) {
+        selectedPairs.push(...remainingPairs.slice(0, slotsLeft));
+      }
+      
+      // 使用选定的对替换原始对列表
+      pairs.length = 0;
+      pairs.push(...selectedPairs);
+    }
+    
+    // 处理每一对主题
+    for (const [A, B] of pairs) {
+      // 准备文本摘要，如果有的话
+      let textSummaryA = "";
+      let textSummaryB = "";
+      
+      if (centerTexts) {
+        const textsA = centerTexts[A] || [];
+        const textsB = centerTexts[B] || [];
         
-        const A = topics[i], B = topics[j];
-        const prompt = `
-判断下面两个中文主题之间的语义关系，只能在【包含/引用/应用/相似/无明显关系】中选择，并给出一句原因：
-A: ${A}
-B: ${B}
-输出格式：A → B（关系类型）：原因说明`;
+        if (textsA.length > 0) {
+          textSummaryA = `主题A的相关文本摘要:\n${textsA.slice(0, 2).join('\n')}\n`;
+        }
+        
+        if (textsB.length > 0) {
+          textSummaryB = `主题B的相关文本摘要:\n${textsB.slice(0, 2).join('\n')}\n`;
+        }
+      }
+      
+      const prompt = `
+分析以下两个学习主题之间的知识关系，进行深入分析:
 
-        const resp = await callGeminiModel(prompt, { model: 'gemini-2.0-flash' });
-        const m = resp.match(/(.+?) → (.+?)（(.+?)）：(.+)/);
-        
-        if (m) {
-          rels.push({
-            source: m[1].trim(), 
-            target: m[2].trim(),
-            type: m[3].trim(), 
-            reason: m[4].trim()
-          });
-        } else {
-          // 如果没有匹配到预期格式，添加默认关系类型为"相关"
+主题A: ${A}
+主题B: ${B}
+${textSummaryA}
+${textSummaryB}
+
+请分析以下几个方面:
+1. 关系类型: 从[前置知识、包含关系、应用关系、相似概念、互补知识、无直接关系]中选择最合适的一个
+2. 关系强度: 从1-10中选择一个数字，1表示关系非常弱，10表示关系非常强
+3. 学习顺序: 如果这两个主题有学习顺序，应该先学习哪个，再学习哪个
+4. 关系说明: 用1-2句话简明扼要地解释两个主题之间的关系
+
+输出格式:
+{
+  "relationType": "关系类型",
+  "strength": 数字(1-10),
+  "learningOrder": "先学A后学B" 或 "先学B后学A" 或 "可同时学习",
+  "explanation": "关系说明"
+}
+
+仅返回JSON格式数据，无需任何其他解释或前缀。`;
+
+        try {
+          const resp = await callGeminiModel(prompt, { model: 'gemini-1.5-flash' });
+          log(`[TopicGraphBuilder] 主题关系分析原始响应: ${resp}`);
+          
+          // 尝试解析JSON响应
+          let relationData;
+          try {
+            // 查找JSON对象
+            const jsonMatch = resp.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              relationData = JSON.parse(jsonMatch[0]);
+            } else {
+              throw new Error("未找到有效的JSON数据");
+            }
+          } catch (jsonError) {
+            log(`[TopicGraphBuilder] JSON解析错误: ${jsonError}, 尝试结构化提取`);
+            
+            // 使用正则表达式提取信息
+            const typeMatch = resp.match(/"relationType":\s*"([^"]*)"/);
+            const strengthMatch = resp.match(/"strength":\s*(\d+)/);
+            const orderMatch = resp.match(/"learningOrder":\s*"([^"]*)"/);
+            const explanationMatch = resp.match(/"explanation":\s*"([^"]*)"/);
+            
+            relationData = {
+              relationType: typeMatch ? typeMatch[1] : "相关概念",
+              strength: strengthMatch ? parseInt(strengthMatch[1]) : 5,
+              learningOrder: orderMatch ? orderMatch[1] : "可同时学习",
+              explanation: explanationMatch ? explanationMatch[1] : "主题间存在知识关联"
+            };
+          }
+          
+          // 规范化关系类型
+          const validRelationTypes = [
+            "前置知识", "包含关系", "应用关系", "相似概念", "互补知识", "无直接关系"
+          ];
+          
+          if (!validRelationTypes.includes(relationData.relationType)) {
+            relationData.relationType = "相关概念";
+          }
+          
+          // 确保强度在1-10范围内
+          relationData.strength = Math.max(1, Math.min(10, relationData.strength));
+          
           rels.push({
             source: A,
             target: B,
-            type: "相关",
-            reason: "主题间存在语义联系"
+            type: relationData.relationType,
+            strength: relationData.strength,
+            learningOrder: relationData.learningOrder,
+            reason: relationData.explanation || "主题间存在知识关联"
+          });
+          
+          log(`[TopicGraphBuilder] 成功分析主题关系: ${A} - ${B}, 类型: ${relationData.relationType}, 强度: ${relationData.strength}`);
+        } catch (apiError) {
+          log(`[TopicGraphBuilder] API调用失败: ${apiError}, 使用默认关系`);
+          
+          // 如果API调用失败，添加默认关系
+          rels.push({
+            source: A,
+            target: B,
+            type: "相关概念",
+            strength: 5,
+            learningOrder: "可同时学习",
+            reason: "主题间可能存在知识关联"
           });
         }
-        
-        pairCount++;
-      }
+      
+      pairCount++;
     }
   } catch (error) {
     log(`[TopicGraphBuilder] 提取主题关系出错: ${error}`);
@@ -230,21 +355,35 @@ B: ${B}
 
 /**
  * 将关系类型转换为前端图谱可用的关系类型
- * @param relationType 关系类型（包含/引用/应用/相似/无明显关系）
+ * @param relationType 关系类型（前置知识、包含关系、应用关系、相似概念、互补知识、无直接关系）
  * @returns 标准化的关系类型
  */
 function normalizeRelationType(relationType: string): {type: string, value: number} {
   switch (relationType) {
+    case '前置知识':
+      return { type: 'prerequisite', value: 0.9 };
+    case '包含关系':
+      return { type: 'contains', value: 0.8 };
+    case '应用关系':
+      return { type: 'applies', value: 0.7 };
+    case '相似概念':
+      return { type: 'similar', value: 0.6 };
+    case '互补知识':
+      return { type: 'complements', value: 0.5 };
+    case '无直接关系':
+      return { type: 'unrelated', value: 0.2 };
+      
+    // 兼容旧版关系类型
     case '包含':
       return { type: 'contains', value: 0.8 };
     case '引用':
       return { type: 'references', value: 0.7 };
     case '应用':
-      return { type: 'applies', value: 0.6 };
+      return { type: 'applies', value: 0.7 };
     case '相似':
-      return { type: 'similar', value: 0.5 };
-    case '无明显关系':
-      return { type: 'unrelated', value: 0.2 };
+      return { type: 'similar', value: 0.6 };
+    case '相关概念':
+      return { type: 'related', value: 0.4 };
     default:
       return { type: 'related', value: 0.4 };
   }
@@ -265,8 +404,14 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
     
     log(`[TopicGraphBuilder] 提取的主题: ${topics.join(', ')}`);
     
-    // 2. 提取主题间的关系
-    const relations = await extractRelations(topics);
+    // 为深度分析准备文本内容映射
+    const topicTextsMap: Record<string, string[]> = {};
+    topics.forEach((topic, index) => {
+      topicTextsMap[topic] = centers[index].texts.slice(0, 3); // 每个主题最多取3段文本
+    });
+    
+    // 2. 提取主题间的关系，提供文本内容以便更深入的分析
+    const relations = await extractRelations(topics, topicTextsMap);
     
     log(`[TopicGraphBuilder] 提取了 ${relations.length} 个主题关系`);
     
@@ -305,6 +450,9 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
       // 根据关系类型设置连接线颜色
       let linkColor: string;
       switch(type) {
+        case 'prerequisite':
+          linkColor = 'rgba(220, 38, 38, 0.7)'; // 深红色，表示前置知识
+          break;
         case 'contains':
           linkColor = 'rgba(99, 102, 241, 0.7)'; // 靛蓝色
           break;
@@ -317,18 +465,37 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
         case 'similar':
           linkColor = 'rgba(16, 185, 129, 0.7)'; // 绿色
           break;
+        case 'complements':
+          linkColor = 'rgba(245, 158, 11, 0.7)'; // 琥珀色，表示互补关系
+          break;
         default:
           linkColor = 'rgba(156, 163, 175, 0.7)'; // 灰色
       }
+      
+      // 根据关系强度调整连接线的宽度/值
+      // 如果有明确的强度，使用它，否则使用默认值
+      const strengthValue = rel.strength 
+        ? (rel.strength / 10) * 2 // 将1-10的强度转换为0.2-2.0的值
+        : value;
+      
+      // 获取学习顺序信息
+      const learningOrderLabel = rel.learningOrder 
+        ? ` (${rel.learningOrder})` 
+        : '';
+      
+      // 构建更详细的标签，包含关系类型和学习顺序
+      const detailedLabel = `${rel.type}${learningOrderLabel}`;
       
       return {
         source: rel.source,
         target: rel.target,
         type,
-        value,
-        label: rel.type,
+        value: strengthValue,
+        label: detailedLabel,
         reason: rel.reason,
-        color: linkColor
+        color: linkColor,
+        strength: rel.strength,
+        learningOrder: rel.learningOrder
       };
     });
     
