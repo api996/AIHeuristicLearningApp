@@ -14,6 +14,8 @@ import uuid
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans
 
 # 配置日志格式
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -422,13 +424,12 @@ async def vector_based_clustering(memories_with_embeddings: List[Dict[str, Any]]
         dict: 聚类结果
     """
     try:
-        from sklearn.cluster import KMeans
-        
         # 提取向量数据
         vectors = np.array([m['embedding'] for m in memories_with_embeddings])
         
-        # 确定聚类数量
-        n_clusters = min(5, len(vectors) - 1)  # 最多5个聚类，至少2个样本
+        # 使用肘部法则确定最佳聚类数
+        n_clusters = determine_optimal_clusters(vectors)
+        logger.info(f"根据肘部法则确定的最佳聚类数: {n_clusters}")
         
         # 执行K-means聚类
         kmeans = KMeans(n_clusters=n_clusters, random_state=42)
@@ -507,6 +508,80 @@ async def vector_based_clustering(memories_with_embeddings: List[Dict[str, Any]]
         return await time_based_clustering(memories_with_embeddings)
 
 
+def determine_optimal_clusters(vectors: np.ndarray) -> int:
+    """
+    使用肘部法则确定最佳聚类数量
+    
+    参数:
+        vectors: 向量数据数组
+        
+    返回:
+        int: 最佳聚类数量
+    """
+    try:
+        # 如果样本太少，直接返回小值
+        n_samples = len(vectors)
+        if n_samples <= 5:
+            return max(2, n_samples - 1)  # 至少2个，最多n-1个
+            
+        # 设置可能的聚类数范围
+        max_clusters = min(15, n_samples // 2)  # 不超过样本数的一半且不超过15
+        min_clusters = 2  # 至少2个聚类
+        
+        if max_clusters <= min_clusters:
+            return min_clusters
+            
+        # 计算不同k值的畸变度(inertia)
+        distortions = []
+        K = range(min_clusters, max_clusters + 1)
+        
+        # 对于每个可能的k值
+        for k in K:
+            try:
+                kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+                kmeans.fit(vectors)
+                distortions.append(kmeans.inertia_)
+                
+                # 可选：计算轮廓系数
+                if k > 1 and n_samples > k:
+                    try:
+                        silhouette_avg = silhouette_score(vectors, kmeans.labels_)
+                        logger.info(f"聚类数 k={k}, 轮廓系数: {silhouette_avg:.3f}")
+                    except Exception as e:
+                        logger.warning(f"计算轮廓系数时出错 (k={k}): {e}")
+            except Exception as e:
+                logger.warning(f"k={k} 时K-means聚类失败: {e}")
+                continue
+                
+        # 没有得到有效结果时的后备选项
+        if not distortions:
+            logger.warning("无法计算畸变度，使用默认聚类数")
+            return min(5, max(2, n_samples // 10))  # 默认策略
+            
+        # 使用肘部法则：计算曲线的二阶导数变化
+        if len(distortions) <= 2:
+            # 数据点不足以计算二阶导数
+            return min_clusters
+            
+        # 一阶差分
+        deltas = np.diff(distortions)
+        # 二阶差分（导数的导数）
+        delta_deltas = np.diff(deltas)
+        
+        # 找到二阶差分的最大点，即拐点
+        elbow_index = np.argmax(delta_deltas) + 1  # 加回索引偏移
+        optimal_k = min_clusters + elbow_index
+        
+        # 确保结果在有效范围内
+        optimal_k = max(min_clusters, min(optimal_k, max_clusters))
+        
+        logger.info(f"肘部法则确定的最佳聚类数量: k={optimal_k}，畸变度值: {distortions}")
+        return optimal_k
+    except Exception as e:
+        logger.error(f"确定最佳聚类数量时出错: {e}")
+        # 错误情况下的默认值
+        return min(5, max(2, len(vectors) // 10))
+
 async def time_based_clustering(memories: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     基于时间线的聚类（后备方法）
@@ -527,7 +602,7 @@ async def time_based_clustering(memories: List[Dict[str, Any]]) -> Dict[str, Any
         )
         
         # 确定时间桶的数量
-        n_buckets = min(5, len(sorted_memories))
+        n_buckets = min(10, max(2, len(sorted_memories) // 10))  # 允许最多10个时间聚类
         
         # 将记忆划分为几个时间段
         bucket_size = max(1, len(sorted_memories) // n_buckets)
