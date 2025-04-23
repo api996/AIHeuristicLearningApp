@@ -365,14 +365,44 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
   }, [graphData]);
   
   // 处理链接点击
-  const handleLinkClick = useCallback((link: GraphLink) => {
-    setSelectedLink(link);
+  const handleLinkClick = useCallback((link: any) => {
+    console.log("边点击事件触发:", link);
+    
+    // 确保link有正确的类型格式
+    const processedLink: GraphLink = {
+      source: typeof link.source === 'object' ? link.source.id : link.source,
+      target: typeof link.target === 'object' ? link.target.id : link.target,
+      type: link.type,
+      value: link.value,
+      color: link.color,
+      label: link.label,
+      reason: link.reason,
+      strength: link.strength,
+      learningOrder: link.learningOrder
+    };
+    
+    setSelectedLink(processedLink);
     setShowLinkDialog(true);
   }, []);
   
   // 处理链接悬停
-  const handleLinkHover = useCallback((link: GraphLink | null) => {
-    setHighlightedLink(link);
+  const handleLinkHover = useCallback((link: any | null) => {
+    if (link) {
+      const processedLink: GraphLink = {
+        source: typeof link.source === 'object' ? link.source.id : link.source,
+        target: typeof link.target === 'object' ? link.target.id : link.target,
+        type: link.type,
+        color: link.color,
+        value: link.value,
+        label: link.label,
+        reason: link.reason,
+        strength: link.strength,
+        learningOrder: link.learningOrder
+      };
+      setHighlightedLink(processedLink);
+    } else {
+      setHighlightedLink(null);
+    }
   }, []);
   
   // 关闭对话框
@@ -410,49 +440,71 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
       <Dialog open={showLinkDialog} onOpenChange={handleCloseDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>关系详情</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <span>知识关联详情</span>
+              {selectedLink && <Badge variant="outline" className="ml-2">{selectedLink.type || '相关关系'}</Badge>}
+            </DialogTitle>
           </DialogHeader>
           
           {selectedLink && (
             <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Badge variant="outline">{selectedLink.type || '相关'}</Badge>
-                <span className="text-sm text-muted-foreground">
-                  强度: {selectedLink.strength || 5}/10
-                </span>
+              <div className="flex items-center justify-between px-1">
+                <span className="text-sm font-medium">关系强度:</span>
+                <div className="flex items-center">
+                  <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-500" 
+                      style={{ 
+                        width: `${((selectedLink.strength || 5) / 10) * 100}%`,
+                        background: selectedLink.color || 'rgba(59, 130, 246, 0.8)'
+                      }}
+                    ></div>
+                  </div>
+                  <span className="text-sm ml-2">{selectedLink.strength || 5}/10</span>
+                </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">起点</h4>
-                  <div className="rounded-md bg-secondary p-2">
-                    {typeof selectedLink.source === 'string' 
-                      ? selectedLink.source
-                      : (selectedLink.source as any)?.label || (selectedLink.source as any)?.id}
+              <div className="grid grid-cols-1 gap-4 mt-2">
+                <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 dark:text-blue-300"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/></svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">关联主题</h4>
+                    <div className="flex gap-2 mt-1 flex-wrap">
+                      <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 hover:bg-indigo-200 transition-colors">
+                        {typeof selectedLink.source === 'string' ? selectedLink.source : (selectedLink.source as any)?.label || (selectedLink.source as any)?.id}
+                      </Badge>
+                      <span className="text-gray-400">→</span>
+                      <Badge className="bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200 hover:bg-violet-200 transition-colors">
+                        {typeof selectedLink.target === 'string' ? selectedLink.target : (selectedLink.target as any)?.label || (selectedLink.target as any)?.id}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">终点</h4>
-                  <div className="rounded-md bg-secondary p-2">
-                    {typeof selectedLink.target === 'string'
-                      ? selectedLink.target
-                      : (selectedLink.target as any)?.label || (selectedLink.target as any)?.id}
+              </div>
+              
+              <div className="space-y-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-full bg-green-100 dark:bg-green-900">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600 dark:text-green-300"><path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12"/><circle cx="17" cy="7" r="5"/></svg>
                   </div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">学习建议</h4>
+                </div>
+                <div className="rounded-md p-2 text-sm mt-1">
+                  {selectedLink.learningOrder || '可同时学习这两个主题，它们相互补充'}
                 </div>
               </div>
               
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">学习建议</h4>
-                <div className="rounded-md bg-secondary p-2">
-                  {selectedLink.learningOrder || '可同时学习'}
+              <div className="space-y-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600 dark:text-amber-300"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                  </div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">关系解释</h4>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">关系解释</h4>
-                <div className="rounded-md bg-muted p-3 text-sm">
-                  {selectedLink.reason || '这些主题之间存在关联'}
+                <div className="rounded-md p-2 text-sm mt-1 whitespace-pre-line">
+                  {selectedLink.reason || '这些主题在学习过程中存在关联，帮助你构建更完整的知识体系。'}
                 </div>
               </div>
             </div>
