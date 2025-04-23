@@ -66,22 +66,22 @@ export class ClusterAnalyzerService {
         const { clusterVectors } = await import('./flask_clustering_service');
         log(`[cluster_analyzer] 使用Flask聚类服务处理 ${vectors.length} 个向量...`);
         
-        const clusteringResult = await clusterVectors(memoryIds, vectors);
+        const clusteringResult = await clusterVectors(memoryIds, vectors) as FlaskClusterResult;
         
-        if (!clusteringResult || !clusteringResult.clusters || clusteringResult.clusters.length === 0) {
+        if (!clusteringResult || !clusteringResult.centroids || clusteringResult.centroids.length === 0) {
           log(`[cluster_analyzer] Flask聚类服务未返回有效结果`, 'error');
           return null;
         }
         
-        log(`[cluster_analyzer] 聚类完成，发现 ${clusteringResult.clusters.length} 个聚类`);
+        log(`[cluster_analyzer] 聚类完成，发现 ${clusteringResult.centroids.length} 个聚类`);
         
         // 为每个聚类生成主题名称
         const topics: ClusterTopic[] = [];
-        for (let i = 0; i < clusteringResult.clusters.length; i++) {
-          const cluster = clusteringResult.clusters[i];
+        for (let i = 0; i < clusteringResult.centroids.length; i++) {
+          const cluster = clusteringResult.centroids[i];
           
           // 获取该聚类中的记忆
-          const clusterMemoryIds = cluster.points;
+          const clusterMemoryIds = cluster.points.map(point => point.id);
           const percentage = (clusterMemoryIds.length / memoryIds.length) * 100;
           
           // 使用Gemini生成主题名称
