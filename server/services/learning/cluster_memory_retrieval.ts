@@ -158,13 +158,13 @@ export class ClusterMemoryRetrievalService {
       }
       
       // 构建向量数据
-      const memoryVectors: { id: string | number; vector: number[] }[] = [];
+      const memoryVectors: { id: string; vector: number[] }[] = [];
       
       for (const memory of memories) {
         const embedding = embeddings[memory.id];
         if (embedding && Array.isArray(embedding.vectorData)) {
           memoryVectors.push({
-            id: memory.id,
+            id: String(memory.id), // 确保ID为字符串类型
             vector: embedding.vectorData
           });
         }
@@ -204,11 +204,18 @@ export class ClusterMemoryRetrievalService {
       
       log(`[MemoryService] 记忆聚类分析: 用户ID=${userId}, 记忆数量=${filteredVectors.length}, 向量维度=${primaryDimension}`);
       
-      // 从cluster_analyzer导入pythonClusteringService
+      // 从python_clustering导入pythonClusteringService
       const { pythonClusteringService } = await import('./python_clustering');
+      const { VectorData } = await import('./python_clustering');
+      
+      // 确保向量ID是字符串类型 - 使用VectorData类型进行类型安全的转换
+      const typedVectors: VectorData[] = filteredVectors.map(vec => ({
+        id: String(vec.id),
+        vector: vec.vector
+      }));
       
       // 执行聚类
-      const clusterResult = await pythonClusteringService.clusterVectors(filteredVectors);
+      const clusterResult = await pythonClusteringService.clusterVectors(typedVectors);
       
       if (!clusterResult || !clusterResult.centroids || clusterResult.centroids.length === 0) {
         log(`[trajectory] 聚类失败，未找到任何聚类`);
