@@ -97,6 +97,45 @@ export class MemorySummarizerService {
       return words.slice(0, 5);
     }
   }
+  
+  /**
+   * 为聚类生成主题
+   * @param text 聚类内容
+   * @returns 生成的主题
+   */
+  async generateTopic(text: string): Promise<string | null> {
+    try {
+      if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        log('[memory_summarizer] 无法为空文本生成主题', 'warn');
+        return null;
+      }
+
+      // 如果文本非常短，直接使用原文
+      if (text.length < 50) {
+        return `主题: ${text.slice(0, 20)}`;
+      }
+
+      // 使用GenAI服务生成主题
+      const topic = await genAiService.generateTopicForMemories([text]);
+      
+      if (!topic) {
+        // 后备方案：使用关键词组合
+        const keywords = await this.extractKeywords(text);
+        if (keywords && keywords.length > 0) {
+          const topKeywords = keywords.slice(0, 3).join('和');
+          return `${topKeywords}相关主题`;
+        }
+        
+        return `主题${Date.now().toString().slice(-4)}`;
+      }
+
+      return topic;
+    } catch (error) {
+      log(`[memory_summarizer] 生成主题时出错: ${error}`, 'error');
+      // 后备方案
+      return `主题${Date.now().toString().slice(-4)}`;
+    }
+  }
 }
 
 // 导出服务实例
