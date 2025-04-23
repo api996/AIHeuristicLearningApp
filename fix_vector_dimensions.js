@@ -96,12 +96,11 @@ async function analyzeVectorDimensions() {
   try {
     const query = `
       SELECT 
-        memory_id, 
-        ARRAY_LENGTH(vector_embedding, 1) as vector_dimension,
+        json_array_length(vector_data) as dimension,
         COUNT(*) as count
       FROM memory_embeddings
-      GROUP BY memory_id, ARRAY_LENGTH(vector_embedding, 1)
-      ORDER BY vector_dimension;
+      GROUP BY json_array_length(vector_data)
+      ORDER BY dimension;
     `;
     
     const result = await pool.query(query);
@@ -116,7 +115,7 @@ async function analyzeVectorDimensions() {
     let totalVectors = 0;
     
     result.rows.forEach(row => {
-      const dimension = row.vector_dimension;
+      const dimension = row.dimension;
       const count = parseInt(row.count);
       
       dimensions[dimension] = (dimensions[dimension] || 0) + count;
@@ -148,9 +147,9 @@ async function fixVectorDimensions() {
   try {
     // 1. 找出所有非3072维的向量
     const findQuery = `
-      SELECT memory_id, vector_embedding, ARRAY_LENGTH(vector_embedding, 1) as dimension
+      SELECT memory_id, vector_data, json_array_length(vector_data) as dimension
       FROM memory_embeddings
-      WHERE ARRAY_LENGTH(vector_embedding, 1) != 3072;
+      WHERE json_array_length(vector_data) != 3072;
     `;
     
     const result = await pool.query(findQuery);
@@ -166,15 +165,15 @@ async function fixVectorDimensions() {
     let fixedCount = 0;
     
     for (const row of result.rows) {
-      const { memory_id, vector_embedding, dimension } = row;
+      const { memory_id, vector_data, dimension } = row;
       
       // 应用标准化
-      const normalizedVector = normalizeVectorDimension(vector_embedding);
+      const normalizedVector = normalizeVectorDimension(vector_data);
       
       // 更新数据库
       const updateQuery = `
         UPDATE memory_embeddings
-        SET vector_embedding = $1
+        SET vector_data = $1
         WHERE memory_id = $2;
       `;
       
@@ -203,10 +202,10 @@ async function verifyFix() {
   try {
     const query = `
       SELECT 
-        ARRAY_LENGTH(vector_embedding, 1) as dimension,
+        json_array_length(vector_data) as dimension,
         COUNT(*) as count
       FROM memory_embeddings
-      GROUP BY ARRAY_LENGTH(vector_embedding, 1);
+      GROUP BY json_array_length(vector_data);
     `;
     
     const result = await pool.query(query);
