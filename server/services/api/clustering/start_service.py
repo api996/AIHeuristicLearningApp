@@ -40,7 +40,7 @@ def start_service(port=DEFAULT_PORT):
     # 确保旧进程已关闭
     stop_service()
     
-    # 检查端口是否可用
+    # 确保port是整数
     port = int(port)
     
     # 启动Flask应用
