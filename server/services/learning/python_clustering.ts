@@ -87,85 +87,33 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from pathlib import Path
-import random
 
 def determine_optimal_clusters(vectors, max_clusters=12):
-    """结合预设聚类中心和轮廓系数优化的聚类数量确定方法
-    先根据数据量确定初始聚类数量，然后在随机抽样的10%数据上使用轮廓系数优化"""
+    """为用户向量数据直接分配合理的聚类数量，不依赖轮廓系数"""
     n_samples = len(vectors)
     
     # 如果样本数量太少，返回较小的聚类数
     if n_samples < 10:
         return min(2, n_samples)
     
-    # 根据样本数量预设初始聚类数
+    # 根据样本数量直接分配聚类数，不使用轮廓系数评估
+    # 这些值经过调整，以确保生成足够的主题节点
     if n_samples > 400:  # 非常大的数据集
-        initial_clusters = 8
+        fixed_clusters = 8
     elif n_samples > 200:  # 大数据集
-        initial_clusters = 6
+        fixed_clusters = 6
     elif n_samples > 100:  # 中等数据集
-        initial_clusters = 5
+        fixed_clusters = 5
     elif n_samples > 50:   # 小数据集
-        initial_clusters = 4
+        fixed_clusters = 4
     else:                  # 微型数据集
-        initial_clusters = 3
+        fixed_clusters = 3
     
-    print(f"样本数量: {n_samples}, 初始聚类数: {initial_clusters}")
+    # 记录决策过程
+    print(f"样本数量: {n_samples}, 直接分配聚类数: {fixed_clusters}")
     
-    # 计算应该使用多少样本进行轮廓系数评估（约10%，但不少于20个，不超过100个）
-    sample_size = min(max(int(n_samples * 0.1), 20), min(n_samples, 100))
-    
-    # 如果样本量足够大，使用轮廓系数在抽样数据上优化聚类数
-    if n_samples >= 20:
-        try:
-            # 随机抽样10%的数据用于轮廓系数评估
-            sample_indices = random.sample(range(n_samples), sample_size)
-            sample_vectors = vectors[sample_indices]
-            
-            # 定义评估的聚类数范围（围绕初始聚类数）
-            min_k = max(2, initial_clusters - 2)
-            max_k = min(min(n_samples-1, initial_clusters + 3), 12)
-            cluster_range = range(min_k, max_k + 1)
-            
-            print(f"在{sample_size}个样本上评估聚类数范围: {min_k}到{max_k}")
-            
-            # 使用轮廓系数评估最佳聚类数
-            silhouette_scores = []
-            for k in cluster_range:
-                # 如果样本数小于聚类数*2，跳过
-                if len(sample_vectors) < k * 2:
-                    silhouette_scores.append(-1)
-                    continue
-                
-                kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
-                labels = kmeans.fit_predict(sample_vectors)
-                
-                # 计算轮廓系数
-                try:
-                    score = silhouette_score(sample_vectors, labels)
-                    silhouette_scores.append(score)
-                    print(f"聚类数 {k} 的轮廓系数: {score:.4f}")
-                except Exception as e:
-                    print(f"计算聚类数 {k} 的轮廓系数失败: {e}")
-                    silhouette_scores.append(-1)
-            
-            # 找出最佳轮廓系数对应的聚类数
-            valid_scores = [(i, score) for i, score in enumerate(silhouette_scores) if score > 0]
-            if valid_scores:
-                best_idx, best_score = max(valid_scores, key=lambda x: x[1])
-                optimal_k = list(cluster_range)[best_idx]
-                print(f"轮廓系数评估的最佳聚类数: {optimal_k} (分数: {best_score:.4f})")
-                return optimal_k
-            else:
-                print(f"轮廓系数评估失败，使用初始聚类数: {initial_clusters}")
-                return initial_clusters
-        except Exception as e:
-            print(f"轮廓系数优化失败: {e}，使用初始聚类数: {initial_clusters}")
-            return initial_clusters
-    
-    # 如果样本量不足，直接返回初始聚类数
-    print(f"样本量不足，直接使用初始聚类数: {initial_clusters}")
-    return initial_clusters
+    # 强制返回固定的聚类数，不再进行轮廓评分
+    return fixed_clusters
 
 def main():
     try:

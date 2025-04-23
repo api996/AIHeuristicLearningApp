@@ -596,24 +596,8 @@ export async function buildUserKnowledgeGraph(userId: number, forceRefresh: bool
       log(`[TopicGraphBuilder] 节点 ${index}: id=${node.id}, category=${node.category}, type=${node.type || 'undefined'}`);
     });
     
-    // 3. 获取每个聚类的记忆内容，以便进行主题提取
-    const userMemories = await db.select({
-      id: memories.id,
-      content: memories.content,
-      summary: memories.summary
-    })
-    .from(memories)
-    .where(eq(memories.userId, userId));
-    
-    if (userMemories.length === 0) {
-      log(`[TopicGraphBuilder] 用户 ${userId} 没有记忆数据`);
-      return { nodes: [], links: [] };
-    }
-    
-    log(`[TopicGraphBuilder] 为用户 ${userId} 加载了 ${userMemories.length} 条记忆`);
-    
     // 从学习路径中提取主题节点，识别所有可能的聚类类型
-    let clusterNodes = learningPathData.nodes.filter((node: any) => 
+    const clusterNodes = learningPathData.nodes.filter((node: any) => 
       node.category === 'cluster' || 
       node.category === '记忆主题' || 
       node.category === 'memory_topic' ||
@@ -628,87 +612,6 @@ export async function buildUserKnowledgeGraph(userId: number, forceRefresh: bool
       log(`[TopicGraphBuilder] 聚类节点示例: ${JSON.stringify(clusterNodes[0])}`);
     }
     
-    // 如果聚类节点太少（少于3个），则创建自定义的虚拟聚类节点
-    // 这能确保知识图谱至少有多个节点，而不是只有一个节点
-    if (clusterNodes.length < 3 && userMemories.length > 20) {
-      log(`[TopicGraphBuilder] 用户 ${userId} 的聚类节点太少(${clusterNodes.length})，但有足够记忆(${userMemories.length})，创建自定义聚类`);
-      
-      // 确定要创建的聚类数量，根据记忆数量动态调整
-      let newClusterCount = 0;
-      if (userMemories.length > 400) {
-        newClusterCount = 8 - clusterNodes.length;
-      } else if (userMemories.length > 200) {
-        newClusterCount = 6 - clusterNodes.length;
-      } else if (userMemories.length > 100) {
-        newClusterCount = 5 - clusterNodes.length;
-      } else if (userMemories.length > 50) {
-        newClusterCount = 4 - clusterNodes.length;
-      } else {
-        newClusterCount = 3 - clusterNodes.length;
-      }
-      
-      log(`[TopicGraphBuilder] 将为用户 ${userId} 创建 ${newClusterCount} 个自定义聚类节点`);
-      
-      // 如果需要创建新的聚类节点
-      if (newClusterCount > 0) {
-        // 随机分配记忆到这些新的聚类
-        const shuffledMemories = [...userMemories].sort(() => 0.5 - Math.random());
-        const memoriesPerCluster = Math.floor(shuffledMemories.length / newClusterCount);
-        
-        // 创建新的聚类节点
-        for (let i = 0; i < newClusterCount; i++) {
-          const virtualClusterId = `virtual_cluster_${i}`;
-          clusterNodes.push({
-            id: virtualClusterId,
-            label: `主题 ${clusterNodes.length + i}`,
-            category: 'cluster',
-            clusterId: virtualClusterId,
-            size: 15 + Math.floor(Math.random() * 5)
-          });
-          
-          // 在learningPathData中添加这个虚拟聚类
-          learningPathData.nodes.push({
-            id: virtualClusterId,
-            label: `主题 ${clusterNodes.length + i}`,
-            category: 'cluster',
-            clusterId: virtualClusterId
-          });
-          
-          // 为这个虚拟聚类分配记忆
-          const startIdx = i * memoriesPerCluster;
-          const endIdx = (i === newClusterCount - 1) 
-            ? shuffledMemories.length 
-            : (i + 1) * memoriesPerCluster;
-          
-          const clusterMemories = shuffledMemories.slice(startIdx, endIdx);
-          
-          // 为每个分配的记忆创建到聚类的连接
-          clusterMemories.forEach(memory => {
-            const memoryNodeId = `memory_${memory.id}`;
-            
-            // 添加记忆节点（如果不存在）
-            if (!learningPathData.nodes.some((n: any) => n.id === memoryNodeId)) {
-              learningPathData.nodes.push({
-                id: memoryNodeId,
-                label: memory.summary || memory.content.slice(0, 50),
-                category: 'memory'
-              });
-            }
-            
-            // 添加从记忆到聚类的连接
-            learningPathData.links.push({
-              source: memoryNodeId,
-              target: virtualClusterId,
-              type: 'belongs_to'
-            });
-          });
-        }
-        
-        log(`[TopicGraphBuilder] 成功创建 ${newClusterCount} 个虚拟聚类节点`);
-      }
-    }
-    
-    // 如果仍然没有聚类节点，则返回空结果
     if (clusterNodes.length === 0) {
       log(`[TopicGraphBuilder] 用户 ${userId} 没有有效的聚类数据`);
       return { nodes: [], links: [] };
