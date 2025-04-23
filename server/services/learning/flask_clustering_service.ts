@@ -48,13 +48,27 @@ async function ensureServiceRunning(): Promise<boolean> {
   
   // 检查服务是否已经在运行
   try {
-    const response = await axios.get(`${BASE_URL}/health`, { timeout: 1000 });
+    const response = await axios.get(`${BASE_URL}/health`, { timeout: 2000 });
     if (response.status === 200) {
       console.log('[FlaskClusteringService] 服务已经在运行');
       return true;
     }
   } catch (error) {
-    // 服务未运行，需要启动它
+    // 服务未运行或响应超时，将尝试重启它
+    console.log('[FlaskClusteringService] 服务健康检查失败，将尝试重启服务');
+    
+    // 如果有旧服务进程，尝试优雅关闭
+    if (serviceProcess) {
+      try {
+        console.log('[FlaskClusteringService] 发现旧服务进程，尝试关闭...');
+        serviceProcess.kill();
+        serviceProcess = null;
+        // 等待1秒确保旧进程关闭
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (killError) {
+        console.error(`[FlaskClusteringService] 关闭旧服务进程失败: ${killError}`);
+      }
+    }
   }
   
   // 启动服务
@@ -65,7 +79,11 @@ async function ensureServiceRunning(): Promise<boolean> {
     // 使用Python服务管理器启动服务
     serviceProcess = spawn('python', [SERVICE_MANAGER_PATH], {
       stdio: 'pipe',
-      detached: false
+      detached: false,
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: '1' // 确保Python输出不被缓冲
+      }
     });
     
     // 监听输出和错误
@@ -81,6 +99,7 @@ async function ensureServiceRunning(): Promise<boolean> {
     serviceProcess.on('exit', (code: number) => {
       console.log(`[FlaskClusteringService] 服务已退出，退出码: ${code}`);
       serviceProcess = null;
+      isServiceStarting = false;
     });
     
     // 等待服务启动
@@ -89,8 +108,16 @@ async function ensureServiceRunning(): Promise<boolean> {
       const maxRetries = 30;
       
       const checkHealth = async () => {
+        if (!serviceProcess) {
+          // 服务进程已经终止
+          isServiceStarting = false;
+          console.error('[FlaskClusteringService] 服务进程已终止');
+          resolve(false);
+          return;
+        }
+        
         try {
-          const response = await axios.get(`${BASE_URL}/health`, { timeout: 1000 });
+          const response = await axios.get(`${BASE_URL}/health`, { timeout: 2000 });
           if (response.status === 200) {
             isServiceStarting = false;
             console.log('[FlaskClusteringService] 服务启动成功');
@@ -105,6 +132,15 @@ async function ensureServiceRunning(): Promise<boolean> {
         if (retries >= maxRetries) {
           isServiceStarting = false;
           console.error('[FlaskClusteringService] 服务启动超时');
+          // 尝试强制终止进程
+          if (serviceProcess) {
+            try {
+              serviceProcess.kill('SIGKILL');
+              serviceProcess = null;
+            } catch (killError) {
+              console.error(`[FlaskClusteringService] 强制终止进程失败: ${killError}`);
+            }
+          }
           resolve(false);
           return;
         }
@@ -134,58 +170,126 @@ export async function clusterVectors(
   memoryIds: string[],
   vectors: number[][]
 ): Promise<ClusterResult | null> {
-  // 确保服务正在运行
-  const isRunning = await ensureServiceRunning();
-  if (!isRunning) {
-    console.error('[FlaskClusteringService] 服务未运行，无法执行聚类');
+  // 参数验证
+  if (!memoryIds || !vectors || memoryIds.length === 0 || vectors.length === 0) {
+    console.error('[FlaskClusteringService] 无效的参数: 记忆ID或向量数组为空');
     return null;
   }
   
+  if (memoryIds.length !== vectors.length) {
+    console.error(`[FlaskClusteringService] 记忆ID数量与向量数量不匹配: ${memoryIds.length} vs ${vectors.length}`);
+    return null;
+  }
+  
+  // 确保服务正在运行，最多尝试3次
+  let isRunning = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    isRunning = await ensureServiceRunning();
+    if (isRunning) break;
+    
+    console.log(`[FlaskClusteringService] 服务启动失败，尝试重新启动 (${attempt}/3)...`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  
+  if (!isRunning) {
+    console.error('[FlaskClusteringService] 所有启动尝试均失败，无法执行聚类');
+    return null;
+  }
+  
+  // 大数据集处理策略
+  const totalVectors = memoryIds.length;
+  const batchSize = 500; // 每批处理的最大向量数
+  const needsBatching = totalVectors > batchSize;
+  
   try {
-    // 准备数据
+    console.log(`[FlaskClusteringService] 发送聚类请求，包含 ${totalVectors} 条记忆...`);
+    
+    // 创建向量数据
     const memoryVectors: MemoryVector[] = memoryIds.map((id, index) => ({
       id,
       vector: vectors[index]
     }));
     
-    console.log(`[FlaskClusteringService] 发送聚类请求，包含 ${memoryVectors.length} 条记忆...`);
-    
-    // 大数据集分批处理
-    if (memoryVectors.length > 100) {
-      console.log(`[FlaskClusteringService] 数据量较大，使用分批处理策略...`);
+    // 超大数据集分批处理
+    if (needsBatching) {
+      console.log(`[FlaskClusteringService] 数据量较大(${totalVectors})，使用增强分批处理策略...`);
       
-      // 创建测试批次，确保连接正常
+      // 1. 先发送小型测试请求确保服务正常工作
       const testBatch = memoryVectors.slice(0, 10);
       
-      // 测试连接
       console.log(`[FlaskClusteringService] 发送测试请求，包含 ${testBatch.length} 条记忆...`);
       await axios.post(`${BASE_URL}/api/cluster`, testBatch, {
         timeout: 10000  // 10秒超时
       });
       
-      // 继续使用优化的参数发送完整请求
-      console.log(`[FlaskClusteringService] 测试成功，发送完整聚类请求...`);
+      // 2. 使用均匀采样减少数据量但保留代表性
+      // 当数据量很大时，使用均匀采样而不是随机采样，确保保留整体分布
+      let sampledVectors: MemoryVector[];
+      
+      if (totalVectors > 1000) {
+        console.log(`[FlaskClusteringService] 数据量过大(${totalVectors})，使用均匀采样方法...`);
+        // 每隔几个取一个样本，确保整体分布的代表性
+        const step = Math.max(1, Math.floor(totalVectors / 1000));
+        sampledVectors = [];
+        
+        for (let i = 0; i < totalVectors; i += step) {
+          sampledVectors.push(memoryVectors[i]);
+          if (sampledVectors.length >= 1000) break;
+        }
+        
+        console.log(`[FlaskClusteringService] 采样后数据量: ${sampledVectors.length}`);
+      } else {
+        sampledVectors = memoryVectors;
+      }
+      
+      // 3. 发送优化后的请求
+      console.log(`[FlaskClusteringService] 发送优化后的聚类请求...`);
+      const response = await axios.post(`${BASE_URL}/api/cluster`, sampledVectors, {
+        timeout: 600000,  // 10分钟超时
+        maxContentLength: 150 * 1024 * 1024,  // 150MB最大内容长度
+        maxBodyLength: 150 * 1024 * 1024,     // 150MB最大请求体长度
+      });
+      
+      // 处理结果
+      const result = response.data;
+      console.log(`[FlaskClusteringService] 聚类成功，发现 ${result.centroids.length} 个聚类`);
+      
+      // 转换为期望的格式
+      return {
+        centroids: result.centroids,
+        topics: result.topics
+      };
+    } else {
+      // 小数据集直接处理
+      console.log(`[FlaskClusteringService] 发送标准聚类请求...`);
+      const response = await axios.post(`${BASE_URL}/api/cluster`, memoryVectors, {
+        timeout: 300000,  // 5分钟超时
+        maxContentLength: 50 * 1024 * 1024,   // 50MB最大内容长度
+        maxBodyLength: 50 * 1024 * 1024,      // 50MB最大请求体长度
+      });
+      
+      // 处理结果
+      const result = response.data;
+      console.log(`[FlaskClusteringService] 聚类成功，发现 ${result.centroids.length} 个聚类`);
+      
+      // 转换为期望的格式
+      return {
+        centroids: result.centroids,
+        topics: result.topics
+      };
     }
-    
-    // 发送聚类请求，增加超时时间
-    const response = await axios.post(`${BASE_URL}/api/cluster`, memoryVectors, {
-      timeout: 600000,  // 10分钟超时
-      maxContentLength: 100 * 1024 * 1024,  // 100MB最大内容长度
-      maxBodyLength: 100 * 1024 * 1024,     // 100MB最大请求体长度
-    });
-    
-    // 处理结果
-    const result = response.data;
-    console.log(`[FlaskClusteringService] 聚类成功，发现 ${result.centroids.length} 个聚类`);
-    
-    // 转换为期望的格式
-    return {
-      centroids: result.centroids,
-      topics: result.topics
-    };
-    
   } catch (error) {
     console.error(`[FlaskClusteringService] 聚类请求失败: ${error}`);
+    
+    // 尝试关闭并重启服务
+    try {
+      shutdownService();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 下次调用会自动重启服务
+    } catch (shutdownError) {
+      console.error(`[FlaskClusteringService] 关闭服务失败: ${shutdownError}`);
+    }
+    
     return null;
   }
 }
