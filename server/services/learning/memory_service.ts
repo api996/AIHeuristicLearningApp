@@ -135,8 +135,10 @@ export class MemoryService {
   }[], embeddings: number[][]): Promise<any> {
     try {
       // 记录向量维度信息，用于调试
+      // 向量维度信息
+      let vectorDimensions = 0;
       if (embeddings && embeddings.length > 0) {
-        const vectorDimensions = embeddings[0].length;
+        vectorDimensions = embeddings[0].length;
         log(`[MemoryService] 记忆聚类分析: 用户ID=${userId}, 记忆数量=${memories.length}, 向量维度=${vectorDimensions}`);
         
         // 记录第一个向量的前5个值，以便调试
@@ -189,7 +191,7 @@ export class MemoryService {
             
             // 将Flask API的结果转换为期望的格式
             // 生成主题标题
-            const result = await clusterAnalyzer.generateTopicsForClusters(clusterResult, filteredMemories);
+            const result = await clusterAnalyzer.generateTopicsForFlaskClusters(clusterResult, filteredMemories);
             
             if (result && result.topics) {
               log(`[MemoryService] 聚类分析成功: 发现 ${result.topics.length} 个主题聚类`);
