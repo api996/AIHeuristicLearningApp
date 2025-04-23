@@ -96,12 +96,21 @@ def determine_optimal_clusters(vectors, max_clusters=12):
     if n_samples < 10:
         return min(2, n_samples)
     
-    # 根据样本数量确定最大聚类数
-    actual_max_clusters = min(max_clusters, n_samples // 2)
-    range_clusters = range(2, actual_max_clusters + 1)
+    # 强制最小聚类数为3
+    min_clusters = 3
+    
+    # 根据样本数量确定最大聚类数，但不少于最小聚类数
+    actual_max_clusters = max(min_clusters, min(max_clusters, n_samples // 2))
+    range_clusters = range(min_clusters, actual_max_clusters + 1)
     
     best_score = -1
-    best_clusters = 2  # 默认最小值
+    best_clusters = min_clusters  # 默认至少min_clusters个聚类
+    
+    # 如果样本量超过100，强制增加最小聚类数
+    if n_samples > 100:
+        best_clusters = max(best_clusters, 5)  # 大数据集至少5个聚类
+    elif n_samples > 50:
+        best_clusters = max(best_clusters, 3)  # 中等数据集至少3个聚类
     
     for n_clusters in range_clusters:
         # 尝试创建聚类
@@ -119,6 +128,7 @@ def determine_optimal_clusters(vectors, max_clusters=12):
             # 如果某个聚类数量出错，继续尝试下一个
             continue
     
+    print(f"样本数量: {n_samples}, 最佳聚类数: {best_clusters}, 最佳轮廓系数: {best_score}")
     return best_clusters
 
 def main():
