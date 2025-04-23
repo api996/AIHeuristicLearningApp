@@ -561,7 +561,7 @@ export default function LearningPath() {
                 {/* 知识图谱可视化区域 */}
                 <div className="h-[calc(100%-60px)] w-full relative rounded-lg bg-indigo-950/10 border border-indigo-900/10 overflow-hidden">
                   <div className="absolute inset-0" style={{ backdropFilter: 'blur(2px)' }}>
-                    {/* 使用文本节点力导向图 */}
+                    {/* 使用优化后的文本节点力导向图 */}
                     <TextNodeForceGraph
                       nodes={knowledgeGraph.nodes}
                       links={knowledgeGraph.links}
