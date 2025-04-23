@@ -8,7 +8,6 @@ import { storage } from "../../storage";
 import { Memory } from "@shared/schema";
 import { memoryService } from "./memory_service";
 import { pythonClusteringService } from "./python_clustering";
-import { genAiService } from "../genai/genai_service";
 
 /**
  * 聚类缓存服务类
@@ -278,16 +277,14 @@ export class ClusterCacheService {
    */
   private async executeClusteringService(memoriesData: any[]): Promise<any> {
     try {
-      // 导入Python聚类服务
-      const pythonClusteringService = await import("./python_clustering");
+      // 准备向量数据
+      const vectors = memoriesData.map(m => ({
+        id: m.id,
+        vector: m.embedding
+      }));
       
       // 执行聚类
-      return await pythonClusteringService.clusterVectors(
-        memoriesData.map(m => ({
-          id: m.id,
-          vector: m.embedding
-        }))
-      );
+      return await pythonClusteringService.clusterVectors(vectors);
     } catch (error) {
       log(`[ClusterCache] 调用Python聚类服务失败: ${error}`, "error");
       // 遇到错误时尝试使用备用聚类方法
