@@ -307,48 +307,73 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     const start = { x: sourceNode.x || 0, y: sourceNode.y || 0 };
     const end = { x: targetNode.x || 0, y: targetNode.y || 0 };
     
-    // 计算线宽
-    const width = link.width / globalScale;
+    // 计算线宽 - 增加边宽度，让其更容易被点击
+    const width = Math.max(2.5, link.width) / globalScale;
     
-    // 计算发光效果的宽度
-    const glowWidth = width + 2 / globalScale;
+    // 计算发光效果的宽度 - 增加可点击区域
+    const glowWidth = width + 6 / globalScale;
     
-    // 绘制发光效果
+    // 区分悬停状态的链接
+    const isHighlighted = highlightedLink && 
+      ((typeof highlightedLink.source === 'string' ? highlightedLink.source : highlightedLink.source) === (typeof link.source === 'object' ? link.source.id : link.source)) && 
+      ((typeof highlightedLink.target === 'string' ? highlightedLink.target : highlightedLink.target) === (typeof link.target === 'object' ? link.target.id : link.target));
+    
+    // 绘制互动提示发光效果
     ctx.beginPath();
     // 使用默认颜色或link.color
     const color = link.color || 'rgba(100, 100, 100, 0.7)';
-    ctx.strokeStyle = color.replace(/[\d.]+\)$/, '0.3)');
-    ctx.lineWidth = glowWidth;
+    // 如果是高亮连接，使用更亮的发光效果
+    ctx.strokeStyle = isHighlighted ? color.replace(/[\d.]+\)$/, '0.6)') : color.replace(/[\d.]+\)$/, '0.3)');
+    // 增加触摸区域
+    ctx.lineWidth = isHighlighted ? glowWidth * 1.5 : glowWidth;
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
     
     // 绘制主线
     ctx.beginPath();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
+    // 高亮状态下增加对比度
+    ctx.strokeStyle = isHighlighted ? color.replace(/[\d.]+\)$/, '0.9)') : color;
+    ctx.lineWidth = isHighlighted ? width * 1.3 : width;
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
     
-    // 如果有关系标签并且缩放比例适合显示文本，则在连接中间添加标签
-    if ((link.label || link.type) && globalScale > 0.6) {
-      const midX = (start.x + end.x) / 2;
-      const midY = (start.y + end.y) / 2;
+    // 计算中点 - 为所有连接添加可视提示
+    const midX = (start.x + end.x) / 2;
+    const midY = (start.y + end.y) / 2;
+    
+    // 如果是高亮状态或缩放足够，绘制交互提示点
+    if (isHighlighted || globalScale > 0.4) {
+      // 绘制一个小圆点表示可点击
+      ctx.beginPath();
+      ctx.arc(midX, midY, isHighlighted ? 4 / globalScale : 3 / globalScale, 0, 2 * Math.PI);
+      ctx.fillStyle = isHighlighted ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.6)';
+      ctx.fill();
       
+      // 如果高亮，再加一个边框
+      if (isHighlighted) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1 / globalScale;
+        ctx.stroke();
+      }
+    }
+    
+    // 如果有关系标签并且缩放比例适合显示文本，则在连接中间添加标签
+    if ((link.label || link.type) && (isHighlighted || globalScale > 0.6)) {
       // 显示关系标签
       const labelText = link.label || link.type || "相关";
       
       // 设置字体
-      const fontSize = 12;
+      const fontSize = isHighlighted ? 14 : 12;
       const scaledFontSize = Math.max(fontSize, fontSize / globalScale);
-      ctx.font = `${scaledFontSize}px Arial`;
+      ctx.font = `${isHighlighted ? 'bold' : 'normal'} ${scaledFontSize}px Arial`;
       
       // 为标签添加背景
       const textWidth = ctx.measureText(labelText).width;
       const bckgDimensions = [textWidth + 8, scaledFontSize + 4].map(n => n / globalScale);
       
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillStyle = isHighlighted ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.7)';
       ctx.fillRect(
         midX - bckgDimensions[0] / 2,
         midY - bckgDimensions[1] / 2,
@@ -362,7 +387,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
       ctx.fillStyle = 'white';
       ctx.fillText(labelText, midX, midY);
     }
-  }, [graphData]);
+  }, [graphData, highlightedLink]);
   
   // 处理链接点击
   const handleLinkClick = useCallback((link: any) => {
@@ -381,9 +406,38 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
       learningOrder: link.learningOrder
     };
     
+    // 查找完整的源节点和目标节点信息，以便在对话框中显示更详细的数据
+    const sourceNode = typeof link.source === 'object' ? link.source : 
+      graphData.nodes.find(n => n.id === link.source);
+    
+    const targetNode = typeof link.target === 'object' ? link.target : 
+      graphData.nodes.find(n => n.id === link.target);
+    
+    // 如果找到节点，添加更详细的标签信息
+    if (sourceNode && sourceNode.label) {
+      processedLink.source = sourceNode.label;
+    }
+    
+    if (targetNode && targetNode.label) {
+      processedLink.target = targetNode.label;
+    }
+    
+    // 添加触觉反馈，如果设备支持
+    if (navigator.vibrate && typeof navigator.vibrate === 'function') {
+      try {
+        navigator.vibrate(50); // 短暂的振动反馈
+      } catch (e) {
+        // 忽略不支持振动API的设备
+      }
+    }
+    
+    // 高亮当前连接
+    setHighlightedLink(processedLink);
+    
+    // 显示对话框
     setSelectedLink(processedLink);
     setShowLinkDialog(true);
-  }, []);
+  }, [graphData]);
   
   // 处理链接悬停
   const handleLinkHover = useCallback((link: any | null) => {
@@ -438,45 +492,70 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
       
       {/* 连接关系信息对话框 */}
       <Dialog open={showLinkDialog} onOpenChange={handleCloseDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md border-t-4" style={{ borderTopColor: selectedLink?.color || 'rgba(59, 130, 246, 0.8)' }}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span>知识关联详情</span>
-              {selectedLink && <Badge variant="outline" className="ml-2">{selectedLink.type || '相关关系'}</Badge>}
+              {selectedLink && (
+                <Badge 
+                  variant="outline" 
+                  className="ml-2 animate-fadeIn" 
+                  style={{ 
+                    borderColor: selectedLink.color || 'rgba(59, 130, 246, 0.8)',
+                    color: selectedLink.color ? selectedLink.color.replace(/[\d.]+\)$/, '1)') : 'rgba(59, 130, 246, 1)'
+                  }}
+                >
+                  {selectedLink.type || '相关关系'}
+                </Badge>
+              )}
             </DialogTitle>
           </DialogHeader>
           
           {selectedLink && (
-            <div className="space-y-4">
+            <div className="space-y-4 animate-fadeIn">
               <div className="flex items-center justify-between px-1">
                 <span className="text-sm font-medium">关系强度:</span>
                 <div className="flex items-center">
-                  <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="w-24 h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-blue-500" 
+                      className="h-full transition-all duration-500 ease-out" 
                       style={{ 
                         width: `${((selectedLink.strength || 5) / 10) * 100}%`,
                         background: selectedLink.color || 'rgba(59, 130, 246, 0.8)'
                       }}
                     ></div>
                   </div>
-                  <span className="text-sm ml-2">{selectedLink.strength || 5}/10</span>
+                  <span className="text-sm ml-2 font-medium">{selectedLink.strength || 5}/10</span>
                 </div>
               </div>
               
               <div className="grid grid-cols-1 gap-4 mt-2">
-                <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                  <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 dark:text-blue-300"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/></svg>
+                <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg hover:shadow-md transition-shadow duration-300">
+                  <div className="p-2 rounded-full" style={{ background: `${selectedLink.color?.replace(/[\d.]+\)$/, '0.2)') || 'rgba(59, 130, 246, 0.2)'}` }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: selectedLink.color || 'rgba(59, 130, 246, 0.8)' }}><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/></svg>
                   </div>
                   <div className="flex-1">
                     <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">关联主题</h4>
-                    <div className="flex gap-2 mt-1 flex-wrap">
-                      <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 hover:bg-indigo-200 transition-colors">
+                    <div className="flex gap-2 mt-1 flex-wrap items-center">
+                      <Badge 
+                        className="py-1 text-base transition-colors hover:bg-indigo-200 dark:hover:bg-indigo-800"
+                        style={{ 
+                          background: 'rgba(99, 102, 241, 0.1)', 
+                          color: 'rgb(79, 70, 229)', 
+                          borderColor: 'rgba(99, 102, 241, 0.2)' 
+                        }}
+                      >
                         {typeof selectedLink.source === 'string' ? selectedLink.source : (selectedLink.source as any)?.label || (selectedLink.source as any)?.id}
                       </Badge>
-                      <span className="text-gray-400">→</span>
-                      <Badge className="bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200 hover:bg-violet-200 transition-colors">
+                      <span className="text-gray-400 px-1">→</span>
+                      <Badge 
+                        className="py-1 text-base transition-colors hover:bg-violet-200 dark:hover:bg-violet-800"
+                        style={{ 
+                          background: 'rgba(139, 92, 246, 0.1)', 
+                          color: 'rgb(109, 40, 217)', 
+                          borderColor: 'rgba(139, 92, 246, 0.2)' 
+                        }}
+                      >
                         {typeof selectedLink.target === 'string' ? selectedLink.target : (selectedLink.target as any)?.label || (selectedLink.target as any)?.id}
                       </Badge>
                     </div>
@@ -484,26 +563,26 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
                 </div>
               </div>
               
-              <div className="space-y-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                <div className="flex items-center gap-2">
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg hover:shadow-md transition-shadow duration-300">
+                <div className="flex items-center gap-2 mb-2">
                   <div className="p-2 rounded-full bg-green-100 dark:bg-green-900">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600 dark:text-green-300"><path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12"/><circle cx="17" cy="7" r="5"/></svg>
                   </div>
                   <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">学习建议</h4>
                 </div>
-                <div className="rounded-md p-2 text-sm mt-1">
+                <div className="rounded-md p-2 text-sm mt-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
                   {selectedLink.learningOrder || '可同时学习这两个主题，它们相互补充'}
                 </div>
               </div>
               
-              <div className="space-y-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                <div className="flex items-center gap-2">
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg hover:shadow-md transition-shadow duration-300">
+                <div className="flex items-center gap-2 mb-2">
                   <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600 dark:text-amber-300"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
                   </div>
                   <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">关系解释</h4>
                 </div>
-                <div className="rounded-md p-2 text-sm mt-1 whitespace-pre-line">
+                <div className="rounded-md p-2 text-sm mt-1 whitespace-pre-line bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800">
                   {selectedLink.reason || '这些主题在学习过程中存在关联，帮助你构建更完整的知识体系。'}
                 </div>
               </div>
