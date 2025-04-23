@@ -8,7 +8,7 @@
  */
 
 import { db, sql } from "../server/db";
-import { memoryEmbeddings, memories, insertMemorySchema, insertMemoryEmbeddingSchema, type InsertMemory, type InsertMemoryEmbedding } from "../shared/schema";
+import { memoryEmbeddings, memories, memoryKeywords, insertMemorySchema, insertMemoryEmbeddingSchema, type InsertMemory, type InsertMemoryEmbedding } from "../shared/schema";
 import { genAiService } from "../server/services/genai/genai_service";
 import * as dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
@@ -164,17 +164,35 @@ async function generateTestConversations(count = 50) {
       }
       
       try {
-        // 使用原始SQL语句插入，确保功能正常
-        await db.execute(sql`
-          INSERT INTO memories (id, user_id, content, summary, type, keywords, created_at, timestamp)
-          VALUES (${memoryId}, ${userId}, ${fullContent}, ${summary}, 'chat', ${keywords.join(",")}, ${createdAt}, ${createdAt})
-        `);
+        // 使用ORM插入记忆数据
+        const memoryData: InsertMemory = {
+          id: memoryId,
+          userId: userId,
+          content: fullContent,
+          summary: summary,
+          type: "chat",
+          timestamp: createdAt,
+          createdAt: createdAt
+        };
         
-        // 使用原始SQL语句插入向量嵌入
-        await db.execute(sql`
-          INSERT INTO memory_embeddings (memory_id, vector_data)
-          VALUES (${memoryId}, ${JSON.stringify(vector)})
-        `);
+        // 插入记忆
+        await db.insert(memories).values(memoryData).execute();
+        
+        // 为每个关键词创建记录
+        for (const keyword of keywords) {
+          await db.insert(memoryKeywords).values({
+            memoryId: memoryId,
+            keyword: keyword
+          }).execute();
+        }
+        
+        // 插入向量嵌入
+        const embeddingData: InsertMemoryEmbedding = {
+          memoryId: memoryId,
+          vectorData: vector as any // 类型断言解决数组兼容性问题
+        };
+        
+        await db.insert(memoryEmbeddings).values(embeddingData).execute();
         
       } catch (insertError) {
         console.error(`插入数据时出错: ${insertError}`);
@@ -190,22 +208,11 @@ async function generateTestConversations(count = 50) {
   } finally {
     // 关闭数据库连接池
     try {
-      // Neon数据库连接使用的是PostgreSQL池
-      const pool = (db as any).$pool || (db as any).client?.pool;
+      // 直接导入pool对象
+      const { pool } = await import('../server/db');
       if (pool && typeof pool.end === 'function') {
         await pool.end();
         console.log("数据库连接池已关闭");
-      } else {
-        console.log("使用内置的连接关闭方法");
-        // 使用直接导入的pool对象
-        await import("../server/db").then(async ({ pool }) => {
-          if (pool && typeof pool.end === 'function') {
-            await pool.end();
-            console.log("通过导入pool对象关闭连接");
-          }
-        }).catch(e => {
-          console.log("无法导入pool对象:", e);
-        });
       }
     } catch (e) {
       console.log("关闭数据库连接时出错:", e);
