@@ -144,6 +144,7 @@ def main():
         
         # 确定最佳聚类数量
         n_clusters = determine_optimal_clusters(vectors, max_clusters=min(12, len(vectors) // 2))
+        print(f"使用最佳聚类数量: {n_clusters}")
         
         # 执行KMeans聚类
         kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
@@ -164,18 +165,22 @@ def main():
                 "points": [{"id": id} for id in cluster_ids],
                 "cluster_id": str(i)
             })
-            
-            # 将结果转换为与API兼容的格式
-            formatted_result = {}
-            for i, centroid in enumerate(result["centroids"]):
-                formatted_result[str(i)] = {
-                    "centroid": centroid["center"],
-                    "memory_ids": [point["id"] for point in centroid["points"]],
-                    "topic": f"主题 {i}",
-                    "cluster_id": centroid["cluster_id"]
-                }
-            
-        # 保存结果
+        
+        # 将结果转换为与API兼容的格式
+        formatted_result = {}
+        for i, centroid in enumerate(result["centroids"]):
+            formatted_result[str(i)] = {
+                "centroid": centroid["center"], 
+                "memory_ids": [point["id"] for point in centroid["points"]],
+                "topic": f"主题 {i}",
+                "cluster_id": centroid.get("cluster_id", str(i))
+            }
+            print(f"聚类 {i}: {len(formatted_result[str(i)]['memory_ids'])} 个记忆")
+        
+        # 打印结果结构
+        print(f"输出格式化结果，包含 {len(formatted_result)} 个聚类")
+        
+        # 保存格式化后的结果
         with open("${outputFilePath}", "w") as f:
             json.dump(formatted_result, f)
         

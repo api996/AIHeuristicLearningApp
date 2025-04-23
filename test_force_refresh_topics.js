@@ -44,9 +44,31 @@ async function forceRefreshTopics(userId) {
     log(`强制刷新完成，聚类数量: ${clusterCount}`, 'success');
     
     if (clusterCount > 0) {
-      log(`聚类主题:`);
+      log(`聚类主题与详细信息:`);
+      
+      // 打印完整的聚类结果数据结构
+      log(`完整聚类结果结构:`, 'info');
+      console.dir(result, { depth: 5, colors: true });
+      
       for (const [clusterId, clusterData] of Object.entries(result)) {
-        log(`  - 聚类${clusterId}: "${clusterData.topic || '无主题'}" (${(clusterData.memory_ids || []).length}条记忆)`, 'info');
+        // 打印内存IDs
+        const memoryIds = clusterData.memory_ids || [];
+        log(`  - 聚类${clusterId}: "${clusterData.topic || '无主题'}" (${memoryIds.length}条记忆)`, 'info');
+        
+        // 打印记忆列表
+        if (memoryIds.length > 0) {
+          log(`    记忆ID列表: ${memoryIds.slice(0, 3).join(', ')}${memoryIds.length > 3 ? '...' : ''}`, 'info');
+        }
+        
+        // 打印该聚类的关键词
+        if (clusterData.keywords && clusterData.keywords.length > 0) {
+          log(`    关键词: ${clusterData.keywords.join(', ')}`, 'info');
+        }
+        
+        // 打印其他可能的属性
+        if (clusterData.summary) {
+          log(`    摘要: ${clusterData.summary}`, 'info');
+        }
       }
     } else {
       log(`未找到聚类数据`, 'warn');
