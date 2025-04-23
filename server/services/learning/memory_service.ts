@@ -172,7 +172,40 @@ export class MemoryService {
         return { topics: [], error: "Memory and embedding count mismatch" };
       }
       
-      // 执行聚类分析
+      // 检查是否使用优化的Flask API聚类服务
+      if (vectorDimensions >= 3000) {
+        try {
+          const { clusterVectors } = await import('./flask_clustering_service');
+          
+          // 准备ID和向量数据
+          const memoryIds = filteredMemories.map(m => m.id);
+          
+          // 调用Flask API聚类服务
+          log(`[MemoryService] 使用Flask API聚类服务进行高维向量聚类...`);
+          const clusterResult = await clusterVectors(memoryIds, embeddings);
+          
+          if (clusterResult && clusterResult.centroids && clusterResult.centroids.length > 0) {
+            log(`[MemoryService] Flask API聚类成功，发现 ${clusterResult.centroids.length} 个聚类`);
+            
+            // 将Flask API的结果转换为期望的格式
+            // 生成主题标题
+            const result = await clusterAnalyzer.generateTopicsForClusters(clusterResult, filteredMemories);
+            
+            if (result && result.topics) {
+              log(`[MemoryService] 聚类分析成功: 发现 ${result.topics.length} 个主题聚类`);
+            }
+            
+            return result;
+          } else {
+            log(`[MemoryService] Flask API聚类失败，回退到标准聚类方法`, "warn");
+          }
+        } catch (flaskError) {
+          log(`[MemoryService] Flask API聚类服务出错: ${flaskError}，回退到标准聚类方法`, "warn");
+        }
+      }
+      
+      // 执行标准聚类分析
+      log(`[MemoryService] 使用标准聚类方法进行分析...`);
       const result = await clusterAnalyzer.analyzeMemoryClusters(filteredMemories, embeddings);
       
       // 记录分析结果
@@ -398,17 +431,44 @@ export class MemoryService {
       const testVectors = this.generateTestVectors(10, 3072);
       log(`[MemoryService] 已生成 ${testVectors.length} 个测试向量，每个维度为 3072`);
       
-      // 使用直接Python服务
-      const { directPythonService } = await import('./direct_python_service');
+      // 使用Flask API聚类服务（优先）
+      try {
+        const { clusterVectors } = await import('./flask_clustering_service');
+        
+        // 准备ID和向量数据
+        const memoryIds = testVectors.map(v => v.id);
+        const vectors = testVectors.map(v => v.vector);
+        
+        // 调用Flask API聚类服务
+        log(`[MemoryService] 使用Flask API聚类服务处理测试向量...`);
+        const result = await clusterVectors(memoryIds, vectors);
+        
+        if (result && result.centroids && result.centroids.length > 0) {
+          log(`[MemoryService] Flask API聚类服务测试成功，生成 ${result.centroids.length} 个聚类`);
+          return true;
+        } else {
+          log(`[MemoryService] Flask API聚类服务测试失败，尝试回退到直接Python服务`, "warn");
+        }
+      } catch (flaskError) {
+        log(`[MemoryService] Flask API聚类服务出错: ${flaskError}，尝试回退到直接Python服务`, "warn");
+      }
       
-      // 直接调用Python聚类服务
-      const result = await directPythonService.clusterVectors(testVectors);
-      
-      if (result && result.centroids && result.centroids.length > 0) {
-        log(`[MemoryService] Python聚类服务测试成功，生成 ${result.centroids.length} 个聚类`);
-        return true;
-      } else {
-        log(`[MemoryService] Python聚类服务测试失败: 未能生成有效聚类`, "error");
+      // 回退到直接Python服务
+      try {
+        const { directPythonService } = await import('./direct_python_service');
+        
+        log(`[MemoryService] 使用直接Python服务处理测试向量...`);
+        const result = await directPythonService.clusterVectors(testVectors);
+        
+        if (result && result.centroids && result.centroids.length > 0) {
+          log(`[MemoryService] 直接Python服务测试成功，生成 ${result.centroids.length} 个聚类`);
+          return true;
+        } else {
+          log(`[MemoryService] 直接Python服务测试失败: 未能生成有效聚类`, "error");
+          return false;
+        }
+      } catch (directError) {
+        log(`[MemoryService] 直接Python服务出错: ${directError}`, "error");
         return false;
       }
     } catch (error) {
