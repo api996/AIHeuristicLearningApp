@@ -124,7 +124,7 @@ async function ensureServiceRunning(): Promise<boolean> {
 }
 
 /**
- * 执行向量聚类，含重试机制
+ * 执行向量聚类
  * 
  * @param memoryIds 记忆ID数组
  * @param vectors 向量数组
@@ -134,90 +134,41 @@ export async function clusterVectors(
   memoryIds: string[],
   vectors: number[][]
 ): Promise<ClusterResult | null> {
-  const maxRetries = 3;
-  const retryDelay = 2000; // 2秒后重试
-  let retries = 0;
-  
-  while (retries <= maxRetries) {
-    try {
-      // 确保服务正在运行
-      const isRunning = await ensureServiceRunning();
-      if (!isRunning) {
-        console.error('[FlaskClusteringService] 服务未运行，无法执行聚类');
-        
-        // 如果还有重试机会，尝试一次完全重启
-        if (retries < maxRetries) {
-          retries++;
-          console.log(`[FlaskClusteringService] 尝试重新启动服务 (${retries}/${maxRetries})...`);
-          
-          // 关闭现有实例并重置状态
-          shutdownService();
-          serviceProcess = null;
-          isServiceStarting = false;
-          
-          // 等待一段时间再重试
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-          continue;
-        }
-        
-        return null;
-      }
-      
-      // 准备数据
-      const memoryVectors: MemoryVector[] = memoryIds.map((id, index) => ({
-        id,
-        vector: vectors[index]
-      }));
-      
-      console.log(`[FlaskClusteringService] 发送聚类请求，包含 ${memoryVectors.length} 条记忆...`);
-      
-      // 分批处理大量数据，避免请求过大
-      const batchSize = 1000; // 每批1000条记忆
-      let allResults: any = null;
-      
-      if (memoryVectors.length > batchSize) {
-        // 如果数据量大，分批处理
-        console.log(`[FlaskClusteringService] 数据量较大，分批处理 (${Math.ceil(memoryVectors.length / batchSize)} 批)...`);
-        
-        // 暂时使用整批处理，如果需要可以实现批处理逻辑
-        // TODO: 实现大规模数据的批处理逻辑
-      }
-      
-      // 发送聚类请求
-      const response = await axios.post(`${BASE_URL}/api/cluster`, memoryVectors, {
-        timeout: 600000,  // 10分钟超时
-        headers: {
-          'Content-Type': 'application/json',
-          'Connection': 'keep-alive'
-        }
-      });
-      
-      // 处理结果
-      const result = response.data;
-      console.log(`[FlaskClusteringService] 聚类成功，发现 ${result.centroids.length} 个聚类`);
-      
-      // 转换为期望的格式
-      return {
-        centroids: result.centroids,
-        topics: result.topics
-      };
-      
-    } catch (error: any) {
-      console.error(`[FlaskClusteringService] 聚类请求失败: ${error.message || error}`);
-      
-      // 重试判断
-      retries++;
-      if (retries <= maxRetries) {
-        console.log(`[FlaskClusteringService] 将在 ${retryDelay/1000} 秒后重试 (${retries}/${maxRetries})...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-      } else {
-        console.error(`[FlaskClusteringService] 已达最大重试次数 (${maxRetries})，放弃请求`);
-        return null;
-      }
-    }
+  // 确保服务正在运行
+  const isRunning = await ensureServiceRunning();
+  if (!isRunning) {
+    console.error('[FlaskClusteringService] 服务未运行，无法执行聚类');
+    return null;
   }
   
-  return null; // 如果所有重试都失败
+  try {
+    // 准备数据
+    const memoryVectors: MemoryVector[] = memoryIds.map((id, index) => ({
+      id,
+      vector: vectors[index]
+    }));
+    
+    console.log(`[FlaskClusteringService] 发送聚类请求，包含 ${memoryVectors.length} 条记忆...`);
+    
+    // 发送聚类请求
+    const response = await axios.post(`${BASE_URL}/api/cluster`, memoryVectors, {
+      timeout: 300000  // 5分钟超时
+    });
+    
+    // 处理结果
+    const result = response.data;
+    console.log(`[FlaskClusteringService] 聚类成功，发现 ${result.centroids.length} 个聚类`);
+    
+    // 转换为期望的格式
+    return {
+      centroids: result.centroids,
+      topics: result.topics
+    };
+    
+  } catch (error) {
+    console.error(`[FlaskClusteringService] 聚类请求失败: ${error}`);
+    return null;
+  }
 }
 
 /**

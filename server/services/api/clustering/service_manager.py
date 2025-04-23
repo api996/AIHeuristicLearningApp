@@ -176,7 +176,7 @@ def shutdown_service() -> None:
 # 测试函数
 def test_clustering_service() -> bool:
     """
-    测试聚类服务 - 注意: 此函数不会自动关闭服务
+    测试聚类服务
     
     Returns:
         布尔值，表示测试是否成功
@@ -191,11 +191,8 @@ def test_clustering_service() -> bool:
             'vector': vector
         })
     
-    # 获取一个专用的服务管理器实例，以避免与其他实例冲突
-    test_manager = ClusteringServiceManager(port=DEFAULT_PORT)
-    
     # 执行聚类
-    result = test_manager.cluster_vectors(test_vectors)
+    result = cluster_vectors(test_vectors)
     
     if result is None:
         logger.error("聚类测试失败")
@@ -207,7 +204,6 @@ def test_clustering_service() -> bool:
 # 如果直接运行此脚本，执行测试
 if __name__ == '__main__':
     success = test_clustering_service()
-    # 明确关闭服务，确保不会与实际应用冲突
     shutdown_service()
     
     if success:
