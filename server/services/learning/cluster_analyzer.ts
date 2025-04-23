@@ -25,6 +25,17 @@ export interface ClusterResult {
   error?: string;
 }
 
+interface FlaskClusterResult {
+  centroids: {
+    center: number[];
+    points: { id: string }[];
+  }[];
+  topics: string[];
+  clusters?: {
+    points: string[];
+  }[];
+}
+
 export class ClusterAnalyzerService {
   /**
    * 直接分析向量数据，生成聚类分析结果
