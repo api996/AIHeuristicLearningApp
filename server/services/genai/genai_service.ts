@@ -298,18 +298,25 @@ const createGenAIService = async (): Promise<GenAIService> => {
   // 首先尝试使用Gemini服务
   const geminiService = new GeminiService();
   
+  if (!geminiApiKey || geminiApiKey.trim() === "") {
+    log("[genai_service] 未设置Gemini API密钥，使用后备服务", "warn");
+    return new FallbackService();
+  }
+  
   try {
-    // 测试API是否可用
-    const result = await geminiService.generateEmbedding("测试");
-    if (result) {
-      log("[genai_service] GenAI 服务已初始化", "info");
+    // 测试API是否可用 - 尝试直接生成主题而不是嵌入
+    const testTexts = ["测试文本，用于验证Gemini API是否可用"];
+    const testTopic = await geminiService.generateTopicForMemories(testTexts);
+    
+    if (testTopic && testTopic !== "用户问") {
+      log(`[genai_service] GenAI 服务已初始化，主题生成测试成功: "${testTopic}"`, "info");
       return geminiService;
     } else {
-      log("[genai_service] API测试返回空结果，使用后备服务", "warn");
+      log(`[genai_service] API测试返回无效主题或错误结果: "${testTopic}"，使用后备服务`, "warn");
       return new FallbackService();
     }
   } catch (error) {
-    log("[genai_service] API测试失败，使用后备服务", "warn");
+    log(`[genai_service] API测试失败，使用后备服务: ${error}`, "warn");
     return new FallbackService();
   }
 };
