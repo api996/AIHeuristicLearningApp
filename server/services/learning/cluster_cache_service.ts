@@ -349,10 +349,23 @@ export class ClusterCacheService {
         // 如果聚类中有记忆内容，生成主题和摘要
         if (clusterMemories.length > 0) {
           // 使用Gemini生成主题
-          if (!clusterData.topic || clusterData.topic === `主题 ${clusterId}`) {
+          // 如果没有主题或主题是默认格式，或者以"主题"开头，则重新生成
+          const hasDefaultTopic = !clusterData.topic || 
+                                clusterData.topic === `主题 ${clusterId}` || 
+                                clusterData.topic.startsWith('主题');
+          
+          // 强制重新生成主题，添加详细日志
+          log(`[ClusterCache] 聚类${clusterId}的现有主题: "${clusterData.topic || '无'}", 需要重新生成: ${hasDefaultTopic}`);
+          
+          if (hasDefaultTopic) {
+            log(`[ClusterCache] 开始为聚类${clusterId}生成新主题...`);
             const topic = await this.generateTopicForCluster(clusterMemories);
+            
             if (topic) {
+              log(`[ClusterCache] 成功为聚类${clusterId}生成新主题: "${topic}"`);
               clusterData.topic = topic;
+            } else {
+              log(`[ClusterCache] 无法为聚类${clusterId}生成新主题`, 'warn');
             }
           }
           
