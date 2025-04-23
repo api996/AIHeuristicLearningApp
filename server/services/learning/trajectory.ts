@@ -433,7 +433,8 @@ function getCategoryFromKeywords(keywords: string[]): string {
  * @returns 学习建议列表
  */
 /**
- * 基于memory-space聚类生成学习建议
+ * 基于memory-space聚类生成深度学习建议
+ * 提供个性化、有深度的学习建议和进展分析
  * 
  * @param clusters memory-space聚类结果
  * @returns 学习建议列表
@@ -447,6 +448,8 @@ function generateSuggestionsFromMemorySpaceClusters(clusters: any[]): string[] {
     ];
   }
   
+  log(`[trajectory] 开始生成深度学习建议，聚类数: ${clusters.length}`);
+  
   // 按百分比排序聚类
   const sortedClusters = [...clusters].sort(
     (a, b) => b.percentage - a.percentage
@@ -454,29 +457,212 @@ function generateSuggestionsFromMemorySpaceClusters(clusters: any[]): string[] {
   
   const suggestions: string[] = [];
   
-  // 基于最大聚类的建议
-  if (sortedClusters.length > 0) {
-    const topCluster = sortedClusters[0];
-    suggestions.push(`深入探索"${topCluster.topic}"主题以加强您的知识基础`);
+  // 知识结构分析
+  try {
+    // 分析学习广度 (聚类数量)
+    const learningBreadth = analyzeLearningBreadth(clusters.length);
+    if (learningBreadth) suggestions.push(learningBreadth);
+    
+    // 分析学习深度 (主要聚类占比)
+    if (sortedClusters.length > 0) {
+      const topClusterPercentage = sortedClusters[0].percentage;
+      const learningDepth = analyzeLearningDepth(topClusterPercentage);
+      if (learningDepth) suggestions.push(learningDepth);
+    }
+  } catch (error) {
+    log(`[trajectory] 生成知识结构分析建议时出错: ${error}`);
   }
   
-  // 第二大聚类的建议
-  if (sortedClusters.length > 1) {
-    const secondCluster = sortedClusters[1];
-    suggestions.push(`继续学习"${secondCluster.topic}"，这是您的重要学习方向之一`);
+  // 主题特定建议
+  try {
+    // 基于最大聚类的深度学习建议
+    if (sortedClusters.length > 0) {
+      const topCluster = sortedClusters[0];
+      const mainTopicSuggestion = generateDeepTopicSuggestion(topCluster.topic, 'primary');
+      suggestions.push(mainTopicSuggestion);
+    }
+    
+    // 第二大聚类的建议 (如果存在)
+    if (sortedClusters.length > 1) {
+      const secondCluster = sortedClusters[1];
+      const secondaryTopicSuggestion = generateDeepTopicSuggestion(secondCluster.topic, 'secondary');
+      suggestions.push(secondaryTopicSuggestion);
+    }
+    
+    // 小聚类的建议 (拓展建议)
+    if (sortedClusters.length > 2) {
+      const smallCluster = sortedClusters[sortedClusters.length - 1];
+      const expandTopicSuggestion = generateDeepTopicSuggestion(smallCluster.topic, 'expand');
+      suggestions.push(expandTopicSuggestion);
+    }
+  } catch (error) {
+    log(`[trajectory] 生成主题特定建议时出错: ${error}`);
+    
+    // 出错时提供基本建议
+    if (sortedClusters.length > 0) {
+      const topCluster = sortedClusters[0];
+      suggestions.push(`深入探索"${topCluster.topic}"主题以加强您的知识基础`);
+    }
   }
   
-  // 小聚类的建议
-  if (sortedClusters.length > 2) {
-    const smallCluster = sortedClusters[sortedClusters.length - 1];
-    suggestions.push(`拓展"${smallCluster.topic}"方面的知识，这是您较少涉及的领域`);
+  // 添加知识联系建议
+  if (sortedClusters.length >= 2) {
+    try {
+      // 生成主题之间的关联建议
+      const topTwoTopics = [sortedClusters[0].topic, sortedClusters[1].topic];
+      const connectionSuggestion = generateConnectionSuggestion(topTwoTopics);
+      suggestions.push(connectionSuggestion);
+    } catch (error) {
+      log(`[trajectory] 生成知识联系建议时出错: ${error}`);
+      // 通用的知识联系建议
+      suggestions.push("尝试将不同主题的知识联系起来，建立更完整的知识网络");
+    }
+  } else {
+    suggestions.push("探索更多不同领域的知识，以便建立更广泛的知识网络");
   }
   
-  // 通用建议
-  suggestions.push("尝试将不同主题的知识联系起来，建立更完整的知识网络");
-  suggestions.push("回顾之前学习过的内容，巩固已有知识");
+  // 添加实用学习策略
+  const learningStrategies = generateLearningStrategies(clusters.length);
+  suggestions.push(learningStrategies);
   
-  return suggestions;
+  // 确保至少有5条建议
+  if (suggestions.length < 5) {
+    suggestions.push("复习已经学习的内容，通过定期回顾加深记忆");
+    suggestions.push("实践所学知识，尝试解决相关领域的实际问题");
+  }
+  
+  // 最多返回5条建议
+  return suggestions.slice(0, 5);
+}
+
+/**
+ * 分析学习广度，给出建议
+ * @param clusterCount 聚类数量
+ * @returns 广度相关建议
+ */
+function analyzeLearningBreadth(clusterCount: number): string {
+  if (clusterCount <= 2) {
+    return "考虑探索更多不同的知识领域，拓宽您的知识面";
+  } else if (clusterCount >= 7) {
+    return "您的学习范围很广，考虑在几个关键领域深入发展，避免知识过于分散";
+  }
+  return "";
+}
+
+/**
+ * 分析学习深度，给出建议
+ * @param topClusterPercentage 主要聚类占比
+ * @returns 深度相关建议
+ */
+function analyzeLearningDepth(topClusterPercentage: number): string {
+  if (topClusterPercentage > 50) {
+    return "您在主要领域已有较深入的学习，可以尝试拓展相关联的知识分支";
+  } else if (topClusterPercentage < 25) {
+    return "建议选择一个最感兴趣的主题进行深入学习，培养专业知识";
+  }
+  return "";
+}
+
+/**
+ * 生成具体主题的深度学习建议
+ * @param topic 主题名称
+ * @param type 建议类型 (primary-主要, secondary-次要, expand-拓展)
+ * @returns 主题学习建议
+ */
+function generateDeepTopicSuggestion(topic: string, type: 'primary' | 'secondary' | 'expand'): string {
+  // 主要主题建议模板
+  const primaryTemplates = [
+    `深入研究"${topic}"的核心概念和基础理论，建立系统性理解`,
+    `在"${topic}"领域寻找进阶资源，提升专业深度`,
+    `探索"${topic}"的最新发展和前沿研究方向`,
+    `尝试将"${topic}"的知识应用到实际项目中，加深理解`
+  ];
+  
+  // 次要主题建议模板
+  const secondaryTemplates = [
+    `继续发展"${topic}"领域的知识，这与您的主要学习方向形成良好互补`,
+    `加强"${topic}"方面的学习，尝试与您的主要兴趣领域建立联系`,
+    `探索"${topic}"中与您主要学习领域相关的分支知识`
+  ];
+  
+  // 拓展主题建议模板
+  const expandTemplates = [
+    `适当了解"${topic}"领域的基础知识，拓展您的知识广度`,
+    `考虑学习"${topic}"的入门内容，它可能为您的主要学习领域提供新视角`,
+    `探索"${topic}"如何与您已掌握的知识形成互补和交叉`
+  ];
+  
+  // 根据类型选择模板
+  let templates;
+  switch(type) {
+    case 'primary':
+      templates = primaryTemplates;
+      break;
+    case 'secondary':
+      templates = secondaryTemplates;
+      break;
+    case 'expand':
+      templates = expandTemplates;
+      break;
+    default:
+      templates = primaryTemplates;
+  }
+  
+  // 随机选择一个模板
+  const index = Math.floor(Math.random() * templates.length);
+  return templates[index];
+}
+
+/**
+ * 生成知识联系建议
+ * @param topics 需要关联的主题列表
+ * @returns 知识联系建议
+ */
+function generateConnectionSuggestion(topics: string[]): string {
+  if (topics.length < 2) {
+    return "寻找不同知识领域之间的联系，建立整合性思维";
+  }
+  
+  const connectionTemplates = [
+    `探索"${topics[0]}"和"${topics[1]}"之间的交叉领域，寻找知识融合点`,
+    `尝试用"${topics[0]}"的概念解决"${topics[1]}"中的问题，促进知识迁移`,
+    `比较"${topics[0]}"与"${topics[1]}"的方法论差异，加深对两者的理解`,
+    `研究"${topics[0]}"和"${topics[1]}"的结合应用场景，创造新的见解`
+  ];
+  
+  const index = Math.floor(Math.random() * connectionTemplates.length);
+  return connectionTemplates[index];
+}
+
+/**
+ * 生成学习策略建议
+ * @param clusterCount 聚类数量
+ * @returns 学习策略建议
+ */
+function generateLearningStrategies(clusterCount: number): string {
+  // 学习策略模板
+  const strategies = [
+    "使用费曼技巧：尝试向他人解释所学概念，找出知识空白",
+    "建立知识地图：将相关概念可视化连接，找出知识结构",
+    "间隔复习：定期回顾过去学习的内容，强化长期记忆",
+    "实践应用：通过解决实际问题验证并加深理论理解",
+    "主动提问：遇到概念时思考'为什么'和'如何'，培养批判性思维"
+  ];
+  
+  // 根据聚类数量选择不同策略 (简单示例)
+  let index = 0;
+  if (clusterCount <= 2) {
+    // 对于聚类少的用户，建议使用知识地图或主动提问的策略
+    index = Math.floor(Math.random() * 2) + 1; // 返回1或2
+  } else if (clusterCount >= 5) {
+    // 对于聚类多的用户，建议使用费曼技巧或间隔复习策略
+    index = Math.floor(Math.random() * 2) * 2; // 返回0或2
+  } else {
+    // 其他情况随机选择
+    index = Math.floor(Math.random() * strategies.length);
+  }
+  
+  return strategies[index];
 }
 
 /**
