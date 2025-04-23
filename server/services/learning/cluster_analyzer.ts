@@ -517,8 +517,8 @@ export class ClusterAnalyzerService {
       
       for (let i = 0; i < timeSegments.length; i++) {
         const segment = timeSegments[i];
-        const startDate = segment[0]?.createdAt ? new Date(segment[0].createdAt) : new Date();
-        const endDate = segment[segment.length - 1]?.createdAt ? new Date(segment[segment.length - 1].createdAt) : new Date();
+        const startDate = new Date(segment[0]?.createdAt || Date.now());
+        const endDate = new Date(segment[segment.length - 1]?.createdAt || Date.now());
         
         const segmentKey = `segment_${i + 1}`;
         timeDistribution[segmentKey] = {
