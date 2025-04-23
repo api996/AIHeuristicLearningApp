@@ -119,7 +119,7 @@ def is_service_running():
 
 # 如果直接运行此脚本，启动服务
 if __name__ == '__main__':
-    port = os.environ.get('CLUSTERING_API_PORT', DEFAULT_PORT)
+    port = int(os.environ.get('CLUSTERING_API_PORT', DEFAULT_PORT))
     
     try:
         # 启动服务

@@ -7,6 +7,7 @@ import sys
 import requests
 import logging
 import time
+import random
 from typing import Dict, Any, Optional
 
 # 导入启动脚本
@@ -181,13 +182,13 @@ def test_clustering_service() -> bool:
         布尔值，表示测试是否成功
     """
     # 创建测试数据
-    import numpy as np
     test_vectors = []
     for i in range(10):
-        vector = np.random.rand(10)
+        # 生成随机向量(不使用numpy)
+        vector = [random.random() for _ in range(10)]
         test_vectors.append({
             'id': f'test_{i}',
-            'vector': vector.tolist()
+            'vector': vector
         })
     
     # 执行聚类
