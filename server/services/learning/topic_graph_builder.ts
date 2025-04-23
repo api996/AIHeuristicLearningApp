@@ -8,6 +8,9 @@ import { db } from "../../db";
 import { memories, memoryKeywords, knowledgeGraphCache } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { storage } from "../../storage";
+import { memoryService } from "./memory_service";
+import { analyzeLearningPath } from "../learning";
 
 // 初始化Gemini API客户端
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -509,23 +512,77 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
 }
 
 /**
+ * 图谱接口定义
+ */
+export interface KnowledgeNode {
+  id: string;          // 节点ID
+  label: string;       // 节点标签
+  size?: number;       // 节点大小
+  category?: string;   // 节点类别
+  clusterId?: string;  // 聚类ID
+  color?: string;      // 节点颜色
+}
+
+/**
+ * 知识图谱连接
+ */
+export interface KnowledgeLink {
+  source: string;         // 源节点ID
+  target: string;         // 目标节点ID
+  value?: number;         // 连接强度（0-1之间）
+  type?: string;          // 连接类型
+  label?: string;         // 连接标签
+  reason?: string;        // 关系说明
+  strength?: number;      // 关系强度（1-10）
+  learningOrder?: string; // 学习顺序建议
+  color?: string;         // 连接颜色
+}
+
+/**
+ * 知识图谱接口
+ */
+export interface KnowledgeGraph {
+  nodes: KnowledgeNode[];  // 图谱节点
+  links: KnowledgeLink[];  // 图谱连接
+}
+
+/**
  * 从用户记忆数据中构建聚类中心并生成图谱
  * 使用记忆服务提供的聚类结果生成更有意义的主题图谱
  * @param userId 用户ID
+ * @param forceRefresh 是否强制刷新，不使用缓存
  * @returns 图谱数据
  */
-export async function buildUserKnowledgeGraph(userId: number): Promise<GraphData> {
+export async function buildUserKnowledgeGraph(userId: number, forceRefresh: boolean = false): Promise<GraphData> {
   try {
-    // 1. 从Learning Path API获取用户的聚类数据
-    // 这个端点会自动调用Python聚类服务并返回结果
-    log(`[TopicGraphBuilder] ====== 为用户 ${userId} 从记忆服务获取聚类数据 ======`);
-    
-    const response = await fetch(`http://localhost:5000/api/learning-path/${userId}`);
-    if (!response.ok) {
-      throw new Error(`获取学习路径数据失败: ${response.status}`);
+    // 检查缓存，如果不是强制刷新，优先使用缓存
+    if (!forceRefresh) {
+      // 从数据库获取缓存
+      const cachedGraph = await db.select()
+        .from(knowledgeGraphCache)
+        .where(eq(knowledgeGraphCache.userId, userId))
+        .where(sql`${knowledgeGraphCache.expires_at} > NOW()`)
+        .orderBy(sql`${knowledgeGraphCache.version} DESC`)
+        .limit(1);
+      
+      if (cachedGraph.length > 0 && cachedGraph[0].nodes && cachedGraph[0].links) {
+        log(`[TopicGraphBuilder] 使用缓存的知识图谱，用户ID=${userId}，版本=${cachedGraph[0].version}`);
+        return {
+          nodes: cachedGraph[0].nodes as any[],
+          links: cachedGraph[0].links as any[]
+        };
+      }
+      
+      log(`[TopicGraphBuilder] 未找到用户${userId}的知识图谱缓存或缓存已过期，将重新生成`);
+    } else {
+      log(`[TopicGraphBuilder] 强制刷新用户${userId}的知识图谱，跳过缓存`);
     }
     
-    const learningPathData = await response.json();
+    // 1. 直接从内存服务获取用户数据，不通过API调用
+    log(`[TopicGraphBuilder] ====== 为用户 ${userId} 从记忆服务获取聚类数据 ======`);
+    
+    // 通过学习分析服务获取数据，而不是通过HTTP API
+    const learningPathData = await analyzeLearningPath(userId);
     log(`[TopicGraphBuilder] 获取到用户 ${userId} 的学习路径数据，包含 ${learningPathData.nodes?.length || 0} 个节点和 ${learningPathData.links?.length || 0} 个连接`);
     
     // 记录部分节点示例
