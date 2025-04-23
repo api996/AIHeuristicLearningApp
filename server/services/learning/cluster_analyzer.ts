@@ -15,7 +15,7 @@ export interface ClusterTopic {
   count: number;
   percentage: number;
   // 该聚类中的记忆ID
-  memoryIds?: number[];
+  memoryIds?: any[]; // 同时支持字符串ID和数字ID
   // 该主题的代表性记忆
   representativeMemory?: Memory;
 }
@@ -89,7 +89,7 @@ export class ClusterAnalyzerService {
       }
       
       // 为每个聚类生成主题
-      const topics = await this.generateTopicsForClusters(clusters);
+      const topics = await this.generateTopicsForMemoryClusters(clusters);
       
       return { topics };
       
@@ -365,7 +365,7 @@ export class ClusterAnalyzerService {
    * @param memoryId 记忆ID
    * @returns 关键词数组
    */
-  private async getKeywordsForMemory(memoryId: number): Promise<string[]> {
+  private async getKeywordsForMemory(memoryId: string | number): Promise<string[]> {
     try {
       // 从storage导入，确保避免循环引用
       const { storage } = await import('../../storage');
@@ -662,7 +662,7 @@ export class ClusterAnalyzerService {
         const representativeMemory = clusterMemories[0];
         
         // 转换记忆ID格式
-        const memoryIds = clusterMemoryIds.map(id => {
+        const memoryIds = clusterMemoryIds.map((id: string) => {
           // 尝试将ID转换为数字（如果不是数字则保持原样）
           const numericId = Number(id);
           return isNaN(numericId) ? id : numericId;

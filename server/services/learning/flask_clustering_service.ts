@@ -11,7 +11,9 @@ import { ClusterResult } from './cluster_types';
 // 服务配置
 const DEFAULT_PORT = 5050;
 const BASE_URL = `http://localhost:${DEFAULT_PORT}`;
-const SERVICE_MANAGER_PATH = path.resolve(__dirname, '../../services/api/clustering/service_manager.py');
+// Use import.meta.url to get the current file's URL in ES modules
+const currentDir = new URL('.', import.meta.url).pathname;
+const SERVICE_MANAGER_PATH = path.resolve(currentDir, '../../services/api/clustering/service_manager.py');
 
 // 定义内存向量接口
 interface MemoryVector {
