@@ -10,6 +10,7 @@ import { memorySummarizer } from "./memory_summarizer";
 import { clusterAnalyzer } from "./cluster_analyzer";
 import { clusterMemoryRetrieval } from "./cluster_memory_retrieval";
 import { Memory } from "@shared/schema";
+import { clusterCacheService } from "./cluster_cache_service";
 
 export class MemoryService {
   private storageMode: "database" | "hybrid" | "file" = "database";
@@ -280,11 +281,34 @@ export class MemoryService {
    */
   async getUserClusters(userId: number, forceRefresh: boolean = false): Promise<{ clusterResult: any, clusterCount: number }> {
     try {
-      // 传递forceRefresh参数到更底层的服务
+      // 优先使用新的聚类缓存服务
+      try {
+        // 使用聚类缓存服务获取聚类结果
+        const cachedResult = await clusterCacheService.getUserClusterResults(userId, forceRefresh);
+        if (cachedResult && Object.keys(cachedResult).length > 0) {
+          const clusterCount = Object.keys(cachedResult).length;
+          
+          log(`[MemoryService] 使用缓存服务获取用户${userId}的聚类数据: ${clusterCount}个聚类`);
+          
+          return {
+            clusterResult: {
+              centroids: Object.values(cachedResult).map((c: any) => ({
+                points: c.memory_ids.map((id: string) => ({ id })),
+                center: c.centroid
+              }))
+            },
+            clusterCount: clusterCount
+          };
+        }
+      } catch (cacheError) {
+        log(`[MemoryService] 使用缓存服务获取聚类数据失败，回退到旧方法: ${cacheError}`, "warn");
+      }
+      
+      // 如果缓存服务失败，回退到旧方法
       const result = await clusterMemoryRetrieval.getUserClusters(userId, forceRefresh);
       const clusterCount = result?.centroids?.length || 0;
       
-      log(`[MemoryService] 获取用户${userId}的聚类数据: ${clusterCount}个聚类, 强制刷新=${forceRefresh}`);
+      log(`[MemoryService] 使用旧方法获取用户${userId}的聚类数据: ${clusterCount}个聚类, 强制刷新=${forceRefresh}`);
       
       return {
         clusterResult: result,
