@@ -6,9 +6,16 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
-import { db } from '../server/db.js';
-import { memories } from '../shared/schema.js';
+import { pool } from '../server/db.js';
+import { sql } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import * as schema from '../shared/schema.js';
+
 import { eq } from 'drizzle-orm';
+
+// 创建drizzle实例
+const db = drizzle({ client: pool, schema });
+const { memories } = schema;
 
 dotenv.config();
 
