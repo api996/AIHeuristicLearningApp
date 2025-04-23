@@ -259,14 +259,48 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
     if (memorySpaceClusters && memorySpaceClusters.length > 0) {
       log(`[trajectory] 使用memory_service提供的聚类结果生成学习轨迹`);
       
-      // 构建知识图谱节点 - 保留原始主题名称
+      // 构建知识图谱节点 - 保留原始主题名称，但处理特殊情况
       const nodes: TrajectoryNode[] = memorySpaceClusters.map((cluster: any) => {
         // 计算节点大小（基于百分比）
         const size = Math.max(10, Math.min(50, 10 + cluster.percentage * 0.4));
         
-        // 重要：必须使用原始主题名称作为ID，确保与知识图谱保持一致
+        // 处理主题名称 - 清理错误信息和非正常主题名
+        let topicName = cluster.topic || "";
+        
+        // 检测并修复错误状态消息作为主题名
+        if (topicName.includes('暂时无法使用') || 
+            topicName.includes('连接服务失败') ||
+            topicName.includes('topic 1 analysis') ||
+            topicName.includes('lack of initial findings')) {
+          
+          // 提取关键词，尝试生成更好的主题名
+          const keywords = topicName.split('、').map(k => k.trim());
+          // 过滤掉错误消息
+          const validKeywords = keywords.filter(k => 
+            !k.includes('暂时无法使用') && 
+            !k.includes('连接服务失败') && 
+            !k.includes('topic') && 
+            !k.includes('analysis') && 
+            !k.includes('lack of') && 
+            !k.includes('initial findings')
+          );
+          
+          if (validKeywords.length > 0) {
+            // 使用有效关键词作为主题名
+            topicName = validKeywords.join('、');
+          } else {
+            // 如果没有有效关键词，使用通用主题名
+            topicName = "未分类主题";
+          }
+        }
+        
         // 从主题名称中提取核心部分，去除额外描述性文本
-        const topicName = cluster.topic.split('：')[0].split(' - ')[0].trim();
+        topicName = topicName.split('：')[0].split(' - ')[0].trim();
+        
+        // 确保主题名不为空
+        if (!topicName || topicName.length === 0) {
+          topicName = "主题" + cluster.id.substring(0, 4);
+        }
         
         return {
           id: topicName, // 使用简化后的主题名称作为ID
@@ -283,21 +317,66 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
         // 找出最大的聚类
         const largestCluster = [...memorySpaceClusters].sort((a, b) => b.percentage - a.percentage)[0];
         
-        // 从主题名称中提取核心部分 - 与节点保持一致的方式
-        const largestTopicName = largestCluster.topic.split('：')[0].split(' - ')[0].trim();
+        // 处理最大聚类的主题名称 - 与节点处理保持一致
+        let largestTopicName = largestCluster.topic || "";
+        
+        // 检测并修复错误状态消息作为主题名
+        if (largestTopicName.includes('暂时无法使用') || 
+            largestTopicName.includes('连接服务失败') ||
+            largestTopicName.includes('topic 1 analysis') ||
+            largestTopicName.includes('lack of initial findings')) {
+          
+          // 提取关键词，尝试生成更好的主题名
+          const keywords = largestTopicName.split('、').map(k => k.trim());
+          // 过滤掉错误消息
+          const validKeywords = keywords.filter(k => 
+            !k.includes('暂时无法使用') && 
+            !k.includes('连接服务失败') && 
+            !k.includes('topic') && 
+            !k.includes('analysis') && 
+            !k.includes('lack of') && 
+            !k.includes('initial findings')
+          );
+          
+          if (validKeywords.length > 0) {
+            // 使用有效关键词作为主题名
+            largestTopicName = validKeywords.join('、');
+          } else {
+            // 如果没有有效关键词，使用通用主题名
+            largestTopicName = "未分类主题";
+          }
+        }
+        
+        // 从主题名称中提取核心部分，去除额外描述性文本
+        largestTopicName = largestTopicName.split('：')[0].split(' - ')[0].trim();
+        
+        // 确保主题名不为空
+        if (!largestTopicName || largestTopicName.length === 0) {
+          largestTopicName = "主题" + largestCluster.id.substring(0, 4);
+        }
+        
+        // 节点ID映射表 - 保证连接使用与节点ID一致的名称
+        const nodeIdMap = new Map<string, string>();
+        nodes.forEach(node => {
+          nodeIdMap.set(node.clusterId || "", node.id);
+        });
         
         // 将其他聚类连接到最大聚类
         for (const cluster of memorySpaceClusters) {
           if (cluster.id !== largestCluster.id) {
-            // 同样为连接目标使用一致的主题名称提取方式
-            const targetTopicName = cluster.topic.split('：')[0].split(' - ')[0].trim();
+            // 如果在节点映射表中存在，直接使用节点的ID
+            const targetId = nodeIdMap.get(cluster.id) || "";
             
-            links.push({
-              source: largestTopicName, // 使用提取的主题名称作为源
-              target: targetTopicName,  // 使用提取的主题名称作为目标
-              value: Math.max(1, Math.min(10, cluster.percentage / 10)), // 缩放到1-10范围
-              type: 'related' // 添加类型以便与知识图谱保持一致
-            });
+            // 确保目标ID有效
+            if (targetId && targetId.length > 0) {
+              links.push({
+                source: largestTopicName, // 使用提取的主题名称作为源
+                target: targetId,  // 使用节点ID映射表中的ID确保一致性
+                value: Math.max(1, Math.min(10, cluster.percentage / 10)), // 缩放到1-10范围
+                type: 'related', // 添加类型以便与知识图谱保持一致
+                label: '相关' // 添加连接标签
+              });
+            }
           }
         }
       }
