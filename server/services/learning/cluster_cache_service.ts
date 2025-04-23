@@ -479,6 +479,22 @@ export class ClusterCacheService {
       // 出错时不抛出异常，因为这只是缓存操作
     }
   }
+  
+  /**
+   * 清除指定用户的聚类缓存
+   * @param userId 用户ID
+   * @returns 是否成功清除
+   */
+  async clearUserClusterCache(userId: number): Promise<boolean> {
+    try {
+      await storage.clearClusterResultCache(userId);
+      log(`[ClusterCache] 已清除用户${userId}的聚类缓存`);
+      return true;
+    } catch (error) {
+      log(`[ClusterCache] 清除用户${userId}的聚类缓存失败: ${error}`, "error");
+      return false;
+    }
+  }
 }
 
 // 导出单例
