@@ -89,47 +89,31 @@ from sklearn.metrics import silhouette_score
 from pathlib import Path
 
 def determine_optimal_clusters(vectors, max_clusters=12):
-    """使用轮廓系数确定最佳聚类数量"""
+    """为用户向量数据直接分配合理的聚类数量，不依赖轮廓系数"""
     n_samples = len(vectors)
     
     # 如果样本数量太少，返回较小的聚类数
     if n_samples < 10:
         return min(2, n_samples)
     
-    # 强制最小聚类数为3
-    min_clusters = 3
+    # 根据样本数量直接分配聚类数，不使用轮廓系数评估
+    # 这些值经过调整，以确保生成足够的主题节点
+    if n_samples > 400:  # 非常大的数据集
+        fixed_clusters = 8
+    elif n_samples > 200:  # 大数据集
+        fixed_clusters = 6
+    elif n_samples > 100:  # 中等数据集
+        fixed_clusters = 5
+    elif n_samples > 50:   # 小数据集
+        fixed_clusters = 4
+    else:                  # 微型数据集
+        fixed_clusters = 3
     
-    # 根据样本数量确定最大聚类数，但不少于最小聚类数
-    actual_max_clusters = max(min_clusters, min(max_clusters, n_samples // 2))
-    range_clusters = range(min_clusters, actual_max_clusters + 1)
+    # 记录决策过程
+    print(f"样本数量: {n_samples}, 直接分配聚类数: {fixed_clusters}")
     
-    best_score = -1
-    best_clusters = min_clusters  # 默认至少min_clusters个聚类
-    
-    # 如果样本量超过100，强制增加最小聚类数
-    if n_samples > 100:
-        best_clusters = max(best_clusters, 5)  # 大数据集至少5个聚类
-    elif n_samples > 50:
-        best_clusters = max(best_clusters, 3)  # 中等数据集至少3个聚类
-    
-    for n_clusters in range_clusters:
-        # 尝试创建聚类
-        try:
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-            cluster_labels = kmeans.fit_predict(vectors)
-            
-            # 计算轮廓系数
-            silhouette_avg = silhouette_score(vectors, cluster_labels)
-            
-            if silhouette_avg > best_score:
-                best_score = silhouette_avg
-                best_clusters = n_clusters
-        except:
-            # 如果某个聚类数量出错，继续尝试下一个
-            continue
-    
-    print(f"样本数量: {n_samples}, 最佳聚类数: {best_clusters}, 最佳轮廓系数: {best_score}")
-    return best_clusters
+    # 强制返回固定的聚类数，不再进行轮廓评分
+    return fixed_clusters
 
 def main():
     try:
