@@ -151,31 +151,25 @@ async function generateTestConversations(count = 50) {
 4. 回答应该详细且易懂，长度约200-300字
 5. 不要有过多的客套语和重复内容`;
       
-      // 使用GenAI服务生成对话内容
-      console.log(`生成主题 ${subtopic} 的对话内容...`);
+      // 使用固定内容，避免依赖AI生成
+      console.log(`为主题 ${subtopic} 创建固定内容...`);
       
-      // 这里需要修改，generateTopicForMemories 不适合生成完整对话
-      // 改用 generateSummary 来生成内容
-      const content = await genAiService.generateSummary(
-        `创建一段关于"${subtopic}"的深度教育性问答对话，格式为：\n\n用户: [提出关于${subtopic}的专业问题]\n\nAI: [提供200-300字的详细、准确回答，包含专业术语和核心概念]`
-      );
-      
-      if (!content) {
-        console.log(`警告: 为主题 ${subtopic} 生成内容失败，跳过`);
-        continue;
-      }
-      
-      // 构建完整对话内容
-      const fullContent = `用户: 请详细解释${subtopic}的核心概念和应用\n\nAI: ${content}`;
-      
-      
-      // 生成记忆ID
+      // 生成记忆ID和时间
       const memoryId = generateMemoryId();
       const createdAt = getRandomDate();
-      const summary = `关于${subtopic}的对话`;
       
-      // 获取关键词
-      const keywords = await genAiService.extractKeywords(content) || [subtopic];
+      // 使用固定内容而不是生成
+      const fullContent = `用户: 请详细解释${subtopic}的核心概念和应用
+
+AI: ${subtopic}是该领域的重要概念。在学习${subtopic}时，我们需要关注几个核心原理：首先，要理解基本定义和适用范围；其次，掌握关键技术和方法论；最后，了解实际应用场景和最佳实践。
+
+${subtopic}的应用非常广泛，从基础研究到工业实践都有重要价值。例如，在研究领域，它可以帮助解决复杂问题和验证理论假设；在工业应用中，它能提高效率、降低成本并创造新的可能性。
+
+学习${subtopic}需要系统方法，建议从基础概念入手，逐步深入到高级应用。实践是掌握这一概念的关键，建议通过项目实战来巩固理论知识。`;
+      
+      // 为该内容设置摘要和关键词
+      const memorySummary = `关于${subtopic}的对话`;
+      const memoryKeywords = [subtopic, mainTopic, "学习", "应用", "概念"];
       
       // 生成向量嵌入
       const vector = await genAiService.generateEmbedding(fullContent);
@@ -191,7 +185,7 @@ async function generateTestConversations(count = 50) {
           id: memoryId,
           userId: userId,
           content: fullContent,
-          summary: summary,
+          summary: memorySummary,
           type: "chat",
           timestamp: createdAt,
           createdAt: createdAt
@@ -201,7 +195,7 @@ async function generateTestConversations(count = 50) {
         await db.insert(memories).values(memoryData).execute();
         
         // 为每个关键词创建记录
-        for (const keyword of keywords) {
+        for (const keyword of memoryKeywords) {
           await db.insert(memoryKeywords).values({
             memoryId: memoryId,
             keyword: keyword
@@ -242,5 +236,23 @@ async function generateTestConversations(count = 50) {
   }
 }
 
-// 执行生成操作，只生成5条测试数据
-generateTestConversations(5).catch(console.error);
+// 主函数：等待服务初始化后执行生成操作
+async function main() {
+  try {
+    // 等待genAiService初始化
+    const serviceReady = await waitForGenAIService();
+    if (!serviceReady) {
+      console.error("genAiService未准备就绪，无法生成测试数据");
+      process.exit(1);
+    }
+    
+    // 执行生成操作，只生成5条测试数据
+    await generateTestConversations(5);
+  } catch (error) {
+    console.error("执行失败:", error);
+    process.exit(1);
+  }
+}
+
+// 启动主函数
+main().catch(console.error);
