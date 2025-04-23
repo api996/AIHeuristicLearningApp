@@ -99,27 +99,48 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
       let linkColor: string;
       let linkWidth: number = 1;
       
-      // 根据连接类型设置样式
-      switch (link.type) {
-        case 'hierarchy':
-          linkColor = '#4b5563';  // 层级关系 - 灰色
-          linkWidth = 2;
-          break;
-        case 'proximity':
-          linkColor = '#6366f1';  // 相似/邻近 - 靛蓝色
-          linkWidth = 1.5;
-          break;
-        case 'semantic':
-          linkColor = '#10b981';  // 语义关联 - 翠绿色
-          linkWidth = 1.5;
-          break;
-        case 'temporal':
-          linkColor = '#f59e0b';  // 时间关系 - 琥珀色
-          linkWidth = 1;
-          break;
-        default:
-          linkColor = '#d1d5db';  // 默认 - 浅灰色
-          linkWidth = 1;
+      // 首先检查是否已有颜色属性，如果有则优先使用
+      if (link.color) {
+        linkColor = link.color;
+      } else {
+        // 根据连接类型设置样式
+        switch (link.type) {
+          case 'contains':
+            linkColor = 'rgba(99, 102, 241, 0.7)'; // 包含关系 - 靛蓝色
+            linkWidth = 2;
+            break;
+          case 'references':
+            linkColor = 'rgba(139, 92, 246, 0.7)'; // 引用关系 - 紫色
+            linkWidth = 1.8;
+            break;
+          case 'applies':
+            linkColor = 'rgba(14, 165, 233, 0.7)'; // 应用关系 - 天蓝色
+            linkWidth = 1.6;
+            break;
+          case 'similar':
+            linkColor = 'rgba(16, 185, 129, 0.7)'; // 相似关系 - 绿色
+            linkWidth = 1.5;
+            break;
+          case 'hierarchy':
+            linkColor = 'rgba(75, 85, 99, 0.7)';  // 层级关系 - 灰色
+            linkWidth = 2;
+            break;
+          case 'proximity':
+            linkColor = 'rgba(99, 102, 241, 0.7)';  // 相似/邻近 - 靛蓝色
+            linkWidth = 1.5;
+            break;
+          case 'semantic':
+            linkColor = 'rgba(16, 185, 129, 0.7)';  // 语义关联 - 翠绿色
+            linkWidth = 1.5;
+            break;
+          case 'temporal':
+            linkColor = 'rgba(245, 158, 11, 0.7)';  // 时间关系 - 琥珀色
+            linkWidth = 1;
+            break;
+          default:
+            linkColor = 'rgba(209, 213, 219, 0.7)';  // 默认 - 浅灰色
+            linkWidth = 1;
+        }
       }
       
       // 使用value属性调整线宽
@@ -129,7 +150,7 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
       
       return {
         ...link,
-        color: link.color || linkColor,
+        color: linkColor,
         width: linkWidth
       };
     });
@@ -151,7 +172,14 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
   const nodeThreeObject = useCallback((node: any) => {
     // 创建文本精灵 - 只显示文本没有背景或边框
     const sprite = new SpriteText(node.label);
-    sprite.color = node.color || '#ffffff';
+    
+    // 使用节点自带的颜色属性，这样每个主题都能有不同颜色
+    sprite.color = node.color || 
+                  (node.category === 'cluster' ? '#6366f1' : // 主题聚类 - 靛蓝色
+                   node.category === 'keyword' ? '#10b981' : // 关键词 - 翠绿色
+                   node.category === 'memory' ? '#f59e0b' : // 记忆 - 琥珀色
+                   '#ffffff'); // 默认白色
+                   
     sprite.backgroundColor = 'rgba(0,0,0,0)'; // 透明背景
     sprite.fontWeight = node.category === 'cluster' ? 'bold' : 'normal'; // 主题使用粗体
     sprite.textHeight = node.category === 'cluster' ? 10 : 6; // 主题使用更大字号
