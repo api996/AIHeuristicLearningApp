@@ -450,12 +450,16 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
       const size = 15 + Math.floor(Math.random() * 5); // 15-20之间的随机大小
       const color = themeColors[index % themeColors.length]; // 循环使用颜色
       
+      // 为每个主题创建一个唯一ID，用于跟踪
+      const clusterId = `cluster_${topic.replace(/\s+/g, '_').toLowerCase()}_${Math.random().toString(36).substring(2, 8)}`;
+      
       return {
         id: topic,
         label: topic,
         category,
         size,
-        color
+        color,
+        clusterId // 添加clusterId字段，与trajectory.ts保持一致
       };
     });
     
