@@ -112,28 +112,39 @@ export class MemorySummarizerService {
 
       // 如果文本非常短，直接使用原文
       if (text.length < 50) {
+        log('[memory_summarizer] 文本过短，使用文本开头作为主题');
         return `主题: ${text.slice(0, 20)}`;
       }
 
+      log('[memory_summarizer] 开始使用GenAI服务生成主题...');
       // 使用GenAI服务生成主题
       const topic = await genAiService.generateTopicForMemories([text]);
       
+      log(`[memory_summarizer] GenAI服务返回主题: "${topic}"`);
+      
       if (!topic) {
+        log('[memory_summarizer] GenAI服务未返回主题，使用后备方案');
         // 后备方案：使用关键词组合
         const keywords = await this.extractKeywords(text);
         if (keywords && keywords.length > 0) {
           const topKeywords = keywords.slice(0, 3).join('和');
+          log(`[memory_summarizer] 使用关键词组合作为主题: "${topKeywords}相关主题"`);
           return `${topKeywords}相关主题`;
         }
         
-        return `主题${Date.now().toString().slice(-4)}`;
+        const fallbackTopic = `主题${Date.now().toString().slice(-4)}`;
+        log(`[memory_summarizer] 无法提取关键词，使用时间戳作为主题: "${fallbackTopic}"`);
+        return fallbackTopic;
       }
 
+      log(`[memory_summarizer] 成功生成主题: "${topic}"`);
       return topic;
     } catch (error) {
       log(`[memory_summarizer] 生成主题时出错: ${error}`, 'error');
       // 后备方案
-      return `主题${Date.now().toString().slice(-4)}`;
+      const fallbackTopic = `主题${Date.now().toString().slice(-4)}`;
+      log(`[memory_summarizer] 错误后使用时间戳作为主题: "${fallbackTopic}"`);
+      return fallbackTopic;
     }
   }
 }
