@@ -497,6 +497,41 @@ export class MemoryService {
     
     return vectors;
   }
+
+  /**
+   * 分析用户记忆并生成聚类分析结果
+   * @param userId 用户ID
+   * @returns 聚类和主题分析结果
+   */
+  async analyzeUserMemories(userId: number) {
+    try {
+      log(`[MemoryService] 开始为用户 ${userId} 进行记忆聚类分析...`);
+      
+      // 获取用户的记忆向量
+      const { memoryIds, vectors } = await vectorEmbeddingsService.getUserMemoryVectors(userId);
+      
+      if (!memoryIds || !vectors || memoryIds.length === 0) {
+        log(`[MemoryService] 用户 ${userId} 没有可用的记忆向量`, "warn");
+        return null;
+      }
+      
+      log(`[MemoryService] 用户 ${userId} 有 ${memoryIds.length} 条记忆向量可用于分析`);
+      
+      // 使用聚类分析服务生成聚类
+      const clusterResult = await clusterAnalyzer.analyzeVectors(userId, memoryIds, vectors);
+      
+      if (!clusterResult) {
+        log(`[MemoryService] 用户 ${userId} 的聚类分析失败`, "error");
+        return null;
+      }
+      
+      log(`[MemoryService] 用户 ${userId} 的聚类分析完成，发现 ${clusterResult.topics.length} 个主题`);
+      return clusterResult;
+    } catch (error) {
+      log(`[MemoryService] 分析用户记忆出错: ${error}`, "error");
+      return null;
+    }
+  }
 }
 
 // 创建并导出MemoryService实例

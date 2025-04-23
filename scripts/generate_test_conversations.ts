@@ -158,8 +158,8 @@ async function cleanupExistingData() {
     
     if (memoryIds.length > 0) {
       // 删除向量数据
-      await db.delete(memoryVectors)
-        .where(eq(memoryVectors.memoryId, memoryIds[0])); // 这里应该用 in 操作符，但为了简便先用单个示例
+      await db.delete(memoryEmbeddings)
+        .where(eq(memoryEmbeddings.memoryId, memoryIds[0])); // 这里应该用 in 操作符，但为了简便先用单个示例
       
       // 删除记忆数据
       await db.delete(memories)
@@ -261,9 +261,9 @@ async function processMemory(memoryId: string): Promise<boolean> {
     }
     
     // 存储向量嵌入
-    await db.insert(memoryVectors).values({
+    await db.insert(memoryEmbeddings).values({
       memoryId: memoryId,
-      vector: embedding
+      vectorData: embedding
     });
     
     console.log(`已为记忆ID=${memoryId}生成向量嵌入`);
@@ -305,15 +305,15 @@ async function triggerClustering(): Promise<boolean> {
   try {
     console.log(`正在触发用户ID=${TEST_USER_ID}的聚类分析...`);
     
-    // 调用存储服务的分析方法 (这会自动调用我们的Flask聚类服务)
-    const clusterResult = await storage.analyzeUserMemories(TEST_USER_ID);
+    // 使用memoryService进行聚类分析
+    const clusterResult = await memoryService.analyzeUserMemories(TEST_USER_ID);
     
     if (!clusterResult) {
       console.error(`聚类分析失败`);
       return false;
     }
     
-    console.log(`聚类分析成功，发现${clusterResult.clusters.length}个聚类`);
+    console.log(`聚类分析成功，发现${clusterResult.topics.length}个聚类`);
     return true;
   } catch (error) {
     console.error(`触发聚类分析时出错: ${error}`);
