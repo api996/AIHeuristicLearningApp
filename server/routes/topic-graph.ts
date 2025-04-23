@@ -62,8 +62,32 @@ router.post('/api/topic-graph/:userId/refresh', async (req, res) => {
     // 清除缓存并生成新图谱
     await db.delete(knowledgeGraphCache).where(eq(knowledgeGraphCache.userId, userId));
     
-    log(`[TopicGraph] 强制刷新用户 ${userId} 的主题图谱`);
+    log(`[TopicGraph] ==========================================`);
+    log(`[TopicGraph] 强制刷新用户 ${userId} 的主题图谱 - 开始`);
+    log(`[TopicGraph] ==========================================`);
+    
     const graphData = await buildUserKnowledgeGraph(userId);
+    
+    // 记录一些结果数据，以便于调试
+    log(`[TopicGraph] 刷新完成，获取到 ${graphData.nodes.length} 个节点`);
+    if (graphData.nodes.length > 0) {
+      const nodeTypes = graphData.nodes
+        .map(node => node.category)
+        .filter((v, i, a) => a.indexOf(v) === i); // 去重
+      
+      log(`[TopicGraph] 节点类型: ${nodeTypes.join(', ')}`);
+      
+      // 记录所有节点的标签
+      const nodeLabels = graphData.nodes.map(node => 
+        `${node.label}(${node.category})`
+      ).join(', ');
+      
+      log(`[TopicGraph] 节点标签: ${nodeLabels}`);
+    }
+    
+    log(`[TopicGraph] ==========================================`);
+    log(`[TopicGraph] 强制刷新用户 ${userId} 的主题图谱 - 完成`);
+    log(`[TopicGraph] ==========================================`);
     
     return res.json({
       ...graphData,

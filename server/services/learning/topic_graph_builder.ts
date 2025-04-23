@@ -351,7 +351,7 @@ export async function buildUserKnowledgeGraph(userId: number): Promise<GraphData
   try {
     // 1. 从Learning Path API获取用户的聚类数据
     // 这个端点会自动调用Python聚类服务并返回结果
-    log(`[TopicGraphBuilder] 为用户 ${userId} 从记忆服务获取聚类数据`);
+    log(`[TopicGraphBuilder] ====== 为用户 ${userId} 从记忆服务获取聚类数据 ======`);
     
     const response = await fetch(`http://localhost:5000/api/learning-path/${userId}`);
     if (!response.ok) {
@@ -359,13 +359,24 @@ export async function buildUserKnowledgeGraph(userId: number): Promise<GraphData
     }
     
     const learningPathData = await response.json();
-    log(`[TopicGraphBuilder] 获取到用户 ${userId} 的学习路径数据`);
+    log(`[TopicGraphBuilder] 获取到用户 ${userId} 的学习路径数据，包含 ${learningPathData.nodes?.length || 0} 个节点和 ${learningPathData.links?.length || 0} 个连接`);
+    
+    // 记录部分节点示例
+    if (learningPathData.nodes?.length > 0) {
+      const nodeExamples = learningPathData.nodes.slice(0, 3);
+      log(`[TopicGraphBuilder] 节点示例: ${JSON.stringify(nodeExamples)}`);
+    }
     
     // 2. 提取聚类主题数据
     // 从学习路径中提取主题节点 (类型为"cluster"的节点)
     const clusterNodes = learningPathData.nodes.filter((node: any) => 
       node.category === 'cluster' || node.type === 'cluster'
     );
+    
+    log(`[TopicGraphBuilder] 过滤出 ${clusterNodes.length} 个聚类节点`);
+    if (clusterNodes.length > 0) {
+      log(`[TopicGraphBuilder] 聚类节点示例: ${JSON.stringify(clusterNodes[0])}`);
+    }
     
     if (clusterNodes.length === 0) {
       log(`[TopicGraphBuilder] 用户 ${userId} 没有有效的聚类数据`);
@@ -432,6 +443,15 @@ export async function buildUserKnowledgeGraph(userId: number): Promise<GraphData
     // 5. 根据聚类构建图谱
     const graphData = await buildGraph(clusters);
     
+    // 记录生成的图谱数据
+    log(`[TopicGraphBuilder] 生成的图谱数据: ${graphData.nodes.length} 个节点, ${graphData.links.length} 个连接`);
+    if (graphData.nodes.length > 0) {
+      log(`[TopicGraphBuilder] 节点示例: ${JSON.stringify(graphData.nodes[0])}`);
+    }
+    if (graphData.links.length > 0) {
+      log(`[TopicGraphBuilder] 连接示例: ${JSON.stringify(graphData.links[0])}`);
+    }
+    
     // 4. 保存图谱到缓存
     await db.insert(knowledgeGraphCache)
       .values({
@@ -452,6 +472,7 @@ export async function buildUserKnowledgeGraph(userId: number): Promise<GraphData
         }
       });
     
+    log(`[TopicGraphBuilder] ====== 用户 ${userId} 主题图谱构建完成 ======`);
     return graphData;
   } catch (error) {
     log(`[TopicGraphBuilder] 为用户 ${userId} 构建知识图谱失败: ${error}`);
