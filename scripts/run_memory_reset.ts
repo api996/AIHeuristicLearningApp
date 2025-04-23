@@ -2,8 +2,9 @@
  * 记忆重置脚本
  * 
  * 本脚本会：
- * 1. 先清理低质量向量数据
- * 2. 然后生成新的测试对话数据
+ * 1. 启动Gemini服务
+ * 2. 清理低质量向量数据
+ * 3. 生成新的测试对话数据
  */
 
 import { spawn } from 'child_process';
@@ -52,6 +53,15 @@ function runScript(scriptPath: string): Promise<void> {
 }
 
 /**
+ * 简单的等待函数
+ * @param ms 毫秒数
+ * @returns Promise对象
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
  * 主函数：按顺序运行记忆重置流程
  */
 async function resetMemoryData() {
@@ -59,6 +69,10 @@ async function resetMemoryData() {
     // 1. 清理低质量向量数据
     console.log('步骤1: 清理低质量向量数据');
     await runScript(path.join(__dirname, 'clean_memory_vectors.ts'));
+    
+    // 等待服务初始化完成 (额外等待10秒确保服务启动)
+    console.log('等待GenAI服务初始化...');
+    await delay(10000);
     
     // 2. 生成新的测试对话数据
     console.log('步骤2: 生成新的测试对话数据');
