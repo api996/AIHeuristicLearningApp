@@ -7,7 +7,7 @@ import { log } from "../../vite";
 import { storage } from "../../storage";
 import { Memory } from "@shared/schema";
 import { memoryService } from "./memory_service";
-import { pythonClusteringService } from "./python_clustering";
+import { directPythonService } from "./direct_python_service";
 
 /**
  * 聚类缓存服务类
@@ -288,7 +288,7 @@ export class ClusterCacheService {
     }
     
     // 执行聚类并直接返回结果或抛出错误
-    return await pythonClusteringService.clusterVectors(vectors);
+    return await directPythonService.clusterVectors(vectors);
   }
   
   /**
