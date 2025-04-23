@@ -9,17 +9,12 @@ import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-interface VectorData {
+import { ClusterPoint, ClusterResult } from './cluster_types';
+
+// 确保VectorData的id属性只允许字符串
+export interface VectorData {
   id: string;
   vector: number[];
-}
-
-interface ClusterResult {
-  centroids: {
-    center: number[];
-    points: { id: string }[];
-  }[];
-  topics?: string[];
 }
 
 /**
