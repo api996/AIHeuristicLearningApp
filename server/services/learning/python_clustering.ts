@@ -89,30 +89,43 @@ from sklearn.metrics import silhouette_score
 from pathlib import Path
 
 def determine_optimal_clusters(vectors, max_clusters=40):
-    """根据向量数量动态调整聚类中心数量，初始设为向量总数的1/10"""
+    """根据向量数量动态调整聚类中心数量，确保产生多样化的结果"""
     n_samples = len(vectors)
     
     # 如果样本数量太少，确保至少有最小聚类数
     if n_samples < 10:
-        return min(2, n_samples)
+        return min(3, n_samples)
     
-    # 计算初始聚类数为向量总数的1/10，最小为3个，最大不超过40个
-    initial_clusters = max(3, min(40, n_samples // 10))
+    # 强制至少使用25个聚类中心（测试用，可以在实际情况中移除这个硬编码值）
+    # 如果向量数量足够多
+    if n_samples >= 100:
+        forced_min_clusters = 25
+        print(f"强制使用至少 {forced_min_clusters} 个聚类中心")
+        
+        # 在高向量数量情况下，进一步增加聚类中心数
+        # 根据数据量大小，聚类中心数量设置在总数的1/8到1/5之间
+        if n_samples > 200:
+            dynamic_clusters = n_samples // 8
+        else:
+            dynamic_clusters = n_samples // 10
+            
+        # 取强制最小值和动态计算值的较大者
+        initial_clusters = max(forced_min_clusters, dynamic_clusters)
+    else:
+        # 小数据集情况
+        initial_clusters = max(8, n_samples // 5)
     
     # 确保聚类数不超过样本数的一半
     initial_clusters = min(initial_clusters, n_samples // 2)
     
     # 记录决策过程
-    print(f"样本数量: {n_samples}, 初始分配聚类数(1/10): {initial_clusters}")
+    print(f"样本数量: {n_samples}, 计算得到的聚类数: {initial_clusters}")
     
-    # 如果样本数量较大，考虑调整聚类数量
-    # 这里可以根据需要添加基于相似度的动态调整算法
-    
-    # 设置最小聚类数阈值，确保图谱不会太稀疏
-    min_clusters = 6
-    if initial_clusters < min_clusters and n_samples >= min_clusters * 2:
-        print(f"将聚类数从 {initial_clusters} 调整到最小值 {min_clusters}")
-        initial_clusters = min_clusters
+    # 设置绝对最小聚类数阈值，确保图谱不会太稀疏
+    absolute_min_clusters = 15
+    if initial_clusters < absolute_min_clusters and n_samples >= absolute_min_clusters * 2:
+        print(f"将聚类数从 {initial_clusters} 调整到最小值 {absolute_min_clusters}")
+        initial_clusters = absolute_min_clusters
     
     # 返回计算得到的聚类数
     return initial_clusters
