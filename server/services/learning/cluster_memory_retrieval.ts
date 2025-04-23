@@ -8,7 +8,7 @@ import { vectorEmbeddingsService } from "./vector_embeddings";
 import { clusterAnalyzer, ClusterTopic } from "./cluster_analyzer";
 import { storage } from "../../storage";
 import { Memory } from "@shared/schema";
-import { ClusterResult } from "./kmeans_clustering";
+import { ClusterResult } from "./cluster_types";
 
 export class ClusterMemoryRetrievalService {
   // 上次聚类结果缓存

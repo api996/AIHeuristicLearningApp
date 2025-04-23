@@ -4,7 +4,7 @@
  */
 
 import { log } from "../../vite";
-import { ClusterResult } from "./kmeans_clustering";
+import { ClusterResult } from "./cluster_types";
 import { storage } from "../../storage";
 import { Memory } from "@shared/schema";
 import { memoryService } from "./memory_service";
