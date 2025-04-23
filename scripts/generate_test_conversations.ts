@@ -14,6 +14,28 @@ import * as dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 
+// 简单的等待函数
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// 等待genAiService初始化完成（最多30秒）
+async function waitForGenAIService(maxWaitTimeMs = 30000): Promise<boolean> {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < maxWaitTimeMs) {
+    if (genAiService && typeof genAiService.generateEmbedding === 'function') {
+      console.log("genAiService初始化完成，可以开始生成对话数据");
+      return true;
+    }
+    console.log("等待genAiService初始化...");
+    await delay(1000);
+  }
+  
+  console.error("等待genAiService初始化超时");
+  return false;
+}
+
 // 加载环境变量
 dotenv.config();
 
@@ -220,5 +242,5 @@ async function generateTestConversations(count = 50) {
   }
 }
 
-// 执行生成操作
-generateTestConversations().catch(console.error);
+// 执行生成操作，只生成5条测试数据
+generateTestConversations(5).catch(console.error);

@@ -9,6 +9,12 @@
 import { spawn } from 'child_process';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// 在ESM模块中获取当前文件的目录路径
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // 加载环境变量
 dotenv.config();
