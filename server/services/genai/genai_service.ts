@@ -88,24 +88,43 @@ class GeminiService implements GenAIService {
   }
 
   async generateEmbedding(text: string): Promise<number[] | null> {
-    if (!this.genAI) {
-      log("[genai_service] 无法生成嵌入: API未初始化", "warn");
-      return null;
-    }
-
     try {
-      // 使用与Python服务相同的实验性嵌入模型
-      // 注意：我们需要使用的实验模型是"models/gemini-embedding-exp-03-07"
-      // 但在JavaScript SDK中模型名称格式不同
-      const modelName = "models/embedding-001";
-      log(`[genai_service] 使用嵌入模型: ${modelName}`, "info");
-      const model = this.genAI.getGenerativeModel({ model: modelName });
-      // 生成嵌入
-      const result = await model.embedContent(text);
-      const embedding = result.embedding.values;
+      // 直接调用Python嵌入服务
+      log("[genai_service] 调用Python嵌入服务生成向量嵌入", "info");
+      
+      // 导入Python嵌入服务
+      const { pythonEmbeddingService } = await import("../learning/python_embedding");
+      
+      // 使用Python服务生成嵌入
+      const embedding = await pythonEmbeddingService.generateEmbedding(text);
+      
+      if (!embedding) {
+        log("[genai_service] Python嵌入服务返回空结果", "warn");
+        return null;
+      }
+      
+      log(`[genai_service] 成功生成${embedding.length}维向量嵌入（通过Python服务）`, "info");
       return embedding;
     } catch (error) {
-      log(`[genai_service] 生成嵌入失败: ${error}`, "error");
+      log(`[genai_service] 通过Python服务生成嵌入失败: ${error}`, "error");
+      
+      // 出错时尝试使用直接API调用（作为备用）
+      if (this.genAI) {
+        try {
+          // 备用方案：直接使用JavaScript SDK
+          log("[genai_service] 尝试使用备用JavaScript API", "warn");
+          const modelName = "models/embedding-001";
+          const model = this.genAI.getGenerativeModel({ model: modelName });
+          const result = await model.embedContent(text);
+          const embedding = result.embedding.values;
+          log(`[genai_service] 备用API成功生成嵌入`, "info");
+          return embedding;
+        } catch (fallbackError) {
+          log(`[genai_service] 备用API也失败: ${fallbackError}`, "error");
+          return null;
+        }
+      }
+      
       return null;
     }
   }
