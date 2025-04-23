@@ -4,18 +4,10 @@
  */
 
 import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
-import { pool } from '../server/db';
-import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import * as schema from '../shared/schema';
-
+import { pool, db } from '../server/db';
+import { memories } from '../shared/schema';
 import { eq } from 'drizzle-orm';
-
-// 创建drizzle实例
-const db = drizzle({ client: pool, schema });
-const { memories } = schema;
 
 dotenv.config();
 
@@ -64,7 +56,7 @@ if (!GEMINI_API_KEY) {
  * 生成随机的时间戳格式ID
  * @returns {string} 时间戳ID
  */
-function generateTimestampId() {
+function generateTimestampId(): string {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -77,10 +69,10 @@ function generateTimestampId() {
 
 /**
  * 根据主题生成一个随机对话内容
- * @param {Object} topic 主题对象
- * @returns {string} 对话内容
+ * @param topic 主题对象
+ * @returns 对话内容
  */
-function generateConversationForTopic(topic) {
+function generateConversationForTopic(topic: any): string {
   // 从主题关键词中随机选择3-5个
   const keywordCount = 3 + Math.floor(Math.random() * 3);
   const shuffledKeywords = [...topic.keywords].sort(() => 0.5 - Math.random());
@@ -120,13 +112,13 @@ AI: 很高兴你对${selectedKeywords[0]}感兴趣！以下是一些优质学习
 
 /**
  * 使用Gemini API生成对话摘要
- * @param {string} conversation 完整对话内容
- * @returns {Promise<string>} 对话摘要
+ * @param conversation 完整对话内容
+ * @returns 对话摘要
  */
-async function generateSummary(conversation) {
+async function generateSummary(conversation: string): Promise<string> {
   try {
     const response = await axios.post(
-      'https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent',
+      'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent',
       {
         contents: [{
           parts: [{
@@ -157,7 +149,7 @@ async function generateSummary(conversation) {
     }
     
     throw new Error('无法从API响应中提取摘要');
-  } catch (error) {
+  } catch (error: any) {
     console.error('生成摘要时出错:', error.message);
     // 如果API调用失败，生成一个简单的备用摘要
     return `关于${conversation.substring(10, 30)}...的对话`;
@@ -167,10 +159,10 @@ async function generateSummary(conversation) {
 /**
  * 为每个主题生成相应的嵌入向量
  * 我们使用一个简化的方法来模拟语义相似性
- * @param {Object} topic 主题对象
- * @returns {number[]} 3072维向量
+ * @param topic 主题对象
+ * @returns 3072维向量
  */
-function generateVectorForTopic(topic) {
+function generateVectorForTopic(topic: any): number[] {
   // 生成一个基础随机向量
   const baseVector = Array(3072).fill(0).map(() => (Math.random() * 2 - 1));
   
@@ -211,7 +203,7 @@ async function generateTestData() {
     await clearExistingMemories();
     
     // 为每个主题分配记忆数量
-    const topicDistribution = {};
+    const topicDistribution: Record<string, number> = {};
     let remaining = MEMORY_COUNT;
     
     // 确保每个主题至少有一些记忆
@@ -237,7 +229,7 @@ async function generateTestData() {
     });
     
     // 创建记忆
-    const createdMemories = [];
+    const createdMemories: string[] = [];
     const startTime = Date.now();
     
     for (const [topicName, count] of Object.entries(topicDistribution)) {
@@ -257,7 +249,7 @@ async function generateTestData() {
         
         // 提取关键词
         const randomKeywordCount = 3 + Math.floor(Math.random() * 4); // 3-6个关键词
-        const keywords = topic.keywords
+        const keywords = topic!.keywords
           .sort(() => 0.5 - Math.random())
           .slice(0, randomKeywordCount);
           
@@ -270,10 +262,21 @@ async function generateTestData() {
           userId: USER_ID,
           content,
           summary,
-          keywords: JSON.stringify(keywords),
-          vector: JSON.stringify(vector),
-          createdAt,
-          updatedAt: createdAt
+          createdAt
+        });
+        
+        // 插入记忆关键词
+        for (const keyword of keywords) {
+          await db.insert(memoryKeywords).values({
+            memoryId: id,
+            keyword
+          });
+        }
+        
+        // 插入向量嵌入
+        await db.insert(memoryEmbeddings).values({
+          memoryId: id,
+          vectorData: JSON.stringify(vector)
         });
         
         createdMemories.push(id);
@@ -292,7 +295,7 @@ async function generateTestData() {
       count: createdMemories.length,
       ids: createdMemories
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('生成测试数据时出错:', error);
     throw error;
   }
@@ -300,9 +303,9 @@ async function generateTestData() {
 
 /**
  * 确保测试用户存在
- * @param {number} userId 用户ID
+ * @param userId 用户ID
  */
-async function ensureUserExists(userId) {
+async function ensureUserExists(userId: number) {
   // 在实际应用中，这里应该检查用户是否存在并创建
   // 由于这是测试脚本，这里简化处理
   console.log(`确保用户ID=${userId}存在...`);
