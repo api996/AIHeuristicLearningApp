@@ -188,9 +188,9 @@ async function createTestMemory(topic: string): Promise<string | null> {
       id: memoryId,
       userId: TEST_USER_ID,
       content: conversationContent,
-      createdAt: new Date(),
-      source: 'conversation',
-      isProcessed: false
+      type: 'chat',
+      timestamp: new Date(),
+      createdAt: new Date()
     });
     
     console.log(`已创建记忆ID=${memoryId}, 主题="${topic}"`);
@@ -236,8 +236,7 @@ async function processMemory(memoryId: string): Promise<boolean> {
     // 更新记忆记录
     await db.update(memories)
       .set({
-        summary: summary,
-        isProcessed: true
+        summary: summary
       })
       .where(eq(memories.id, memoryId));
     

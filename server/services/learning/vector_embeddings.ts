@@ -174,6 +174,35 @@ export class VectorEmbeddingsService {
       return [];
     }
   }
+
+  /**
+   * 获取用户的所有记忆向量
+   * @param userId 用户ID
+   * @returns 包含记忆ID和向量的对象
+   */
+  async getUserMemoryVectors(userId: number): Promise<{memoryIds: string[], vectors: number[][]}> {
+    try {
+      log(`[vector_embeddings] 获取用户 ${userId} 的记忆向量...`);
+      
+      // 从数据库获取用户的所有记忆向量嵌入
+      const memoryVectors = await storage.getUserMemoryVectors(userId);
+      
+      if (!memoryVectors || memoryVectors.length === 0) {
+        log(`[vector_embeddings] 用户 ${userId} 没有记忆向量`, 'warn');
+        return { memoryIds: [], vectors: [] };
+      }
+      
+      // 提取记忆ID和向量数据
+      const memoryIds = memoryVectors.map(mv => mv.memoryId);
+      const vectors = memoryVectors.map(mv => mv.vectorData as number[]);
+      
+      log(`[vector_embeddings] 已获取用户 ${userId} 的 ${memoryIds.length} 条记忆向量`);
+      return { memoryIds, vectors };
+    } catch (error) {
+      log(`[vector_embeddings] 获取用户记忆向量时出错: ${error}`, 'error');
+      return { memoryIds: [], vectors: [] };
+    }
+  }
 }
 
 // 导出服务实例

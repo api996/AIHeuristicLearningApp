@@ -27,6 +27,77 @@ export interface ClusterResult {
 
 export class ClusterAnalyzerService {
   /**
+   * 直接分析向量数据，生成聚类分析结果
+   * 这个方法由memory_service的analyzeUserMemories方法调用
+   * 
+   * @param userId 用户ID
+   * @param memoryIds 记忆ID数组
+   * @param vectors 向量数组
+   * @returns 聚类分析结果
+   */
+  async analyzeVectors(userId: number, memoryIds: string[], vectors: number[][]): Promise<ClusterResult | null> {
+    try {
+      log(`[cluster_analyzer] 开始为用户 ${userId} 分析向量数据，共 ${vectors.length} 个向量...`);
+      
+      // 检查参数有效性
+      if (!memoryIds || !vectors || memoryIds.length === 0 || vectors.length === 0) {
+        log(`[cluster_analyzer] 无效的参数: 记忆ID或向量数组为空`, 'error');
+        return null;
+      }
+      
+      if (memoryIds.length !== vectors.length) {
+        log(`[cluster_analyzer] 记忆ID数量与向量数量不匹配: ${memoryIds.length} vs ${vectors.length}`, 'error');
+        return null;
+      }
+      
+      // 使用Flask聚类服务进行分析
+      try {
+        const { clusterVectors } = await import('./flask_clustering_service');
+        log(`[cluster_analyzer] 使用Flask聚类服务处理 ${vectors.length} 个向量...`);
+        
+        const clusteringResult = await clusterVectors(memoryIds, vectors);
+        
+        if (!clusteringResult || !clusteringResult.clusters || clusteringResult.clusters.length === 0) {
+          log(`[cluster_analyzer] Flask聚类服务未返回有效结果`, 'error');
+          return null;
+        }
+        
+        log(`[cluster_analyzer] 聚类完成，发现 ${clusteringResult.clusters.length} 个聚类`);
+        
+        // 为每个聚类生成主题名称
+        const topics: ClusterTopic[] = [];
+        for (let i = 0; i < clusteringResult.clusters.length; i++) {
+          const cluster = clusteringResult.clusters[i];
+          
+          // 获取该聚类中的记忆
+          const clusterMemoryIds = cluster.points;
+          const percentage = (clusterMemoryIds.length / memoryIds.length) * 100;
+          
+          // 使用Gemini生成主题名称
+          const topic = await genAiService.generateClusterTopic(clusterMemoryIds.slice(0, 5));
+          
+          topics.push({
+            id: uuidv4(),
+            topic: topic || `主题 ${i + 1}`,
+            count: clusterMemoryIds.length,
+            percentage: Math.round(percentage * 100) / 100,
+            memoryIds: clusterMemoryIds
+          });
+        }
+        
+        log(`[cluster_analyzer] 已为用户 ${userId} 完成聚类分析，生成 ${topics.length} 个主题`);
+        return { topics };
+      } catch (error) {
+        log(`[cluster_analyzer] 调用Flask聚类服务时出错: ${error}`, 'error');
+        return null;
+      }
+    } catch (error) {
+      log(`[cluster_analyzer] 分析向量数据时出错: ${error}`, 'error');
+      return null;
+    }
+  }
+  
+  /**
    * 使用简单聚类算法分析记忆向量
    * 
    * 该方法会根据向量相似度将记忆分组，并尝试为每个组生成主题标签
