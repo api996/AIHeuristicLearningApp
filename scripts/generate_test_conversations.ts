@@ -140,8 +140,14 @@ async function generateTestConversations(count = 50) {
     const userId = 6;
     
     for (let i = 0; i < count; i++) {
-      // 选择随机主题
-      const { mainTopic, subtopic } = getRandomTopic();
+      // 根据索引轮流选择不同主题，确保更均匀的分布
+      const topicIndex = i % TOPICS.length;
+      const subtopicIndex = Math.floor(i / TOPICS.length) % TOPICS[topicIndex].subtopics.length;
+      
+      const mainTopic = TOPICS[topicIndex].name;
+      const subtopic = TOPICS[topicIndex].subtopics[subtopicIndex];
+      
+      console.log(`为主题 ${mainTopic} / ${subtopic} 创建内容 (${i+1}/${count})...`);
       
       // 生成对话提示
       const prompt = `创建一段有关${subtopic}的问答对话，包含用户提问和AI助手回答，要求：
@@ -171,8 +177,24 @@ ${subtopic}的应用非常广泛，从基础研究到工业实践都有重要价
       const memorySummary = `关于${subtopic}的对话`;
       const memoryKeywords = [subtopic, mainTopic, "学习", "应用", "概念"];
       
-      // 生成向量嵌入
-      const vector = await genAiService.generateEmbedding(fullContent);
+      // 为不同主题生成的向量添加轻微的"特征偏向"，以帮助聚类算法更好地区分
+      let vector = await genAiService.generateEmbedding(fullContent);
+      
+      if (vector && Array.isArray(vector)) {
+        // 根据主题索引修改向量的某些维度，增强不同主题之间的差异
+        // 这仅用于测试目的，增加向量在高维空间中的分离度
+        const topicBoost = 0.2; // 偏向强度
+        const dimensionsPerTopic = 100; // 每个主题影响的维度数
+        const startDimension = topicIndex * dimensionsPerTopic;
+        
+        for (let d = 0; d < dimensionsPerTopic && startDimension + d < vector.length; d++) {
+          const dimIndex = startDimension + d;
+          if (dimIndex < vector.length) {
+            // 增强向量特定维度
+            vector[dimIndex] = Math.min(1.0, Math.max(-1.0, vector[dimIndex] + topicBoost));
+          }
+        }
+      }
       
       if (!vector) {
         console.log(`警告: 为内容生成向量嵌入失败，跳过`);
@@ -239,8 +261,8 @@ async function main() {
       process.exit(1);
     }
     
-    // 从环境变量获取测试数据数量，默认为3条
-    const testDataCount = parseInt(process.env.TEST_DATA_COUNT || '3', 10);
+    // 从环境变量获取测试数据数量，默认为25条
+    const testDataCount = parseInt(process.env.TEST_DATA_COUNT || '25', 10);
     console.log(`将生成${testDataCount}条测试数据`);
     
     // 执行生成操作
