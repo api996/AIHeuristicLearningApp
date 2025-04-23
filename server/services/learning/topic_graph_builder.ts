@@ -48,8 +48,9 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
 
 // 聚类中心类型定义
 interface ClusterCenter {
-  id: string;            // e.g. "cluster_0"
-  texts: string[];       // 聚类后属于此中心的原始文本段落列表
+  id: string;                // e.g. "cluster_0"
+  texts: string[];           // 聚类后属于此中心的原始文本段落列表
+  originalLabel?: string;    // 从记忆服务获取的原始主题标签
 }
 
 // 主题关系类型
@@ -401,11 +402,22 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
   try {
     log(`[TopicGraphBuilder] 开始构建图谱，共有 ${centers.length} 个聚类中心`);
     
-    // 1. 提取主题名称
-    const topicPromises = centers.map(c => extractTopicName(c));
-    const topics = await Promise.all(topicPromises);
+    // 1. 提取主题名称 - 优先使用原始标签
+    const topics: string[] = [];
+    for (const center of centers) {
+      if (center.originalLabel) {
+        // 优先使用从记忆服务获取的原始标签
+        topics.push(center.originalLabel);
+        log(`[TopicGraphBuilder] 使用原始标签: ${center.originalLabel}`);
+      } else {
+        // 如果没有原始标签，则尝试提取
+        const extractedTopic = await extractTopicName(center);
+        topics.push(extractedTopic);
+        log(`[TopicGraphBuilder] 提取的主题: ${extractedTopic}`);
+      }
+    }
     
-    log(`[TopicGraphBuilder] 提取的主题: ${topics.join(', ')}`);
+    log(`[TopicGraphBuilder] 最终使用的主题列表: ${topics.join(', ')}`);
     
     // 为深度分析准备文本内容映射
     const topicTextsMap: Record<string, string[]> = {};
@@ -666,8 +678,11 @@ export async function buildUserKnowledgeGraph(userId: number, forceRefresh: bool
             .sort(() => 0.5 - Math.random()) // 随机排序
             .slice(0, Math.min(5, userMemories.length)); // 取前5个
       
+      // 使用从记忆服务获取的实际主题名称而不是生成新的名称
+      // 这是关键修复：使用聚类节点原始的label，这样我们就能保留聚类分析生成的主题名称
       clusters.push({
-        id: `cluster_${clusterId}`,
+        id: clusterNode.id, // 使用原始ID，保持一致性
+        originalLabel: clusterNode.label, // 保存原始标签，用于构建图谱
         texts: memoriesToUse.map(m => m.summary || m.content)
       });
     }
