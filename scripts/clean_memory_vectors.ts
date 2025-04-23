@@ -68,8 +68,11 @@ async function cleanLowQualityVectors() {
     // 删除低质量向量
     if (lowQualityIds.length > 0) {
       for (const id of lowQualityIds) {
-        await db.delete(memoryEmbeddings)
+        // 使用ORM删除，分两步进行以确保类型安全
+        const deleteQuery = db.delete(memoryEmbeddings)
           .where(eq(memoryEmbeddings.memoryId, id));
+        
+        await deleteQuery.execute();
         
         console.log(`已删除记忆ID为 ${id} 的低质量向量`);
       }
@@ -94,9 +97,25 @@ async function cleanLowQualityVectors() {
   } catch (error) {
     console.error("清理低质量向量时出错:", error);
   } finally {
-    // Neon数据库不需要显式关闭，使用client关闭
+    // 关闭数据库连接池
     try {
-      await db.$pool.end();
+      // Neon数据库连接使用的是PostgreSQL池
+      const pool = (db as any).$pool || (db as any).client?.pool;
+      if (pool && typeof pool.end === 'function') {
+        await pool.end();
+        console.log("数据库连接池已关闭");
+      } else {
+        console.log("使用内置的连接关闭方法");
+        // 使用直接导入的pool对象
+        await import("../server/db").then(async ({ pool }) => {
+          if (pool && typeof pool.end === 'function') {
+            await pool.end();
+            console.log("通过导入pool对象关闭连接");
+          }
+        }).catch(e => {
+          console.log("无法导入pool对象:", e);
+        });
+      }
     } catch (e) {
       console.log("关闭数据库连接时出错:", e);
     }

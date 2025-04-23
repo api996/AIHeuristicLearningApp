@@ -7,8 +7,8 @@
  * 3. 保存到数据库
  */
 
-import { db } from "../server/db";
-import { memoryEmbeddings, memories } from "../shared/schema";
+import { db, sql } from "../server/db";
+import { memoryEmbeddings, memories, insertMemorySchema, insertMemoryEmbeddingSchema, type InsertMemory, type InsertMemoryEmbedding } from "../shared/schema";
 import { genAiService } from "../server/services/genai/genai_service";
 import * as dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
@@ -130,12 +130,22 @@ async function generateTestConversations(count = 50) {
 5. 不要有过多的客套语和重复内容`;
       
       // 使用GenAI服务生成对话内容
-      const content = await genAiService.generateTopicForMemories([prompt]);
+      console.log(`生成主题 ${subtopic} 的对话内容...`);
+      
+      // 这里需要修改，generateTopicForMemories 不适合生成完整对话
+      // 改用 generateSummary 来生成内容
+      const content = await genAiService.generateSummary(
+        `创建一段关于"${subtopic}"的深度教育性问答对话，格式为：\n\n用户: [提出关于${subtopic}的专业问题]\n\nAI: [提供200-300字的详细、准确回答，包含专业术语和核心概念]`
+      );
       
       if (!content) {
         console.log(`警告: 为主题 ${subtopic} 生成内容失败，跳过`);
         continue;
       }
+      
+      // 构建完整对话内容
+      const fullContent = `用户: 请详细解释${subtopic}的核心概念和应用\n\nAI: ${content}`;
+      
       
       // 生成记忆ID
       const memoryId = generateMemoryId();
@@ -146,30 +156,30 @@ async function generateTestConversations(count = 50) {
       const keywords = await genAiService.extractKeywords(content) || [subtopic];
       
       // 生成向量嵌入
-      const vector = await genAiService.generateEmbedding(content);
+      const vector = await genAiService.generateEmbedding(fullContent);
       
       if (!vector) {
         console.log(`警告: 为内容生成向量嵌入失败，跳过`);
         continue;
       }
       
-      // 保存记忆
-      await db.insert(memories).values({
-        id: memoryId,
-        userId,
-        content,
-        summary,
-        type: "chat",
-        keywords: keywords.join(","),
-        createdAt,
-        timestamp: createdAt
-      });
-      
-      // 保存向量嵌入
-      await db.insert(memoryEmbeddings).values({
-        memoryId,
-        vectorData: vector
-      });
+      try {
+        // 使用原始SQL语句插入，确保功能正常
+        await db.execute(sql`
+          INSERT INTO memories (id, user_id, content, summary, type, keywords, created_at, timestamp)
+          VALUES (${memoryId}, ${userId}, ${fullContent}, ${summary}, 'chat', ${keywords.join(",")}, ${createdAt}, ${createdAt})
+        `);
+        
+        // 使用原始SQL语句插入向量嵌入
+        await db.execute(sql`
+          INSERT INTO memory_embeddings (memory_id, vector_data)
+          VALUES (${memoryId}, ${JSON.stringify(vector)})
+        `);
+        
+      } catch (insertError) {
+        console.error(`插入数据时出错: ${insertError}`);
+        continue;
+      }
       
       console.log(`[${i+1}/${count}] 已生成记忆: ${subtopic} (ID: ${memoryId})`);
     }
@@ -178,8 +188,28 @@ async function generateTestConversations(count = 50) {
   } catch (error) {
     console.error("生成测试对话数据时出错:", error);
   } finally {
-    // 关闭数据库连接
-    await db.end?.();
+    // 关闭数据库连接池
+    try {
+      // Neon数据库连接使用的是PostgreSQL池
+      const pool = (db as any).$pool || (db as any).client?.pool;
+      if (pool && typeof pool.end === 'function') {
+        await pool.end();
+        console.log("数据库连接池已关闭");
+      } else {
+        console.log("使用内置的连接关闭方法");
+        // 使用直接导入的pool对象
+        await import("../server/db").then(async ({ pool }) => {
+          if (pool && typeof pool.end === 'function') {
+            await pool.end();
+            console.log("通过导入pool对象关闭连接");
+          }
+        }).catch(e => {
+          console.log("无法导入pool对象:", e);
+        });
+      }
+    } catch (e) {
+      console.log("关闭数据库连接时出错:", e);
+    }
   }
 }
 
