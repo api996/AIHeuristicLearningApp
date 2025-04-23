@@ -295,16 +295,15 @@ class FallbackService implements GenAIService {
  * 返回Promise以避免TypeScript错误
  */
 const createGenAIService = async (): Promise<GenAIService> => {
-  // 首先尝试使用Gemini服务
+  // 使用Gemini服务，不使用后备
   const geminiService = new GeminiService();
   
   if (!geminiApiKey || geminiApiKey.trim() === "") {
-    log("[genai_service] 未设置Gemini API密钥，使用后备服务", "warn");
-    return new FallbackService();
+    throw new Error("[genai_service] 未设置Gemini API密钥，请配置GEMINI_API_KEY环境变量");
   }
   
   try {
-    // 测试API是否可用 - 尝试直接生成主题而不是嵌入
+    // 测试API是否可用 - 尝试直接生成主题
     const testTexts = ["测试文本，用于验证Gemini API是否可用"];
     const testTopic = await geminiService.generateTopicForMemories(testTexts);
     
@@ -312,24 +311,37 @@ const createGenAIService = async (): Promise<GenAIService> => {
       log(`[genai_service] GenAI 服务已初始化，主题生成测试成功: "${testTopic}"`, "info");
       return geminiService;
     } else {
-      log(`[genai_service] API测试返回无效主题或错误结果: "${testTopic}"，使用后备服务`, "warn");
-      return new FallbackService();
+      throw new Error(`[genai_service] API测试返回无效主题或错误结果: "${testTopic}"，请检查API密钥是否有效`);
     }
   } catch (error) {
-    log(`[genai_service] API测试失败，使用后备服务: ${error}`, "warn");
-    return new FallbackService();
+    log(`[genai_service] API初始化失败: ${error}`, "error");
+    throw error; // 向上抛出错误，不使用后备服务
   }
 };
 
 // 导出服务实例
-export let genAiService: GenAIService = new FallbackService();
+export let genAiService: GenAIService;
+
+// 暂时使用一个简单的Promise占位，等待初始化完成
+let serviceInitPromise: Promise<void>;
 
 // 异步初始化
 (async () => {
-  try {
-    genAiService = await createGenAIService();
-  } catch (error) {
-    log(`[genai_service] 初始化失败，使用后备服务: ${error}`, "error");
-    // 保持使用默认的后备服务
-  }
+  serviceInitPromise = new Promise(async (resolve) => {
+    try {
+      genAiService = await createGenAIService();
+      resolve();
+    } catch (error) {
+      log(`[genai_service] 初始化失败: ${error}`, "error");
+      // 不再使用后备服务，直接抛出错误
+      throw new Error(`Gemini服务初始化失败，请确保API密钥正确: ${error}`);
+    }
+  });
 })();
+
+// 为防止初始导出的genAiService为undefined，提供一个错误提示方法
+setTimeout(() => {
+  if (!genAiService) {
+    log(`[genai_service] 警告：服务初始化可能失败，API调用可能会出错`, "error");
+  }
+}, 5000);

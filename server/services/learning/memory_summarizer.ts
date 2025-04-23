@@ -115,6 +115,11 @@ export class MemorySummarizerService {
         log('[memory_summarizer] 文本过短，使用文本开头作为主题');
         return `主题: ${text.slice(0, 20)}`;
       }
+      
+      // 检查genAiService是否已初始化
+      if (!genAiService) {
+        throw new Error('GenAI服务尚未初始化，请稍后再试或检查API配置');
+      }
 
       log('[memory_summarizer] 开始使用GenAI服务生成主题...');
       
@@ -123,37 +128,40 @@ export class MemorySummarizerService {
       const sampleParagraphs = paragraphs.slice(0, 5).map(p => p.trim());
       
       // 使用GenAI服务生成主题
-      const topic = await genAiService.generateTopicForMemories(sampleParagraphs);
-      
-      log(`[memory_summarizer] GenAI服务返回主题: "${topic}"`);
-      
-      // 检查主题有效性
-      if (!topic) {
-        log('[memory_summarizer] GenAI服务未返回主题，使用后备方案', 'warn');
-        return this.generateFallbackTopic(text);
+      try {
+        const topic = await genAiService.generateTopicForMemories(sampleParagraphs);
+        log(`[memory_summarizer] GenAI服务返回主题: "${topic}"`);
+        
+        // 检查主题有效性
+        if (!topic) {
+          throw new Error('GenAI服务返回了空主题');
+        }
+        
+        // 检查主题是否有意义 (排除无意义主题如"用户问"等格式标记)
+        const lowQualityPatterns = [
+          /^用户问$/i, 
+          /^问题$/i, 
+          /^ai回答$/i, 
+          /^对话$/i, 
+          /^聊天$/i,
+          /^记忆$/i,
+          /^问答$/i
+        ];
+        
+        if (lowQualityPatterns.some(pattern => pattern.test(topic))) {
+          throw new Error(`生成的主题质量低: "${topic}"`);
+        }
+        
+        log(`[memory_summarizer] 成功生成主题: "${topic}"`);
+        return topic;
+      } catch (apiError) {
+        // 记录具体的API错误
+        log(`[memory_summarizer] GenAI API调用失败: ${apiError}`, 'error');
+        throw apiError; // 向上传递错误
       }
-      
-      // 检查主题是否有意义 (排除无意义主题如"用户问"等格式标记)
-      const lowQualityPatterns = [
-        /^用户问$/i, 
-        /^问题$/i, 
-        /^ai回答$/i, 
-        /^对话$/i, 
-        /^聊天$/i,
-        /^记忆$/i,
-        /^问答$/i
-      ];
-      
-      if (lowQualityPatterns.some(pattern => pattern.test(topic))) {
-        log(`[memory_summarizer] 主题质量低 "${topic}"，使用后备方案`, 'warn');
-        return this.generateFallbackTopic(text);
-      }
-      
-      log(`[memory_summarizer] 成功生成主题: "${topic}"`);
-      return topic;
     } catch (error) {
       log(`[memory_summarizer] 生成主题时出错: ${error}`, 'error');
-      return this.generateFallbackTopic(text);
+      throw error; // 不再使用后备方案，直接抛出错误
     }
   }
   
