@@ -348,25 +348,43 @@ export class ClusterCacheService {
         
         // 如果聚类中有记忆内容，生成主题和摘要
         if (clusterMemories.length > 0) {
-          // 使用Gemini生成主题
-          // 如果没有主题或主题是默认格式，或者以"主题"开头，则重新生成
-          const hasDefaultTopic = !clusterData.topic || 
-                                clusterData.topic === `主题 ${clusterId}` || 
-                                clusterData.topic.startsWith('主题');
+          // 强制重新生成所有聚类的主题，确保有有意义的主题标签
+          log(`[ClusterCache] 聚类${clusterId}包含${clusterMemories.length}条记忆，正在处理`);
+          log(`[ClusterCache] 聚类${clusterId}的现有主题: "${clusterData.topic || '无'}"`);
           
-          // 强制重新生成主题，添加详细日志
-          log(`[ClusterCache] 聚类${clusterId}的现有主题: "${clusterData.topic || '无'}", 需要重新生成: ${hasDefaultTopic}`);
+          // 直接强制重新生成主题，不管是否有默认主题
+          log(`[ClusterCache] 开始为聚类${clusterId}生成新主题...`);
           
-          if (hasDefaultTopic) {
-            log(`[ClusterCache] 开始为聚类${clusterId}生成新主题...`);
+          try {
+            // 记忆内容示例
+            if (clusterMemories.length > 0) {
+              const sampleContent = clusterMemories[0].substring(0, 100) + 
+                (clusterMemories[0].length > 100 ? '...' : '');
+              log(`[ClusterCache] 聚类${clusterId}内容示例: "${sampleContent}"`);
+            }
+            
             const topic = await this.generateTopicForCluster(clusterMemories);
             
             if (topic) {
               log(`[ClusterCache] 成功为聚类${clusterId}生成新主题: "${topic}"`);
               clusterData.topic = topic;
             } else {
-              log(`[ClusterCache] 无法为聚类${clusterId}生成新主题`, 'warn');
+              log(`[ClusterCache] 无法为聚类${clusterId}生成新主题，尝试关键词方法`, 'warn');
+              
+              // 尝试从记忆中提取关键词作为主题
+              const keywords = await this.extractKeywordsFromCluster(clusterMemories);
+              if (keywords && keywords.length > 0) {
+                const newTopic = keywords.slice(0, 2).join('与') + '相关内容';
+                log(`[ClusterCache] 使用关键词生成主题: "${newTopic}"`);
+                clusterData.topic = newTopic;
+              } else {
+                log(`[ClusterCache] 无法通过任何方式生成主题，使用默认值`, 'error');
+                clusterData.topic = `聚类${clusterId}`;
+              }
             }
+          } catch (error) {
+            log(`[ClusterCache] 生成聚类${clusterId}主题时发生错误: ${error}`, 'error');
+            clusterData.topic = `聚类${clusterId}`;
           }
           
           // 生成摘要
