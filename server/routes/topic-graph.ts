@@ -59,8 +59,18 @@ router.post('/api/topic-graph/:userId/refresh', async (req, res) => {
       return res.status(400).json({ error: '无效的用户ID' });
     }
     
-    // 清除缓存并生成新图谱
+    // 清除图谱缓存
     await db.delete(knowledgeGraphCache).where(eq(knowledgeGraphCache.userId, userId));
+    
+    // 清除聚类缓存
+    try {
+      const { clusterCacheService } = await import('../services/learning/cluster_cache_service');
+      await clusterCacheService.clearUserClusterCache(userId);
+      log(`[TopicGraph] 已清除用户 ${userId} 的聚类缓存`);
+    } catch (cacheError) {
+      log(`[TopicGraph] 清除聚类缓存失败，将继续使用新算法生成聚类: ${cacheError}`);
+      // 清除失败不影响图谱生成流程，继续执行
+    }
     
     log(`[TopicGraph] ==========================================`);
     log(`[TopicGraph] 强制刷新用户 ${userId} 的主题图谱 - 开始`);
