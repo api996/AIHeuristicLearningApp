@@ -596,7 +596,7 @@ export async function buildUserKnowledgeGraph(userId: number, forceRefresh: bool
       log(`[TopicGraphBuilder] 节点 ${index}: id=${node.id}, category=${node.category}, type=${node.type || 'undefined'}`);
     });
     
-    // 3. 获取每个聚类的记忆内容，以便进行主题提取
+    // 3. 获取用户的记忆内容，以便进行主题提取和进一步处理
     const userMemories = await db.select({
       id: memories.id,
       content: memories.content,
@@ -671,7 +671,8 @@ export async function buildUserKnowledgeGraph(userId: number, forceRefresh: bool
             id: virtualClusterId,
             label: `主题 ${clusterNodes.length + i}`,
             category: 'cluster',
-            clusterId: virtualClusterId
+            clusterId: virtualClusterId,
+            size: 15 + Math.floor(Math.random() * 5)
           });
           
           // 为这个虚拟聚类分配记忆
@@ -691,7 +692,8 @@ export async function buildUserKnowledgeGraph(userId: number, forceRefresh: bool
               learningPathData.nodes.push({
                 id: memoryNodeId,
                 label: memory.summary || memory.content.slice(0, 50),
-                category: 'memory'
+                category: 'memory',
+                size: 8 // 默认记忆节点大小
               });
             }
             
@@ -699,7 +701,7 @@ export async function buildUserKnowledgeGraph(userId: number, forceRefresh: bool
             learningPathData.links.push({
               source: memoryNodeId,
               target: virtualClusterId,
-              type: 'belongs_to'
+              value: 0.5 // 默认连接强度
             });
           });
         }
@@ -715,22 +717,6 @@ export async function buildUserKnowledgeGraph(userId: number, forceRefresh: bool
     }
     
     log(`[TopicGraphBuilder] 从学习路径数据中找到 ${clusterNodes.length} 个聚类`);
-    
-    // 3. 获取每个聚类的记忆内容，以便进行主题提取
-    const userMemories = await db.select({
-      id: memories.id,
-      content: memories.content,
-      summary: memories.summary
-    })
-    .from(memories)
-    .where(eq(memories.userId, userId));
-    
-    if (userMemories.length === 0) {
-      log(`[TopicGraphBuilder] 用户 ${userId} 没有记忆数据`);
-      return { nodes: [], links: [] };
-    }
-    
-    log(`[TopicGraphBuilder] 为用户 ${userId} 加载了 ${userMemories.length} 条记忆`);
     
     // 4. 根据聚类ID找到对应的记忆，创建聚类中心数据
     const clusters: ClusterCenter[] = [];
@@ -783,7 +769,7 @@ export async function buildUserKnowledgeGraph(userId: number, forceRefresh: bool
       log(`[TopicGraphBuilder] 连接示例: ${JSON.stringify(graphData.links[0])}`);
     }
     
-    // 4. 保存图谱到缓存
+    // 6. 保存图谱到缓存
     await db.insert(knowledgeGraphCache)
       .values({
         userId,
@@ -854,5 +840,3 @@ export async function testTopicGraphBuilder() {
     throw error;
   }
 }
-
-// SQL函数已在顶部导入
