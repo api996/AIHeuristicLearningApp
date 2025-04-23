@@ -6,7 +6,7 @@
 import * as path from 'path';
 import { spawn } from 'child_process';
 import axios from 'axios';
-import { IClusterResult } from './interfaces';
+import { ClusterResult } from './cluster_types';
 
 // 服务配置
 const DEFAULT_PORT = 5050;
@@ -131,7 +131,7 @@ async function ensureServiceRunning(): Promise<boolean> {
 export async function clusterVectors(
   memoryIds: string[],
   vectors: number[][]
-): Promise<IClusterResult | null> {
+): Promise<ClusterResult | null> {
   // 确保服务正在运行
   const isRunning = await ensureServiceRunning();
   if (!isRunning) {
