@@ -265,8 +265,8 @@ export class ClusterCacheService {
       return await this.executeClusteringService(memoriesData);
     } catch (error) {
       log(`[ClusterCache] Python聚类失败: ${error}`, "error");
-      // 失败时返回空结果
-      return {};
+      // 不再静默失败，而是向上抛出错误以便调试
+      throw error;
     }
   }
   
@@ -276,46 +276,19 @@ export class ClusterCacheService {
    * @returns 聚类结果
    */
   private async executeClusteringService(memoriesData: any[]): Promise<any> {
-    try {
-      // 准备向量数据
-      const vectors = memoriesData.map(m => ({
-        id: m.id,
-        vector: m.embedding
-      }));
-      
-      // 执行聚类
-      return await pythonClusteringService.clusterVectors(vectors);
-    } catch (error) {
-      log(`[ClusterCache] 调用Python聚类服务失败: ${error}`, "error");
-      // 遇到错误时尝试使用备用聚类方法
-      try {
-        return await this.executeFallbackClustering(memoriesData);
-      } catch (fallbackError) {
-        log(`[ClusterCache] 备用聚类也失败: ${fallbackError}`, "error");
-        return {};
-      }
+    // 准备向量数据
+    const vectors = memoriesData.map(m => ({
+      id: m.id,
+      vector: m.embedding
+    }));
+    
+    // 记录向量维度统计
+    if (vectors.length > 0 && vectors[0].vector) {
+      log(`[ClusterCache] 向量维度: ${vectors[0].vector.length}，向量总数: ${vectors.length}`);
     }
-  }
-  
-  /**
-   * 备用聚类方法
-   * @param memoriesData 记忆数据
-   * @returns 聚类结果
-   */
-  private async executeFallbackClustering(memoriesData: any[]): Promise<any> {
-    try {
-      // 使用TypeScript聚类服务作为备用
-      const vectors = memoriesData.map(m => ({
-        id: m.id,
-        vector: m.embedding
-      }));
-      
-      // 使用Python聚类服务模块
-      return await pythonClusteringService.clusterVectors(vectors);
-    } catch (error) {
-      log(`[ClusterCache] 备用聚类失败: ${error}`, "error");
-      throw error;
-    }
+    
+    // 执行聚类并直接返回结果或抛出错误
+    return await pythonClusteringService.clusterVectors(vectors);
   }
   
   /**
