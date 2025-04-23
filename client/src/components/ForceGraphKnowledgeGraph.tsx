@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
+import { Tooltip } from "@/components/ui/tooltip";
+import { TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 // 图谱节点类型
 interface GraphNode {
@@ -19,6 +24,10 @@ interface GraphLink {
   type?: string;
   value?: number;
   color?: string; // 可选，为连接指定特定颜色
+  label?: string; // 关系标签
+  reason?: string; // 关系原因
+  strength?: number; // 关系强度
+  learningOrder?: string; // 学习顺序
 }
 
 // 图谱组件属性
@@ -49,6 +58,11 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
   const [graphData, setGraphData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] });
   // 内联设备检测
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  
+  // 添加连接关系信息对话框状态
+  const [selectedLink, setSelectedLink] = useState<GraphLink | null>(null);
+  const [showLinkDialog, setShowLinkDialog] = useState<boolean>(false);
+  const [highlightedLink, setHighlightedLink] = useState<GraphLink | null>(null);
   
   // 设备检测逻辑
   useEffect(() => {
@@ -316,7 +330,56 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
+    
+    // 如果有关系标签并且缩放比例适合显示文本，则在连接中间添加标签
+    if ((link.label || link.type) && globalScale > 0.6) {
+      const midX = (start.x + end.x) / 2;
+      const midY = (start.y + end.y) / 2;
+      
+      // 显示关系标签
+      const labelText = link.label || link.type || "相关";
+      
+      // 设置字体
+      const fontSize = 12;
+      const scaledFontSize = Math.max(fontSize, fontSize / globalScale);
+      ctx.font = `${scaledFontSize}px Arial`;
+      
+      // 为标签添加背景
+      const textWidth = ctx.measureText(labelText).width;
+      const bckgDimensions = [textWidth + 8, scaledFontSize + 4].map(n => n / globalScale);
+      
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(
+        midX - bckgDimensions[0] / 2,
+        midY - bckgDimensions[1] / 2,
+        bckgDimensions[0],
+        bckgDimensions[1]
+      );
+      
+      // 绘制文本
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'white';
+      ctx.fillText(labelText, midX, midY);
+    }
   }, [graphData]);
+  
+  // 处理链接点击
+  const handleLinkClick = useCallback((link: GraphLink) => {
+    setSelectedLink(link);
+    setShowLinkDialog(true);
+  }, []);
+  
+  // 处理链接悬停
+  const handleLinkHover = useCallback((link: GraphLink | null) => {
+    setHighlightedLink(link);
+  }, []);
+  
+  // 关闭对话框
+  const handleCloseDialog = useCallback(() => {
+    setShowLinkDialog(false);
+    setSelectedLink(null);
+  }, []);
   
   return (
     <div className="knowledge-graph-container">
@@ -336,10 +399,66 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
           linkWidth="width"
           backgroundColor="#111827"
           onNodeClick={handleNodeClick}
+          onLinkClick={handleLinkClick as any}
+          onLinkHover={handleLinkHover as any}
           onBackgroundClick={handleBackgroundClick}
           {...getMobileConfig()}
         />
       )}
+      
+      {/* 连接关系信息对话框 */}
+      <Dialog open={showLinkDialog} onOpenChange={handleCloseDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>关系详情</DialogTitle>
+          </DialogHeader>
+          
+          {selectedLink && (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline">{selectedLink.type || '相关'}</Badge>
+                <span className="text-sm text-muted-foreground">
+                  强度: {selectedLink.strength || 5}/10
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">起点</h4>
+                  <div className="rounded-md bg-secondary p-2">
+                    {typeof selectedLink.source === 'string' 
+                      ? selectedLink.source
+                      : (selectedLink.source as any)?.label || (selectedLink.source as any)?.id}
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">终点</h4>
+                  <div className="rounded-md bg-secondary p-2">
+                    {typeof selectedLink.target === 'string'
+                      ? selectedLink.target
+                      : (selectedLink.target as any)?.label || (selectedLink.target as any)?.id}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">学习建议</h4>
+                <div className="rounded-md bg-secondary p-2">
+                  {selectedLink.learningOrder || '可同时学习'}
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">关系解释</h4>
+                <div className="rounded-md bg-muted p-3 text-sm">
+                  {selectedLink.reason || '这些主题之间存在关联'}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
