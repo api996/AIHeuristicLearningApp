@@ -6,7 +6,7 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { pool, db } from '../server/db';
-import { memories } from '../shared/schema';
+import { memories, memoryKeywords, memoryEmbeddings } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 
 dotenv.config();
