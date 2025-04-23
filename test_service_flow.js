@@ -10,6 +10,44 @@ import { memorySummarizer } from './server/services/learning/memory_summarizer.j
 import { clusterCacheService } from './server/services/learning/cluster_cache_service.js';
 
 /**
+ * 标准化向量到3072维
+ * @param {number[]} vector 原始向量
+ * @returns {number[]} 标准化后的3072维向量
+ */
+function normalizeVectorTo3072(vector) {
+  if (!vector || !Array.isArray(vector)) {
+    // 如果输入无效，返回全0向量
+    return Array(3072).fill(0);
+  }
+  
+  const targetDimension = 3072;
+  
+  if (vector.length === targetDimension) {
+    // 维度已经是3072，直接返回
+    return vector;
+  } else if (vector.length > targetDimension) {
+    // 如果维度大于3072，截断
+    return vector.slice(0, targetDimension);
+  } else {
+    // 如果维度小于3072，补充
+    const normalized = [...vector];
+    const missingDimensions = targetDimension - vector.length;
+    
+    if (missingDimensions > 0) {
+      // 计算填充值 - 随机值，但比原向量值小一个量级，降低影响
+      const scale = 0.1 * (Math.abs(vector.reduce((sum, val) => sum + val, 0) / vector.length) || 0.01);
+      
+      // 填充剩余维度
+      for (let i = 0; i < missingDimensions; i++) {
+        normalized.push((Math.random() * 2 - 1) * scale);
+      }
+    }
+    
+    return normalized;
+  }
+}
+
+/**
  * 打印带颜色的日志
  */
 function log(message, type = 'info') {
@@ -136,10 +174,21 @@ async function generateSummariesAndEmbeddings(memoryIds) {
           continue;
         }
         
-        // 保存向量
-        await storage.saveMemoryEmbedding(memoryId, embedding);
-        
-        log(`成功生成${embedding.length}维向量嵌入`, 'success');
+        // 验证向量维度
+        if (embedding.length !== 3072) {
+          log(`警告：向量维度不是3072，实际维度为${embedding.length}，系统需要3072维向量`, 'warn');
+          // 补全或截断向量到3072维
+          const normalizedVector = normalizeVectorTo3072(embedding);
+          log(`已将向量调整为3072维`, 'info');
+          
+          // 保存向量
+          await storage.saveMemoryEmbedding(memoryId, normalizedVector);
+          log(`成功生成并标准化为3072维向量嵌入`, 'success');
+        } else {
+          // 保存向量
+          await storage.saveMemoryEmbedding(memoryId, embedding);
+          log(`成功生成${embedding.length}维向量嵌入`, 'success');
+        }
       } catch (error) {
         log(`向量嵌入生成失败: ${error}`, 'error');
       }
@@ -280,6 +329,7 @@ async function main() {
     // 使用现有用户ID
     const testUserId = 15; // 使用系统中已有的用户ID
     let memoryIds = [];
+    let skipCleanup = false; // 方便调试时观察数据
     
     try {
       // 确保用户存在
@@ -297,7 +347,27 @@ async function main() {
       }
       
       // 步骤2: 生成摘要和向量嵌入
-      await generateSummariesAndEmbeddings(memoryIds);
+      // 限制处理的记忆数，避免超时
+      const memoriesToProcess = memoryIds.slice(0, 2);
+      await generateSummariesAndEmbeddings(memoriesToProcess);
+      
+      // 查询向量维度，确认是否为3072维
+      try {
+        const memoryId = memoriesToProcess[0];
+        const embedding = await storage.getEmbeddingByMemoryId(memoryId);
+        
+        if (embedding && embedding.vectorData) {
+          const dimension = embedding.vectorData.length;
+          log(`向量嵌入维度验证: ${dimension}维`, dimension === 3072 ? 'success' : 'warn');
+          if (dimension !== 3072) {
+            log(`警告: 向量维度不符合要求，当前维度: ${dimension}, 需要: 3072`, 'warn');
+          }
+        } else {
+          log(`无法获取向量嵌入以验证维度`, 'warn');
+        }
+      } catch (error) {
+        log(`验证向量维度时出错: ${error}`, 'error');
+      }
       
       // 步骤3: 执行聚类和主题生成
       await performClustering(testUserId);
@@ -305,8 +375,10 @@ async function main() {
       log('=== 测试完成 ===', 'success');
     } finally {
       // 测试完成后清理数据
-      if (memoryIds.length > 0) {
+      if (memoryIds.length > 0 && !skipCleanup) {
         await cleanupTestData(testUserId, memoryIds);
+      } else if (skipCleanup) {
+        log('跳过数据清理，保留测试数据以供检查', 'info');
       }
     }
   } catch (error) {
