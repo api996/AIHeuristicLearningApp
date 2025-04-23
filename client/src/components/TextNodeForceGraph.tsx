@@ -1,9 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
-import { 
-  select, zoom, forceSimulation, forceLink, 
-  forceManyBody, forceCenter, forceCollide, drag 
-} from 'd3';
+// 不单独导入d3的方法，直接使用d3命名空间，避免运行时错误
 import { Sparkles } from 'lucide-react';
 
 // 为D3拖拽事件添加类型定义
@@ -84,14 +81,25 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
 
     // 添加缩放和平移功能
     const g = svg.append("g");
-    svg.call(
-      d3.zoom<SVGSVGElement, unknown>()
+    
+    // 安全地应用 zoom 行为，处理可能的事件类型兼容性问题
+    const handleZoom = (event: any) => {
+      // 确保 event 和 event.transform 存在
+      if (event && event.transform) {
+        g.attr("transform", `translate(${event.transform.x}, ${event.transform.y}) scale(${event.transform.k})`);
+      }
+    };
+    
+    try {
+      const zoomBehavior = d3.zoom<SVGSVGElement, unknown>()
         .extent([[0, 0], [width, height]])
         .scaleExtent([0.25, 5])
-        .on("zoom", (event) => {
-          g.attr("transform", event.transform);
-        })
-    );
+        .on("zoom", handleZoom);
+        
+      svg.call(zoomBehavior);
+    } catch (error) {
+      console.error("Error applying zoom behavior:", error);
+    }
 
     // 定义节点颜色映射
     const categoryColors: Record<string, string> = {
@@ -234,33 +242,52 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
       
     // 模拟更新函数
     simulation.on("tick", () => {
-      // 更新连接线路径
+      // 更新连接线路径，添加安全检查
       link.attr("d", d => {
         const source = d.source as GraphNode;
         const target = d.target as GraphNode;
-        return `M${source.x},${source.y}Q${(source.x + target.x) / 2 + 20},${(source.y + target.y) / 2}${target.x},${target.y}`;
+        
+        // 确保坐标存在，否则使用默认坐标
+        const sx = source.x !== undefined ? source.x : width / 3;
+        const sy = source.y !== undefined ? source.y : height / 3;
+        const tx = target.x !== undefined ? target.x : width * 2 / 3;
+        const ty = target.y !== undefined ? target.y : height * 2 / 3;
+        
+        // 使用二次曲线绘制连接，增加曲率以提高可读性
+        return `M${sx},${sy}Q${(sx + tx) / 2 + 20},${(sy + ty) / 2}${tx},${ty}`;
       });
 
-      // 更新节点位置
-      node.attr("transform", d => `translate(${d.x},${d.y})`);
+      // 更新节点位置，添加安全检查
+      node.attr("transform", d => {
+        const nx = d.x !== undefined ? d.x : width / 2;
+        const ny = d.y !== undefined ? d.y : height / 2;
+        return `translate(${nx},${ny})`;
+      });
     });
 
-    // 拖拽开始函数
-    function dragstarted(event: d3.D3DragEvent<SVGGElement, GraphNode, GraphNode>, d: GraphNode) {
+    // 拖拽开始函数 - 使用自定义的D3DragEvent接口
+    function dragstarted(event: any, d: GraphNode) {
       if (!event.active) simulation.alphaTarget(0.3).restart();
-      d.fx = d.x;
-      d.fy = d.y;
+      // 添加安全检查
+      if (d.x !== undefined && d.y !== undefined) {
+        d.fx = d.x;
+        d.fy = d.y;
+      }
     }
 
-    // 拖拽中函数
-    function dragged(event: d3.D3DragEvent<SVGGElement, GraphNode, GraphNode>, d: GraphNode) {
-      d.fx = event.x;
-      d.fy = event.y;
+    // 拖拽中函数 - 使用自定义的D3DragEvent接口
+    function dragged(event: any, d: GraphNode) {
+      // 添加安全检查
+      if (event && event.x !== undefined && event.y !== undefined) {
+        d.fx = event.x;
+        d.fy = event.y;
+      }
     }
 
-    // 拖拽结束函数
-    function dragended(event: d3.D3DragEvent<SVGGElement, GraphNode, GraphNode>, d: GraphNode) {
+    // 拖拽结束函数 - 使用自定义的D3DragEvent接口
+    function dragended(event: any, d: GraphNode) {
       if (!event.active) simulation.alphaTarget(0);
+      // 松开时释放固定位置
       d.fx = null;
       d.fy = null;
     }
