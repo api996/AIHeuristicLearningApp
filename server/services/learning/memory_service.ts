@@ -398,11 +398,11 @@ export class MemoryService {
       const testVectors = this.generateTestVectors(10, 3072);
       log(`[MemoryService] 已生成 ${testVectors.length} 个测试向量，每个维度为 3072`);
       
-      // 从cluster_analyzer导入pythonClusteringService
-      const { pythonClusteringService } = await import('./python_clustering');
+      // 使用直接Python服务
+      const { directPythonService } = await import('./direct_python_service');
       
       // 直接调用Python聚类服务
-      const result = await pythonClusteringService.clusterVectors(testVectors);
+      const result = await directPythonService.clusterVectors(testVectors);
       
       if (result && result.centroids && result.centroids.length > 0) {
         log(`[MemoryService] Python聚类服务测试成功，生成 ${result.centroids.length} 个聚类`);
