@@ -259,16 +259,20 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
     if (memorySpaceClusters && memorySpaceClusters.length > 0) {
       log(`[trajectory] 使用memory_service提供的聚类结果生成学习轨迹`);
       
-      // 构建知识图谱节点
+      // 构建知识图谱节点 - 保留原始主题名称
       const nodes: TrajectoryNode[] = memorySpaceClusters.map((cluster: any) => {
         // 计算节点大小（基于百分比）
         const size = Math.max(10, Math.min(50, 10 + cluster.percentage * 0.4));
         
+        // 重要：必须使用原始主题名称作为ID，确保与知识图谱保持一致
+        // 从主题名称中提取核心部分，去除额外描述性文本
+        const topicName = cluster.topic.split('：')[0].split(' - ')[0].trim();
+        
         return {
-          id: cluster.id,
-          label: cluster.topic,
+          id: topicName, // 使用简化后的主题名称作为ID
+          label: topicName, // 同样使用简化后的主题名称作为标签
           size,
-          category: '记忆主题', // 这里可以增加分类逻辑
+          category: 'cluster', // 使用与知识图谱相同的类别名称
           clusterId: cluster.id
         };
       });
@@ -279,13 +283,20 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
         // 找出最大的聚类
         const largestCluster = [...memorySpaceClusters].sort((a, b) => b.percentage - a.percentage)[0];
         
+        // 从主题名称中提取核心部分 - 与节点保持一致的方式
+        const largestTopicName = largestCluster.topic.split('：')[0].split(' - ')[0].trim();
+        
         // 将其他聚类连接到最大聚类
         for (const cluster of memorySpaceClusters) {
           if (cluster.id !== largestCluster.id) {
+            // 同样为连接目标使用一致的主题名称提取方式
+            const targetTopicName = cluster.topic.split('：')[0].split(' - ')[0].trim();
+            
             links.push({
-              source: largestCluster.id,
-              target: cluster.id,
-              value: Math.max(1, Math.min(10, cluster.percentage / 10)) // 缩放到1-10范围
+              source: largestTopicName, // 使用提取的主题名称作为源
+              target: targetTopicName,  // 使用提取的主题名称作为目标
+              value: Math.max(1, Math.min(10, cluster.percentage / 10)), // 缩放到1-10范围
+              type: 'related' // 添加类型以便与知识图谱保持一致
             });
           }
         }
