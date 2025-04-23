@@ -18,7 +18,7 @@ logger = logging.getLogger('test_optimal_clusters')
 
 def determine_optimal_clusters(vectors):
     """
-    使用肘部法则确定最佳聚类数量 - 从learning_memory_service.py复制的函数
+    使用轮廓系数确定最佳聚类数量 - 从learning_memory_service.py复制的更新函数
     """
     try:
         # 如果样本太少，直接返回小值
@@ -32,8 +32,9 @@ def determine_optimal_clusters(vectors):
         
         if max_clusters <= min_clusters:
             return min_clusters
-            
-        # 计算不同k值的畸变度(inertia)
+        
+        # 计算轮廓系数
+        silhouette_scores = []
         distortions = []
         K = range(min_clusters, max_clusters + 1)
         
@@ -41,44 +42,56 @@ def determine_optimal_clusters(vectors):
         for k in K:
             try:
                 kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
-                kmeans.fit(vectors)
+                labels = kmeans.fit_predict(vectors)
                 distortions.append(kmeans.inertia_)
                 
-                # 可选：计算轮廓系数
+                # 计算轮廓系数
                 if k > 1 and n_samples > k:
                     try:
-                        silhouette_avg = silhouette_score(vectors, kmeans.labels_)
+                        silhouette_avg = silhouette_score(vectors, labels)
+                        silhouette_scores.append(silhouette_avg)
                         logger.info(f"聚类数 k={k}, 轮廓系数: {silhouette_avg:.3f}")
                     except Exception as e:
                         logger.warning(f"计算轮廓系数时出错 (k={k}): {e}")
+                        silhouette_scores.append(-1)  # 错误情况使用无效值
+                else:
+                    silhouette_scores.append(-1)  # k=1时轮廓系数无意义
             except Exception as e:
                 logger.warning(f"k={k} 时K-means聚类失败: {e}")
+                silhouette_scores.append(-1)
+                distortions.append(float('inf'))
                 continue
-                
+        
         # 没有得到有效结果时的后备选项
-        if not distortions:
-            logger.warning("无法计算畸变度，使用默认聚类数")
-            return min(5, max(2, n_samples // 10))  # 默认策略
+        if not any(score > 0 for score in silhouette_scores):
+            logger.warning("无法计算有效的轮廓系数，回退到使用畸变度评估")
+            if len(distortions) > 2:
+                # 使用肘部法则：通过畸变度的一阶差分变化率确定
+                drops = np.diff(distortions) / np.array(distortions[:-1])
+                elbow_index = np.argmax(drops) if np.any(drops > 0.5) else 0
+                optimal_k = min_clusters + elbow_index
+                logger.info(f"根据畸变度变化率确定最佳聚类数: k={optimal_k}")
+            else:
+                optimal_k = min(5, max(2, n_samples // 10))
+                logger.info(f"使用默认聚类数: k={optimal_k}")
+            return optimal_k
+        
+        # 找到轮廓系数最大的k值
+        valid_scores = [(i, score) for i, score in enumerate(silhouette_scores) if score > 0]
+        if valid_scores:
+            best_index, best_score = max(valid_scores, key=lambda x: x[1])
+            optimal_k = min_clusters + best_index
+            logger.info(f"轮廓系数最大的聚类数: k={optimal_k}, 轮廓系数: {best_score:.3f}")
             
-        # 使用肘部法则：计算曲线的二阶导数变化
-        if len(distortions) <= 2:
-            # 数据点不足以计算二阶导数
-            return min_clusters
+            # 确保结果在有效范围内
+            optimal_k = max(min_clusters, min(optimal_k, max_clusters))
+            return optimal_k
+        else:
+            # 兜底策略
+            optimal_k = min(5, max(2, n_samples // 10))
+            logger.info(f"无有效轮廓系数，使用默认聚类数: k={optimal_k}")
+            return optimal_k
             
-        # 一阶差分
-        deltas = np.diff(distortions)
-        # 二阶差分（导数的导数）
-        delta_deltas = np.diff(deltas)
-        
-        # 找到二阶差分的最大点，即拐点
-        elbow_index = np.argmax(delta_deltas) + 1  # 加回索引偏移
-        optimal_k = min_clusters + elbow_index
-        
-        # 确保结果在有效范围内
-        optimal_k = max(min_clusters, min(optimal_k, max_clusters))
-        
-        logger.info(f"肘部法则确定的最佳聚类数量: k={optimal_k}，畸变度值: {distortions}")
-        return optimal_k
     except Exception as e:
         logger.error(f"确定最佳聚类数量时出错: {e}")
         # 错误情况下的默认值
