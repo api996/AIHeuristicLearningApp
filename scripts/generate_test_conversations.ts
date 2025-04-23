@@ -4,11 +4,12 @@
  */
 
 import { pool, db } from '../server/db';
-import { default as genAIService } from '../server/services/genai/genai_service';
+import { genAiService } from '../server/services/genai/genai_service';
 import { storage } from '../server/storage';
 import { v4 as uuidv4 } from 'uuid';
-import { memories, memoryVectors } from '../shared/schema';
+import { memories, memoryKeywords, memoryEmbeddings } from '../shared/schema';
 import { eq } from 'drizzle-orm';
+import { memoryService } from '../server/services/learning/memory_service';
 
 // 定义主题列表，用于生成多样化的对话
 const TOPICS = [
@@ -218,12 +219,11 @@ async function processMemory(memoryId: string): Promise<boolean> {
     
     const memory = memoryRecord[0];
     
-    // 初始化GenAI服务
-    const genAIService = new GenAIServiceImpl();
+    // 使用已导入的GenAI服务实例
     
     // 生成摘要
     console.log(`正在为记忆ID=${memoryId}生成摘要...`);
-    const summary = await genAIService.generateSummary(memory.content);
+    const summary = await genAiService.generateSummary(memory.content);
     
     if (!summary) {
       console.error(`摘要生成失败，记忆ID=${memoryId}`);
@@ -237,16 +237,23 @@ async function processMemory(memoryId: string): Promise<boolean> {
     await db.update(memories)
       .set({
         summary: summary,
-        keywords: keywords.join(', '),
         isProcessed: true
       })
       .where(eq(memories.id, memoryId));
+    
+    // 单独创建关键词记录
+    for (const keyword of keywords) {
+      await db.insert(memoryKeywords).values({
+        memoryId: memoryId,
+        keyword: keyword
+      });
+    }
     
     console.log(`已为记忆ID=${memoryId}生成摘要和关键词`);
     
     // 生成向量嵌入
     console.log(`正在为记忆ID=${memoryId}生成向量嵌入...`);
-    const embedding = await genAIService.generateEmbedding(memory.content);
+    const embedding = await genAiService.generateEmbedding(memory.content);
     
     if (!embedding) {
       console.error(`向量嵌入生成失败，记忆ID=${memoryId}`);
