@@ -1,92 +1,73 @@
 /**
- * Python聚类服务包装器
- * 负责与Python的scikit-learn实现通信，处理高维向量的聚类
+ * Python聚类服务接口
+ * 提供TypeScript对Python聚类服务的调用
  */
 
 import { log } from "../../vite";
-import { execFile } from "child_process";
-import * as fs from 'fs';
-import * as path from 'path';
+import { spawn } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { promisify } from 'util';
-import { ClusterResult } from "./kmeans_clustering";
 
-const writeFileAsync = promisify(fs.writeFile);
-const readFileAsync = promisify(fs.readFile);
-const unlinkAsync = promisify(fs.unlink);
-const mkdirAsync = promisify(fs.mkdir);
+interface VectorData {
+  id: string;
+  vector: number[];
+}
 
-export class PythonClusteringService {
-  private readonly scriptPath: string;
-  private readonly tmpDir: string;
+interface ClusterResult {
+  centroids: {
+    center: number[];
+    points: { id: string }[];
+  }[];
+  topics?: string[];
+}
 
-  constructor() {
-    // 设置脚本路径和临时目录
-    this.scriptPath = path.join("server", "scripts", "run_clustering.py");
-    this.tmpDir = path.join("tmp");
-    
-    // 确保临时目录存在
-    this.ensureTmpDir();
-  }
-
+/**
+ * Python聚类服务
+ * 通过子进程调用Python脚本执行向量聚类
+ */
+class PythonClusteringService {
   /**
-   * 确保临时目录存在
+   * 聚类向量数据
+   * @param vectors 向量数据数组
+   * @returns 聚类结果
    */
-  private async ensureTmpDir(): Promise<void> {
+  async clusterVectors(vectors: VectorData[]): Promise<ClusterResult> {
     try {
-      if (!fs.existsSync(this.tmpDir)) {
-        await mkdirAsync(this.tmpDir, { recursive: true });
-        log(`[python_clustering] 已创建临时目录: ${this.tmpDir}`);
+      if (!vectors || vectors.length === 0) {
+        log(`[PythonClustering] 无法对空向量数组进行聚类`, "warn");
+        return { centroids: [] };
       }
-    } catch (error) {
-      log(`[python_clustering] 创建临时目录失败: ${error}`, 'error');
-    }
-  }
-
-  /**
-   * 使用Python的scikit-learn进行高效聚类
-   * @param memoryVectors 向量数据，包含id和vector
-   * @returns 聚类结果，与TypeScript实现兼容的格式
-   */
-  async clusterVectors(memoryVectors: { id: string | number; vector: number[] }[]): Promise<ClusterResult> {
-    if (!memoryVectors || memoryVectors.length < 2) {
-      log('[python_clustering] 向量数量不足，无法进行聚类', 'warn');
-      return this.createEmptyClusterResult();
-    }
-
-    log(`[python_clustering] 准备进行Python聚类，处理${memoryVectors.length}条向量，维度=${memoryVectors[0]?.vector?.length || '未知'}`);
-    
-    // 创建唯一的临时文件名
-    const inputFilePath = path.join(this.tmpDir, `vectors_${uuidv4()}.json`);
-    const outputFilePath = path.join(this.tmpDir, `result_${uuidv4()}.json`);
-    
-    try {
-      // 将向量数据写入临时JSON文件
-      await writeFileAsync(inputFilePath, JSON.stringify(memoryVectors), 'utf-8');
-      log(`[python_clustering] 已将向量数据写入: ${inputFilePath}`);
       
-      // 执行Python聚类脚本
-      const result = await this.executePythonScript(inputFilePath, outputFilePath);
+      // 获取向量维度
+      const vectorDimension = vectors[0].vector.length;
+      log(`[PythonClustering] 开始聚类分析，向量数量=${vectors.length}，维度=${vectorDimension}`);
+      
+      // 创建临时文件
+      const tempId = uuidv4();
+      const tempDir = path.join(process.cwd(), 'tmp');
+      
+      // 确保临时目录存在
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      
+      const inputFilePath = path.join(tempDir, `vectors_${tempId}.json`);
+      const outputFilePath = path.join(tempDir, `clusters_${tempId}.json`);
+      
+      // 将向量数据写入临时文件
+      fs.writeFileSync(inputFilePath, JSON.stringify(vectors));
+      
+      // 执行Python聚类
+      const result = await this.executePythonClustering(inputFilePath, outputFilePath, vectors.length);
       
       // 清理临时文件
-      await this.cleanupTempFiles(inputFilePath, outputFilePath);
+      this.cleanupTempFiles(inputFilePath, outputFilePath);
       
-      // 处理结果
-      if (!result || result.error) {
-        log(`[python_clustering] Python聚类失败: ${result?.error || '未知错误'}`, 'error');
-        return this.createEmptyClusterResult();
-      }
-      
-      // 将Python结果转换为TypeScript格式
-      return this.convertToTsFormat(result, memoryVectors);
-      
+      return result;
     } catch (error) {
-      log(`[python_clustering] 聚类处理错误: ${error}`, 'error');
-      
-      // 尝试清理临时文件
-      await this.cleanupTempFiles(inputFilePath, outputFilePath);
-      
-      return this.createEmptyClusterResult();
+      log(`[PythonClustering] 聚类分析出错: ${error}`, "error");
+      return { centroids: [] };
     }
   }
   
@@ -94,64 +75,186 @@ export class PythonClusteringService {
    * 执行Python聚类脚本
    * @param inputFilePath 输入文件路径
    * @param outputFilePath 输出文件路径
+   * @param vectorCount 向量数量
    * @returns 聚类结果
    */
-  private async executePythonScript(inputFilePath: string, outputFilePath: string): Promise<any> {
-    return new Promise((resolve) => {
-      log(`[python_clustering] 执行Python聚类脚本: ${this.scriptPath}`);
+  private async executePythonClustering(
+    inputFilePath: string, 
+    outputFilePath: string,
+    vectorCount: number
+  ): Promise<ClusterResult> {
+    return new Promise((resolve, reject) => {
+      // 构造Python代码
+      const pythonCode = `
+import sys
+import json
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+from pathlib import Path
+
+def determine_optimal_clusters(vectors, max_clusters=12):
+    """使用轮廓系数确定最佳聚类数量"""
+    n_samples = len(vectors)
+    
+    # 如果样本数量太少，返回较小的聚类数
+    if n_samples < 10:
+        return min(2, n_samples)
+    
+    # 根据样本数量确定最大聚类数
+    actual_max_clusters = min(max_clusters, n_samples // 2)
+    range_clusters = range(2, actual_max_clusters + 1)
+    
+    best_score = -1
+    best_clusters = 2  # 默认最小值
+    
+    for n_clusters in range_clusters:
+        # 尝试创建聚类
+        try:
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+            cluster_labels = kmeans.fit_predict(vectors)
+            
+            # 计算轮廓系数
+            silhouette_avg = silhouette_score(vectors, cluster_labels)
+            
+            if silhouette_avg > best_score:
+                best_score = silhouette_avg
+                best_clusters = n_clusters
+        except:
+            # 如果某个聚类数量出错，继续尝试下一个
+            continue
+    
+    return best_clusters
+
+def main():
+    try:
+        # 加载向量数据
+        with open("${inputFilePath}", "r") as f:
+            vector_data = json.load(f)
+        
+        if not vector_data or len(vector_data) < 2:
+            # 数据不足，返回空结果
+            with open("${outputFilePath}", "w") as f:
+                json.dump({"centroids": []}, f)
+            return
+        
+        # 提取向量和ID
+        ids = [item["id"] for item in vector_data]
+        vectors = np.array([item["vector"] for item in vector_data])
+        
+        # 确定最佳聚类数量
+        n_clusters = determine_optimal_clusters(vectors, max_clusters=min(12, len(vectors) // 2))
+        
+        # 执行KMeans聚类
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        labels = kmeans.fit_predict(vectors)
+        centers = kmeans.cluster_centers_
+        
+        # 构建结果
+        result = {"centroids": []}
+        
+        for i in range(n_clusters):
+            # 找出属于该聚类的所有向量
+            cluster_indices = np.where(labels == i)[0]
+            cluster_ids = [ids[idx] for idx in cluster_indices]
+            
+            # 添加到结果中
+            result["centroids"].append({
+                "center": centers[i].tolist(),
+                "points": [{"id": id} for id in cluster_ids],
+                "cluster_id": str(i)
+            })
+            
+            # 将结果转换为与API兼容的格式
+            formatted_result = {}
+            for i, centroid in enumerate(result["centroids"]):
+                formatted_result[str(i)] = {
+                    "centroid": centroid["center"],
+                    "memory_ids": [point["id"] for point in centroid["points"]],
+                    "topic": f"主题 {i}",
+                    "cluster_id": centroid["cluster_id"]
+                }
+            
+        # 保存结果
+        with open("${outputFilePath}", "w") as f:
+            json.dump(formatted_result, f)
+        
+    except Exception as e:
+        print(f"聚类分析出错: {str(e)}", file=sys.stderr)
+        # 创建空结果
+        with open("${outputFilePath}", "w") as f:
+            json.dump({"centroids": []}, f)
+
+if __name__ == "__main__":
+    main()
+      `;
       
-      const pythonProcess = execFile('python', [
-        this.scriptPath,
-        inputFilePath,
-        outputFilePath
-      ], {
-        maxBuffer: 10 * 1024 * 1024 // 10MB buffer
-      });
+      // 执行Python代码
+      const pythonProcess = spawn('python', ['-c', pythonCode]);
       
-      let scriptOutput = '';
-      let errorOutput = '';
+      let stdoutData = '';
+      let stderrData = '';
       
       // 收集标准输出
-      pythonProcess.stdout?.on('data', (data: Buffer) => {
-        scriptOutput += data.toString();
-        log(`[python_clustering] 脚本输出: ${data.toString().trim()}`);
+      pythonProcess.stdout.on('data', (data) => {
+        stdoutData += data.toString();
       });
       
       // 收集标准错误
-      pythonProcess.stderr?.on('data', (data: Buffer) => {
-        errorOutput += data.toString();
-        log(`[python_clustering] 脚本错误: ${data.toString().trim()}`, 'error');
+      pythonProcess.stderr.on('data', (data) => {
+        stderrData += data.toString();
+        log(`[PythonClustering] Python错误: ${data.toString()}`, "warn");
       });
       
-      // 进程结束处理
-      pythonProcess.on('close', async (code: number | null) => {
+      // 处理进程退出
+      pythonProcess.on('close', (code) => {
         if (code !== 0) {
-          log(`[python_clustering] Python进程异常退出，代码: ${code}, 错误: ${errorOutput}`, 'error');
-          resolve({ error: errorOutput || "Python进程异常退出" });
-          return;
+          log(`[PythonClustering] Python进程异常退出(${code}): ${stderrData}`, "error");
         }
         
         try {
           // 读取输出文件
           if (fs.existsSync(outputFilePath)) {
-            const outputData = await readFileAsync(outputFilePath, 'utf8');
-            const result = JSON.parse(outputData);
-            log(`[python_clustering] 成功读取聚类结果`);
-            resolve(result);
+            const outputData = fs.readFileSync(outputFilePath, 'utf8');
+            
+            try {
+              const result = JSON.parse(outputData);
+              
+              // 检查结果格式
+              if (Object.keys(result).length === 0) {
+                resolve({ centroids: [] });
+              } else {
+                // 将对象格式转换为数组格式
+                const centroids = Object.entries(result).map(([clusterId, data]: [string, any]) => {
+                  return {
+                    center: data.centroid || [],
+                    points: (data.memory_ids || []).map((id: string) => ({ id }))
+                  };
+                });
+                
+                resolve({ 
+                  centroids,
+                  topics: Object.values(result).map((c: any) => c.topic || `未命名主题`)
+                });
+              }
+            } catch (parseError) {
+              log(`[PythonClustering] 解析JSON输出失败: ${parseError}`, "error");
+              reject(parseError);
+            }
           } else {
-            log(`[python_clustering] 输出文件未找到: ${outputFilePath}`, 'error');
-            resolve({ error: "Python输出文件未找到" });
+            log(`[PythonClustering] 输出文件不存在: ${outputFilePath}`, "error");
+            reject(new Error(`Output file does not exist: ${outputFilePath}`));
           }
-        } catch (error) {
-          log(`[python_clustering] 读取或解析输出失败: ${error}`, 'error');
-          resolve({ error: `读取或解析输出失败: ${error}` });
+        } catch (readError) {
+          log(`[PythonClustering] 读取输出文件失败: ${readError}`, "error");
+          reject(readError);
         }
       });
       
       // 处理进程错误
-      pythonProcess.on('error', (err: Error) => {
-        log(`[python_clustering] 启动Python进程失败: ${err}`, 'error');
-        resolve({ error: `启动Python进程失败: ${err.message}` });
+      pythonProcess.on('error', (error) => {
+        log(`[PythonClustering] 启动Python进程失败: ${error}`, "error");
+        reject(error);
       });
     });
   }
@@ -161,105 +264,21 @@ export class PythonClusteringService {
    * @param inputFilePath 输入文件路径
    * @param outputFilePath 输出文件路径
    */
-  private async cleanupTempFiles(inputFilePath: string, outputFilePath: string): Promise<void> {
+  private cleanupTempFiles(inputFilePath: string, outputFilePath: string): void {
     try {
       // 删除输入文件
       if (fs.existsSync(inputFilePath)) {
-        await unlinkAsync(inputFilePath);
-        log(`[python_clustering] 已删除临时输入文件: ${inputFilePath}`);
+        fs.unlinkSync(inputFilePath);
       }
       
       // 删除输出文件
       if (fs.existsSync(outputFilePath)) {
-        await unlinkAsync(outputFilePath);
-        log(`[python_clustering] 已删除临时输出文件: ${outputFilePath}`);
+        fs.unlinkSync(outputFilePath);
       }
     } catch (error) {
-      log(`[python_clustering] 清理临时文件失败: ${error}`, 'warn');
+      log(`[PythonClustering] 清理临时文件失败: ${error}`, "warn");
     }
-  }
-  
-  /**
-   * 将Python结果转换为TypeScript兼容格式
-   * @param pythonResult Python聚类结果
-   * @param originalVectors 原始向量数据
-   * @returns TypeScript格式的聚类结果
-   */
-  private convertToTsFormat(pythonResult: any, originalVectors: { id: string | number; vector: number[] }[]): ClusterResult {
-    // 如果没有centroids，返回空结果
-    if (!pythonResult.centroids || !Array.isArray(pythonResult.centroids)) {
-      return this.createEmptyClusterResult();
-    }
-    
-    // 初始化结果对象
-    const result: ClusterResult = {
-      centroids: [],
-      points: [],
-      iterations: pythonResult.iterations || 1,
-      k: pythonResult.centroids.length
-    };
-    
-    // 创建所有点的副本，以保持与TS实现的格式兼容
-    result.points = originalVectors.map(item => ({
-      id: item.id,
-      vector: item.vector,
-      clusterId: -1, // 默认未分配
-      distance: Infinity
-    }));
-    
-    // 处理每个聚类中心
-    for (const centroid of pythonResult.centroids) {
-      const clusterPoints = [];
-      
-      // 收集属于这个聚类的点
-      for (const point of centroid.points || []) {
-        const index = point.index;
-        const originalPoint = originalVectors[index];
-        
-        if (originalPoint) {
-          // 创建聚类点对象
-          const clusterPoint = {
-            id: originalPoint.id,
-            vector: originalPoint.vector,
-            clusterId: centroid.id,
-            distance: 0 // 距离未知，设为0
-          };
-          
-          clusterPoints.push(clusterPoint);
-          
-          // 更新points数组中的聚类分配
-          const pointIndex = result.points.findIndex(p => p.id === originalPoint.id);
-          if (pointIndex >= 0) {
-            result.points[pointIndex].clusterId = centroid.id;
-          }
-        }
-      }
-      
-      // 添加聚类中心
-      result.centroids.push({
-        id: centroid.id,
-        vector: centroid.vector,
-        points: clusterPoints
-      });
-    }
-    
-    log(`[python_clustering] 成功将Python聚类结果转换为TypeScript格式: ${result.centroids.length}个聚类`);
-    return result;
-  }
-  
-  /**
-   * 创建空的聚类结果
-   * 用于处理错误情况
-   */
-  private createEmptyClusterResult(): ClusterResult {
-    return {
-      centroids: [],
-      points: [],
-      iterations: 0,
-      k: 0
-    };
   }
 }
 
-// 导出服务实例
 export const pythonClusteringService = new PythonClusteringService();
