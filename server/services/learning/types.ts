@@ -83,6 +83,7 @@ export interface TrajectoryNode {
   size: number;         // 节点大小（表示重要性）
   category?: string;    // 节点类别
   clusterId?: string;   // 关联的聚类ID
+  color?: string;       // 节点颜色
 }
 
 /**
@@ -97,6 +98,7 @@ export interface TrajectoryLink {
   reason?: string;      // 连接原因 (说明)
   strength?: number;    // 关系强度 (可选)
   learningOrder?: string; // 学习顺序 (可选)
+  color?: string;       // 连接颜色
 }
 
 /**
