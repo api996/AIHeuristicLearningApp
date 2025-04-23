@@ -1,16 +1,5 @@
-import React, { useRef, useEffect, useState } from 'react';
-import * as d3 from 'd3';
-// 不单独导入d3的方法，直接使用d3命名空间，避免运行时错误
-import { Sparkles } from 'lucide-react';
-
-// 为D3拖拽事件添加类型定义
-interface D3DragEvent {
-  active: boolean;
-  sourceEvent: MouseEvent;
-  subject: any;
-  x: number;
-  y: number;
-}
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import ForceGraph2D from 'react-force-graph-2d';
 
 // 节点类型定义
 interface GraphNode {
@@ -22,7 +11,7 @@ interface GraphNode {
   color?: string;
   x?: number;
   y?: number;
-  // D3力导向图所需的属性
+  // 力导向图所需的属性
   fx?: number | null;
   fy?: number | null;
 }
@@ -47,7 +36,7 @@ interface TextNodeForceGraphProps {
 
 /**
  * 文本节点力导向图组件
- * 使用D3.js实现，节点使用文本标签显示而不是圆形
+ * 使用React Force Graph实现，节点使用文本标签显示而不是圆形
  */
 const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
   nodes,
@@ -56,8 +45,9 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
   height,
   onNodeClick
 }) => {
-  const svgRef = useRef<SVGSVGElement>(null);
+  const graphRef = useRef<any>();
   const [isMounted, setIsMounted] = useState(false);
+  const [graphData, setGraphData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] });
   
   // 在组件挂载后设置状态
   useEffect(() => {
@@ -65,242 +55,310 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
     return () => setIsMounted(false);
   }, []);
 
-  // 主要图表渲染逻辑
+  // 转换输入数据为图形库所需格式
   useEffect(() => {
-    if (!svgRef.current || !isMounted || !nodes.length) return;
-
-    // 清除之前的图表
-    d3.select(svgRef.current).selectAll("*").remove();
-
-    // 创建SVG容器
-    const svg = d3.select(svgRef.current)
-      .attr("width", width)
-      .attr("height", height)
-      .attr("viewBox", [0, 0, width, height])
-      .attr("style", "max-width: 100%; height: auto;");
-
-    // 添加缩放和平移功能
-    const g = svg.append("g");
+    if (!nodes || !links || !isMounted) return;
     
-    // 安全地应用 zoom 行为，处理可能的事件类型兼容性问题
-    const handleZoom = (event: any) => {
-      // 确保 event 和 event.transform 存在
-      if (event && event.transform) {
-        g.attr("transform", `translate(${event.transform.x}, ${event.transform.y}) scale(${event.transform.k})`);
-      }
-    };
-    
-    try {
-      const zoomBehavior = d3.zoom<SVGSVGElement, unknown>()
-        .extent([[0, 0], [width, height]])
-        .scaleExtent([0.25, 5])
-        .on("zoom", handleZoom);
-        
-      svg.call(zoomBehavior);
-    } catch (error) {
-      console.error("Error applying zoom behavior:", error);
-    }
-
-    // 定义节点颜色映射
-    const categoryColors: Record<string, string> = {
-      'cluster': '#6366f1', // 主题 - 靛蓝色
-      'keyword': '#10b981', // 关键词 - 翠绿色 
-      'memory': '#f59e0b',  // 记忆 - 琥珀色
-      'default': '#9ca3af'  // 默认 - 灰色
-    };
-    
-    // 定义连接线样式映射
-    const linkStyles: Record<string, { stroke: string, strokeDasharray: string }> = {
-      'hierarchy': { stroke: '#4b5563', strokeDasharray: '0' },        // 层级关系 - 实线
-      'proximity': { stroke: '#6366f1', strokeDasharray: '3,3' },      // 相似/邻近 - 短虚线
-      'semantic': { stroke: '#10b981', strokeDasharray: '5,5' },       // 语义关联 - 中虚线
-      'temporal': { stroke: '#f59e0b', strokeDasharray: '10,5' },      // 时间关系 - 点划线
-      'default': { stroke: '#d1d5db', strokeDasharray: '0' }           // 默认 - 实线灰色
-    };
-
-    // 深拷贝节点和链接，避免修改原始数据
-    const nodesData = JSON.parse(JSON.stringify(nodes)) as GraphNode[];
-    const linksData = JSON.parse(JSON.stringify(links)) as GraphLink[];
-
-    // 创建力导向模拟
-    const simulation = d3.forceSimulation<GraphNode, GraphLink>(nodesData)
-      .force("link", d3.forceLink<GraphNode, GraphLink>(linksData)
-        .id(d => d.id)
-        .distance(d => 150 - (d.value || 0) * 70)) // 链接距离基于关系强度
-      .force("charge", d3.forceManyBody().strength(-100))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collide", d3.forceCollide().radius(d => Math.sqrt(d.size || 10) * 3 + 15)); // 避免节点重叠
-
-    // 创建箭头标记定义
-    svg.append("defs").selectAll("marker")
-      .data(["hierarchy", "proximity", "semantic", "temporal", "default"])
-      .enter().append("marker")
-      .attr("id", d => `arrow-${d}`)
-      .attr("viewBox", "0 -5 10 10")
-      .attr("refX", 18)
-      .attr("refY", 0)
-      .attr("markerWidth", 6)
-      .attr("markerHeight", 6)
-      .attr("orient", "auto")
-      .append("path")
-      .attr("fill", d => linkStyles[d].stroke)
-      .attr("d", "M0,-5L10,0L0,5");
-
-    // 创建连接线 - 使用不同样式表示不同类型的关系
-    const link = g.append("g")
-      .attr("stroke-opacity", 0.6)
-      .selectAll("path")
-      .data(linksData)
-      .enter().append("path")
-      .attr("stroke", d => {
-        const type = d.type || 'default';
-        return linkStyles[type]?.stroke || linkStyles.default.stroke;
-      })
-      .attr("stroke-width", d => Math.max(1, Math.min(3, d.value || 1)))
-      .attr("stroke-dasharray", d => {
-        const type = d.type || 'default';
-        return linkStyles[type]?.strokeDasharray || linkStyles.default.strokeDasharray;
-      })
-      .attr("marker-end", d => `url(#arrow-${d.type || 'default'})`);
-
-    // 创建节点组 - 包含背景和文本
-    const node = g.append("g")
-      .selectAll(".node")
-      .data(nodesData)
-      .enter().append("g")
-      .attr("class", "node")
-      .attr("cursor", "pointer")
-      .on("click", (event, d) => {
-        if (onNodeClick) onNodeClick(d.id);
-      })
-      .call(d3.drag<SVGGElement, GraphNode>()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended)
-      );
-
-    // 为节点添加文本背景矩形
-    node.append("rect")
-      .attr("rx", 4)
-      .attr("ry", 4)
-      .attr("fill", d => {
-        // 使用节点自带颜色或根据类别选择颜色
-        if (d.color) return d.color;
-        const category = d.category || 'default';
-        return `${categoryColors[category]}30`; // 30是透明度，使背景半透明
-      })
-      .attr("stroke", d => {
-        if (d.color) return d.color;
-        const category = d.category || 'default';
-        return categoryColors[category];
-      })
-      .attr("stroke-width", 1.5);
-
-    // 为节点添加文本标签
-    const text = node.append("text")
-      .attr("dy", ".35em")
-      .attr("text-anchor", "middle")
-      .attr("fill", d => {
-        const category = d.category || 'default';
-        return categoryColors[category];
-      })
-      .style("font-weight", d => d.category === 'cluster' ? 'bold' : 'normal')
-      .style("font-size", d => {
-        // 根据节点大小或类别动态调整字体大小
-        if (d.category === 'cluster') return '14px';
-        if (d.category === 'keyword') return '12px';
-        return '11px';
-      })
-      .text(d => d.label || d.id)
-      .each(function() {
-        // 获取文本实际宽度，为背景矩形设置尺寸
-        const bbox = this.getBBox();
-        const parent = this.parentNode;
-        const rect = parent?.querySelector('rect');
-        if (rect) {
-          d3.select(rect)
-            .attr("x", bbox.x - 8)
-            .attr("y", bbox.y - 4)
-            .attr("width", bbox.width + 16)
-            .attr("height", bbox.height + 8);
-        }
-      });
-
-    // 添加节点类别图标（如：主题节点带闪光图标）
-    node.filter(d => d.category === 'cluster')
-      .append("path")
-      .attr("d", "M11 1L15 4L18 2L16 7L20 9L15 11L15 15L11 12L7 15L9 11L5 8L10 7L11 1Z") // 星星路径
-      .attr("transform", function() {
-        const textEl = this.parentNode?.querySelector('text');
-        if (textEl) {
-          const bbox = textEl.getBBox();
-          return `translate(${bbox.x + bbox.width + 10}, ${bbox.y + bbox.height/2 - 7}) scale(0.7)`;
-        }
-        return "";
-      })
-      .attr("fill", "#6366f1");
+    // 处理节点数据
+    const processedNodes = nodes.map(node => {
+      // 根据节点类型设置颜色
+      let nodeColor: string;
+      let nodeSize: number = node.size || 10;
       
-    // 模拟更新函数
-    simulation.on("tick", () => {
-      // 更新连接线路径，添加安全检查
-      link.attr("d", d => {
-        const source = d.source as GraphNode;
-        const target = d.target as GraphNode;
-        
-        // 确保坐标存在，否则使用默认坐标
-        const sx = source.x !== undefined ? source.x : width / 3;
-        const sy = source.y !== undefined ? source.y : height / 3;
-        const tx = target.x !== undefined ? target.x : width * 2 / 3;
-        const ty = target.y !== undefined ? target.y : height * 2 / 3;
-        
-        // 使用二次曲线绘制连接，增加曲率以提高可读性
-        return `M${sx},${sy}Q${(sx + tx) / 2 + 20},${(sy + ty) / 2}${tx},${ty}`;
-      });
-
-      // 更新节点位置，添加安全检查
-      node.attr("transform", d => {
-        const nx = d.x !== undefined ? d.x : width / 2;
-        const ny = d.y !== undefined ? d.y : height / 2;
-        return `translate(${nx},${ny})`;
-      });
+      switch (node.category) {
+        case 'cluster':
+          nodeColor = '#6366f1'; // 主题聚类 - 靛蓝色
+          nodeSize = Math.max(nodeSize, 15);
+          break;
+        case 'keyword':
+          nodeColor = '#10b981'; // 关键词 - 翠绿色
+          nodeSize = Math.max(nodeSize, 10);
+          break;
+        case 'memory':
+          nodeColor = '#f59e0b'; // 记忆 - 琥珀色
+          nodeSize = Math.max(nodeSize, 8);
+          break;
+        default:
+          nodeColor = '#9ca3af'; // 默认 - 灰色
+          nodeSize = Math.max(nodeSize, 8);
+      }
+      
+      return {
+        ...node,
+        // 使用传入的颜色或基于类别的默认颜色
+        color: node.color || nodeColor,
+        // 节点显示大小
+        val: nodeSize
+      };
     });
-
-    // 拖拽开始函数 - 使用自定义的D3DragEvent接口
-    function dragstarted(event: any, d: GraphNode) {
-      if (!event.active) simulation.alphaTarget(0.3).restart();
-      // 添加安全检查
-      if (d.x !== undefined && d.y !== undefined) {
-        d.fx = d.x;
-        d.fy = d.y;
+    
+    // 处理连接数据
+    const processedLinks = links.map(link => {
+      let linkColor: string;
+      let linkWidth: number = 1;
+      let linkDashArray: string = "";
+      
+      // 根据连接类型设置样式
+      switch (link.type) {
+        case 'hierarchy':
+          linkColor = '#4b5563';  // 层级关系 - 灰色
+          linkWidth = 2;
+          linkDashArray = "";     // 实线
+          break;
+        case 'proximity':
+          linkColor = '#6366f1';  // 相似/邻近 - 靛蓝色
+          linkWidth = 1.5;
+          linkDashArray = "3, 3"; // 短虚线
+          break;
+        case 'semantic':
+          linkColor = '#10b981';  // 语义关联 - 翠绿色
+          linkWidth = 1.5;
+          linkDashArray = "5, 5"; // 中虚线
+          break;
+        case 'temporal':
+          linkColor = '#f59e0b';  // 时间关系 - 琥珀色
+          linkWidth = 1;
+          linkDashArray = "10, 5"; // 点划线
+          break;
+        default:
+          linkColor = '#d1d5db';  // 默认 - 浅灰色
+          linkWidth = 1;
+          linkDashArray = "";     // 实线
+      }
+      
+      // 使用value属性调整线宽
+      if (link.value) {
+        linkWidth = Math.max(1, Math.min(3, link.value));
+      }
+      
+      return {
+        ...link,
+        // 使用传入的颜色或基于类型的默认颜色
+        color: link.color || linkColor,
+        // 设置线宽
+        width: linkWidth,
+        // 设置虚线样式
+        dashArray: linkDashArray
+      };
+    });
+    
+    setGraphData({
+      nodes: processedNodes,
+      links: processedLinks
+    });
+  }, [nodes, links, isMounted]);
+  
+  // 处理节点点击
+  const handleNodeClick = useCallback((node: GraphNode) => {
+    if (onNodeClick) {
+      onNodeClick(node.id);
+    }
+  }, [onNodeClick]);
+  
+  // 自定义节点渲染函数 - 使用文本标签而不是圆点
+  const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    const { x, y, label, val: size, color, category } = node;
+    
+    // 设置字体大小基于节点类型
+    let fontSize;
+    let fontWeight;
+    
+    if (category === 'cluster') {
+      fontSize = 14;
+      fontWeight = 'bold';
+    } else if (category === 'keyword') {
+      fontSize = 12;
+      fontWeight = 'normal';
+    } else {
+      fontSize = 11;
+      fontWeight = 'normal';
+    }
+    
+    // 计算适合当前缩放级别的字体大小
+    const scaledFontSize = Math.max(fontSize, fontSize / globalScale);
+    ctx.font = `${fontWeight} ${scaledFontSize}px Arial, sans-serif`;
+    
+    // 设置文本和测量文本尺寸
+    const text = label || node.id;
+    const textWidth = ctx.measureText(text).width;
+    const bckgDimensions = [textWidth + 10, scaledFontSize + 8].map(n => n / globalScale);
+    
+    // 绘制文本背景矩形
+    ctx.fillStyle = `${color}30`; // 30是透明度，使背景半透明
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5 / globalScale;
+    
+    // 绘制圆角矩形
+    const rectX = x - bckgDimensions[0] / 2;
+    const rectY = y - bckgDimensions[1] / 2;
+    const rectWidth = bckgDimensions[0];
+    const rectHeight = bckgDimensions[1];
+    const cornerRadius = 4 / globalScale;
+    
+    ctx.beginPath();
+    ctx.moveTo(rectX + cornerRadius, rectY);
+    ctx.lineTo(rectX + rectWidth - cornerRadius, rectY);
+    ctx.arcTo(rectX + rectWidth, rectY, rectX + rectWidth, rectY + cornerRadius, cornerRadius);
+    ctx.lineTo(rectX + rectWidth, rectY + rectHeight - cornerRadius);
+    ctx.arcTo(rectX + rectWidth, rectY + rectHeight, rectX + rectWidth - cornerRadius, rectY + rectHeight, cornerRadius);
+    ctx.lineTo(rectX + cornerRadius, rectY + rectHeight);
+    ctx.arcTo(rectX, rectY + rectHeight, rectX, rectY + rectHeight - cornerRadius, cornerRadius);
+    ctx.lineTo(rectX, rectY + cornerRadius);
+    ctx.arcTo(rectX, rectY, rectX + cornerRadius, rectY, cornerRadius);
+    ctx.closePath();
+    
+    ctx.fill();
+    ctx.stroke();
+    
+    // 绘制文本
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+    
+    // 为主题节点添加图标
+    if (category === 'cluster') {
+      // 绘制星形图标
+      const iconSize = 7 / globalScale;
+      const iconX = x + (textWidth / 2) / globalScale + 10 / globalScale;
+      const iconY = y;
+      
+      ctx.fillStyle = '#6366f1';
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const angle = i * Math.PI * 2 / 5 - Math.PI / 2;
+        const x1 = iconX + Math.cos(angle) * iconSize;
+        const y1 = iconY + Math.sin(angle) * iconSize;
+        if (i === 0) {
+          ctx.moveTo(x1, y1);
+        } else {
+          ctx.lineTo(x1, y1);
+        }
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+  }, []);
+  
+  // 自定义链接渲染函数
+  const linkCanvasObject = useCallback((link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    const { source, target, color, width, dashArray } = link;
+    
+    if (!source || !target || !source.x || !target.x) return;
+    
+    const start = { x: source.x, y: source.y };
+    const end = { x: target.x, y: target.y };
+    
+    // 计算线宽
+    const lineWidth = width / globalScale;
+    
+    // 绘制连接线
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    
+    // 设置虚线样式
+    if (dashArray) {
+      const dashPattern = dashArray.split(',').map(s => parseFloat(s) / globalScale);
+      if (ctx.setLineDash) {
+        ctx.setLineDash(dashPattern);
+      }
+    } else {
+      if (ctx.setLineDash) {
+        ctx.setLineDash([]);
       }
     }
-
-    // 拖拽中函数 - 使用自定义的D3DragEvent接口
-    function dragged(event: any, d: GraphNode) {
-      // 添加安全检查
-      if (event && event.x !== undefined && event.y !== undefined) {
-        d.fx = event.x;
-        d.fy = event.y;
-      }
+    
+    // 使用二次曲线绘制连接，增加曲率以提高可读性
+    const midX = (start.x + end.x) / 2;
+    const midY = (start.y + end.y) / 2;
+    const ctrlX = midX + 20 / globalScale;
+    const ctrlY = midY;
+    
+    ctx.moveTo(start.x, start.y);
+    ctx.quadraticCurveTo(ctrlX, ctrlY, end.x, end.y);
+    ctx.stroke();
+    
+    // 绘制箭头
+    const headLength = 10 / globalScale;
+    const headWidth = 5 / globalScale;
+    
+    // 计算箭头方向
+    const dx = end.x - ctrlX;
+    const dy = end.y - ctrlY;
+    const angle = Math.atan2(dy, dx);
+    
+    // 计算箭头位置（在目标点附近但不重叠）
+    const arrowX = end.x - headLength * Math.cos(angle);
+    const arrowY = end.y - headLength * Math.sin(angle);
+    
+    // 绘制箭头
+    ctx.beginPath();
+    ctx.moveTo(arrowX - headLength * Math.cos(angle - Math.PI / 6), arrowY - headLength * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(end.x, end.y);
+    ctx.lineTo(arrowX - headLength * Math.cos(angle + Math.PI / 6), arrowY - headLength * Math.sin(angle + Math.PI / 6));
+    ctx.fillStyle = color;
+    ctx.fill();
+    
+    // 恢复默认的线型
+    if (ctx.setLineDash) {
+      ctx.setLineDash([]);
     }
-
-    // 拖拽结束函数 - 使用自定义的D3DragEvent接口
-    function dragended(event: any, d: GraphNode) {
-      if (!event.active) simulation.alphaTarget(0);
-      // 松开时释放固定位置
-      d.fx = null;
-      d.fy = null;
+  }, []);
+  
+  // 当组件挂载后，调整图表
+  useEffect(() => {
+    if (graphRef.current && graphData.nodes.length > 0) {
+      // 启动力布局的初始参数
+      graphRef.current.d3Force('charge').strength((node: any) => {
+        return node.category === 'cluster' ? -300 : -200;
+      });
+      
+      graphRef.current.d3Force('link').distance((link: any) => {
+        // 根据连接类型调整距离
+        if (link.type === 'hierarchy') return 150;
+        if (link.type === 'proximity') return 180;
+        if (link.type === 'semantic') return 200;
+        return 150;
+      });
+      
+      // 添加碰撞避免力，防止节点重叠
+      graphRef.current.d3Force('collide', (node: any) => {
+        return node.category === 'cluster' ? 80 : 60;
+      });
+      
+      // 避免使用所有屏幕空间，集中布局
+      graphRef.current.d3Force('center').strength(0.05);
+      
+      // 初始缩放到合适比例
+      graphRef.current.zoom(1.2, 600);
     }
-
-    // 组件卸载时停止模拟
-    return () => {
-      simulation.stop();
-    };
-  }, [isMounted, nodes, links, width, height, onNodeClick]);
-
+  }, [graphData]);
+  
   return (
     <div className="text-node-force-graph-container" style={{ width, height, overflow: 'hidden' }}>
-      <svg ref={svgRef} width={width} height={height} className="text-node-graph"></svg>
+      {graphData.nodes.length > 0 && (
+        <ForceGraph2D
+          ref={graphRef}
+          width={width}
+          height={height}
+          graphData={graphData}
+          nodeLabel="label"
+          nodeVal="val"
+          nodeColor="color"
+          nodeCanvasObject={nodeCanvasObject}
+          nodeCanvasObjectMode={() => 'replace'}
+          linkCanvasObjectMode={() => 'replace'}
+          linkCanvasObject={linkCanvasObject}
+          linkColor="color"
+          linkWidth="width"
+          backgroundColor="transparent"
+          onNodeClick={handleNodeClick}
+          cooldownTicks={100}
+          cooldownTime={10000}
+          warmupTicks={50}
+        />
+      )}
     </div>
   );
 };
