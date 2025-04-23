@@ -70,6 +70,14 @@ export interface GenAIService {
    * @returns 主题标签
    */
   generateTopicForMemories(texts: string[]): Promise<string | null>;
+  
+  /**
+   * 标准化向量维度
+   * @param vector 原始向量
+   * @param targetDimension 目标维度
+   * @returns 标准化后的向量
+   */
+  normalizeVectorDimension(vector: number[], targetDimension?: number): number[];
 }
 
 /**
@@ -97,6 +105,51 @@ class GeminiService implements GenAIService {
     }
   }
 
+  /**
+   * 标准化向量维度
+   * 如果向量维度小于目标维度，通过重复向量内容进行扩展
+   * 如果向量维度大于目标维度，通过截断进行缩减
+   * 
+   * @param vector 原始向量
+   * @param targetDimension 目标维度，默认为3072
+   * @returns 标准化后的向量
+   */
+  normalizeVectorDimension(vector: number[], targetDimension: number = 3072): number[] {
+    if (!vector || vector.length === 0) {
+      log("[genai_service] 无法标准化空向量", "error");
+      return Array.from({ length: targetDimension }, () => 0);
+    }
+    
+    const currentDimension = vector.length;
+    
+    // 如果已经是目标维度，直接返回
+    if (currentDimension === targetDimension) {
+      return vector;
+    }
+    
+    log(`[genai_service] 标准化向量维度: ${currentDimension} -> ${targetDimension}`, "info");
+    
+    if (currentDimension < targetDimension) {
+      // 通过重复向量内容扩展维度
+      const repeats = Math.ceil(targetDimension / currentDimension);
+      let extendedVector: number[] = [];
+      
+      for (let i = 0; i < repeats; i++) {
+        extendedVector = extendedVector.concat(vector);
+      }
+      
+      // 截断到目标维度
+      const normalizedVector = extendedVector.slice(0, targetDimension);
+      log(`[genai_service] 向量维度已扩展: ${currentDimension} -> ${normalizedVector.length}`, "info");
+      return normalizedVector;
+    } else {
+      // 如果向量维度大于目标维度，截断为目标维度
+      const normalizedVector = vector.slice(0, targetDimension);
+      log(`[genai_service] 向量维度已截断: ${currentDimension} -> ${normalizedVector.length}`, "info");
+      return normalizedVector;
+    }
+  }
+
   async generateEmbedding(text: string): Promise<number[] | null> {
     try {
       // 直接调用Python嵌入服务
@@ -114,7 +167,11 @@ class GeminiService implements GenAIService {
       }
       
       log(`[genai_service] 成功生成${embedding.length}维向量嵌入（通过Python服务）`, "info");
-      return embedding;
+      
+      // 标准化向量维度
+      const normalizedEmbedding = this.normalizeVectorDimension(embedding);
+      
+      return normalizedEmbedding;
     } catch (error) {
       log(`[genai_service] 通过Python服务生成嵌入失败: ${error}`, "error");
       
@@ -127,8 +184,12 @@ class GeminiService implements GenAIService {
           const model = this.genAI.getGenerativeModel({ model: modelName });
           const result = await model.embedContent(text);
           const embedding = result.embedding.values;
-          log(`[genai_service] 备用API成功生成嵌入`, "info");
-          return embedding;
+          log(`[genai_service] 备用API成功生成嵌入，维度: ${embedding.length}`, "info");
+          
+          // 标准化向量维度
+          const normalizedEmbedding = this.normalizeVectorDimension(embedding);
+          
+          return normalizedEmbedding;
         } catch (fallbackError) {
           log(`[genai_service] 备用API也失败: ${fallbackError}`, "error");
           return null;
@@ -326,6 +387,46 @@ ${combinedText}
  * 后备服务实现（当API不可用时）
  */
 class FallbackService implements GenAIService {
+  /**
+   * 标准化向量维度
+   * FallbackService中的标准化实现，与GeminiService保持一致
+   * 
+   * @param vector 原始向量
+   * @param targetDimension 目标维度，默认为3072
+   * @returns 标准化后的向量
+   */
+  normalizeVectorDimension(vector: number[], targetDimension: number = 3072): number[] {
+    if (!vector || vector.length === 0) {
+      log("[genai_service] 无法标准化空向量", "error");
+      return Array.from({ length: targetDimension }, () => 0);
+    }
+    
+    const currentDimension = vector.length;
+    
+    // 如果已经是目标维度，直接返回
+    if (currentDimension === targetDimension) {
+      return vector;
+    }
+    
+    log(`[genai_service] 后备标准化向量维度: ${currentDimension} -> ${targetDimension}`, "info");
+    
+    if (currentDimension < targetDimension) {
+      // 通过重复向量内容扩展维度
+      const repeats = Math.ceil(targetDimension / currentDimension);
+      let extendedVector: number[] = [];
+      
+      for (let i = 0; i < repeats; i++) {
+        extendedVector = extendedVector.concat(vector);
+      }
+      
+      // 截断到目标维度
+      return extendedVector.slice(0, targetDimension);
+    } else {
+      // 如果向量维度大于目标维度，截断为目标维度
+      return vector.slice(0, targetDimension);
+    }
+  }
+
   async generateEmbedding(text: string): Promise<number[] | null> {
     // 生成一个随机向量作为后备，使用3072维度以匹配高质量文本嵌入
     log("[genai_service] 使用3072维随机向量作为后备嵌入", "warn");
