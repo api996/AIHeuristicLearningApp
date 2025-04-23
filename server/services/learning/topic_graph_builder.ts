@@ -87,17 +87,90 @@ async function extractTopicName(center: ClusterCenter): Promise<string> {
     const textsToUse = center.texts.slice(0, 5);
     
     const prompt = `
-给定以下同一主题的若干文本片段，请提炼出一句精准的中文主题名称（不超过20字）：
+给定以下同一主题的若干文本片段，请提炼出一句精准的中文主题名称（不超过20字）。
+这个主题名称应该能准确概括文本片段的核心内容，是一个有意义的、专业的主题。
+请分析文本的共同点，提取关键概念，确保名称既简洁又有表达力。
+
+文本片段:
 ${textsToUse.map((t, i) => `${i+1}. ${t}`).join('\n')}
+
 只输出主题名称，不要其它说明。`;
 
     const resp = await callGeminiModel(prompt, { model: 'gemini-2.0-flash' });
-    return resp.trim();
+    const cleanResp = resp.trim();
+    
+    // 验证响应是否有意义，如果看起来像默认值或错误信息，使用备用方案
+    if (cleanResp.startsWith('调用失败') || 
+        cleanResp.length < 2 || 
+        cleanResp.length > 50 ||
+        cleanResp.includes('无法') ||
+        cleanResp.includes('错误')) {
+        
+      // 使用更简单但仍有意义的方式分析文本
+      // 从文本中提取关键词，并将它们组合成主题
+      const keywords = extractKeywordsFromTexts(textsToUse);
+      if (keywords.length > 0) {
+        return keywords.slice(0, 3).join('与') + '研究';
+      }
+      
+      // 如果仍然失败，返回更有意义的默认名称
+      const clusterNum = center.id.replace('cluster_', '');
+      const defaultNames = [
+        '知识探索', '学习概念', '关键理论', 
+        '重要原理', '核心思想', '基础知识',
+        '应用技术', '实践方法', '系统架构'
+      ];
+      return defaultNames[parseInt(clusterNum) % defaultNames.length];
+    }
+    
+    return cleanResp;
   } catch (error) {
     log(`[TopicGraphBuilder] 提取主题名称出错: ${error}`);
-    // 失败时返回默认名称
-    return `主题${center.id.replace('cluster_', '')}`;
+    
+    // 失败时返回有意义的默认名称
+    const clusterNum = center.id.replace('cluster_', '');
+    const defaultNames = [
+      '知识探索', '学习概念', '关键理论', 
+      '重要原理', '核心思想', '基础知识',
+      '应用技术', '实践方法', '系统架构'
+    ];
+    return defaultNames[parseInt(clusterNum) % defaultNames.length];
   }
+}
+
+/**
+ * 从文本中提取关键词
+ * @param texts 文本列表
+ * @returns 关键词列表
+ */
+function extractKeywordsFromTexts(texts: string[]): string[] {
+  // 这是一个简单版本，实际中可以使用更复杂的NLP方法
+  const allText = texts.join(' ');
+  
+  // 常见的停用词
+  const stopwords = ['的', '和', '与', '在', '是', '了', '有', '这', '那', '这些', '那些', 
+                      '我', '你', '他', '她', '它', '我们', '你们', '他们', '如何', '如果',
+                      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'of', 'for'];
+  
+  // 将文本分割成词并计数
+  const wordCounts: Record<string, number> = {};
+  
+  // 使用正则表达式分割中英文词汇
+  const words = allText.match(/[\u4e00-\u9fa5]+|[a-zA-Z]+/g) || [];
+  
+  words.forEach(word => {
+    // 过滤掉停用词和太短的词
+    if (!stopwords.includes(word.toLowerCase()) && word.length > 1) {
+      wordCounts[word] = (wordCounts[word] || 0) + 1;
+    }
+  });
+  
+  // 转换为数组并按出现频率排序
+  const sortedWords = Object.entries(wordCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(entry => entry[0]);
+  
+  return sortedWords.slice(0, 5); // 返回前5个关键词
 }
 
 /**
@@ -197,22 +270,56 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
     
     log(`[TopicGraphBuilder] 提取了 ${relations.length} 个主题关系`);
     
+    // 预定义主题节点颜色，确保不同主题有不同颜色
+    const themeColors = [
+      '#6366f1', // 靛蓝色
+      '#10b981', // 翠绿色
+      '#f59e0b', // 琥珀色
+      '#ec4899', // 玫红色
+      '#8b5cf6', // 紫色
+      '#14b8a6', // 青色
+      '#f97316', // 橙色
+      '#06b6d4', // 天蓝色
+      '#a855f7', // 紫罗兰色
+    ];
+    
     // 3. 构建图谱数据
     const nodes = topics.map((topic, index) => {
       // 为节点分配不同的颜色
       const category = 'cluster';
-      const size = 10 + Math.floor(Math.random() * 10); // 10-20之间的随机大小
+      const size = 15 + Math.floor(Math.random() * 5); // 15-20之间的随机大小
+      const color = themeColors[index % themeColors.length]; // 循环使用颜色
       
       return {
         id: topic,
         label: topic,
         category,
-        size
+        size,
+        color
       };
     });
     
     const links = relations.map(rel => {
       const { type, value } = normalizeRelationType(rel.type);
+      
+      // 根据关系类型设置连接线颜色
+      let linkColor: string;
+      switch(type) {
+        case 'contains':
+          linkColor = 'rgba(99, 102, 241, 0.7)'; // 靛蓝色
+          break;
+        case 'references':
+          linkColor = 'rgba(139, 92, 246, 0.7)'; // 紫色
+          break;
+        case 'applies':
+          linkColor = 'rgba(14, 165, 233, 0.7)'; // 天蓝色
+          break;
+        case 'similar':
+          linkColor = 'rgba(16, 185, 129, 0.7)'; // 绿色
+          break;
+        default:
+          linkColor = 'rgba(156, 163, 175, 0.7)'; // 灰色
+      }
       
       return {
         source: rel.source,
@@ -220,7 +327,8 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
         type,
         value,
         label: rel.type,
-        reason: rel.reason
+        reason: rel.reason,
+        color: linkColor
       };
     });
     
