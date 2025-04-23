@@ -3,8 +3,10 @@
  * 查找并修复数据库中所有非3072维的向量嵌入
  */
 
-const { Pool } = require('pg');
-const dotenv = require('dotenv');
+import pg from 'pg';
+import dotenv from 'dotenv';
+
+const { Pool } = pg;
 
 // 加载环境变量
 dotenv.config();
@@ -170,14 +172,14 @@ async function fixVectorDimensions() {
       // 应用标准化
       const normalizedVector = normalizeVectorDimension(vector_data);
       
-      // 更新数据库
+      // 更新数据库 - 需要将数组转换为JSON字符串
       const updateQuery = `
         UPDATE memory_embeddings
-        SET vector_data = $1
+        SET vector_data = $1::jsonb
         WHERE memory_id = $2;
       `;
       
-      await pool.query(updateQuery, [normalizedVector, memory_id]);
+      await pool.query(updateQuery, [JSON.stringify(normalizedVector), memory_id]);
       
       fixedCount++;
       if (fixedCount % 100 === 0) {
