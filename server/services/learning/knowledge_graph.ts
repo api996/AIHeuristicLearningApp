@@ -18,6 +18,7 @@ export interface KnowledgeNode {
   size: number;         // 节点大小（代表重要性）
   category?: string;    // 节点类别（主题、概念、关键词等）
   clusterId?: string;   // 关联的聚类ID
+  color?: string;       // 节点颜色（与学习路径数据格式保持一致）
 }
 
 /**
@@ -76,21 +77,24 @@ export async function generateUserKnowledgeGraph(userId: number, forceRefresh: b
             label: '主题1',
             size: 36,
             category: 'cluster',
-            clusterId: '0'
+            clusterId: '0',
+            color: '#6366f1' // 添加颜色属性
           },
           {
             id: 'cluster_1',
             label: '主题2',
             size: 25,
             category: 'cluster',
-            clusterId: '1'
+            clusterId: '1',
+            color: '#f43f5e' // 添加颜色属性
           },
           {
             id: 'cluster_2',
             label: '知识点',
             size: 20,
             category: 'cluster',
-            clusterId: '2'
+            clusterId: '2',
+            color: '#22c55e' // 添加颜色属性
           }
         ],
         links: [
@@ -121,14 +125,28 @@ export async function generateUserKnowledgeGraph(userId: number, forceRefresh: b
     const nodes: KnowledgeNode[] = [];
     const links: KnowledgeLink[] = [];
     
+    // 为节点预生成相同的颜色集
+    const themeColors = [
+      '#6366f1', // 靛蓝色
+      '#f43f5e', // 粉红色
+      '#22c55e', // 绿色
+      '#eab308', // 黄色
+      '#14b8a6', // 青色
+      '#f97316', // 橙色
+      '#06b6d4', // 天蓝色
+      '#a855f7', // 紫罗兰色
+    ];
+    
     // 为每个聚类创建一个节点
     clusterResult.centroids.forEach((centroid: any, index: number) => {
+      const colorIndex = index % themeColors.length;
       nodes.push({
         id: `cluster_${index}`,
         label: `主题${index + 1}`,
         size: 25 + (centroid.points?.length || 0) * 2, // 基于点数调整大小
         category: 'cluster',
-        clusterId: `${index}`
+        clusterId: `${index}`,
+        color: themeColors[colorIndex] // 添加颜色属性
       });
     });
     
