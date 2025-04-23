@@ -352,4 +352,28 @@ router.post('/:userId/repair-memories', async (req, res) => {
   }
 });
 
+/**
+ * 清除知识图谱缓存
+ * POST /api/learning-path/:userId/clear-cache
+ */
+router.post('/:userId/clear-cache', async (req, res) => {
+  try {
+    const userId = utils.safeParseInt(req.params.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ error: "无效的用户ID" });
+    }
+    
+    log(`[API] 清除用户 ${userId} 的知识图谱缓存`);
+    
+    // 调用存储接口清除缓存
+    await storage.clearKnowledgeGraphCache(userId);
+    
+    res.json({ success: true, message: "知识图谱缓存已清除" });
+  } catch (error) {
+    log(`[API] 清除知识图谱缓存出错: ${error}`);
+    res.status(500).json({ error: utils.sanitizeErrorMessage(error) });
+  }
+});
+
 export default router;
