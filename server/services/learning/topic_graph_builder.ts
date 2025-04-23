@@ -558,12 +558,15 @@ export async function buildUserKnowledgeGraph(userId: number, forceRefresh: bool
     // 检查缓存，如果不是强制刷新，优先使用缓存
     if (!forceRefresh) {
       // 从数据库获取缓存
-      const cachedGraph = await db.select()
-        .from(knowledgeGraphCache)
-        .where(eq(knowledgeGraphCache.userId, userId))
-        .where(sql`${knowledgeGraphCache.expires_at} > NOW()`)
-        .orderBy(sql`${knowledgeGraphCache.version} DESC`)
-        .limit(1);
+      const cachedGraph = await db.execute(
+        sql`
+          SELECT * FROM ${knowledgeGraphCache}
+          WHERE ${knowledgeGraphCache.userId} = ${userId}
+          AND ${knowledgeGraphCache.expiresAt} > NOW()
+          ORDER BY ${knowledgeGraphCache.version} DESC
+          LIMIT 1
+        `
+      );
       
       if (cachedGraph.length > 0 && cachedGraph[0].nodes && cachedGraph[0].links) {
         log(`[TopicGraphBuilder] 使用缓存的知识图谱，用户ID=${userId}，版本=${cachedGraph[0].version}`);
