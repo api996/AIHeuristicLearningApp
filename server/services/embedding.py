@@ -1,5 +1,37 @@
 import os
-from typing import List
+import sys
+import json
+from typing import List, Dict, Any, Optional
+
+try:
+    import numpy as np
+except ImportError:
+    print("错误：numpy 未安装，这个库对于向量操作是必需的")
+    sys.exit(1)
+
+try:
+    from sklearn.metrics.pairwise import cosine_similarity
+except ImportError:
+    print("警告：scikit-learn 未安装，将使用基本向量操作")
+    # 如果缺少sklearn，定义一个基本的余弦相似度函数
+    def cosine_similarity_basic(vec1, vec2):
+        dot_product = np.dot(vec1, vec2)
+        norm1 = np.linalg.norm(vec1)
+        norm2 = np.linalg.norm(vec2)
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+        return dot_product / (norm1 * norm2)
+    
+    # 重写cosine_similarity
+    def cosine_similarity(X, Y=None):
+        if Y is None:
+            Y = X
+        result = np.zeros((len(X), len(Y)))
+        for i, x in enumerate(X):
+            for j, y in enumerate(Y):
+                result[i, j] = cosine_similarity_basic(x, y)
+        return result
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -7,27 +39,6 @@ except ImportError:
     print("警告：dotenv 未安装，将直接从环境变量读取")
     def load_dotenv():
         pass
-
-try:
-    import numpy as np
-except ImportError:
-    print("警告：numpy 未安装，将使用纯Python实现向量操作")
-    class NumpyLinalg:
-        @staticmethod
-        def norm(vec):
-            return (sum(x*x for x in vec)) ** 0.5
-            
-    class NumpyFallback:
-        def __init__(self):
-            self.linalg = NumpyLinalg()
-            
-        def array(self, lst):
-            return lst
-            
-        def dot(self, vec1, vec2):
-            return sum(a*b for a, b in zip(vec1, vec2))
-    
-    np = NumpyFallback()
 
 try:
     import google.generativeai as genai
@@ -247,36 +258,190 @@ class EmbeddingService:
                 # 计算Jaccard相似度作为替代
                 return len(intersection) / max(1, len(union))
 
-            # 正常情况：计算余弦相似度
-            vec1 = np.array(embeddings[0])
-            vec2 = np.array(embeddings[1])
-
-            # 使用安全的点积与范数计算
+            # 正常情况：使用scikit-learn计算余弦相似度
             try:
-                dot_product = np.dot(vec1, vec2)
-            except Exception:
-                # 如果numpy dot 失败，使用纯Python实现
-                dot_product = sum(v1*v2 for v1, v2 in zip(vec1, vec2))
-            
-            try:
-                norm1 = np.linalg.norm(vec1)
-                norm2 = np.linalg.norm(vec2)
-            except Exception:
-                # 如果numpy norm 失败，使用纯Python实现
-                norm1 = (sum(v*v for v in vec1)) ** 0.5
-                norm2 = (sum(v*v for v in vec2)) ** 0.5
+                # 尝试使用sklearn的余弦相似度（更高效）
+                vec1 = np.array(embeddings[0]).reshape(1, -1)
+                vec2 = np.array(embeddings[1]).reshape(1, -1)
+                sim = cosine_similarity(vec1, vec2)[0][0]
+                return float(sim)
+            except Exception as sklearn_error:
+                print(f"使用scikit-learn计算相似度失败: {sklearn_error}")
+                
+                # 回退到基本实现
+                vec1 = np.array(embeddings[0])
+                vec2 = np.array(embeddings[1])
+                
+                # 使用安全的点积与范数计算
+                try:
+                    dot_product = np.dot(vec1, vec2)
+                except Exception:
+                    # 如果numpy dot 失败，使用纯Python实现
+                    dot_product = sum(v1*v2 for v1, v2 in zip(vec1, vec2))
+                
+                try:
+                    norm1 = np.linalg.norm(vec1)
+                    norm2 = np.linalg.norm(vec2)
+                except Exception:
+                    # 如果numpy norm 失败，使用纯Python实现
+                    norm1 = (sum(v*v for v in vec1)) ** 0.5
+                    norm2 = (sum(v*v for v in vec2)) ** 0.5
 
-            if norm1 == 0 or norm2 == 0:
-                print("嵌入向量范数为零")
-                return 0.0
+                if norm1 == 0 or norm2 == 0:
+                    print("嵌入向量范数为零")
+                    return 0.0
 
-            similarity = dot_product / (norm1 * norm2)
-            print(f"计算相似度成功: {similarity}")
-            return similarity
+                similarity = dot_product / (norm1 * norm2)
+                print(f"计算相似度成功: {similarity}")
+                return similarity
 
         except Exception as e:
             print(f"计算相似度时出错: {str(e)}")
             return 0.0
+            
+    def embed_single_text(self, text: str) -> Optional[List[float]]:
+        """
+        为单个文本生成嵌入向量（同步版本，供CLI调用）
+        
+        Args:
+            text: 要嵌入的文本
+            
+        Returns:
+            嵌入向量或None（如果失败）
+        """
+        if not text:
+            print("错误: 文本为空")
+            return None
+            
+        try:
+            # 预处理文本
+            processed_text = self._preprocess_text(text)
+            
+            # 检查缓存
+            cache_key = self._get_cache_key(processed_text)
+            if cache_key in self._vector_cache:
+                print(f"[缓存命中] 文本: {processed_text[:20]}...")
+                return self._vector_cache[cache_key]
+                
+            # 生成嵌入
+            print(f"处理文本: {processed_text[:20]}...")
+            result = genai.embed_content(
+                model=self.model_name,
+                content=processed_text,
+                task_type="retrieval_document"
+            )
+            
+            # 解析结果
+            if not isinstance(result, dict) or "embedding" not in result:
+                print(f"错误：嵌入结果格式不正确")
+                return None
+                
+            vector = result["embedding"]
+            
+            # 保存到缓存
+            self._cache_vector(cache_key, vector)
+            
+            return vector
+        except Exception as e:
+            print(f"嵌入生成错误: {str(e)}")
+            return None
+
+    def calculate_similarity(self, text1: str, text2: str) -> float:
+        """
+        计算两个文本之间的余弦相似度（同步版本，供CLI调用）
+        
+        Args:
+            text1: 第一个文本
+            text2: 第二个文本
+            
+        Returns:
+            相似度分数（0-1之间）
+        """
+        if not text1 or not text2:
+            return 0.0
+            
+        # 生成嵌入
+        embedding1 = self.embed_single_text(text1)
+        embedding2 = self.embed_single_text(text2)
+        
+        if not embedding1 or not embedding2:
+            # 退回到词汇重叠相似度
+            words1 = set(text1.lower().split())
+            words2 = set(text2.lower().split())
+            if not words1 or not words2:
+                return 0.0
+                
+            intersection = words1.intersection(words2)
+            union = words1.union(words2)
+            return len(intersection) / max(1, len(union))
+            
+        # 计算余弦相似度
+        try:
+            # 尝试使用sklearn的余弦相似度
+            vec1 = np.array(embedding1).reshape(1, -1)
+            vec2 = np.array(embedding2).reshape(1, -1)
+            sim = cosine_similarity(vec1, vec2)[0][0]
+            return float(sim)
+        except Exception:
+            # 回退到基本实现
+            vec1 = np.array(embedding1)
+            vec2 = np.array(embedding2)
+            
+            dot_product = np.dot(vec1, vec2)
+            norm1 = np.linalg.norm(vec1)
+            norm2 = np.linalg.norm(vec2)
+            
+            if norm1 == 0 or norm2 == 0:
+                return 0.0
+                
+            return dot_product / (norm1 * norm2)
 
 # 创建服务实例
 embedding_service = EmbeddingService()
+
+# 命令行接口处理
+if __name__ == "__main__":
+    # 从标准输入读取JSON数据
+    try:
+        input_data = sys.stdin.read()
+        if not input_data:
+            print(json.dumps({"error": "没有输入数据"}))
+            sys.exit(1)
+            
+        # 解析输入
+        data = json.loads(input_data)
+        operation = data.get("operation", "")
+        
+        # 处理不同的操作
+        if operation == "embed":
+            # 嵌入单个文本
+            text = data.get("text", "")
+            if not text:
+                print(json.dumps({"error": "文本为空"}))
+                sys.exit(1)
+                
+            embedding = embedding_service.embed_single_text(text)
+            if embedding:
+                print(json.dumps({"embedding": embedding}))
+            else:
+                print(json.dumps({"error": "嵌入生成失败"}))
+                
+        elif operation == "similarity":
+            # 计算两个文本的相似度
+            text1 = data.get("text1", "")
+            text2 = data.get("text2", "")
+            
+            if not text1 or not text2:
+                print(json.dumps({"error": "需要两个非空文本"}))
+                sys.exit(1)
+                
+            similarity = embedding_service.calculate_similarity(text1, text2)
+            print(json.dumps({"similarity": similarity}))
+            
+        else:
+            print(json.dumps({"error": f"未知操作: {operation}"}))
+            
+    except json.JSONDecodeError:
+        print(json.dumps({"error": "输入不是有效的JSON"}))
+    except Exception as e:
+        print(json.dumps({"error": f"处理请求时出错: {str(e)}"}))
