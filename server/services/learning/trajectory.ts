@@ -302,12 +302,29 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
           topicName = "主题" + cluster.id.substring(0, 4);
         }
         
+        // 定义一组主题颜色
+        const themeColors = [
+          '#6366f1', // 靛蓝色
+          '#f43f5e', // 粉红色
+          '#22c55e', // 绿色
+          '#eab308', // 黄色
+          '#14b8a6', // 青色
+          '#f97316', // 橙色
+          '#06b6d4', // 天蓝色
+          '#a855f7', // 紫罗兰色
+        ];
+        
+        // 为每个主题选择一个唯一的颜色
+        const colorIndex = Math.abs(topicName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % themeColors.length;
+        const color = themeColors[colorIndex];
+        
         return {
           id: topicName, // 使用简化后的主题名称作为ID
           label: topicName, // 同样使用简化后的主题名称作为标签
           size,
           category: 'cluster', // 使用与知识图谱相同的类别名称
-          clusterId: cluster.id
+          clusterId: cluster.id,
+          color // 添加颜色属性，保持与topic_graph_builder.ts一致
         };
       });
       
@@ -369,12 +386,25 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
             
             // 确保目标ID有效
             if (targetId && targetId.length > 0) {
+              // 定义连接颜色映射
+              const linkColorMap = {
+                'related': 'rgba(99, 102, 241, 0.7)', // 靛蓝色
+                'depends_on': 'rgba(220, 38, 38, 0.7)', // 深红色
+                'applies': 'rgba(14, 165, 233, 0.7)', // 天蓝色
+                'similar': 'rgba(34, 197, 94, 0.7)', // 绿色
+              };
+              
+              // 为连接添加必要的属性
               links.push({
                 source: largestTopicName, // 使用提取的主题名称作为源
                 target: targetId,  // 使用节点ID映射表中的ID确保一致性
                 value: Math.max(1, Math.min(10, cluster.percentage / 10)), // 缩放到1-10范围
                 type: 'related', // 添加类型以便与知识图谱保持一致
-                label: '相关' // 添加连接标签
+                label: '相关', // 添加连接标签
+                color: linkColorMap['related'], // 添加颜色属性
+                strength: Math.ceil(Math.random() * 10), // 模拟关系强度
+                reason: `${largestTopicName}与${targetId}之间存在概念关联`, // 添加关系说明
+                learningOrder: '随意' // 添加学习顺序建议
               });
             }
           }
