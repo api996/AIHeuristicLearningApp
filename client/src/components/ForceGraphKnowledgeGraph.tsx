@@ -15,12 +15,13 @@ interface GraphNode {
   color?: string; // 可选，为节点指定特定颜色
   x?: number;     // 节点位置 x 坐标
   y?: number;     // 节点位置 y 坐标
+  clusterId?: string; // 聚类ID
 }
 
 // 图谱连接类型
 interface GraphLink {
-  source: string;
-  target: string;
+  source: any; // 可以是字符串或对象
+  target: any; // 可以是字符串或对象
   type?: string;
   value?: number;
   color?: string; // 可选，为连接指定特定颜色
@@ -201,6 +202,31 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     }
   }, [onBackgroundClick]);
   
+  // 计算主题分布占比
+  const calculateTopicPercentage = (link: GraphLink): number => {
+    // 根据连接的源和目标节点计算它们在图中的比重
+    // 首先获取源节点和目标节点
+    const sourceNode = typeof link.source === 'string' 
+      ? graphData.nodes.find(n => n.id === link.source) 
+      : graphData.nodes.find(n => n.id === (link.source as any)?.id);
+    
+    const targetNode = typeof link.target === 'string'
+      ? graphData.nodes.find(n => n.id === link.target)
+      : graphData.nodes.find(n => n.id === (link.target as any)?.id);
+    
+    if (!sourceNode || !targetNode) return 50; // 默认值
+    
+    // 计算这两个节点的大小总和占所有节点大小总和的百分比
+    const nodeSizeSum = graphData.nodes.reduce((sum, node) => sum + (node.size || 5), 0);
+    const currentNodesSizeSum = (sourceNode.size || 5) + (targetNode.size || 5);
+    
+    // 转换为百分比 (0-100)
+    const percentage = (currentNodesSizeSum / nodeSizeSum) * 100;
+    
+    // 限制范围在10-90之间，确保有意义的显示效果
+    return Math.max(10, Math.min(90, percentage));
+  };
+
   // 设置移动设备上性能相关配置 - 优化配置以提高交互性
   const getMobileConfig = useCallback(() => {
     if (isMobile) {
@@ -214,9 +240,9 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
         nodeRelSize: 10,         // 增大节点相对尺寸
         d3AlphaDecay: 0.02,      // 更快的布局收敛
         d3VelocityDecay: 0.1,    // 更灵活的节点运动
-        dagMode: null,           // 禁用有向无环图模式
+        dagMode: undefined,      // 禁用有向无环图模式
         dagLevelDistance: 0,     // 禁用层级距离
-        dagNodeFilter: null,     // 禁用节点过滤
+        dagNodeFilter: undefined, // 禁用节点过滤
         rendererConfig: {
           precision: 'lowp',     // 低精度渲染以提高性能
           antialias: false,      // 禁用抗锯齿以提高性能
@@ -250,7 +276,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
         maxZoom: 5,              // 设置最大缩放
       };
     }
-  }, [isMobile]);
+  }, [isMobile, graphData.nodes]);
   
   useEffect(() => {
     // 当组件挂载后，调整图形
@@ -701,18 +727,18 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
           {selectedLink && (
             <div className="space-y-4 animate-fadeIn">
               <div className="flex items-center justify-between px-1">
-                <span className="text-sm font-medium">关系强度:</span>
+                <span className="text-sm font-medium">主题分布占比:</span>
                 <div className="flex items-center">
                   <div className="w-24 h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div 
                       className="h-full transition-all duration-500 ease-out" 
                       style={{ 
-                        width: `${((selectedLink.strength || 5) / 10) * 100}%`,
+                        width: `${calculateTopicPercentage(selectedLink)}%`,
                         background: selectedLink.color || 'rgba(59, 130, 246, 0.8)'
                       }}
                     ></div>
                   </div>
-                  <span className="text-sm ml-2 font-medium">{selectedLink.strength || 5}/10</span>
+                  <span className="text-sm ml-2 font-medium">{Math.round(calculateTopicPercentage(selectedLink))}%</span>
                 </div>
               </div>
               
