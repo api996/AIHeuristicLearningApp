@@ -88,32 +88,34 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from pathlib import Path
 
-def determine_optimal_clusters(vectors, max_clusters=12):
-    """为用户向量数据直接分配合理的聚类数量，不依赖轮廓系数"""
+def determine_optimal_clusters(vectors, max_clusters=40):
+    """根据向量数量动态调整聚类中心数量，初始设为向量总数的1/10"""
     n_samples = len(vectors)
     
-    # 如果样本数量太少，返回较小的聚类数
+    # 如果样本数量太少，确保至少有最小聚类数
     if n_samples < 10:
         return min(2, n_samples)
     
-    # 根据样本数量直接分配聚类数，不使用轮廓系数评估
-    # 这些值经过调整，以确保生成足够的主题节点
-    if n_samples > 400:  # 非常大的数据集
-        fixed_clusters = 8
-    elif n_samples > 200:  # 大数据集
-        fixed_clusters = 6
-    elif n_samples > 100:  # 中等数据集
-        fixed_clusters = 5
-    elif n_samples > 50:   # 小数据集
-        fixed_clusters = 4
-    else:                  # 微型数据集
-        fixed_clusters = 3
+    # 计算初始聚类数为向量总数的1/10，最小为3个，最大不超过40个
+    initial_clusters = max(3, min(40, n_samples // 10))
+    
+    # 确保聚类数不超过样本数的一半
+    initial_clusters = min(initial_clusters, n_samples // 2)
     
     # 记录决策过程
-    print(f"样本数量: {n_samples}, 直接分配聚类数: {fixed_clusters}")
+    print(f"样本数量: {n_samples}, 初始分配聚类数(1/10): {initial_clusters}")
     
-    # 强制返回固定的聚类数，不再进行轮廓评分
-    return fixed_clusters
+    # 如果样本数量较大，考虑调整聚类数量
+    # 这里可以根据需要添加基于相似度的动态调整算法
+    
+    # 设置最小聚类数阈值，确保图谱不会太稀疏
+    min_clusters = 6
+    if initial_clusters < min_clusters and n_samples >= min_clusters * 2:
+        print(f"将聚类数从 {initial_clusters} 调整到最小值 {min_clusters}")
+        initial_clusters = min_clusters
+    
+    # 返回计算得到的聚类数
+    return initial_clusters
 
 def main():
     try:
@@ -132,7 +134,7 @@ def main():
         vectors = np.array([item["vector"] for item in vector_data])
         
         # 确定最佳聚类数量
-        n_clusters = determine_optimal_clusters(vectors, max_clusters=min(12, len(vectors) // 2))
+        n_clusters = determine_optimal_clusters(vectors, max_clusters=min(40, len(vectors) // 2))
         print(f"使用最佳聚类数量: {n_clusters}")
         
         # 执行KMeans聚类
