@@ -160,14 +160,14 @@ app.use((req, res, next) => {
     // 设置内容评估阈值 (0.0-1.0)，值越高过滤越严格
     const CONTENT_VALUE_THRESHOLD = 
       process.env.CONTENT_VALUE_THRESHOLD ? 
-      parseFloat(process.env.CONTENT_VALUE_THRESHOLD) : 0.4;
+      parseFloat(process.env.CONTENT_VALUE_THRESHOLD) : 0.2; // 降低阈值，更容易接受内容差异
     
     if (CONTENT_VALUE_THRESHOLD >= 0 && CONTENT_VALUE_THRESHOLD <= 1) {
       contentValueAnalyzer.setValueThreshold(CONTENT_VALUE_THRESHOLD);
       optimizedEmbeddingsService.setValueThreshold(CONTENT_VALUE_THRESHOLD);
       log(`内容价值评估服务初始化完成，价值阈值: ${CONTENT_VALUE_THRESHOLD}`);
     } else {
-      log(`内容价值阈值设置无效: ${CONTENT_VALUE_THRESHOLD}，使用默认值0.4`);
+      log(`内容价值阈值设置无效: ${CONTENT_VALUE_THRESHOLD}，使用默认值0.2`);
     }
     
     // 是否执行自动迁移
