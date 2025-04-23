@@ -94,15 +94,11 @@ class GeminiService implements GenAIService {
     }
 
     try {
-      // Gemini API的嵌入模型
-      // 与Python服务保持一致，使用实验性嵌入模型
-      // 注意：此处应当始终与server/services/embedding.py中的模型保持一致
-      // 目前Python模型使用："models/gemini-embedding-exp-03-07"
-      
-      // 使用Gemini 03-07嵌入模型，与Python端保持一致
-      // JS SDK中可能需要不同的模型名称格式
-      const modelName = "embedding-001"; // 正确的JS版本模型名称
-      log(`[genai_service] 使用嵌入模型: ${modelName} (对应Python中的models/gemini-embedding-exp-03-07)`, "info");
+      // 使用与Python服务相同的实验性嵌入模型
+      // 注意：我们需要使用的实验模型是"models/gemini-embedding-exp-03-07"
+      // 但在JavaScript SDK中模型名称格式不同
+      const modelName = "models/embedding-001";
+      log(`[genai_service] 使用嵌入模型: ${modelName}`, "info");
       const model = this.genAI.getGenerativeModel({ model: modelName });
       // 生成嵌入
       const result = await model.embedContent(text);
