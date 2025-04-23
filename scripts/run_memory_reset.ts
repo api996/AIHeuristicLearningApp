@@ -74,8 +74,11 @@ async function resetMemoryData() {
     console.log('等待GenAI服务初始化...');
     await delay(10000);
     
-    // 2. 生成新的测试对话数据
-    console.log('步骤2: 生成新的测试对话数据');
+    // 2. 生成新的测试对话数据（仅限于验证）
+    console.log('步骤2: 生成少量测试对话数据进行验证');
+    
+    // 使用环境变量传递给脚本，限制生成的测试数据数量
+    process.env.TEST_DATA_COUNT = '1';
     await runScript(path.join(__dirname, 'generate_test_conversations.ts'));
     
     console.log('记忆重置流程完成');

@@ -180,35 +180,28 @@ ${subtopic}的应用非常广泛，从基础研究到工业实践都有重要价
       }
       
       try {
-        // 使用ORM插入记忆数据
-        const memoryData: InsertMemory = {
-          id: memoryId,
-          userId: userId,
-          content: fullContent,
-          summary: memorySummary,
-          type: "chat",
-          timestamp: createdAt,
-          createdAt: createdAt
-        };
-        
-        // 插入记忆
-        await db.insert(memories).values(memoryData).execute();
+        // 直接使用SQL语句插入记忆
+        await db.execute(
+          sql`INSERT INTO memories (
+            id, user_id, content, summary, type, timestamp, created_at
+          ) VALUES (
+            ${memoryId}, ${userId}, ${fullContent}, ${memorySummary}, 'chat', ${createdAt}, ${createdAt}
+          )`
+        );
         
         // 为每个关键词创建记录
         for (const keyword of memoryKeywords) {
-          await db.insert(memoryKeywords).values({
-            memoryId: memoryId,
-            keyword: keyword
-          }).execute();
+          await db.execute(
+            sql`INSERT INTO memory_keywords ("memory_id", "keyword") 
+                VALUES (${memoryId}, ${keyword})`
+          );
         }
         
-        // 插入向量嵌入
-        const embeddingData: InsertMemoryEmbedding = {
-          memoryId: memoryId,
-          vectorData: vector as any // 类型断言解决数组兼容性问题
-        };
-        
-        await db.insert(memoryEmbeddings).values(embeddingData).execute();
+        // 插入向量嵌入 - 使用SQL语句
+        await db.execute(
+          sql`INSERT INTO memory_embeddings ("memory_id", "vector_data") 
+              VALUES (${memoryId}, ${vector})`
+        );
         
       } catch (insertError) {
         console.error(`插入数据时出错: ${insertError}`);
@@ -246,8 +239,12 @@ async function main() {
       process.exit(1);
     }
     
-    // 执行生成操作，只生成5条测试数据
-    await generateTestConversations(5);
+    // 从环境变量获取测试数据数量，默认为3条
+    const testDataCount = parseInt(process.env.TEST_DATA_COUNT || '3', 10);
+    console.log(`将生成${testDataCount}条测试数据`);
+    
+    // 执行生成操作
+    await generateTestConversations(testDataCount);
   } catch (error) {
     console.error("执行失败:", error);
     process.exit(1);
