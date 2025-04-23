@@ -106,7 +106,7 @@ class ClusteringServiceManager:
             response = requests.post(
                 f"{self.base_url}/api/cluster",
                 json=memory_vectors,
-                timeout=300  # 5分钟超时，聚类可能需要较长时间
+                timeout=600  # 10分钟超时，与服务端保持一致
             )
             
             if response.status_code == 200:

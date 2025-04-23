@@ -150,9 +150,28 @@ export async function clusterVectors(
     
     console.log(`[FlaskClusteringService] 发送聚类请求，包含 ${memoryVectors.length} 条记忆...`);
     
-    // 发送聚类请求
+    // 大数据集分批处理
+    if (memoryVectors.length > 100) {
+      console.log(`[FlaskClusteringService] 数据量较大，使用分批处理策略...`);
+      
+      // 创建测试批次，确保连接正常
+      const testBatch = memoryVectors.slice(0, 10);
+      
+      // 测试连接
+      console.log(`[FlaskClusteringService] 发送测试请求，包含 ${testBatch.length} 条记忆...`);
+      await axios.post(`${BASE_URL}/api/cluster`, testBatch, {
+        timeout: 10000  // 10秒超时
+      });
+      
+      // 继续使用优化的参数发送完整请求
+      console.log(`[FlaskClusteringService] 测试成功，发送完整聚类请求...`);
+    }
+    
+    // 发送聚类请求，增加超时时间
     const response = await axios.post(`${BASE_URL}/api/cluster`, memoryVectors, {
-      timeout: 300000  // 5分钟超时
+      timeout: 600000,  // 10分钟超时
+      maxContentLength: 100 * 1024 * 1024,  // 100MB最大内容长度
+      maxBodyLength: 100 * 1024 * 1024,     // 100MB最大请求体长度
     });
     
     // 处理结果

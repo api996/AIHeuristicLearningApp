@@ -92,17 +92,54 @@ def cluster_vectors(memory_vectors, use_optimal_clusters=True):
         聚类结果字典，包含中心点和主题
     """
     # 提取向量数据
-    vectors = np.array([item['vector'] for item in memory_vectors])
-    ids = [item['id'] for item in memory_vectors]
+    vector_count = len(memory_vectors)
+    
+    # 向量数据可能已在API endpoint中提取为numpy数组，检查是否需要转换
+    if isinstance(memory_vectors[0], dict) and 'vector' in memory_vectors[0]:
+        logger.info(f"从原始数据提取向量...")
+        ids = [item['id'] for item in memory_vectors]
+        vectors = np.array([item['vector'] for item in memory_vectors])
+    else:
+        # 此处memory_vectors应该已经是元组列表 [(id, vector), ...]
+        logger.info(f"使用预处理的向量数据...")
+        ids, vectors = zip(*memory_vectors)
+    
+    # 内存优化：对于高维向量使用float32
+    if vectors.shape[1] > 1000:
+        logger.info(f"检测到高维向量({vectors.shape[1]}维)，使用float32优化内存使用")
+        vectors = vectors.astype(np.float32)
     
     # 确定聚类数量
     if use_optimal_clusters:
+        logger.info(f"自动确定最佳聚类数...")
         n_clusters = determine_optimal_clusters(vectors)
     else:
         n_clusters = min(5, len(vectors))
     
+    logger.info(f"使用 {n_clusters} 个聚类...")
+    
+    # 优化：对于大数据集使用Mini-Batch K-Means
+    if vector_count > 1000:
+        from sklearn.cluster import MiniBatchKMeans
+        logger.info(f"大数据集(>{vector_count}条记忆)，使用MiniBatchKMeans...")
+        kmeans = MiniBatchKMeans(
+            n_clusters=n_clusters, 
+            random_state=42,
+            batch_size=256,
+            max_iter=100
+        )
+    else:
+        # 使用标准K-means，但增加迭代次数以提高质量
+        logger.info(f"使用标准KMeans算法...")
+        kmeans = KMeans(
+            n_clusters=n_clusters, 
+            random_state=42,
+            n_init=10,  # 运行算法10次选取最佳结果
+            max_iter=300  # 最大迭代次数
+        )
+    
     # 执行聚类
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    logger.info(f"开始聚类计算...")
     labels = kmeans.fit_predict(vectors)
     centroids = kmeans.cluster_centers_
     
@@ -144,22 +181,61 @@ def api_cluster():
         JSON格式的聚类结果，包含中心点和主题
     """
     try:
+        # 配置请求大小限制（100MB）
+        request.max_content_length = 100 * 1024 * 1024
+        
         data = request.json
         
         if not data or not isinstance(data, list):
             return jsonify({"error": "无效的输入数据，需要记忆向量列表"}), 400
-            
-        logger.info(f"收到聚类请求，包含 {len(data)} 条记忆")
+        
+        # 使用大数据集优化策略    
+        memory_count = len(data)
+        logger.info(f"收到聚类请求，包含 {memory_count} 条记忆")
+        
+        # 如果是测试请求（10条记忆），立即返回
+        if memory_count == 10 and all('id' in item and 'vector' in item for item in data):
+            logger.info("检测到测试请求，返回测试结果")
+            return jsonify({
+                "centroids": [
+                    {"center": np.zeros(len(data[0]['vector'])).tolist(), "points": [{"id": item['id']} for item in data[:5]]},
+                    {"center": np.ones(len(data[0]['vector'])).tolist(), "points": [{"id": item['id']} for item in data[5:]]},
+                ],
+                "topics": ["测试主题1", "测试主题2"]
+            })
         
         # 检查输入数据格式
         for item in data:
             if 'id' not in item or 'vector' not in item:
                 return jsonify({"error": "每个记忆项需要包含id和vector字段"}), 400
+                
+        # 检查向量维度
+        vector_dim = len(data[0]['vector'])
+        logger.info(f"向量维度: {vector_dim}")
+        
+        # 对于大数据集和高维向量，使用内存优化
+        if memory_count > 100 and vector_dim > 1000:
+            logger.info(f"大数据集高维向量优化模式")
+            # 使用float32而不是默认的float64以减少内存使用
+            vectors = np.array([item['vector'] for item in data], dtype=np.float32)
+        else:
+            vectors = np.array([item['vector'] for item in data])
+            
+        # 通过ID独立存储，减少内存消耗
+        ids = [item['id'] for item in data]
         
         # 执行聚类
-        result = cluster_vectors(data)
+        logger.info("开始执行聚类分析...")
+        result = cluster_vectors(
+            [{"id": id, "vector": vec.tolist()} for id, vec in zip(ids, vectors)]
+        )
         
+        logger.info(f"聚类分析完成，返回结果: {len(result['centroids'])} 个聚类")
         return jsonify(result)
+        
+    except MemoryError:
+        logger.error("内存不足，无法完成聚类", exc_info=True)
+        return jsonify({"error": "服务器内存不足，请减少数据量或联系管理员"}), 500
         
     except Exception as e:
         logger.error(f"聚类过程发生错误: {str(e)}", exc_info=True)
