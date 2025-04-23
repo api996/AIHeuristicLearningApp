@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import { Network } from 'lucide-react';
-import * as THREE from 'three';
 import SpriteText from 'three-spritetext';
 
 // 节点类型定义
@@ -15,10 +14,6 @@ interface GraphNode {
   x?: number;
   y?: number;
   z?: number;
-  // 力导向图所需的属性
-  fx?: number | null;
-  fy?: number | null;
-  fz?: number | null;
 }
 
 // 连接类型定义
@@ -41,7 +36,7 @@ interface TextNodeForceGraphProps {
 
 /**
  * 3D文本节点力导向图组件
- * 使用React Force Graph 3D实现，为节点提供3D效果
+ * 使用React Force Graph 3D实现，纯文本节点的3D效果
  */
 const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
   nodes,
@@ -152,73 +147,17 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
     }
   }, [onNodeClick]);
   
-  // 自定义节点渲染函数 - 使用3D文本对象
+  // 自定义节点渲染函数 - 纯文本精灵
   const nodeThreeObject = useCallback((node: any) => {
-    // 创建一个组，用于包含所有对象
-    const group = new THREE.Group();
+    // 创建文本精灵 - 只显示文本没有背景或边框
+    const sprite = new SpriteText(node.label);
+    sprite.color = node.color || '#ffffff';
+    sprite.backgroundColor = 'rgba(0,0,0,0)'; // 透明背景
+    sprite.fontWeight = node.category === 'cluster' ? 'bold' : 'normal'; // 主题使用粗体
+    sprite.textHeight = node.category === 'cluster' ? 10 : 6; // 主题使用更大字号
+    sprite.fontFace = '"Arial", sans-serif';
     
-    // 自定义节点形状，不同类别使用不同形状
-    let geometry;
-    let material;
-    
-    const color = new THREE.Color(node.color);
-    
-    switch(node.category) {
-      case 'cluster':
-        // 主题使用发光的球体
-        geometry = new THREE.SphereGeometry(node.val * 0.8);
-        material = new THREE.MeshLambertMaterial({ 
-          color: node.color,
-          emissive: color,
-          emissiveIntensity: 0.4,
-          transparent: true,
-          opacity: 0.8
-        });
-        break;
-      case 'keyword':
-        // 关键词使用八面体
-        geometry = new THREE.OctahedronGeometry(node.val * 0.7);
-        material = new THREE.MeshLambertMaterial({ 
-          color: node.color,
-          transparent: true,
-          opacity: 0.9
-        });
-        break;
-      case 'memory':
-        // 记忆使用立方体
-        geometry = new THREE.BoxGeometry(node.val * 0.6, node.val * 0.6, node.val * 0.6);
-        material = new THREE.MeshPhongMaterial({ 
-          color: node.color,
-          shininess: 100,
-          transparent: true,
-          opacity: 0.85
-        });
-        break;
-      default:
-        // 默认使用圆环
-        geometry = new THREE.TorusGeometry(node.val * 0.5, node.val * 0.2);
-        material = new THREE.MeshLambertMaterial({ 
-          color: node.color,
-          transparent: true,
-          opacity: 0.7
-        });
-    }
-    
-    // 创建形状对象并添加到组
-    const mesh = new THREE.Mesh(geometry, material);
-    group.add(mesh);
-    
-    // 为较大节点创建文本精灵
-    const isLargeNode = node.val > 10;
-    if (isLargeNode || node.category === 'cluster') {
-      const sprite = new SpriteText(node.label);
-      sprite.color = node.color;
-      sprite.textHeight = node.category === 'cluster' ? 8 : 5;
-      sprite.position.set(0, node.val * 1.2, 0);
-      group.add(sprite);
-    }
-    
-    return group;
+    return sprite;
   }, []);
   
   // 当组件挂载后，调整图表
@@ -226,7 +165,7 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
     if (graphRef.current && graphData.nodes.length > 0) {
       // 启动力布局的初始参数
       graphRef.current.d3Force('charge').strength((node: any) => {
-        return node.category === 'cluster' ? -300 : -200;
+        return node.category === 'cluster' ? -500 : -300;
       });
       
       graphRef.current.d3Force('link').distance((link: any) => {
@@ -239,13 +178,13 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
       
       // 初始缩放到合适比例
       setTimeout(() => {
-        graphRef.current.cameraPosition({ z: 250 }, { x: 0, y: 0, z: 0 }, 1000);
+        graphRef.current.cameraPosition({ z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
       }, 500);
     }
   }, [graphData]);
   
   return (
-    <div className="text-node-force-graph-container relative" style={{ width, height, overflow: 'hidden' }}>
+    <div className="text-node-force-graph-container" style={{ width, height, overflow: 'hidden' }}>
       {graphData.nodes.length > 0 ? (
         <ForceGraph3D
           ref={graphRef}
@@ -253,16 +192,18 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
           height={height}
           graphData={graphData}
           nodeThreeObject={nodeThreeObject}
-          nodeThreeObjectExtend={false}
+          nodeThreeObjectExtend={false} // 完全替换节点默认渲染
           linkColor="color"
           linkWidth="width"
           linkOpacity={0.6}
-          backgroundColor="rgba(0,0,0,0)"
+          backgroundColor="rgba(0,0,0,0)" // 透明背景
+          linkDirectionalParticles={2} // 链接上的粒子
+          linkDirectionalParticleWidth={1.5} // 粒子大小
           onNodeClick={handleNodeClick}
-          showNavInfo={false}
-          enableNodeDrag={true}
-          enableNavigationControls={true}
-          controlType="orbit"
+          showNavInfo={false} // 不显示导航信息
+          enableNodeDrag={true} // 允许拖拽节点
+          enableNavigationControls={true} // 允许导航控制
+          controlType="orbit" // 轨道控制类型
         />
       ) : (
         <div className="flex items-center justify-center h-full">
