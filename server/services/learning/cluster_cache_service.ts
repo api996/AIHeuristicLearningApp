@@ -142,18 +142,18 @@ export class ClusterCacheService {
       let removedCount = 0;
       
       // 计算新增的记忆
-      for (const id of currentMemoryIds) {
+      currentMemoryIds.forEach(id => {
         if (!cachedMemoryIds.has(id)) {
           addedCount++;
         }
-      }
+      });
       
       // 计算删除的记忆
-      for (const id of cachedMemoryIds) {
+      cachedMemoryIds.forEach(id => {
         if (!currentMemoryIds.has(id)) {
           removedCount++;
         }
-      }
+      });
       
       // 计算变化百分比
       const totalCachedCount = cachedMemoryIds.size;
@@ -279,10 +279,15 @@ export class ClusterCacheService {
   private async executeClusteringService(memoriesData: any[]): Promise<any> {
     try {
       // 导入Python聚类服务
-      const { learning_memory_service } = await import("../learning_memory/learning_memory_service_wrapper");
+      const pythonClusteringService = await import("./python_clustering");
       
       // 执行聚类
-      return await learning_memory_service.analyze_memory_clusters_sync(memoriesData);
+      return await pythonClusteringService.clusterVectors(
+        memoriesData.map(m => ({
+          id: m.id,
+          vector: m.embedding
+        }))
+      );
     } catch (error) {
       log(`[ClusterCache] 调用Python聚类服务失败: ${error}`, "error");
       // 遇到错误时尝试使用备用聚类方法
@@ -393,8 +398,10 @@ export class ClusterCacheService {
         .join("\n---\n")
         .substring(0, 3000); // 限制长度
       
-      // 使用Gemini生成主题
-      return await genAiService.generateTopicForMemories([combinedContent]);
+      // 使用memorySummarizer生成主题
+      // 导入生成摘要的服务
+      const { memorySummarizer } = await import("./memory_summarizer");
+      return await memorySummarizer.generateTopic(combinedContent);
     } catch (error) {
       log(`[ClusterCache] 生成聚类主题时出错: ${error}`, "warn");
       return null;
@@ -414,8 +421,9 @@ export class ClusterCacheService {
         .join("\n---\n")
         .substring(0, 2000); // 限制长度
       
-      // 使用Gemini生成摘要
-      return await genAiService.summarizeText(combinedContent);
+      // 使用memorySummarizer生成摘要
+      const { memorySummarizer } = await import("./memory_summarizer");
+      return await memorySummarizer.summarizeText(combinedContent);
     } catch (error) {
       log(`[ClusterCache] 生成聚类摘要时出错: ${error}`, "warn");
       return null;
@@ -435,8 +443,9 @@ export class ClusterCacheService {
         .join("\n---\n")
         .substring(0, 2000); // 限制长度
       
-      // 使用Gemini提取关键词
-      return await genAiService.extractKeywords(combinedContent);
+      // 使用memorySummarizer提取关键词
+      const { memorySummarizer } = await import("./memory_summarizer");
+      return await memorySummarizer.extractKeywords(combinedContent);
     } catch (error) {
       log(`[ClusterCache] 提取聚类关键词时出错: ${error}`, "warn");
       return null;
