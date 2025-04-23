@@ -81,7 +81,9 @@ class EmbeddingService:
         self._max_cache_size = 1000  # 最大缓存1000个向量
         # 文本长度限制，过长的文本将被截断以降低API调用成本
         self._max_text_length = 1000  # 限制文本长度为1000字符
-        print(f"嵌入服务初始化: 使用模型={self.model_name}, 最大缓存={self._max_cache_size}, 文本长度限制={self._max_text_length}")
+        # 标准化向量维度 - 我们期望使用3072维向量以保持一致性
+        self.expected_dimension = 3072
+        print(f"嵌入服务初始化: 使用模型={self.model_name}, 最大缓存={self._max_cache_size}, 文本长度限制={self._max_text_length}, 标准维度={self.expected_dimension}")
         
     def _preprocess_text(self, text):
         """
@@ -192,14 +194,17 @@ class EmbeddingService:
                                 print(f"警告：生成的嵌入向量似乎都是0或为空")
                                 raise ValueError("生成的嵌入向量无效")
                                 
-                            print(f"嵌入向量生成成功，维度: {len(vector)}, 前5个值: {vector[:5]}")
+                            print(f"嵌入向量生成成功，原始维度: {len(vector)}, 前5个值: {vector[:5]}")
+                            
+                            # 标准化向量维度确保所有向量都是期望的3072维
+                            normalized_vector = self._normalize_vector_dimension(vector)
                             
                             # 保存到缓存
                             cache_key = self._get_cache_key(text)
-                            self._cache_vector(cache_key, vector)
+                            self._cache_vector(cache_key, normalized_vector)
                             
                             # 更新结果列表
-                            embeddings[idx] = vector
+                            embeddings[idx] = normalized_vector
                             
                         except Exception as e:
                             print(f"处理文本时出错: {str(e)}")
@@ -299,6 +304,46 @@ class EmbeddingService:
             print(f"计算相似度时出错: {str(e)}")
             return 0.0
             
+    def _normalize_vector_dimension(self, vector, target_dim=None):
+        """
+        标准化向量维度至目标维度
+        如果向量维度小于目标维度，通过重复向量内容进行扩展
+        
+        Args:
+            vector: 原始向量
+            target_dim: 目标维度，默认为self.expected_dimension
+            
+        Returns:
+            标准化后的向量
+        """
+        if not vector:
+            return None
+            
+        if target_dim is None:
+            target_dim = self.expected_dimension
+            
+        current_dim = len(vector)
+        
+        # 如果已经是目标维度，直接返回
+        if current_dim == target_dim:
+            return vector
+            
+        print(f"标准化向量维度: 从{current_dim}维到{target_dim}维")
+        
+        if current_dim < target_dim:
+            # 通过重复向量内容扩展维度
+            repeats = target_dim // current_dim + 1
+            extended = vector * repeats
+            # 截断到目标维度
+            normalized = extended[:target_dim]
+            print(f"向量维度已扩展: {current_dim} -> {len(normalized)}")
+            return normalized
+        else:
+            # 如果向量维度大于目标维度，截断为目标维度
+            normalized = vector[:target_dim]
+            print(f"向量维度已截断: {current_dim} -> {len(normalized)}")
+            return normalized
+            
     def embed_single_text(self, text: str) -> Optional[List[float]]:
         """
         为单个文本生成嵌入向量（同步版本，供CLI调用）
@@ -337,11 +382,15 @@ class EmbeddingService:
                 return None
                 
             vector = result["embedding"]
+            print(f"原始向量维度: {len(vector)}")
+            
+            # 标准化向量维度
+            normalized_vector = self._normalize_vector_dimension(vector)
             
             # 保存到缓存
-            self._cache_vector(cache_key, vector)
+            self._cache_vector(cache_key, normalized_vector)
             
-            return vector
+            return normalized_vector
         except Exception as e:
             print(f"嵌入生成错误: {str(e)}")
             return None
