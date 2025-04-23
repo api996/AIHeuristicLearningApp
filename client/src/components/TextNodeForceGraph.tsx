@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import ForceGraph2D from 'react-force-graph-2d';
+import ForceGraph3D from 'react-force-graph-3d';
+import { Network } from 'lucide-react';
+import * as THREE from 'three';
+import SpriteText from 'three-spritetext';
 
 // 节点类型定义
 interface GraphNode {
@@ -11,9 +14,11 @@ interface GraphNode {
   color?: string;
   x?: number;
   y?: number;
+  z?: number;
   // 力导向图所需的属性
   fx?: number | null;
   fy?: number | null;
+  fz?: number | null;
 }
 
 // 连接类型定义
@@ -35,8 +40,8 @@ interface TextNodeForceGraphProps {
 }
 
 /**
- * 文本节点力导向图组件
- * 使用React Force Graph实现，节点使用文本标签显示而不是圆形
+ * 3D文本节点力导向图组件
+ * 使用React Force Graph 3D实现，为节点提供3D效果
  */
 const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
   nodes,
@@ -88,7 +93,9 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
         // 使用传入的颜色或基于类别的默认颜色
         color: node.color || nodeColor,
         // 节点显示大小
-        val: nodeSize
+        val: nodeSize,
+        // 确保节点有初始z坐标
+        z: node.z || Math.random() * 50 - 25
       };
     });
     
@@ -96,34 +103,28 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
     const processedLinks = links.map(link => {
       let linkColor: string;
       let linkWidth: number = 1;
-      let linkDashArray: string = "";
       
       // 根据连接类型设置样式
       switch (link.type) {
         case 'hierarchy':
           linkColor = '#4b5563';  // 层级关系 - 灰色
           linkWidth = 2;
-          linkDashArray = "";     // 实线
           break;
         case 'proximity':
           linkColor = '#6366f1';  // 相似/邻近 - 靛蓝色
           linkWidth = 1.5;
-          linkDashArray = "3, 3"; // 短虚线
           break;
         case 'semantic':
           linkColor = '#10b981';  // 语义关联 - 翠绿色
           linkWidth = 1.5;
-          linkDashArray = "5, 5"; // 中虚线
           break;
         case 'temporal':
           linkColor = '#f59e0b';  // 时间关系 - 琥珀色
           linkWidth = 1;
-          linkDashArray = "10, 5"; // 点划线
           break;
         default:
           linkColor = '#d1d5db';  // 默认 - 浅灰色
           linkWidth = 1;
-          linkDashArray = "";     // 实线
       }
       
       // 使用value属性调整线宽
@@ -133,12 +134,8 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
       
       return {
         ...link,
-        // 使用传入的颜色或基于类型的默认颜色
         color: link.color || linkColor,
-        // 设置线宽
-        width: linkWidth,
-        // 设置虚线样式
-        dashArray: linkDashArray
+        width: linkWidth
       };
     });
     
@@ -155,155 +152,73 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
     }
   }, [onNodeClick]);
   
-  // 自定义节点渲染函数 - 使用文本标签而不是圆点
-  const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const { x, y, label, val: size, color, category } = node;
+  // 自定义节点渲染函数 - 使用3D文本对象
+  const nodeThreeObject = useCallback((node: any) => {
+    // 创建一个组，用于包含所有对象
+    const group = new THREE.Group();
     
-    // 设置字体大小基于节点类型
-    let fontSize;
-    let fontWeight;
+    // 自定义节点形状，不同类别使用不同形状
+    let geometry;
+    let material;
     
-    if (category === 'cluster') {
-      fontSize = 14;
-      fontWeight = 'bold';
-    } else if (category === 'keyword') {
-      fontSize = 12;
-      fontWeight = 'normal';
-    } else {
-      fontSize = 11;
-      fontWeight = 'normal';
+    const color = new THREE.Color(node.color);
+    
+    switch(node.category) {
+      case 'cluster':
+        // 主题使用发光的球体
+        geometry = new THREE.SphereGeometry(node.val * 0.8);
+        material = new THREE.MeshLambertMaterial({ 
+          color: node.color,
+          emissive: color,
+          emissiveIntensity: 0.4,
+          transparent: true,
+          opacity: 0.8
+        });
+        break;
+      case 'keyword':
+        // 关键词使用八面体
+        geometry = new THREE.OctahedronGeometry(node.val * 0.7);
+        material = new THREE.MeshLambertMaterial({ 
+          color: node.color,
+          transparent: true,
+          opacity: 0.9
+        });
+        break;
+      case 'memory':
+        // 记忆使用立方体
+        geometry = new THREE.BoxGeometry(node.val * 0.6, node.val * 0.6, node.val * 0.6);
+        material = new THREE.MeshPhongMaterial({ 
+          color: node.color,
+          shininess: 100,
+          transparent: true,
+          opacity: 0.85
+        });
+        break;
+      default:
+        // 默认使用圆环
+        geometry = new THREE.TorusGeometry(node.val * 0.5, node.val * 0.2);
+        material = new THREE.MeshLambertMaterial({ 
+          color: node.color,
+          transparent: true,
+          opacity: 0.7
+        });
     }
     
-    // 计算适合当前缩放级别的字体大小
-    const scaledFontSize = Math.max(fontSize, fontSize / globalScale);
-    ctx.font = `${fontWeight} ${scaledFontSize}px Arial, sans-serif`;
+    // 创建形状对象并添加到组
+    const mesh = new THREE.Mesh(geometry, material);
+    group.add(mesh);
     
-    // 设置文本和测量文本尺寸
-    const text = label || node.id;
-    const textWidth = ctx.measureText(text).width;
-    const bckgDimensions = [textWidth + 10, scaledFontSize + 8].map(n => n / globalScale);
-    
-    // 绘制文本背景矩形
-    ctx.fillStyle = `${color}30`; // 30是透明度，使背景半透明
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5 / globalScale;
-    
-    // 绘制圆角矩形
-    const rectX = x - bckgDimensions[0] / 2;
-    const rectY = y - bckgDimensions[1] / 2;
-    const rectWidth = bckgDimensions[0];
-    const rectHeight = bckgDimensions[1];
-    const cornerRadius = 4 / globalScale;
-    
-    ctx.beginPath();
-    ctx.moveTo(rectX + cornerRadius, rectY);
-    ctx.lineTo(rectX + rectWidth - cornerRadius, rectY);
-    ctx.arcTo(rectX + rectWidth, rectY, rectX + rectWidth, rectY + cornerRadius, cornerRadius);
-    ctx.lineTo(rectX + rectWidth, rectY + rectHeight - cornerRadius);
-    ctx.arcTo(rectX + rectWidth, rectY + rectHeight, rectX + rectWidth - cornerRadius, rectY + rectHeight, cornerRadius);
-    ctx.lineTo(rectX + cornerRadius, rectY + rectHeight);
-    ctx.arcTo(rectX, rectY + rectHeight, rectX, rectY + rectHeight - cornerRadius, cornerRadius);
-    ctx.lineTo(rectX, rectY + cornerRadius);
-    ctx.arcTo(rectX, rectY, rectX + cornerRadius, rectY, cornerRadius);
-    ctx.closePath();
-    
-    ctx.fill();
-    ctx.stroke();
-    
-    // 绘制文本
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = color;
-    ctx.fillText(text, x, y);
-    
-    // 为主题节点添加图标
-    if (category === 'cluster') {
-      // 绘制星形图标
-      const iconSize = 7 / globalScale;
-      const iconX = x + (textWidth / 2) / globalScale + 10 / globalScale;
-      const iconY = y;
-      
-      ctx.fillStyle = '#6366f1';
-      ctx.beginPath();
-      for (let i = 0; i < 5; i++) {
-        const angle = i * Math.PI * 2 / 5 - Math.PI / 2;
-        const x1 = iconX + Math.cos(angle) * iconSize;
-        const y1 = iconY + Math.sin(angle) * iconSize;
-        if (i === 0) {
-          ctx.moveTo(x1, y1);
-        } else {
-          ctx.lineTo(x1, y1);
-        }
-      }
-      ctx.closePath();
-      ctx.fill();
-    }
-  }, []);
-  
-  // 自定义链接渲染函数
-  const linkCanvasObject = useCallback((link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const { source, target, color, width, dashArray } = link;
-    
-    if (!source || !target || !source.x || !target.x) return;
-    
-    const start = { x: source.x, y: source.y };
-    const end = { x: target.x, y: target.y };
-    
-    // 计算线宽
-    const lineWidth = width / globalScale;
-    
-    // 绘制连接线
-    ctx.beginPath();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineWidth;
-    
-    // 设置虚线样式
-    if (dashArray) {
-      const dashPattern = dashArray.split(',').map(s => parseFloat(s) / globalScale);
-      if (ctx.setLineDash) {
-        ctx.setLineDash(dashPattern);
-      }
-    } else {
-      if (ctx.setLineDash) {
-        ctx.setLineDash([]);
-      }
+    // 为较大节点创建文本精灵
+    const isLargeNode = node.val > 10;
+    if (isLargeNode || node.category === 'cluster') {
+      const sprite = new SpriteText(node.label);
+      sprite.color = node.color;
+      sprite.textHeight = node.category === 'cluster' ? 8 : 5;
+      sprite.position.set(0, node.val * 1.2, 0);
+      group.add(sprite);
     }
     
-    // 使用二次曲线绘制连接，增加曲率以提高可读性
-    const midX = (start.x + end.x) / 2;
-    const midY = (start.y + end.y) / 2;
-    const ctrlX = midX + 20 / globalScale;
-    const ctrlY = midY;
-    
-    ctx.moveTo(start.x, start.y);
-    ctx.quadraticCurveTo(ctrlX, ctrlY, end.x, end.y);
-    ctx.stroke();
-    
-    // 绘制箭头
-    const headLength = 10 / globalScale;
-    const headWidth = 5 / globalScale;
-    
-    // 计算箭头方向
-    const dx = end.x - ctrlX;
-    const dy = end.y - ctrlY;
-    const angle = Math.atan2(dy, dx);
-    
-    // 计算箭头位置（在目标点附近但不重叠）
-    const arrowX = end.x - headLength * Math.cos(angle);
-    const arrowY = end.y - headLength * Math.sin(angle);
-    
-    // 绘制箭头
-    ctx.beginPath();
-    ctx.moveTo(arrowX - headLength * Math.cos(angle - Math.PI / 6), arrowY - headLength * Math.sin(angle - Math.PI / 6));
-    ctx.lineTo(end.x, end.y);
-    ctx.lineTo(arrowX - headLength * Math.cos(angle + Math.PI / 6), arrowY - headLength * Math.sin(angle + Math.PI / 6));
-    ctx.fillStyle = color;
-    ctx.fill();
-    
-    // 恢复默认的线型
-    if (ctx.setLineDash) {
-      ctx.setLineDash([]);
-    }
+    return group;
   }, []);
   
   // 当组件挂载后，调整图表
@@ -322,42 +237,40 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
         return 150;
       });
       
-      // 添加碰撞避免力，防止节点重叠
-      graphRef.current.d3Force('collide', (node: any) => {
-        return node.category === 'cluster' ? 80 : 60;
-      });
-      
-      // 避免使用所有屏幕空间，集中布局
-      graphRef.current.d3Force('center').strength(0.05);
-      
       // 初始缩放到合适比例
-      graphRef.current.zoom(1.2, 600);
+      setTimeout(() => {
+        graphRef.current.cameraPosition({ z: 250 }, { x: 0, y: 0, z: 0 }, 1000);
+      }, 500);
     }
   }, [graphData]);
   
   return (
-    <div className="text-node-force-graph-container" style={{ width, height, overflow: 'hidden' }}>
-      {graphData.nodes.length > 0 && (
-        <ForceGraph2D
+    <div className="text-node-force-graph-container relative" style={{ width, height, overflow: 'hidden' }}>
+      {graphData.nodes.length > 0 ? (
+        <ForceGraph3D
           ref={graphRef}
           width={width}
           height={height}
           graphData={graphData}
-          nodeLabel="label"
-          nodeVal="val"
-          nodeColor="color"
-          nodeCanvasObject={nodeCanvasObject}
-          nodeCanvasObjectMode={() => 'replace'}
-          linkCanvasObjectMode={() => 'replace'}
-          linkCanvasObject={linkCanvasObject}
+          nodeThreeObject={nodeThreeObject}
+          nodeThreeObjectExtend={false}
           linkColor="color"
           linkWidth="width"
-          backgroundColor="transparent"
+          linkOpacity={0.6}
+          backgroundColor="rgba(0,0,0,0)"
           onNodeClick={handleNodeClick}
-          cooldownTicks={100}
-          cooldownTime={10000}
-          warmupTicks={50}
+          showNavInfo={false}
+          enableNodeDrag={true}
+          enableNavigationControls={true}
+          controlType="orbit"
         />
+      ) : (
+        <div className="flex items-center justify-center h-full">
+          <div className="flex items-center text-gray-400">
+            <Network className="mr-2" /> 
+            加载中...
+          </div>
+        </div>
       )}
     </div>
   );
