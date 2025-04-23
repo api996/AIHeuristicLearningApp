@@ -201,53 +201,21 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     }
   }, [onBackgroundClick]);
   
-  // 设置移动设备上性能相关配置 - 优化配置以提高交互性
+  // 设置移动设备上性能相关配置
   const getMobileConfig = useCallback(() => {
     if (isMobile) {
       return {
-        cooldownTicks: 30,       // 减少物理模拟计算量
-        cooldownTime: 2000,      // 缩短布局稳定时间
-        warmupTicks: 5,          // 减少预热时间
+        cooldownTicks: 50,       // 减少物理模拟计算量
+        cooldownTime: 3000,      // 缩短布局稳定时间
+        warmupTicks: 10,         // 减少预热时间
         linkDirectionalParticles: 0, // 禁用粒子效果以提高性能
-        linkDirectionalArrowLength: 0, // 禁用箭头
-        linkDirectionalArrowRelPos: 0, // 禁用箭头位置
-        nodeRelSize: 10,         // 增大节点相对尺寸
-        d3AlphaDecay: 0.02,      // 更快的布局收敛
-        d3VelocityDecay: 0.1,    // 更灵活的节点运动
-        dagMode: null,           // 禁用有向无环图模式
-        dagLevelDistance: 0,     // 禁用层级距离
-        dagNodeFilter: null,     // 禁用节点过滤
-        rendererConfig: {
-          precision: 'lowp',     // 低精度渲染以提高性能
-          antialias: false,      // 禁用抗锯齿以提高性能
-          alpha: true,           // 启用透明通道
-          preserveDrawingBuffer: false, // 不保留绘图缓冲区
-        },
-        minZoom: 0.5,            // 设置最小缩放
-        maxZoom: 3,              // 设置最大缩放
-        enableZoomInteraction: true, // 启用缩放交互
-        enableNodeDrag: true,    // 启用节点拖拽
-        enablePanInteraction: true, // 启用平移交互
       };
     } else {
       return {
-        cooldownTicks: 80,       // 为桌面设备保留更多的物理模拟
-        cooldownTime: 8000,      // 更长的布局稳定时间
-        warmupTicks: 30,         // 更多的预热时间
+        cooldownTicks: 100,
+        cooldownTime: 15000,
+        warmupTicks: 50,
         linkDirectionalParticles: 2, // 在桌面上启用粒子效果
-        linkDirectionalParticleWidth: 2, // 粒子宽度
-        linkDirectionalParticleSpeed: 0.005, // 粒子速度
-        nodeRelSize: 8,          // 节点相对大小
-        d3AlphaDecay: 0.015,     // 正常的布局收敛
-        d3VelocityDecay: 0.08,   // 更平滑的节点运动
-        rendererConfig: {
-          precision: 'mediump',  // 中等精度渲染
-          antialias: true,       // 启用抗锯齿
-          alpha: true,           // 启用透明通道
-          preserveDrawingBuffer: true, // 保留绘图缓冲区以便截图
-        },
-        minZoom: 0.3,            // 设置最小缩放
-        maxZoom: 5,              // 设置最大缩放
       };
     }
   }, [isMobile]);
@@ -327,7 +295,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     }
   }, [highlightedNodeId]);
   
-  // 链接标签渲染 - 完全重写以增强可点击性
+  // 链接标签渲染
   const linkCanvasObject = useCallback((link: GraphLink & {source: any; target: any; width: number}, ctx: CanvasRenderingContext2D, globalScale: number) => {
     // 获取连接的源和目标节点
     const sourceNode = graphData.nodes.find(n => n.id === link.source.id || n.id === link.source);
@@ -339,101 +307,76 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     const start = { x: sourceNode.x || 0, y: sourceNode.y || 0 };
     const end = { x: targetNode.x || 0, y: targetNode.y || 0 };
     
-    // 计算中点
-    const midX = (start.x + end.x) / 2;
-    const midY = (start.y + end.y) / 2;
+    // 计算线宽 - 增加边宽度，让其更容易被点击
+    const width = Math.max(2.5, link.width) / globalScale;
     
-    // 确定连接宽度 - 大幅增加 (关键改动)
-    const width = Math.max(5, (link.width || 1)) / globalScale;
+    // 计算发光效果的宽度 - 增加可点击区域
+    const glowWidth = width + 6 / globalScale;
     
-    // 设置连接颜色
-    const color = link.color || 'rgba(100, 100, 100, 0.7)';
-    
-    // 检查是否是当前高亮的连接
+    // 区分悬停状态的链接
     const isHighlighted = highlightedLink && 
       ((typeof highlightedLink.source === 'string' ? highlightedLink.source : highlightedLink.source) === (typeof link.source === 'object' ? link.source.id : link.source)) && 
       ((typeof highlightedLink.target === 'string' ? highlightedLink.target : highlightedLink.target) === (typeof link.target === 'object' ? link.target.id : link.target));
     
-    // 绘制隐形的更宽的线用于检测点击 (关键改动)
-    // 这条线是完全透明的，但会增加连接的可点击区域
+    // 绘制互动提示发光效果
     ctx.beginPath();
-    ctx.strokeStyle = 'rgba(0,0,0,0)'; // 完全透明
-    ctx.lineWidth = width * 4; // 非常宽的点击区域
+    // 使用默认颜色或link.color
+    const color = link.color || 'rgba(100, 100, 100, 0.7)';
+    // 如果是高亮连接，使用更亮的发光效果
+    ctx.strokeStyle = isHighlighted ? color.replace(/[\d.]+\)$/, '0.6)') : color.replace(/[\d.]+\)$/, '0.3)');
+    // 增加触摸区域
+    ctx.lineWidth = isHighlighted ? glowWidth * 1.5 : glowWidth;
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
     
-    // 绘制连接的主线
+    // 绘制主线
     ctx.beginPath();
+    // 高亮状态下增加对比度
     ctx.strokeStyle = isHighlighted ? color.replace(/[\d.]+\)$/, '0.9)') : color;
-    ctx.lineWidth = isHighlighted ? width * 1.5 : width;
+    ctx.lineWidth = isHighlighted ? width * 1.3 : width;
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
     
-    // 绘制中点指示器 (强化视觉提示)
-    // 明显增大中点指示器尺寸并添加动画效果
-    const dotSize = (isHighlighted ? 15 : 10) / globalScale;
+    // 计算中点 - 为所有连接添加可视提示
+    const midX = (start.x + end.x) / 2;
+    const midY = (start.y + end.y) / 2;
     
-    // 绘制一个更大的外圈以增加可点击区域
-    ctx.beginPath();
-    ctx.arc(midX, midY, dotSize * 1.5, 0, 2 * Math.PI);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.01)'; // 几乎透明
-    ctx.fill();
-    
-    // 绘制交互指示点 - 使用明亮的颜色使其明显可见
-    ctx.beginPath();
-    ctx.arc(midX, midY, dotSize, 0, 2 * Math.PI);
-    
-    // 对于高亮连接使用白色加发光效果，否则使用半透明白色
-    if (isHighlighted) {
-      // 添加发光效果
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    } else {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    // 如果是高亮状态或缩放足够，绘制交互提示点
+    if (isHighlighted || globalScale > 0.4) {
+      // 绘制一个小圆点表示可点击
+      ctx.beginPath();
+      ctx.arc(midX, midY, isHighlighted ? 4 / globalScale : 3 / globalScale, 0, 2 * Math.PI);
+      ctx.fillStyle = isHighlighted ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.6)';
+      ctx.fill();
+      
+      // 如果高亮，再加一个边框
+      if (isHighlighted) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1 / globalScale;
+        ctx.stroke();
+      }
     }
     
-    ctx.fill();
-    ctx.shadowBlur = 0; // 重置阴影效果
-    
-    // 中心点添加边框使其更明显
-    ctx.beginPath();
-    ctx.arc(midX, midY, dotSize, 0, 2 * Math.PI);
-    ctx.strokeStyle = color.replace(/[\d.]+\)$/, '0.9)');
-    ctx.lineWidth = 2 / globalScale;
-    ctx.stroke();
-    
-    // 仅在悬停或缩放足够大时显示标签
+    // 如果有关系标签并且缩放比例适合显示文本，则在连接中间添加标签
     if ((link.label || link.type) && (isHighlighted || globalScale > 0.6)) {
       // 显示关系标签
       const labelText = link.label || link.type || "相关";
       
-      // 使用更大更明显的字体
-      const fontSize = isHighlighted ? 16 : 14;
+      // 设置字体
+      const fontSize = isHighlighted ? 14 : 12;
       const scaledFontSize = Math.max(fontSize, fontSize / globalScale);
       ctx.font = `${isHighlighted ? 'bold' : 'normal'} ${scaledFontSize}px Arial`;
       
-      // 为标签添加背景使其更明显
+      // 为标签添加背景
       const textWidth = ctx.measureText(labelText).width;
-      const bckgDimensions = [textWidth + 16, scaledFontSize + 10].map(n => n / globalScale);
+      const bckgDimensions = [textWidth + 8, scaledFontSize + 4].map(n => n / globalScale);
       
-      // 带有边框的标签背景
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillStyle = isHighlighted ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.7)';
       ctx.fillRect(
         midX - bckgDimensions[0] / 2,
-        midY - bckgDimensions[1] / 2 - dotSize - (bckgDimensions[1] / 2), // 将标签放在点的上方
-        bckgDimensions[0],
-        bckgDimensions[1]
-      );
-      
-      // 添加边框使标签更明显
-      ctx.strokeStyle = color.replace(/[\d.]+\)$/, '0.6)');
-      ctx.lineWidth = 1 / globalScale;
-      ctx.strokeRect(
-        midX - bckgDimensions[0] / 2,
-        midY - bckgDimensions[1] / 2 - dotSize - (bckgDimensions[1] / 2),
+        midY - bckgDimensions[1] / 2,
         bckgDimensions[0],
         bckgDimensions[1]
       );
@@ -442,20 +385,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = 'white';
-      ctx.fillText(
-        labelText,
-        midX,
-        midY - dotSize - (bckgDimensions[1] / 2)
-      );
-    }
-    
-    // 在中点文字提示点击功能
-    if (isHighlighted && globalScale > 0.5) {
-      ctx.font = `${12 / globalScale}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'white';
-      ctx.fillText("点击查看", midX, midY + dotSize + (12 / globalScale));
+      ctx.fillText(labelText, midX, midY);
     }
   }, [graphData, highlightedLink]);
   
