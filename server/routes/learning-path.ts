@@ -10,7 +10,7 @@ import {
   clusterMemories
 } from '../services/learning';
 import { memoryService } from '../services/learning/memory_service';
-import { generateUserKnowledgeGraph } from '../services/learning/knowledge_graph';
+import { buildUserKnowledgeGraph } from '../services/learning/topic_graph_builder';
 import { log } from '../vite';
 import { utils } from '../utils';
 import { spawn } from 'child_process';
@@ -257,8 +257,8 @@ router.get('/:userId/knowledge-graph', async (req, res) => {
       log(`[API] 正常获取用户 ${userId} 的知识图谱，将优先使用缓存`);
     }
     
-    // 生成知识图谱 (内部实现已修改为优先使用缓存)
-    const knowledgeGraph = await generateUserKnowledgeGraph(userId, refresh);
+    // 生成知识图谱 (使用增强版的topic_graph_builder实现)
+    const knowledgeGraph = await buildUserKnowledgeGraph(userId, refresh);
     
     // 添加时间戳版本，帮助区分不同版本的数据
     const response = {
