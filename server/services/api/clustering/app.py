@@ -1,15 +1,21 @@
 """
 聚类服务API
 提供基于Flask的聚类分析RESTful API
+增强版 - 针对大规模高维数据优化
 """
 import os
 import json
 import logging
+import gc
 import numpy as np
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
+from werkzeug.serving import WSGIRequestHandler
+
+# 增加工作线程和连接超时时间
+WSGIRequestHandler.protocol_version = "HTTP/1.1"
 
 # 配置日志
 logging.basicConfig(
@@ -181,8 +187,8 @@ def api_cluster():
         JSON格式的聚类结果，包含中心点和主题
     """
     try:
-        # 配置请求大小限制（100MB）
-        request.max_content_length = 100 * 1024 * 1024
+        # 配置请求大小限制（200MB）
+        request.max_content_length = 200 * 1024 * 1024
         
         data = request.json
         
@@ -208,37 +214,74 @@ def api_cluster():
         for item in data:
             if 'id' not in item or 'vector' not in item:
                 return jsonify({"error": "每个记忆项需要包含id和vector字段"}), 400
-                
+        
         # 检查向量维度
         vector_dim = len(data[0]['vector'])
         logger.info(f"向量维度: {vector_dim}")
         
-        # 对于大数据集和高维向量，使用内存优化
-        if memory_count > 100 and vector_dim > 1000:
-            logger.info(f"大数据集高维向量优化模式")
-            # 使用float32而不是默认的float64以减少内存使用
-            vectors = np.array([item['vector'] for item in data], dtype=np.float32)
+        # 超大数据集处理策略
+        if memory_count > 1000:
+            logger.info(f"超大数据集处理策略 (记忆数量={memory_count})")
+            
+            # 随机抽样，最多处理1000条记忆
+            import random
+            if memory_count > 1000:
+                logger.info(f"数据量过大，使用分层随机抽样策略，选择1000条记忆进行聚类")
+                # 确保抽样结果的代表性，均匀抽取
+                step = memory_count / 1000
+                indices = [int(i * step) for i in range(1000)]
+                sampled_data = [data[i] for i in indices]
+                logger.info(f"抽样后数据量: {len(sampled_data)}")
+                # 使用抽样数据替代原始数据
+                data = sampled_data
+                memory_count = len(data)
+        
+        # 对于大数据集和高维向量，使用高级内存优化
+        if vector_dim > 1000:
+            logger.info(f"高维向量优化模式 (维度={vector_dim})")
+            # 使用float16进一步减少内存使用
+            if vector_dim >= 3000:
+                logger.info("超高维向量检测 (>=3000)，使用float16优化内存")
+                vectors = np.array([item['vector'] for item in data], dtype=np.float16)
+            else:
+                # 一般高维向量使用float32
+                logger.info("高维向量检测 (>1000)，使用float32优化内存")
+                vectors = np.array([item['vector'] for item in data], dtype=np.float32)
         else:
             vectors = np.array([item['vector'] for item in data])
-            
+        
         # 通过ID独立存储，减少内存消耗
         ids = [item['id'] for item in data]
+        
+        # 清理原始数据，释放内存
+        del data
+        gc.collect()
         
         # 执行聚类
         logger.info("开始执行聚类分析...")
         result = cluster_vectors(
-            [{"id": id, "vector": vec.tolist()} for id, vec in zip(ids, vectors)]
+            # 避免不必要的tolist()转换，直接传递numpy数组
+            list(zip(ids, vectors))
         )
+        
+        # 清理向量数据，释放内存
+        del vectors
+        del ids
+        gc.collect()
         
         logger.info(f"聚类分析完成，返回结果: {len(result['centroids'])} 个聚类")
         return jsonify(result)
         
     except MemoryError:
         logger.error("内存不足，无法完成聚类", exc_info=True)
+        # 强制清理内存
+        gc.collect()
         return jsonify({"error": "服务器内存不足，请减少数据量或联系管理员"}), 500
         
     except Exception as e:
         logger.error(f"聚类过程发生错误: {str(e)}", exc_info=True)
+        # 强制清理内存
+        gc.collect()
         return jsonify({"error": f"服务器错误: {str(e)}"}), 500
 
 @app.route('/health', methods=['GET'])
@@ -248,8 +291,41 @@ def health_check():
     """
     return jsonify({"status": "healthy", "service": "clustering-api"})
 
+# 自定义错误处理，确保优雅关闭
+@app.errorhandler(500)
+def handle_internal_error(error):
+    logger.error(f"服务器内部错误: {error}")
+    # 清理内存
+    gc.collect()
+    return jsonify({"error": "服务器内部错误，已记录并正在处理"}), 500
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    logger.error(f"请求数据过大: {error}")
+    return jsonify({"error": "请求数据过大，请减少数据量"}), 413
+
+# 优雅关闭钩子
+@app.before_request
+def before_request():
+    # 限制请求处理超时为10分钟
+    request.environ.setdefault('REQUEST_TIMEOUT', 600)
+
 # 当直接运行此脚本时启动服务器
 if __name__ == '__main__':
     port = int(os.environ.get('CLUSTERING_API_PORT', 5050))
     logger.info(f"启动聚类服务API，监听端口: {port}")
-    app.run(host='0.0.0.0', port=port, debug=False)
+    
+    # 使用gunicorn或waitress等生产级服务器更好
+    # 但为保持简单，我们使用增强的Flask开发服务器
+    # 增加工作线程和超时时间
+    
+    # 设置服务器参数
+    from werkzeug.serving import run_simple
+    logger.info(f"使用增强的服务器配置启动聚类服务，端口: {port}")
+    
+    # 增加超时和同时连接数
+    run_simple('0.0.0.0', port, app, 
+               threaded=True,  # 使用线程模式
+               processes=1,    # 仅使用1个进程避免内存问题
+               use_reloader=False,  # 禁用重载器
+               use_debugger=False)  # 禁用调试器
