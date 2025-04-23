@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
+import { clearKnowledgeGraphCache } from "../lib/knowledge-graph-preloader";
 
 interface User {
   userId: number;
@@ -108,6 +109,10 @@ export const useAuth = () => {
       });
       
       if (response.ok) {
+        // 在设置新用户之前清除所有知识图谱缓存
+        clearKnowledgeGraphCache();
+        console.log('[useAuth] 登录时清除所有知识图谱缓存');
+        
         // 服务器确认用户有效，保存到本地
         localStorage.setItem("user", JSON.stringify(userData));
         setUser(userData);
@@ -152,6 +157,10 @@ export const useAuth = () => {
     } catch (error) {
       console.error("服务器登出请求失败:", error);
     } finally {
+      // 清除知识图谱缓存
+      clearKnowledgeGraphCache();
+      console.log('[useAuth] 登出时清除所有知识图谱缓存');
+      
       // 无论服务器响应如何，都清除本地状态
       localStorage.removeItem("user");
       setUser(null);
