@@ -510,7 +510,8 @@ async def vector_based_clustering(memories_with_embeddings: List[Dict[str, Any]]
 
 def determine_optimal_clusters(vectors: np.ndarray) -> int:
     """
-    使用轮廓系数确定最佳聚类数量
+    根据向量数量动态确定最佳聚类数量
+    不再使用轮廓系数，而是直接根据向量数量和预设规则确定
     
     参数:
         vectors: 向量数据数组
@@ -519,81 +520,69 @@ def determine_optimal_clusters(vectors: np.ndarray) -> int:
         int: 最佳聚类数量
     """
     try:
-        # 如果样本太少，直接返回小值
+        # 获取样本数量
         n_samples = len(vectors)
-        if n_samples <= 5:
-            return max(2, n_samples - 1)  # 至少2个，最多n-1个
-            
-        # 设置可能的聚类数范围
-        max_clusters = min(15, n_samples // 2)  # 不超过样本数的一半且不超过15
-        min_clusters = 2  # 至少2个聚类
+        logger.info(f"确定最佳聚类数 - 样本数量: {n_samples}")
         
-        if max_clusters <= min_clusters:
+        # 如果样本太少，直接返回小值
+        if n_samples <= 10:
+            min_clusters = max(2, n_samples // 2)
+            logger.info(f"样本数量较少 ({n_samples}), 使用少量聚类: {min_clusters}")
             return min_clusters
-        
-        # 计算轮廓系数
-        silhouette_scores = []
-        distortions = []
-        K = range(min_clusters, max_clusters + 1)
-        
-        # 对于每个可能的k值
-        for k in K:
-            try:
-                kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
-                labels = kmeans.fit_predict(vectors)
-                distortions.append(kmeans.inertia_)
-                
-                # 计算轮廓系数
-                if k > 1 and n_samples > k:
-                    try:
-                        silhouette_avg = silhouette_score(vectors, labels)
-                        silhouette_scores.append(silhouette_avg)
-                        logger.info(f"聚类数 k={k}, 轮廓系数: {silhouette_avg:.3f}")
-                    except Exception as e:
-                        logger.warning(f"计算轮廓系数时出错 (k={k}): {e}")
-                        silhouette_scores.append(-1)  # 错误情况使用无效值
-                else:
-                    silhouette_scores.append(-1)  # k=1时轮廓系数无意义
-            except Exception as e:
-                logger.warning(f"k={k} 时K-means聚类失败: {e}")
-                silhouette_scores.append(-1)
-                distortions.append(float('inf'))
-                continue
-        
-        # 没有得到有效结果时的后备选项
-        if not any(score > 0 for score in silhouette_scores):
-            logger.warning("无法计算有效的轮廓系数，回退到使用畸变度评估")
-            if len(distortions) > 2:
-                # 使用肘部法则：通过畸变度的一阶差分变化率确定
-                drops = np.diff(distortions) / np.array(distortions[:-1])
-                elbow_index = np.argmax(drops) if np.any(drops > 0.5) else 0
-                optimal_k = min_clusters + elbow_index
-                logger.info(f"根据畸变度变化率确定最佳聚类数: k={optimal_k}")
-            else:
-                optimal_k = min(5, max(2, n_samples // 10))
-                logger.info(f"使用默认聚类数: k={optimal_k}")
-            return optimal_k
-        
-        # 找到轮廓系数最大的k值
-        valid_scores = [(i, score) for i, score in enumerate(silhouette_scores) if score > 0]
-        if valid_scores:
-            best_index, best_score = max(valid_scores, key=lambda x: x[1])
-            optimal_k = min_clusters + best_index
-            logger.info(f"轮廓系数最大的聚类数: k={optimal_k}, 轮廓系数: {best_score:.3f}")
             
-            # 确保结果在有效范围内
-            optimal_k = max(min_clusters, min(optimal_k, max_clusters))
-            return optimal_k
+        # ===== 新算法: 根据样本数量直接确定聚类数 =====
+        
+        # 对于大量向量(400+)，强制使用较多的聚类中心
+        if n_samples >= 400:
+            forced_min_clusters = 30
+            logger.info(f"大数据集: 强制使用至少 {forced_min_clusters} 个聚类中心")
+            
+            # 使用向量数量的1/10作为初始聚类数
+            dynamic_clusters = n_samples // 10
+            logger.info(f"大数据集: 动态计算的聚类数(1/10): {dynamic_clusters}")
+            
+            # 取强制最小值和动态计算值的较大者
+            initial_clusters = max(forced_min_clusters, dynamic_clusters)
+        
+        # 对于中等数量向量(100-400)
+        elif n_samples >= 100:
+            forced_min_clusters = 15
+            logger.info(f"中等数据集: 使用至少 {forced_min_clusters} 个聚类中心")
+            
+            # 使用向量数量的1/8作为初始聚类数
+            dynamic_clusters = n_samples // 8
+            logger.info(f"中等数据集: 动态计算的聚类数(1/8): {dynamic_clusters}")
+            
+            # 取强制最小值和动态计算值的较大者
+            initial_clusters = max(forced_min_clusters, dynamic_clusters)
+        
+        # 对于小数据集
         else:
-            # 兜底策略
-            optimal_k = min(5, max(2, n_samples // 10))
-            logger.info(f"无有效轮廓系数，使用默认聚类数: k={optimal_k}")
-            return optimal_k
-            
+            # 使用向量数量的1/5作为聚类数，但至少8个
+            initial_clusters = max(8, n_samples // 5)
+            logger.info(f"小数据集: 使用 {initial_clusters} 个聚类中心(1/5, 最小8)")
+        
+        # 确保聚类数不超过样本数的一半
+        max_clusters = n_samples // 2
+        if initial_clusters > max_clusters:
+            logger.info(f"聚类数 {initial_clusters} 超过样本数一半({max_clusters})，调整为 {max_clusters}")
+            initial_clusters = max_clusters
+        
+        # 设置绝对最小聚类数阈值，确保图谱不会太稀疏
+        absolute_min_clusters = 10
+        if initial_clusters < absolute_min_clusters and n_samples >= absolute_min_clusters * 2:
+            logger.info(f"将聚类数从 {initial_clusters} 调整到最小值 {absolute_min_clusters}")
+            initial_clusters = absolute_min_clusters
+        
+        logger.info(f"最终确定的聚类数: {initial_clusters}")
+        return initial_clusters
+        
     except Exception as e:
-        logger.error(f"确定最佳聚类数量时出错: {e}")
-        # 错误情况下的默认值
-        return min(5, max(2, len(vectors) // 10))
+        logger.error(f"确定最佳聚类数出错: {e}")
+        # 出错时返回一个合理的默认值，数据量越大聚类数越多
+        default_clusters = min(25, max(10, len(vectors) // 20))
+        logger.info(f"使用默认聚类数: {default_clusters}")
+        return default_clusters
 
 async def time_based_clustering(memories: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
