@@ -535,6 +535,122 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     setSelectedLink(null);
   }, []);
   
+  // 添加自定义点击事件处理
+  useEffect(() => {
+    if (graphRef.current) {
+      // 获取canvas元素
+      const canvas = graphRef.current.canvas();
+      if (!canvas) return;
+      
+      // 添加自定义点击事件
+      const handleCanvasClick = (event: MouseEvent) => {
+        const graphInstance = graphRef.current;
+        if (!graphInstance) return;
+        
+        // 获取画布位置
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        
+        // 将屏幕坐标转换为图形坐标
+        const pos = graphInstance.screen2GraphCoords(x, y);
+        
+        // 检查点击是否在连接上
+        // 获取所有连接
+        const links = graphData.links;
+        
+        let closestLink: any = null;
+        let minDistance = Infinity;
+        let minMidPointDistance = Infinity;
+        
+        links.forEach((link: any) => {
+          // 获取源节点和目标节点
+          const sourceNode = typeof link.source === 'object' ? link.source : 
+            graphData.nodes.find((n: any) => n.id === link.source);
+          
+          const targetNode = typeof link.target === 'object' ? link.target : 
+            graphData.nodes.find((n: any) => n.id === link.target);
+          
+          if (!sourceNode || !targetNode) return;
+          
+          // 计算源和目标的位置
+          const source = { x: sourceNode.x || 0, y: sourceNode.y || 0 };
+          const target = { x: targetNode.x || 0, y: targetNode.y || 0 };
+          
+          // 计算中点
+          const midPoint = {
+            x: (source.x + target.x) / 2,
+            y: (source.y + target.y) / 2
+          };
+          
+          // 计算点击点到中点的距离
+          const midPointDist = Math.sqrt(
+            Math.pow(pos.x - midPoint.x, 2) + 
+            Math.pow(pos.y - midPoint.y, 2)
+          );
+          
+          // 特别判断中点附近的点击 (优先检查中点)
+          if (midPointDist < 20 && midPointDist < minMidPointDistance) {
+            closestLink = link;
+            minMidPointDistance = midPointDist;
+            return; // 如果点击在中点附近，立即选择该连接
+          }
+          
+          // 计算点击点到线段的距离 (备用方案)
+          // 源自: https://stackoverflow.com/questions/849211
+          const a = pos.x - source.x;
+          const b = pos.y - source.y;
+          const c = target.x - source.x;
+          const d = target.y - source.y;
+          
+          const dot = a * c + b * d;
+          const len_sq = c * c + d * d;
+          let param = -1;
+          
+          if (len_sq !== 0) param = dot / len_sq;
+          
+          let xx, yy;
+          
+          if (param < 0) {
+            xx = source.x;
+            yy = source.y;
+          } else if (param > 1) {
+            xx = target.x;
+            yy = target.y;
+          } else {
+            xx = source.x + param * c;
+            yy = source.y + param * d;
+          }
+          
+          const dx = pos.x - xx;
+          const dy = pos.y - yy;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          // 如果距离小于阈值且小于当前最小距离
+          if (distance < 15 && distance < minDistance) {
+            closestLink = link;
+            minDistance = distance;
+          }
+        });
+        
+        // 如果找到最近的连接，触发点击事件
+        if (closestLink) {
+          console.log("自定义点击检测：检测到连接点击", closestLink);
+          handleLinkClick(closestLink);
+          event.stopPropagation(); // 阻止事件冒泡
+        }
+      };
+      
+      // 添加点击事件监听器
+      canvas.addEventListener('click', handleCanvasClick);
+      
+      // 在组件卸载时移除事件监听器
+      return () => {
+        canvas.removeEventListener('click', handleCanvasClick);
+      };
+    }
+  }, [graphData, handleLinkClick]);
+  
   return (
     <div className="knowledge-graph-container">
       {graphData.nodes.length > 0 && (
@@ -553,9 +669,10 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
           linkWidth="width"
           backgroundColor="#111827"
           onNodeClick={handleNodeClick}
-          onLinkClick={handleLinkClick as any}
           onLinkHover={handleLinkHover as any}
           onBackgroundClick={handleBackgroundClick}
+          linkHoverPrecision={8}    // 增加链接悬停检测精度
+          enablePointerInteraction={true}
           {...getMobileConfig()}
         />
       )}
