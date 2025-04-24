@@ -31,33 +31,81 @@ export class ClusterCacheService {
    */
   async getUserClusterResults(userId: number, forceRefresh: boolean = false): Promise<any> {
     try {
+      // 特殊处理管理员用户
+      if (userId === 1) {
+        log(`[ClusterCache] 跳过管理员用户(ID=1)的聚类处理`);
+        return {}; // 返回空结果
+      }
+      
       // 如果强制刷新，直接跳过缓存检查
       if (!forceRefresh) {
-        // 尝试从缓存获取
-        const cachedResult = await storage.getClusterResultCache(userId);
-        if (cachedResult) {
-          // 检查是否需要更新缓存
-          const shouldRefresh = await this.shouldRefreshCache(userId, cachedResult);
-          
-          if (!shouldRefresh) {
-            log(`[ClusterCache] 使用缓存的聚类结果，用户ID=${userId}，包含${cachedResult.clusterCount}个聚类`);
-            return cachedResult.clusterData;
+        try {
+          // 尝试从缓存获取
+          const cachedResult = await storage.getClusterResultCache(userId);
+          if (cachedResult && cachedResult.clusterData) {
+            // 检查缓存是否有效
+            const clusterData = cachedResult.clusterData;
+            const hasValidData = clusterData && 
+                               typeof clusterData === 'object' && 
+                               Object.keys(clusterData).length > 0;
+            
+            if (hasValidData) {
+              // 检查是否需要更新缓存
+              const shouldRefresh = await this.shouldRefreshCache(userId, cachedResult);
+              
+              if (!shouldRefresh) {
+                log(`[ClusterCache] 使用缓存的聚类结果，用户ID=${userId}，包含${cachedResult.clusterCount}个聚类`);
+                
+                // 检查结果是否有合理的主题
+                const hasValidTopics = Object.values(clusterData).some((cluster: any) => 
+                  cluster.topic && cluster.topic.length > 0 && !cluster.topic.startsWith('聚类')
+                );
+                
+                if (hasValidTopics) {
+                  log(`[ClusterCache] 用户${userId}的缓存聚类结果包含有效的主题名称`);
+                  return clusterData;
+                } else {
+                  log(`[ClusterCache] 用户${userId}的缓存聚类结果不包含有效的主题名称，将重新生成`, "warn");
+                }
+              } else {
+                log(`[ClusterCache] 用户${userId}的聚类结果需要更新，将重新计算`);
+              }
+            } else {
+              log(`[ClusterCache] 用户${userId}的聚类缓存数据无效，将重新生成`, "warn");
+            }
+          } else {
+            log(`[ClusterCache] 未找到用户${userId}的聚类结果缓存，将执行聚类`);
           }
-          
-          log(`[ClusterCache] 用户${userId}的聚类结果需要更新，将重新计算`);
-        } else {
-          log(`[ClusterCache] 未找到用户${userId}的聚类结果缓存，将执行聚类`);
+        } catch (cacheError) {
+          log(`[ClusterCache] 获取缓存出错: ${cacheError}，将执行新的聚类`, "warn");
         }
       } else {
         log(`[ClusterCache] 强制刷新用户${userId}的聚类结果`);
       }
       
       // 执行聚类并缓存结果
-      return await this.performClusteringAndCache(userId);
+      const result = await this.performClusteringAndCache(userId);
       
+      // 检查聚类结果是否有意义
+      if (result && Object.keys(result).length > 0) {
+        // 计算有多少有效主题名称
+        const validTopics = Object.values(result).filter((cluster: any) => 
+          cluster.topic && cluster.topic.length > 0 && !cluster.topic.startsWith('聚类')
+        );
+        
+        const validTopicCount = validTopics.length;
+        const totalTopicCount = Object.keys(result).length;
+        
+        log(`[ClusterCache] 用户${userId}的聚类结果有${validTopicCount}/${totalTopicCount}个有效主题名称`);
+      } else {
+        log(`[ClusterCache] 用户${userId}的聚类结果为空或无效`, "warn");
+      }
+      
+      return result;
     } catch (error) {
       log(`[ClusterCache] 获取聚类结果出错: ${error}`, "error");
-      throw error;
+      // 返回空结果而不是抛出异常，避免影响后续流程
+      return {};
     }
   }
   
@@ -203,6 +251,9 @@ export class ClusterCacheService {
       // 获取用户的所有记忆
       const memories = await storage.getMemoriesByUserId(userId);
       
+      // 显示详细日志，帮助诊断
+      log(`[ClusterCache] 用户${userId}总记忆数量: ${memories.length}`);
+      
       // 如果记忆数量不足，返回空结果
       if (memories.length < 5) {
         log(`[ClusterCache] 用户${userId}的记忆数量不足(${memories.length})，返回空聚类结果`);
@@ -214,6 +265,7 @@ export class ClusterCacheService {
       
       // 批量获取记忆的嵌入向量
       const embeddingsMap = await storage.getEmbeddingsByMemoryIds(memoryIds);
+      log(`[ClusterCache] 用户${userId}检索到的嵌入向量数量: ${Object.keys(embeddingsMap).length}`);
       
       // 过滤出有向量的记忆
       const memoriesWithEmbeddings = memories.filter(m => embeddingsMap[m.id]);
@@ -240,17 +292,37 @@ export class ClusterCacheService {
       log(`[ClusterCache] 为用户${userId}执行Python聚类，记忆数量=${memoriesData.length}`);
       const result = await this.executePythonClustering(memoriesData);
       
+      if (!result || Object.keys(result).length === 0) {
+        log(`[ClusterCache] 用户${userId}的聚类结果为空，可能是聚类算法没有找到簇`);
+        return {};
+      }
+      
+      log(`[ClusterCache] 用户${userId}聚类成功，获得${Object.keys(result).length}个聚类`);
+      
       // 聚类结果增强：为每个聚类生成主题
       const enhancedResult = await this.enhanceClusterResults(result, memoriesData);
       
-      // 缓存聚类结果
-      await this.cacheClusterResult(userId, enhancedResult, memoriesData.length);
+      if (!enhancedResult || Object.keys(enhancedResult).length === 0) {
+        log(`[ClusterCache] 用户${userId}的增强结果为空，跳过缓存操作`);
+        return result; // 返回原始结果，至少保留一些数据
+      }
+      
+      try {
+        // 缓存聚类结果
+        await this.cacheClusterResult(userId, enhancedResult, memoriesData.length);
+        log(`[ClusterCache] 用户${userId}的聚类结果已成功缓存`);
+      } catch (cacheError) {
+        // 缓存失败不影响返回结果
+        log(`[ClusterCache] 缓存用户${userId}的聚类结果失败: ${cacheError}`, "error");
+        log(`[ClusterCache] 继续返回未缓存的聚类结果`);
+      }
       
       // 返回增强后的聚类结果
       return enhancedResult;
     } catch (error) {
       log(`[ClusterCache] 执行聚类出错: ${error}`, "error");
-      throw error;
+      // 返回空结果而不是抛出异常，以避免整个聚类过程失败
+      return {};
     }
   }
   
@@ -461,22 +533,62 @@ export class ClusterCacheService {
    */
   private async cacheClusterResult(userId: number, clusterResult: any, vectorCount: number): Promise<void> {
     try {
+      // 如果结果为空或无效，不进行缓存
+      if (!clusterResult || Object.keys(clusterResult).length === 0) {
+        log(`[ClusterCache] 聚类结果为空，跳过用户${userId}的缓存操作`);
+        return;
+      }
+      
+      // 检查结果是否包含有效数据
+      const hasValidTopics = Object.values(clusterResult).some((cluster: any) => 
+        cluster.topic && cluster.topic.length > 0 && cluster.topic !== `聚类${Object.keys(clusterResult).indexOf(cluster as any)}`
+      );
+      
+      if (!hasValidTopics) {
+        log(`[ClusterCache] 聚类结果没有有效主题，可能是主题生成失败，跳过用户${userId}的缓存操作`, "warn");
+        return;
+      }
+      
       // 计算聚类数量
       const clusterCount = Object.keys(clusterResult).length;
       
-      // 保存到缓存
-      await storage.saveClusterResultCache(
-        userId,
-        clusterResult,
-        clusterCount,
-        vectorCount,
-        this.cacheExpiryHours
-      );
+      // 打印详细日志，帮助诊断问题
+      log(`[ClusterCache] 准备缓存用户${userId}的聚类结果，包含${clusterCount}个聚类，${vectorCount}个向量`);
+      for (const [clusterId, cluster] of Object.entries(clusterResult)) {
+        const c = cluster as any;
+        log(`[ClusterCache] - 聚类${clusterId}: 主题="${c.topic || '未知'}", 包含${c.memory_ids?.length || 0}条记忆`);
+      }
       
-      log(`[ClusterCache] 成功缓存用户${userId}的聚类结果，包含${clusterCount}个聚类，${vectorCount}个向量，有效期${this.cacheExpiryHours}小时`);
+      // 保存到缓存（添加重试逻辑）
+      const maxRetries = 2;
+      let retries = 0;
+      let saved = false;
+      
+      while (retries <= maxRetries && !saved) {
+        try {
+          await storage.saveClusterResultCache(
+            userId,
+            clusterResult,
+            clusterCount,
+            vectorCount,
+            this.cacheExpiryHours
+          );
+          saved = true;
+          log(`[ClusterCache] 成功缓存用户${userId}的聚类结果，包含${clusterCount}个聚类，${vectorCount}个向量，有效期${this.cacheExpiryHours}小时`);
+        } catch (saveError) {
+          retries++;
+          if (retries <= maxRetries) {
+            log(`[ClusterCache] 缓存聚类结果失败 (尝试 ${retries}/${maxRetries}): ${saveError}`, "warn");
+            await new Promise(resolve => setTimeout(resolve, 500)); // 延迟重试
+          } else {
+            throw saveError; // 重试用尽，向上抛出错误
+          }
+        }
+      }
     } catch (error) {
       log(`[ClusterCache] 缓存聚类结果时出错: ${error}`, "error");
-      // 出错时不抛出异常，因为这只是缓存操作
+      // 为了调试目的，将错误向上抛出
+      throw new Error(`保存聚类缓存时出错: ${error}`);
     }
   }
   
