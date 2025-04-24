@@ -446,6 +446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           log(`用户 ${userId} 的记忆数据不足 (${memories?.length || 0} 条)，返回空结果`);
           return res.json({
             topics: [],
+            distribution: [], // 添加学习分布字段
             progress: [],
             suggestions: [
               "尚未收集到足够的学习数据",
@@ -615,6 +616,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           return res.json({
             topics: topicData,
+            distribution: topicData.map(item => ({
+              topic: item.topic,
+              percentage: item.percentage
+            })),
+            // 为了保持兼容性，仍然保留progress字段
             progress: topicData.map(item => ({
               topic: item.topic,
               percentage: item.percentage
