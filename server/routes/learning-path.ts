@@ -372,8 +372,59 @@ router.get('/:userId/refresh-cache', async (req, res) => {
     // 清除学习轨迹数据
     await storage.clearLearningPath(userId);
     
+    // 先获取聚类结果，以获取真实的标签
+    const memoryService = (await import('../services/learning/memory_service')).memoryService;
+    const memories = await storage.getMemoriesByUserId(userId);
+    
+    // 使用memoryService获取聚类数据
+    const clusterResult = await memoryService.analyzeMemoryClusters(userId, memories as any, [], true);
+    
     // 强制刷新聚类和学习轨迹
     const result = await analyzeLearningPath(userId, true);
+    
+    // 如果获取到了聚类数据，替换结果中的通用主题名称
+    if (clusterResult && clusterResult.topics && clusterResult.topics.length > 0) {
+      log(`[API] 获取到 ${clusterResult.topics.length} 个聚类，替换通用主题名称`);
+      
+      // 创建一个映射，将索引映射到聚类标签
+      const clusterLabels = new Map();
+      clusterResult.topics.forEach((cluster: any, index: number) => {
+        // 使用cluster.label或cluster.topic作为主题名称
+        const topicName = cluster.label || cluster.topic || `集群 ${index}`;
+        clusterLabels.set(index, topicName);
+        log(`[API] 聚类 ${index}: ${topicName}`);
+      });
+      
+      // 替换result.topics中的通用名称
+      if (result.topics && result.topics.length > 0) {
+        const updatedTopics = result.topics.map((topic, index) => {
+          if (/^主题 \d+$/.test(topic.topic) && clusterLabels.has(index)) {
+            return {
+              ...topic,
+              topic: clusterLabels.get(index)
+            };
+          }
+          return topic;
+        });
+        
+        // 用更新后的主题覆盖原始主题
+        result.topics = updatedTopics;
+        
+        // 保存更新后的学习轨迹
+        try {
+          await storage.saveLearningPath(
+            userId,
+            updatedTopics,
+            updatedTopics, // 使用updatedTopics作为分布数据
+            result.suggestions,
+            {nodes: result.nodes, links: result.links}
+          );
+          log(`[API] 已保存更新后的学习轨迹，包含真实主题名称`);
+        } catch (saveError) {
+          log(`[API] 保存更新后的学习轨迹时出错: ${saveError}`);
+        }
+      }
+    }
     
     res.json({ 
       success: true, 
