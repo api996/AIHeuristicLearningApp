@@ -671,10 +671,36 @@ ${textSummaryB}
 
 /**
  * 将关系类型转换为前端图谱可用的关系类型
- * @param relationType 关系类型（前置知识、包含关系、应用关系、相似概念、互补知识、无直接关系）
+ * @param relationType 关系类型（中文或英文标识符）
  * @returns 标准化的关系类型
  */
 function normalizeRelationType(relationType: string): {type: string, value: number} {
+  // 如果输入已经是标准英文标识符，直接使用它
+  const standardTypes = [
+    'prerequisite', 'contains', 'applies', 'similar', 
+    'complements', 'references', 'related', 'unrelated'
+  ];
+  
+  if (standardTypes.includes(relationType)) {
+    // 根据类型分配一个默认强度值
+    const valueMap: Record<string, number> = {
+      'prerequisite': 0.9,
+      'contains': 0.8,
+      'references': 0.7,
+      'applies': 0.7,
+      'similar': 0.6,
+      'complements': 0.5,
+      'related': 0.4,
+      'unrelated': 0.2
+    };
+    
+    return { 
+      type: relationType, 
+      value: valueMap[relationType] || 0.4 
+    };
+  }
+  
+  // 处理中文名称
   switch (relationType) {
     case '前置知识':
       return { type: 'prerequisite', value: 0.9 };
@@ -701,6 +727,8 @@ function normalizeRelationType(relationType: string): {type: string, value: numb
     case '相关概念':
       return { type: 'related', value: 0.4 };
     default:
+      // 无法识别的类型默认为相关
+      console.log(`【警告】未识别的关系类型: ${relationType}，使用默认关系类型 "related"`);
       return { type: 'related', value: 0.4 };
   }
 }
