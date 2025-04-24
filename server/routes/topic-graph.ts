@@ -8,6 +8,27 @@ import { testTopicGraphBuilder } from '../services/learning/topic_graph_builder'
 
 const router = express.Router();
 
+// 诊断API - 用于显示合并操作的具体信息
+router.get('/diagnose-api', (req, res) => {
+  try {
+    log(`[TopicGraph] 运行主题图谱诊断API`);
+    
+    return res.json({
+      success: true,
+      status: "merged",
+      message: "主题图谱已成功与知识图谱合并，所有请求将重定向到知识图谱API",
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        original: "/api/topic-graph/:userId",
+        redirectTarget: "/api/learning-path/:userId/knowledge-graph" 
+      }
+    });
+  } catch (error) {
+    log(`[TopicGraph] 主题图谱诊断失败: ${error}`);
+    return res.status(500).json({ error: '主题图谱诊断失败' });
+  }
+});
+
 // 获取用户智能主题图谱 - 重定向到知识图谱API
 router.get('/:userId', async (req, res) => {
   try {
@@ -78,27 +99,6 @@ router.post('/:userId/refresh', async (req, res) => {
   } catch (error) {
     log(`[TopicGraph] 重定向主题图谱刷新请求失败: ${error}`);
     return res.status(500).json({ error: '刷新主题图谱失败，重定向异常' });
-  }
-});
-
-// 诊断API - 用于显示合并操作的具体信息
-router.get('/diagnose-api', (req, res) => {
-  try {
-    log(`[TopicGraph] 运行主题图谱诊断API`);
-    
-    return res.json({
-      success: true,
-      status: "merged",
-      message: "主题图谱已成功与知识图谱合并，所有请求将重定向到知识图谱API",
-      timestamp: new Date().toISOString(),
-      endpoints: {
-        original: "/api/topic-graph/:userId",
-        redirectTarget: "/api/learning-path/:userId/knowledge-graph" 
-      }
-    });
-  } catch (error) {
-    log(`[TopicGraph] 主题图谱诊断失败: ${error}`);
-    return res.status(500).json({ error: '主题图谱诊断失败' });
   }
 });
 
