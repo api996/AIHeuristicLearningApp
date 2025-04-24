@@ -23,10 +23,19 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
  */
 async function callGeminiModel(prompt: string, options: { model: string }): Promise<string> {
   try {
+    // 确保使用正确的模型名称，默认回退到gemini-1.5-flash
     const modelName = options.model === 'gemini-2.0-flash' ? 'gemini-1.5-flash' : options.model;
+    log(`[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
+    
     const model = genAI.getGenerativeModel({ model: modelName });
     
-    const result = await model.generateContent({
+    // 添加安全超时处理
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("API调用超时(15秒)")), 15000);
+    });
+    
+    // 实际API调用
+    const apiPromise = model.generateContent({
       contents: [{
         role: 'user',
         parts: [{ text: prompt }]
@@ -39,10 +48,21 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
       }
     });
     
-    return result.response.text().trim();
+    // 使用Promise.race实现超时保护
+    const result = await Promise.race([apiPromise, timeoutPromise]);
+    const responseText = result.response.text().trim();
+    
+    // 记录成功响应的前100个字符，避免日志过长
+    log(`[TopicGraphBuilder] 模型响应成功，返回内容前100字符: ${responseText.substring(0, 100)}...`);
+    return responseText;
   } catch (error) {
-    log(`[TopicGraphBuilder] Gemini API调用失败: ${error}`);
-    return `调用失败: ${error}`;
+    // 更详细的错误记录
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log(`[TopicGraphBuilder] Gemini API调用失败: ${errorMessage}`);
+    log(`[TopicGraphBuilder] 错误详情: ${JSON.stringify(error)}`);
+    
+    // 返回更具体的错误信息
+    return `调用失败: API请求出错 - ${errorMessage}`;
   }
 }
 
@@ -323,27 +343,91 @@ ${textSummaryB}
 仅返回JSON格式数据，无需任何其他解释或前缀。`;
 
         try {
+          // 添加更多提示和调试信息
+          log(`[TopicGraphBuilder] 为主题对 "${A}" <-> "${B}" 分析关系`);
+          
           const resp = await callGeminiModel(prompt, { model: 'gemini-1.5-flash' });
-          log(`[TopicGraphBuilder] 主题关系分析原始响应: ${resp}`);
+          
+          // 检查API调用是否返回错误消息
+          if (resp.startsWith('调用失败:')) {
+            log(`[TopicGraphBuilder] API调用返回错误: ${resp}`);
+            throw new Error(resp);
+          }
+          
+          // 记录更短的响应摘要，避免日志过大
+          const respSummary = resp.length > 200 ? resp.substring(0, 200) + '...' : resp;
+          log(`[TopicGraphBuilder] 主题关系分析原始响应: ${respSummary}`);
           
           // 尝试解析JSON响应
           let relationData;
           try {
-            // 查找JSON对象
-            const jsonMatch = resp.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              relationData = JSON.parse(jsonMatch[0]);
+            // 查找最完整的JSON对象，使用贪婪匹配
+            const jsonMatch = resp.match(/\{[\s\S]*?\}/g);
+            if (jsonMatch && jsonMatch.length > 0) {
+              // 尝试解析找到的每个JSON对象，取最完整的一个
+              let bestMatch = null;
+              let bestScore = 0;
+              
+              for (const match of jsonMatch) {
+                try {
+                  const parsed = JSON.parse(match);
+                  // 评分标准：包含的必要字段越多，分数越高
+                  let score = 0;
+                  if (parsed.relationType) score += 2;
+                  if (parsed.strength) score += 1;
+                  if (parsed.learningOrder) score += 1;
+                  if (parsed.explanation) score += 1;
+                  
+                  if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = parsed;
+                  }
+                } catch (e) {
+                  // 跳过无效的JSON
+                  continue;
+                }
+              }
+              
+              if (bestMatch) {
+                relationData = bestMatch;
+                log(`[TopicGraphBuilder] 成功找到并解析JSON，评分=${bestScore}`);
+              } else {
+                throw new Error("找到JSON结构但解析失败");
+              }
             } else {
-              throw new Error("未找到有效的JSON数据");
+              // 如果找不到完整的JSON，尝试使用更宽松的匹配
+              // 寻找包含关键字段的部分 - 可能是格式不完全正确的JSON
+              if (resp.includes('relationType') && resp.includes('strength')) {
+                // 尝试清理和修复JSON格式
+                const cleanedJson = resp
+                  .replace(/[\r\n]+/g, ' ')        // 移除换行符
+                  .replace(/,\s*\}/g, '}')         // 修复末尾逗号
+                  .replace(/([{,])\s*([a-zA-Z0-9_]+):/g, '$1"$2":') // 为无引号键名添加引号
+                  .replace(/:\s*'([^']*)'/g, ':"$1"')   // 将单引号替换为双引号
+                  .match(/\{[\s\S]*?\}/);          // 重新匹配可能的JSON
+                
+                if (cleanedJson) {
+                  try {
+                    relationData = JSON.parse(cleanedJson[0]);
+                    log(`[TopicGraphBuilder] JSON格式修复成功`);
+                  } catch (e) {
+                    throw new Error(`清理后的JSON仍然无效: ${e.message}`);
+                  }
+                } else {
+                  throw new Error("清理后仍未找到有效的JSON数据");
+                }
+              } else {
+                throw new Error("响应中未找到预期的JSON数据结构");
+              }
             }
           } catch (jsonError) {
             log(`[TopicGraphBuilder] JSON解析错误: ${jsonError}, 尝试结构化提取`);
             
             // 使用正则表达式提取信息
-            const typeMatch = resp.match(/"relationType":\s*"([^"]*)"/);
-            const strengthMatch = resp.match(/"strength":\s*(\d+)/);
-            const orderMatch = resp.match(/"learningOrder":\s*"([^"]*)"/);
-            const explanationMatch = resp.match(/"explanation":\s*"([^"]*)"/);
+            const typeMatch = resp.match(/(?:"relationType"|relationType):\s*"?([^",\s}]*)["']?/i);
+            const strengthMatch = resp.match(/(?:"strength"|strength):\s*(\d+)/i);
+            const orderMatch = resp.match(/(?:"learningOrder"|learningOrder):\s*"?([^",\s}]*)["']?/i);
+            const explanationMatch = resp.match(/(?:"explanation"|explanation):\s*"?([^",}]{3,100})["']?/i);
             
             relationData = {
               relationType: typeMatch ? typeMatch[1] : "相关概念",
@@ -351,6 +435,8 @@ ${textSummaryB}
               learningOrder: orderMatch ? orderMatch[1] : "可同时学习",
               explanation: explanationMatch ? explanationMatch[1] : "主题间存在知识关联"
             };
+            
+            log(`[TopicGraphBuilder] 使用正则提取的结果: ${JSON.stringify(relationData)}`);
           }
           
           // 规范化关系类型并映射到英文类型标识符(与前端一致)
