@@ -74,7 +74,6 @@ async function getTimeStampMemoriesWithoutEmbeddings() {
     WHERE me.id IS NULL
     AND m.content IS NOT NULL
     AND length(m.content) > 10
-    AND m.id ~ '^\\d{20}$'
     ORDER BY m.created_at DESC
     LIMIT 50
   `;
