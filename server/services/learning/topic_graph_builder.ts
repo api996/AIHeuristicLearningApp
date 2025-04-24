@@ -185,9 +185,14 @@ function extractKeywordsFromTexts(texts: string[]): string[] {
  * 提取两两主题间的关系
  * @param topics 主题列表
  * @param centerTexts 聚类中心的文本内容，用于深度分析
+ * @param topicMetadata 主题的元数据，包括聚类ID等额外信息
  * @returns 主题间的关系列表
  */
-async function extractRelations(topics: string[], centerTexts?: Record<string, string[]>): Promise<Relation[]> {
+async function extractRelations(
+  topics: string[], 
+  centerTexts?: Record<string, string[]>,
+  topicMetadata?: Record<string, any>
+): Promise<Relation[]> {
   const rels: Relation[] = [];
   
   try {
@@ -239,43 +244,78 @@ async function extractRelations(topics: string[], centerTexts?: Record<string, s
     
     // 处理每一对主题
     for (const [A, B] of pairs) {
-      // 准备文本摘要，如果有的话
+      // 准备文本摘要和元数据，增强上下文
       let textSummaryA = "";
       let textSummaryB = "";
+      let metadataA = "";
+      let metadataB = "";
       
+      // 提取文本数据
       if (centerTexts) {
         const textsA = centerTexts[A] || [];
         const textsB = centerTexts[B] || [];
         
         if (textsA.length > 0) {
-          textSummaryA = `主题A的相关文本摘要:\n${textsA.slice(0, 2).join('\n')}\n`;
+          // 增加到最多3段文本，提供更丰富的上下文
+          textSummaryA = `主题A的相关文本摘要:\n${textsA.slice(0, 3).join('\n\n---\n\n')}\n`;
         }
         
         if (textsB.length > 0) {
-          textSummaryB = `主题B的相关文本摘要:\n${textsB.slice(0, 2).join('\n')}\n`;
+          textSummaryB = `主题B的相关文本摘要:\n${textsB.slice(0, 3).join('\n\n---\n\n')}\n`;
+        }
+      }
+      
+      // 添加元数据，如果有的话
+      if (topicMetadata) {
+        const metaA = topicMetadata[A];
+        const metaB = topicMetadata[B];
+        
+        if (metaA) {
+          metadataA = `主题A元数据: 聚类ID=${metaA.clusterId || 'unknown'}, 文本数量=${metaA.textCount || 0}\n`;
+        }
+        
+        if (metaB) {
+          metadataB = `主题B元数据: 聚类ID=${metaB.clusterId || 'unknown'}, 文本数量=${metaB.textCount || 0}\n`;
         }
       }
       
       const prompt = `
-分析以下两个学习主题之间的知识关系，进行深入分析:
+作为知识关系分析专家，请分析以下两个学习主题之间的关系，提供详尽的知识图谱连接分析:
 
 主题A: ${A}
+${metadataA}
 主题B: ${B}
+${metadataB}
+
 ${textSummaryA}
 ${textSummaryB}
 
-请分析以下几个方面:
-1. 关系类型: 从[前置知识、包含关系、应用关系、相似概念、互补知识、无直接关系]中选择最合适的一个
-2. 关系强度: 从1-10中选择一个数字，1表示关系非常弱，10表示关系非常强
-3. 学习顺序: 如果这两个主题有学习顺序，应该先学习哪个，再学习哪个
-4. 关系说明: 用1-2句话简明扼要地解释两个主题之间的关系
+请深入分析这两个主题之间的知识关系，特别关注以下几个方面:
 
-输出格式:
+1. 关系类型(必选一项):
+   - 前置知识: 一个主题是另一个的基础，学习顺序明确
+   - 包含关系: 一个主题是另一个的子集或超集
+   - 应用关系: 一个主题的知识应用于另一个主题
+   - 相似概念: 两个主题有显著相似之处
+   - 互补知识: 两个主题相互补充，共同构成更完整的知识体系
+   - 无直接关系: 主题间没有明显联系
+
+2. 关系强度: 从1(非常弱)到10(非常强)评分
+
+3. 学习顺序建议:
+   - 应该先学习哪个主题，再学习哪个？
+   - 如果可以同时学习，请明确说明
+
+4. 关系描述:
+   - 用1-2句话简明扼要地解释这两个主题之间的具体关系
+
+请按以下JSON格式输出结果，不要包含额外的说明或文本:
 {
   "relationType": "关系类型",
   "strength": 数字(1-10),
   "learningOrder": "先学A后学B" 或 "先学B后学A" 或 "可同时学习",
-  "explanation": "关系说明"
+  "explanation": "关系说明",
+  "bidirectional": true或false  // 关系是否双向
 }
 
 仅返回JSON格式数据，无需任何其他解释或前缀。`;
@@ -407,14 +447,26 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
     
     log(`[TopicGraphBuilder] 提取的主题: ${topics.join(', ')}`);
     
-    // 为深度分析准备文本内容映射
+    // 为深度分析准备文本内容映射，增强上下文信息
     const topicTextsMap: Record<string, string[]> = {};
+    const topicMetadataMap: Record<string, any> = {};
+    
     topics.forEach((topic, index) => {
-      topicTextsMap[topic] = centers[index].texts.slice(0, 3); // 每个主题最多取3段文本
+      // 每个主题最多取5段文本，增加上下文内容
+      topicTextsMap[topic] = centers[index].texts.slice(0, 5);
+      
+      // 保存每个主题的元数据，包括聚类ID、中心向量等可用信息
+      topicMetadataMap[topic] = {
+        clusterId: centers[index].id,
+        textCount: centers[index].texts.length,
+        // 如果有其他元数据，可以在这里添加
+      };
     });
     
-    // 2. 提取主题间的关系，提供文本内容以便更深入的分析
-    const relations = await extractRelations(topics, topicTextsMap);
+    log(`[TopicGraphBuilder] 为关系分析准备了 ${Object.keys(topicTextsMap).length} 个主题的上下文数据，每个主题包含最多5段文本`);
+    
+    // 2. 提取主题间的关系，提供增强的文本内容和元数据以便更深入的分析
+    const relations = await extractRelations(topics, topicTextsMap, topicMetadataMap);
     
     log(`[TopicGraphBuilder] 提取了 ${relations.length} 个主题关系`);
     
