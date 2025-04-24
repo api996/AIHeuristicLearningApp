@@ -67,11 +67,12 @@ export default function KnowledgeGraphPage() {
         setIsLoading(true);
         setError(null); // 重置错误状态
         
-        // 直接使用预加载器获取数据，它会处理缓存逻辑
-        const data = await preloadGraphData(userId as number, 'knowledge');
+        // 测试统一图谱加载器 - 使用"topic"类型参数，应该被重定向到知识图谱API
+        console.log("【测试】有意使用'topic'类型请求，验证统一路由重定向");
+        const data = await preloadGraphData(userId as number, 'topic');
         
         if (isMounted && data && Array.isArray(data.nodes)) {
-          console.log(`知识图谱数据节点数: ${data.nodes.length}, 连接数: ${data.links.length}`);
+          console.log(`【测试结果】成功通过统一路由器接收到知识图谱数据: ${data.nodes.length}个节点, ${data.links.length}个连接`);
           setGraphData(data);
         } else if (isMounted) {
           console.warn('知识图谱数据可能存在问题:', data);
@@ -106,12 +107,14 @@ export default function KnowledgeGraphPage() {
       setIsLoading(true);
       setError(null); // 重置错误状态
       
-      // 清除缓存
+      // 清除缓存 - 清除两种类型的缓存以验证统一
       clearGraphCache(userId as number, 'knowledge');
-      console.log('已清除缓存，正在刷新知识图谱数据...');
+      clearGraphCache(userId as number, 'topic');
+      console.log('【测试】已清除两种类型的缓存，开始测试强制刷新主题图谱请求重定向...');
       
-      // 直接使用预加载器的强制刷新模式
-      const data = await preloadGraphData(userId as number, 'knowledge', true);
+      // 使用Topic类型测试重定向
+      console.log("【测试】有意使用'topic'类型请求强制刷新，验证统一路由重定向");
+      const data = await preloadGraphData(userId as number, 'topic', true);
       
       // 验证数据结构
       if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
@@ -119,10 +122,10 @@ export default function KnowledgeGraphPage() {
         throw new Error('知识图谱数据格式无效');
       }
       
-      console.log(`刷新成功: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+      console.log(`【测试结果】成功通过统一路由器获取强制刷新知识图谱数据: ${data.nodes.length}个节点, ${data.links.length}个连接`);
       setGraphData(data);
     } catch (err: any) {
-      console.error('刷新知识图谱失败:', err);
+      console.error('刷新图谱失败:', err);
       setError('刷新数据失败: ' + (err?.message || '未知错误'));
     } finally {
       setIsLoading(false);
