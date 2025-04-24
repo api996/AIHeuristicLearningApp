@@ -18,6 +18,7 @@ import { clusterMemories, calculateTopicRelations } from './cluster';
 import { db } from '../../db';
 import { memories } from '@shared/schema';
 import { eq } from 'drizzle-orm';
+import { storage } from '../../storage';
 
 /**
  * 将文件系统格式的记忆ID映射到数据库ID
@@ -60,17 +61,107 @@ async function mapMemoryIdToDbId(fileSystemId: string): Promise<string> {
  * 分析用户的学习轨迹
  * 
  * @param userId 用户ID
+ * @param forceRefresh 是否强制刷新分析结果
  * @returns 学习轨迹分析结果
  */
-export async function analyzeLearningPath(userId: number): Promise<LearningPathResult> {
+export async function analyzeLearningPath(userId: number, forceRefresh: boolean = false): Promise<LearningPathResult> {
   try {
-    log(`[trajectory] 开始分析用户 ${userId} 的学习轨迹`);
+    log(`[trajectory] 开始分析用户 ${userId} 的学习轨迹${forceRefresh ? '（强制刷新）' : ''}`);
     
-    // 直接使用JavaScript实现，不再尝试调用Python服务
+    // 首先尝试从数据库获取现有的学习轨迹
+    if (!forceRefresh) {
+      try {
+        const savedLearningPath = await storage.getLearningPath(userId);
+        if (savedLearningPath) {
+          log(`[trajectory] 从数据库中找到用户 ${userId} 的学习轨迹数据，版本：${savedLearningPath.version}`);
+          
+          // 构造返回结果
+          const result: LearningPathResult = {
+            // 必须提供 topics 和 suggestions，否则会使用默认值
+            topics: Array.isArray(savedLearningPath.topics) ? savedLearningPath.topics : [],
+            suggestions: Array.isArray(savedLearningPath.suggestions) ? savedLearningPath.suggestions : [],
+            progress: [], // 进度数据会根据分布重新构建
+            nodes: [],
+            links: []
+          };
+          
+          // 如果有主题分布数据，转换为进度数据格式
+          if (savedLearningPath.distribution && Array.isArray(savedLearningPath.distribution)) {
+            result.progress = savedLearningPath.distribution.map((item: any) => ({
+              category: item.topic,
+              score: item.percentage,
+              change: 0 // 暂无变化数据
+            }));
+          }
+          
+          // 如果有知识图谱数据，添加到结果中
+          if (savedLearningPath.knowledgeGraph && typeof savedLearningPath.knowledgeGraph === 'object') {
+            const graph = savedLearningPath.knowledgeGraph as any;
+            if (graph.nodes && Array.isArray(graph.nodes)) {
+              result.nodes = graph.nodes;
+            }
+            if (graph.links && Array.isArray(graph.links)) {
+              result.links = graph.links;
+            }
+          }
+          
+          // 使用分布数据填充结果对象中的distribution字段（向后兼容用）
+          if (savedLearningPath.distribution) {
+            // @ts-ignore - 添加额外字段以保持后向兼容性
+            result.distribution = savedLearningPath.distribution;
+          }
+          
+          log(`[trajectory] 成功加载用户 ${userId} 的学习轨迹，包含 ${result.topics.length} 个主题和 ${result.suggestions.length} 条建议`);
+          return result;
+        } else {
+          log(`[trajectory] 数据库中未找到用户 ${userId} 的学习轨迹数据，将生成新数据`);
+        }
+      } catch (dbError) {
+        log(`[trajectory] 从数据库获取学习轨迹时出错: ${dbError}，将生成新数据`);
+      }
+    } else {
+      log(`[trajectory] 强制刷新模式，将为用户 ${userId} 生成新的学习轨迹数据`);
+    }
+    
+    // 如果没有找到现有数据，或者需要强制刷新，则生成新数据
     try {
-      // 使用备用方法生成学习轨迹
-      log(`[trajectory] 直接使用JS生成学习轨迹，不再调用Python服务`);
+      // 生成新的学习轨迹
+      log(`[trajectory] 生成用户 ${userId} 的新学习轨迹数据`);
       const result = await generateLearningPathFromMemories(userId);
+      
+      // 将新生成的轨迹数据保存到数据库
+      try {
+        if (result && result.topics && result.topics.length > 0) {
+          // 准备图谱数据
+          const knowledgeGraph = {
+            nodes: result.nodes || [],
+            links: result.links || []
+          };
+          
+          // 保存到数据库
+          await storage.saveLearningPath(
+            userId,
+            result.topics,
+            result.topics, // 使用topics作为分布数据
+            result.suggestions,
+            knowledgeGraph
+          );
+          
+          log(`[trajectory] 已将用户 ${userId} 的学习轨迹数据保存到数据库，包含 ${result.topics.length} 个主题`);
+        } else {
+          log(`[trajectory] 用户 ${userId} 的学习轨迹数据不完整，不保存到数据库`);
+        }
+      } catch (saveError) {
+        log(`[trajectory] 保存学习轨迹数据到数据库时出错: ${saveError}`);
+        // 保存失败不影响返回结果
+      }
+      
+      // 添加分布数据（向后兼容）
+      if (result.topics && result.topics.length > 0) {
+        // @ts-ignore - 添加额外字段以保持后向兼容性
+        result.distribution = result.topics;
+      }
+      
       return result;
     } catch (error) {
       log(`[trajectory] 生成学习轨迹失败: ${error}`);
@@ -89,19 +180,61 @@ export async function analyzeLearningPath(userId: number): Promise<LearningPathR
  * 
  * @param userId 用户ID
  * @param context 上下文信息
+ * @param forceRefresh 是否强制刷新建议
  * @returns 学习建议列表
  */
 export async function generateSuggestions(
   userId: number,
-  context?: string
+  context?: string,
+  forceRefresh: boolean = false
 ): Promise<string[]> {
   try {
-    // 获取现有的学习轨迹分析
-    const pathAnalysis = await analyzeLearningPath(userId);
+    // 获取现有的学习轨迹分析，使用相同的forceRefresh参数
+    const pathAnalysis = await analyzeLearningPath(userId, forceRefresh);
     
     // 如果分析结果已包含建议，直接返回
     if (pathAnalysis.suggestions && pathAnalysis.suggestions.length > 0) {
       return pathAnalysis.suggestions;
+    }
+    
+    // 如果没有生成建议，尝试基于轨迹生成
+    if (pathAnalysis.topics && pathAnalysis.topics.length > 0) {
+      try {
+        // 如果有主题数据但没有建议，尝试生成建议并更新数据库
+        const generatedSuggestions = [
+          `深入探索${pathAnalysis.topics[0].topic}主题的更多内容`,
+          "尝试将已学知识应用到实际问题中去",
+          "探索不同主题之间的关联和联系",
+          "回顾已学内容，加深理解和记忆",
+          "尝试从不同角度理解复杂概念"
+        ];
+        
+        // 更新数据库中的建议数据
+        try {
+          const savedPath = await storage.getLearningPath(userId);
+          if (savedPath) {
+            // 更新建议，确保使用正确的类型
+            const topics = Array.isArray(savedPath.topics) ? savedPath.topics : [];
+            const distribution = Array.isArray(savedPath.distribution) ? savedPath.distribution : [];
+            
+            await storage.saveLearningPath(
+              userId,
+              topics,
+              distribution,
+              generatedSuggestions,
+              savedPath.knowledgeGraph || undefined
+            );
+            log(`[trajectory] 已更新用户 ${userId} 的学习建议`);
+          }
+        } catch (updateError) {
+          log(`[trajectory] 更新学习建议时出错: ${updateError}`);
+          // 错误不影响返回结果
+        }
+        
+        return generatedSuggestions;
+      } catch (genError) {
+        log(`[trajectory] 基于主题生成建议时出错: ${genError}`);
+      }
     }
     
     // 否则生成默认建议
