@@ -446,8 +446,9 @@ router.get('/:userId/regenerate-with-meaningful-names', async (req, res) => {
 /**
  * 测试路由 - 强制刷新用户的聚类结果
  * GET /api/learning-path/:userId/refresh-cache
+ * POST /api/learning-path/:userId/refresh-cache
  */
-router.get('/:userId/refresh-cache', async (req, res) => {
+router.post('/:userId/refresh-cache', async (req, res) => {
   try {
     const userId = utils.safeParseInt(req.params.userId);
     
