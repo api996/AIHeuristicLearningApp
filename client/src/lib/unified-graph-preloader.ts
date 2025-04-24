@@ -88,6 +88,9 @@ export async function preloadGraphData(
   const promise = forceRefresh
     ? fetchKnowledgeGraphDataForceRefresh(userId)
     : fetchKnowledgeGraphData(userId);
+    
+  // 输出日志确认所有图谱请求都指向知识图谱API
+  console.log(`统一调用: ${graphType}图谱请求 -> 知识图谱API`);
   
   pendingPromises.set(cacheKey, promise);
   
@@ -308,8 +311,38 @@ async function fetchKnowledgeGraphDataForceRefresh(userId: number): Promise<Grap
  * @returns 承诺主题图谱数据（实际上是知识图谱数据）
  */
 async function fetchTopicGraphData(userId: number): Promise<GraphData> {
-  console.log("主题图谱功能现已与知识图谱合并，使用知识图谱API代替");
-  return fetchKnowledgeGraphData(userId);
+  console.log("【统一请求】主题图谱请求被重定向到知识图谱API");
+  
+  // 直接调用知识图谱API，完全移除主题图谱概念
+  try {
+    const response = await fetch(`/api/learning-path/${userId}/knowledge-graph`, {
+      headers: {
+        'Cache-Control': 'max-age=300' // 5分钟缓存
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`获取知识图谱失败: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // 验证数据结构有效性
+    if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
+      console.error("收到无效的知识图谱数据格式:", data);
+      throw new Error("知识图谱数据格式无效");
+    }
+    
+    console.log("【统一图谱】成功获取知识图谱数据替代主题图谱:", data.nodes.length, "个节点");
+    
+    // 处理边的类型和颜色
+    processLinkColors(data);
+    
+    return data;
+  } catch (error) {
+    console.error("【统一图谱】获取替代主题图谱的知识图谱数据失败:", error);
+    throw error;
+  }
 }
 
 /**
@@ -318,8 +351,40 @@ async function fetchTopicGraphData(userId: number): Promise<GraphData> {
  * @returns 承诺主题图谱数据（实际上是知识图谱数据）
  */
 async function fetchTopicGraphDataForceRefresh(userId: number): Promise<GraphData> {
-  console.log("主题图谱功能现已与知识图谱合并，使用知识图谱API代替");
-  return fetchKnowledgeGraphDataForceRefresh(userId);
+  console.log("【统一请求】带强制刷新的主题图谱请求被重定向到知识图谱API");
+  
+  // 直接调用知识图谱强制刷新API，完全移除主题图谱概念
+  try {
+    const timestamp = Date.now();
+    const response = await fetch(`/api/learning-path/${userId}/knowledge-graph?refresh=true&t=${timestamp}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`强制刷新获取知识图谱失败: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // 验证数据结构有效性
+    if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
+      console.error("刷新后收到无效的知识图谱数据格式:", data);
+      throw new Error("知识图谱数据格式无效");
+    }
+    
+    // 处理边的类型和颜色
+    processLinkColors(data);
+    
+    console.log("【统一图谱】成功刷新获取知识图谱数据替代主题图谱:", data.nodes.length, "个节点");
+    return data;
+  } catch (error) {
+    console.error("【统一图谱】强制刷新获取替代主题图谱的知识图谱数据失败:", error);
+    throw error;
+  }
 }
 
 /**
