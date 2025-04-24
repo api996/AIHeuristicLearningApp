@@ -277,7 +277,7 @@ export default function LearningPath() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <BarChart3 className="mr-2" /> 学习进度
+                  <BarChart3 className="mr-2" /> 学习分布
                 </CardTitle>
                 <CardDescription>您在各领域的学习深度</CardDescription>
               </CardHeader>
@@ -319,8 +319,8 @@ export default function LearningPath() {
                 ) : (
                   <div className="flex flex-col items-center justify-center py-6 text-neutral-400">
                     <BarChart3 className="h-12 w-12 mb-3 opacity-20" />
-                    <p>暂无学习进度数据</p>
-                    <p className="text-sm mt-1">随着您的持续学习，这里将显示您的进度</p>
+                    <p>暂无学习分布数据</p>
+                    <p className="text-sm mt-1">随着您的持续学习，这里将显示您的分布</p>
                   </div>
                 )}
               </CardContent>
@@ -360,12 +360,12 @@ export default function LearningPath() {
           </Card>
         </TabsContent>
 
-        {/* 学习进度标签页 */}
+        {/* 学习分布标签页 */}
         <TabsContent value="progress">
           <Card>
             <CardHeader>
-              <CardTitle>详细学习进度</CardTitle>
-              <CardDescription>各主题学习深度分析</CardDescription>
+              <CardTitle>详细学习分布</CardTitle>
+              <CardDescription>各主题学习分布分析</CardDescription>
             </CardHeader>
             <CardContent className="card-content">
               {learningPath?.progress && learningPath.progress.length > 0 ? (
@@ -438,8 +438,8 @@ export default function LearningPath() {
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
                   <BarChart3 className="h-16 w-16 mb-4 opacity-20" />
-                  <p className="text-lg">暂无详细学习进度数据</p>
-                  <p className="text-sm mt-2">随着您的持续学习，这里将显示更详细的学习进展</p>
+                  <p className="text-lg">暂无详细学习分布数据</p>
+                  <p className="text-sm mt-2">随着您的持续学习，这里将显示更详细的学习分布</p>
                 </div>
               )}
             </CardContent>
