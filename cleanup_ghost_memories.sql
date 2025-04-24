@@ -1,0 +1,68 @@
+-- 创建临时表存储文件系统中存在的记忆ID
+CREATE TEMP TABLE existing_memory_ids (id TEXT PRIMARY KEY);
+
+-- 以下ID是从文件系统中提取的，这些记录应该保留
+INSERT INTO existing_memory_ids VALUES
+('20250413_example'),
+('20250416003049824267'),
+('20250416003049831774'),
+('20250416073940185627'),
+('20250416073940260927'),
+('20250416073940307252'),
+('20250416073940357071'),
+('20250416073940406428'),
+('20250416073940463294'),
+('20250416074022318532'),
+('20250416074022365307'),
+('20250416074022412084'),
+('20250416074022454904'),
+('20250416074022499780'),
+('20250416074204342772'),
+('20250416074204387189'),
+('20250418154636690427'),
+('20250418154636740643'),
+('20250418154707493466'),
+('20250418154707534866'),
+('20250418154909410535'),
+('20250418154909458436'),
+('20250418155006723899'),
+('20250418155007065258'),
+('20250419051506824339'),
+('20250419051506903664'),
+('20250419051507045911'),
+('20250419051507133641'),
+('20250419051507221827'),
+('20250419051606642458'),
+('20250419051606699302'),
+('20250419051606757054'),
+('20250419051606814835'),
+('20250419051607066639'),
+('20250419051607122027');
+
+-- 获取要删除的记录数量
+SELECT COUNT(*) AS will_be_deleted FROM memories 
+WHERE id NOT IN (SELECT id FROM existing_memory_ids);
+
+-- 获取相关的记忆嵌入数量
+SELECT COUNT(*) AS related_embeddings FROM memory_embeddings 
+WHERE memory_id NOT IN (SELECT id FROM existing_memory_ids);
+
+-- 获取相关的记忆关键词数量
+SELECT COUNT(*) AS related_keywords FROM memory_keywords
+WHERE memory_id NOT IN (SELECT id FROM existing_memory_ids);
+
+-- 删除幽灵记录相关的记忆关键词
+DELETE FROM memory_keywords
+WHERE memory_id NOT IN (SELECT id FROM existing_memory_ids);
+
+-- 删除幽灵记录相关的记忆嵌入
+DELETE FROM memory_embeddings
+WHERE memory_id NOT IN (SELECT id FROM existing_memory_ids);
+
+-- 删除幽灵记录
+DELETE FROM memories
+WHERE id NOT IN (SELECT id FROM existing_memory_ids);
+
+-- 清理后验证记录数
+SELECT COUNT(*) AS remaining_memories FROM memories;
+SELECT COUNT(*) AS remaining_embeddings FROM memory_embeddings;
