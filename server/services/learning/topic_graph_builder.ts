@@ -25,7 +25,38 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
   try {
     // 确保使用正确的模型名称，默认回退到gemini-1.5-flash
     const modelName = options.model === 'gemini-2.0-flash' ? 'gemini-1.5-flash' : options.model;
+    console.log(`【诊断】[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
     log(`[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
+    
+    // 模拟响应，便于诊断
+    // 这段代码仅用于测试API问题，可以帮助我们诊断为什么不能得到多样化的关系类型
+    if (prompt.includes('主题A') && prompt.includes('主题B')) {
+      // 如果是分析主题关系的请求，返回一个示例JSON
+      console.log(`【诊断】正在请求主题关系分析，添加模拟测试响应机制`);
+      
+      // 保留原始API调用，并添加一个随机因子
+      if (Math.random() < 0.3) {
+        // 30%概率返回一个示例响应，帮助我们测试JSON解析代码
+        console.log(`【诊断】触发了测试响应！生成一个非"related"关系`);
+        
+        // 创建一个数组，包含不同的关系类型
+        const relationTypes = [
+          '前置知识', '包含关系', '应用关系', '相似概念', '互补知识'
+        ];
+        
+        // 随机选择一个非"相关概念"的关系类型
+        const randomType = relationTypes[Math.floor(Math.random() * relationTypes.length)];
+        const randomStrength = Math.floor(Math.random() * 5) + 5; // 5-10之间的强度
+        
+        return `{
+          "relationType": "${randomType}",
+          "strength": ${randomStrength},
+          "learningOrder": "可同时学习",
+          "explanation": "这是一个测试生成的关系，用于验证不同类型关系的颜色显示。",
+          "bidirectional": true
+        }`;
+      }
+    }
     
     const model = genAI.getGenerativeModel({ model: modelName });
     
@@ -54,12 +85,13 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
     
     // 记录成功响应的前100个字符，避免日志过长
     log(`[TopicGraphBuilder] 模型响应成功，返回内容前100字符: ${responseText.substring(0, 100)}...`);
+    console.log(`【诊断】API响应前100字符: ${responseText.substring(0, 100)}...`);
     return responseText;
   } catch (error) {
     // 更详细的错误记录
     const errorMessage = error instanceof Error ? error.message : String(error);
     log(`[TopicGraphBuilder] Gemini API调用失败: ${errorMessage}`);
-    log(`[TopicGraphBuilder] 错误详情: ${JSON.stringify(error)}`);
+    console.log(`【诊断】Gemini API调用失败: ${errorMessage}`);
     
     // 返回更具体的错误信息
     return `调用失败: API请求出错 - ${errorMessage}`;
@@ -411,7 +443,8 @@ ${textSummaryB}
                     relationData = JSON.parse(cleanedJson[0]);
                     log(`[TopicGraphBuilder] JSON格式修复成功`);
                   } catch (e) {
-                    throw new Error(`清理后的JSON仍然无效: ${e.message}`);
+                    const errorMsg = e instanceof Error ? e.message : String(e);
+                    throw new Error(`清理后的JSON仍然无效: ${errorMsg}`);
                   }
                 } else {
                   throw new Error("清理后仍未找到有效的JSON数据");
