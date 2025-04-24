@@ -440,27 +440,83 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     }
   }, [graphData, highlightedNodeId, drawArrow]);
   
+  // 定义内置图例，关系类型和颜色
+  const renderSimpleLegend = () => {
+    const relationTypes = [
+      { type: 'prerequisite', label: '前置知识', color: 'rgba(220, 38, 38, 0.7)' },
+      { type: 'contains', label: '包含关系', color: 'rgba(59, 102, 241, 0.7)' },
+      { type: 'applies', label: '应用关系', color: 'rgba(14, 165, 233, 0.7)' },
+      { type: 'similar', label: '相似概念', color: 'rgba(16, 185, 129, 0.7)' },
+      { type: 'complements', label: '互补知识', color: 'rgba(245, 158, 11, 0.7)' },
+      { type: 'references', label: '引用关系', color: 'rgba(139, 92, 246, 0.7)' },
+      { type: 'related', label: '相关概念', color: 'rgba(79, 70, 229, 0.7)' },
+      { type: 'unrelated', label: '无直接关系', color: 'rgba(156, 163, 175, 0.5)' }
+    ];
+    
+    const nodeTypes = [
+      { type: 'cluster', label: '主题', color: 'rgba(59, 130, 246, 0.8)' },
+      { type: 'keyword', label: '关键词', color: 'rgba(16, 185, 129, 0.8)' },
+      { type: 'memory', label: '记忆', color: 'rgba(245, 158, 11, 0.8)' }
+    ];
+    
+    return (
+      <div className="graph-legend mt-4 p-3 bg-black/70 rounded-md text-white text-sm">
+        <div className="font-medium mb-2">知识图谱图例</div>
+        
+        {/* 节点类型图例 */}
+        <div className="mb-2">
+          <div className="text-xs text-gray-300 mb-1">节点类型</div>
+          <div className="flex flex-wrap gap-3">
+            {nodeTypes.map(node => (
+              <div key={node.type} className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: node.color }}></div>
+                <span className="text-xs">{node.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* 关系类型图例 */}
+        <div>
+          <div className="text-xs text-gray-300 mb-1">关系类型</div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            {relationTypes.map(relation => (
+              <div key={relation.type} className="flex items-center gap-1">
+                <div className="w-4 h-1" style={{ backgroundColor: relation.color }}></div>
+                <span className="text-xs">{relation.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="knowledge-graph-container">
       {graphData.nodes.length > 0 && (
-        <ForceGraph2D
-          ref={graphRef}
-          width={width}
-          height={height}
-          graphData={graphData}
-          nodeLabel="label"
-          nodeVal="val"
-          nodeColor="color"
-          nodeCanvasObject={nodeCanvasObject}
-          linkCanvasObjectMode={() => 'replace'}
-          linkCanvasObject={linkCanvasObject}
-          linkColor="color"
-          linkWidth="width"
-          backgroundColor="#111827"
-          onNodeClick={handleNodeClick}
-          onBackgroundClick={handleBackgroundClick}
-          {...getMobileConfig()}
-        />
+        <>
+          <ForceGraph2D
+            ref={graphRef}
+            width={width}
+            height={height}
+            graphData={graphData}
+            nodeLabel="label"
+            nodeVal="val"
+            nodeColor="color"
+            nodeCanvasObject={nodeCanvasObject}
+            linkCanvasObjectMode={() => 'replace'}
+            linkCanvasObject={linkCanvasObject}
+            linkColor="color"
+            linkWidth="width"
+            backgroundColor="#111827"
+            onNodeClick={handleNodeClick}
+            onBackgroundClick={handleBackgroundClick}
+            {...getMobileConfig()}
+          />
+          {/* 直接在图谱下方渲染简单图例 */}
+          {renderSimpleLegend()}
+        </>
       )}
     </div>
   );

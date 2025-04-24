@@ -3,11 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, RefreshCw, ZoomIn, ZoomOut, Maximize, Info } from "lucide-react";
+import { ArrowLeft, RefreshCw, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 // 使用组件
 import ForceGraphKnowledgeGraph from "@/components/ForceGraphKnowledgeGraph";
 import SimpleGraphChart from "@/components/SimpleGraphChart";
-import KnowledgeGraphLegend from "@/components/KnowledgeGraphLegend";
 // 导入iPad滚动修复CSS
 import '@/components/ui/knowledge-graph-fixes.css';
 // 导入知识图谱数据预加载器
@@ -664,7 +663,7 @@ export default function KnowledgeGraphDetail() {
                 </div>
                 
                 {/* 直接添加图例组件，不使用details标签 */}
-                <KnowledgeGraphLegend />
+
               </>
             )}
           </div>
