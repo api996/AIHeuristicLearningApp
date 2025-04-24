@@ -370,7 +370,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     const midY = (start.y + end.y) / 2;
     
     // 确定连接宽度 - 大幅增加 (关键改动)
-    const width = Math.max(5, (link.width || 1)) / globalScale;
+    const width = Math.max(8, (link.width || 2)) / globalScale;
     
     // 设置连接颜色
     const color = link.color || 'rgba(100, 100, 100, 0.7)';
@@ -399,7 +399,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     
     // 绘制中点指示器 (强化视觉提示)
     // 明显增大中点指示器尺寸并添加动画效果
-    const dotSize = (isHighlighted ? 15 : 10) / globalScale;
+    const dotSize = (isHighlighted ? 20 : 15) / globalScale;
     
     // 绘制一个更大的外圈以增加可点击区域
     ctx.beginPath();
@@ -615,8 +615,8 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
             Math.pow(pos.y - midPoint.y, 2)
           );
           
-          // 特别判断中点附近的点击 (优先检查中点)
-          if (midPointDist < 20 && midPointDist < minMidPointDistance) {
+          // 特别判断中点附近的点击 (优先检查中点) - 扩大点击区域
+          if (midPointDist < 30 && midPointDist < minMidPointDistance) {
             closestLink = link;
             minMidPointDistance = midPointDist;
             return; // 如果点击在中点附近，立即选择该连接
@@ -652,8 +652,8 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
           const dy = pos.y - yy;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          // 如果距离小于阈值且小于当前最小距离
-          if (distance < 15 && distance < minDistance) {
+          // 如果距离小于阈值且小于当前最小距离 - 扩大线段点击区域
+          if (distance < 25 && distance < minDistance) {
             closestLink = link;
             minDistance = distance;
           }
@@ -727,7 +727,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
           {selectedLink && (
             <div className="space-y-4 animate-fadeIn">
               <div className="flex items-center justify-between px-1">
-                <span className="text-sm font-medium">主题分布占比:</span>
+                <span className="text-sm font-medium">学习分布:</span>
                 <div className="flex items-center">
                   <div className="w-24 h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div 
