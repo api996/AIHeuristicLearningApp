@@ -59,7 +59,8 @@ interface Relation {
   target: string; 
   type: string;
   reason: string;
-  strength?: number;         // 关系强度（1-10）
+  strength?: number;         // 关系强度（1-10）- 为兼容旧版保留
+  distributionPercentage?: number; // 学习分布（百分比）
   learningOrder?: string;    // 学习顺序建议
 }
 
@@ -80,6 +81,7 @@ interface GraphData {
     reason?: string;
     value?: number;
     strength?: number;
+    distributionPercentage?: number; // 学习分布（百分比）
     learningOrder?: string;
     color?: string;
   }[];
@@ -324,11 +326,15 @@ ${textSummaryB}
           // 确保强度在1-10范围内
           relationData.strength = Math.max(1, Math.min(10, relationData.strength));
           
+          // 计算学习分布百分比 (1-10 => 10-90%)
+          const distributionPercent = Math.max(10, Math.min(90, (relationData.strength * 9) - 5));
+          
           rels.push({
             source: A,
             target: B,
             type: relationData.relationType,
             strength: relationData.strength,
+            distributionPercentage: distributionPercent,
             learningOrder: relationData.learningOrder,
             reason: relationData.explanation || "主题间存在知识关联"
           });
@@ -343,6 +349,7 @@ ${textSummaryB}
             target: B,
             type: "相关概念",
             strength: 5,
+            distributionPercentage: 50, // 默认50%的学习分布
             learningOrder: "可同时学习",
             reason: "主题间可能存在知识关联"
           });
@@ -355,6 +362,38 @@ ${textSummaryB}
   }
   
   return rels;
+}
+
+/**
+ * 计算两个主题间的学习分布百分比
+ * @param source 源主题
+ * @param target 目标主题
+ * @param nodes 图谱中的所有节点
+ * @param strength 关系强度（1-10，可选）
+ * @returns 学习分布百分比（0-100）
+ */
+function calculateDistributionPercentage(source: string, target: string, nodes: any[], strength?: number): number {
+  // 查找源节点和目标节点
+  const sourceNode = nodes.find(n => n.id === source);
+  const targetNode = nodes.find(n => n.id === target);
+  
+  if (!sourceNode || !targetNode) return 50; // 默认值
+  
+  // 如果提供了强度值，根据强度值转换为百分比 (1-10 => 10-90)
+  if (strength !== undefined) {
+    return Math.max(10, Math.min(90, (strength * 9) - 5));
+  }
+  
+  // 如果没有强度值，根据节点大小计算
+  // 计算这两个节点的大小总和占所有节点大小总和的百分比
+  const nodeSizeSum = nodes.reduce((sum, node) => sum + (node.size || 5), 0);
+  const currentNodesSizeSum = (sourceNode.size || 5) + (targetNode.size || 5);
+  
+  // 转换为百分比 (0-100)
+  const percentage = (currentNodesSizeSum / nodeSizeSum) * 100;
+  
+  // 限制范围在10-90之间，确保有意义的显示效果
+  return Math.max(10, Math.min(90, percentage));
 }
 
 /**
@@ -497,6 +536,9 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
         ? (rel.strength / 10) * 2 // 将1-10的强度转换为0.2-2.0的值
         : value;
       
+      // 计算分布百分比
+      const distributionPercent = calculateDistributionPercentage(rel.source, rel.target, nodes, rel.strength);
+      
       // 获取学习顺序信息
       const learningOrderLabel = rel.learningOrder 
         ? ` (${rel.learningOrder})` 
@@ -514,6 +556,7 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
         reason: rel.reason,
         color: linkColor,
         strength: rel.strength,
+        distributionPercentage: distributionPercent, // 添加学习分布百分比
         learningOrder: rel.learningOrder
       };
     });
@@ -549,7 +592,8 @@ export interface KnowledgeLink {
   type?: string;          // 连接类型
   label?: string;         // 连接标签
   reason?: string;        // 关系说明
-  strength?: number;      // 关系强度（1-10）
+  strength?: number;      // 关系强度（1-10）- 为兼容旧版保留
+  distributionPercentage?: number; // 学习分布（百分比）
   learningOrder?: string; // 学习顺序建议
   color?: string;         // 连接颜色
 }
