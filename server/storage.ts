@@ -1909,31 +1909,94 @@ export class DatabaseStorage implements IStorage {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + expiryHours);
       
+      // 确保数据可以被正确序列化
+      let safeClusterData: any;
+      try {
+        // 验证数据可以被正确序列化
+        const serialized = JSON.stringify(clusterData);
+        safeClusterData = JSON.parse(serialized);
+        
+        // 记录明确的数据验证日志
+        log(`[storage] 聚类数据序列化验证通过，数据大小: ${serialized.length} 字节`);
+        
+        // 检查关键字段是否保留
+        const hasTopics = Object.values(safeClusterData).some((cluster: any) => 
+          cluster.topic && cluster.topic.length > 0
+        );
+        
+        if (!hasTopics) {
+          log(`[storage] 警告：序列化后的聚类数据缺少topic字段，检查数据结构`, "warn");
+          
+          // 手动确保每个聚类有topic字段
+          for (const [clusterId, cluster] of Object.entries(safeClusterData)) {
+            const c = cluster as any;
+            if (!c.topic && c.label) {
+              log(`[storage] 修复聚类 ${clusterId} 数据：从label复制到topic`);
+              c.topic = c.label;
+            } else if (!c.topic && c.keywords && Array.isArray(c.keywords) && c.keywords.length > 0) {
+              c.topic = c.keywords.slice(0, 2).join(' 与 ');
+              log(`[storage] 修复聚类 ${clusterId} 数据：从keywords创建topic "${c.topic}"`);
+            } else if (!c.topic) {
+              c.topic = `聚类 ${clusterId}`;
+              log(`[storage] 修复聚类 ${clusterId} 数据：设置默认topic "${c.topic}"`);
+            }
+          }
+        }
+      } catch (serializeError) {
+        log(`[storage] 聚类数据序列化失败: ${serializeError}，使用简化版本`, "error");
+        
+        // 创建一个简化版本的对象，确保它可以被序列化
+        safeClusterData = {};
+        try {
+          for (const [clusterId, cluster] of Object.entries(clusterData)) {
+            const c = cluster as any;
+            safeClusterData[clusterId] = {
+              topic: c.topic || c.label || `聚类 ${clusterId}`,
+              memory_ids: Array.isArray(c.memory_ids) ? c.memory_ids : [],
+              keywords: Array.isArray(c.keywords) ? c.keywords.slice(0, 10) : [],
+              summary: typeof c.summary === 'string' ? c.summary : ''
+            };
+          }
+          // 验证简化数据可以序列化
+          JSON.stringify(safeClusterData);
+        } catch (fallbackError) {
+          log(`[storage] 简化聚类数据也序列化失败: ${fallbackError}，使用空对象`, "error");
+          safeClusterData = { error: "数据无法序列化，请重新生成聚类" };
+        }
+      }
+      
       // 先检查该用户是否已有缓存
       const existingCache = await this.getClusterResultCache(userId);
       
       if (existingCache) {
         // 如果存在，则更新现有记录
-        const [updated] = await db.update(clusterResultCache)
-          .set({
-            clusterData: clusterData as any,
-            clusterCount,
-            vectorCount,
-            version: existingCache.version + 1,
-            updatedAt: new Date(),
-            expiresAt
-          })
-          .where(eq(clusterResultCache.userId, userId))
-          .returning();
-        
-        log(`为用户 ${userId} 更新聚类结果缓存，版本 ${updated.version}，包含 ${clusterCount} 个聚类，${vectorCount} 个向量`);
-        return updated;
+        try {
+          const [updated] = await db.update(clusterResultCache)
+            .set({
+              clusterData: safeClusterData as any,
+              clusterCount,
+              vectorCount,
+              version: existingCache.version + 1,
+              updatedAt: new Date(),
+              expiresAt
+            })
+            .where(eq(clusterResultCache.userId, userId))
+            .returning();
+          
+          log(`[storage] 为用户 ${userId} 更新聚类结果缓存，版本 ${updated.version}，包含 ${clusterCount} 个聚类，${vectorCount} 个向量`);
+          return updated;
+        } catch (updateError) {
+          log(`[storage] 更新聚类缓存失败: ${updateError}，尝试删除后重建`, "error");
+          // 如果更新失败，尝试删除后重建
+          await db.delete(clusterResultCache).where(eq(clusterResultCache.userId, userId));
+          throw new Error("更新失败，已删除现有缓存");  // 抛出异常触发重建
+        }
       } else {
         // 如果不存在，则创建新记录
         const [newCache] = await db.insert(clusterResultCache)
           .values({
             userId,
-            clusterData: clusterData as any,
+            clusterData: safeClusterData as any,
             clusterCount,
             vectorCount,
             version: 1,
@@ -1943,11 +2006,11 @@ export class DatabaseStorage implements IStorage {
           })
           .returning();
         
-        log(`为用户 ${userId} 创建聚类结果缓存，包含 ${clusterCount} 个聚类，${vectorCount} 个向量`);
+        log(`[storage] 为用户 ${userId} 创建聚类结果缓存，包含 ${clusterCount} 个聚类，${vectorCount} 个向量`);
         return newCache;
       }
     } catch (error) {
-      log(`保存聚类结果缓存错误: ${error}`);
+      log(`[storage] 保存聚类结果缓存错误: ${error}`, "error");
       throw error;
     }
   }

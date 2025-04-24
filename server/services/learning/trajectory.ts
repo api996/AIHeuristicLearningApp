@@ -377,7 +377,8 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
           summary: string | null; 
           createdAt: Date | null;
         }[];
-        const clusterResults = await memoryService.analyzeMemoryClusters(userId, compatibleMemories, embeddings);
+        // 使用空数组作为embeddings参数，让服务自己检索向量
+        const clusterResults = await memoryService.analyzeMemoryClusters(userId, compatibleMemories, []);
         memorySpaceClusters = clusterResults.topics;
         
         log(`[trajectory] 成功从memory_service获取聚类数据: ${memorySpaceClusters.length} 个聚类`);
@@ -393,6 +394,9 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
       log(`[trajectory] 使用memory_service提供的聚类结果生成学习轨迹`);
       
       // 使用实际的聚类标签而非通用名称
+      // 打印接收到的聚类数据，帮助调试
+      log(`[trajectory-debug] 接收到聚类数据: ${JSON.stringify(memorySpaceClusters.map((c: any) => ({ id: c.id, label: c.label, topic: c.topic, keywords: c.keywords?.slice(0, 2) })))}`);
+      
       memorySpaceClusters.forEach((cluster: any, index: number) => {
         // 如果cluster有label属性，优先使用，否则使用关键词生成标签
         if (cluster.label && typeof cluster.label === 'string' && cluster.label.trim().length > 0) {
@@ -404,12 +408,18 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
           const keywordsLabel = `${cluster.keywords[0]} 与 ${cluster.keywords[1]}`;
           cluster.topic = keywordsLabel;
           log(`[trajectory] 聚类 ${index} 使用关键词生成标签: ${keywordsLabel}`);
-        } else if (!/^(主题|集群|Topic|Cluster)\s*\d+$/.test(cluster.topic)) {
+        } else if (!/^(主题|集群|Topic|Cluster)\s*\d+$/.test(cluster.topic || '')) {
           // 如果topic不是通用名称，保留现有值
-          log(`[trajectory] 聚类 ${index} 使用现有标签: ${cluster.topic}`);
+          if (cluster.topic) {
+            log(`[trajectory] 聚类 ${index} 使用现有标签: ${cluster.topic}`);
+          } else {
+            const defaultLabel = `聚类 ${index}`;
+            cluster.topic = defaultLabel;
+            log(`[trajectory] 聚类 ${index} 没有topic属性，使用默认标签: ${defaultLabel}`);
+          }
         } else {
           // 使用默认标签加索引号，但添加一个唯一标识符
-          const defaultLabel = `集群 ${index}-${Date.now().toString().slice(-4)}`;
+          const defaultLabel = `实时数据聚类 ${index}`;
           cluster.topic = defaultLabel;
           log(`[trajectory] 聚类 ${index} 使用默认标签: ${defaultLabel}`);
         }
@@ -510,7 +520,7 @@ async function getDefaultLearningPath(userId?: number): Promise<LearningPathResu
         if (memories && memories.length >= 5) {
           // 获取聚类结果
           const clusterResult = await memoryService.analyzeMemoryClusters(userId, 
-            memories as any, [], true);
+            memories as any, []);
           
           if (clusterResult && clusterResult.topics && clusterResult.topics.length > 0) {
             log(`[trajectory] 成功从聚类API获取到 ${clusterResult.topics.length} 个聚类`);
@@ -810,24 +820,24 @@ function analyzeLearningDepth(topClusterPercentage: number): string {
 function generateDeepTopicSuggestion(topic: string, type: 'primary' | 'secondary' | 'expand'): string {
   // 主要主题建议模板
   const primaryTemplates = [
-    `深入研究"${topic}"的核心概念和基础理论，建立系统性理解`,
-    `在"${topic}"领域寻找进阶资源，提升专业深度`,
-    `探索"${topic}"的最新发展和前沿研究方向`,
-    `尝试将"${topic}"的知识应用到实际项目中，加深理解`
+    `深入研究"${topic}"的核心概念和基础理论，这一主题占您记忆分布的较大比例`,
+    `在"${topic}"领域寻找进阶资源，提升该主要分布领域的学习深度`,
+    `探索"${topic}"的最新发展和前沿研究方向，这是您记忆中分布最广的主题`,
+    `尝试将"${topic}"的知识应用到实际项目中，这一主题在您的记忆分布中占比最大`
   ];
   
   // 次要主题建议模板
   const secondaryTemplates = [
-    `继续发展"${topic}"领域的知识，这与您的主要学习方向形成良好互补`,
-    `加强"${topic}"方面的学习，尝试与您的主要兴趣领域建立联系`,
-    `探索"${topic}"中与您主要学习领域相关的分支知识`
+    `继续发展"${topic}"领域的知识，这占您记忆分布的次要部分`,
+    `加强"${topic}"方面的学习，尝试与您记忆分布最广的领域建立联系`,
+    `探索"${topic}"中的更多内容，这一主题在您的记忆分布中占有一定比例`
   ];
   
   // 拓展主题建议模板
   const expandTemplates = [
-    `适当了解"${topic}"领域的基础知识，拓展您的知识广度`,
-    `考虑学习"${topic}"的入门内容，它可能为您的主要学习领域提供新视角`,
-    `探索"${topic}"如何与您已掌握的知识形成互补和交叉`
+    `适当了解"${topic}"领域的基础知识，这一主题在您的记忆分布中占比较小`,
+    `浏览"${topic}"的入门资料，拓展这一在您记忆中分布较少的领域`,
+    `关注"${topic}"领域的实际应用案例，这将丰富您记忆分布中较小的部分`
   ];
   
   // 根据类型选择模板

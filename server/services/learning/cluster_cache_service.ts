@@ -539,9 +539,25 @@ export class ClusterCacheService {
         return;
       }
       
+      // 转换数据格式：更新cluster对象中的属性
+      // 这个转换很关键，确保cluster.topic字段被正确保存
+      for (const [clusterId, cluster] of Object.entries(clusterResult)) {
+        const c = cluster as any;
+        // 确保每个聚类都有topic属性，必要时从label复制
+        if (c.label && (!c.topic || c.topic.startsWith('聚类') || c.topic.startsWith('集群'))) {
+          c.topic = c.label;
+          log(`[ClusterCache] 聚类${clusterId}: 从label复制主题 "${c.label}"`);
+        } else if (c.keywords && Array.isArray(c.keywords) && c.keywords.length >= 2 && 
+                (!c.topic || c.topic.startsWith('聚类') || c.topic.startsWith('集群'))) {
+          c.topic = `${c.keywords[0]} 与 ${c.keywords[1]}`;
+          log(`[ClusterCache] 聚类${clusterId}: 从关键词生成主题 "${c.topic}"`);
+        }
+      }
+      
       // 检查结果是否包含有效数据
       const hasValidTopics = Object.values(clusterResult).some((cluster: any) => 
-        cluster.topic && cluster.topic.length > 0 && cluster.topic !== `聚类${Object.keys(clusterResult).indexOf(cluster as any)}`
+        cluster.topic && cluster.topic.length > 0 && 
+        !cluster.topic.startsWith('聚类') && !cluster.topic.startsWith('集群')
       );
       
       if (!hasValidTopics) {
@@ -559,6 +575,34 @@ export class ClusterCacheService {
         log(`[ClusterCache] - 聚类${clusterId}: 主题="${c.topic || '未知'}", 包含${c.memory_ids?.length || 0}条记忆`);
       }
       
+      // 序列化检查，确保JSON能正确保存
+      try {
+        const serialized = JSON.stringify(clusterResult);
+        const deserialized = JSON.parse(serialized);
+        log(`[ClusterCache] JSON序列化检查通过，数据大小: ${serialized.length} 字节`);
+        
+        // 检查反序列化后是否保留了原始结构
+        const checkTopics = Object.values(deserialized).some((cluster: any) => 
+          cluster.topic && cluster.topic.length > 0 && 
+          !cluster.topic.startsWith('聚类') && !cluster.topic.startsWith('集群')
+        );
+        
+        if (!checkTopics) {
+          log(`[ClusterCache] 警告：JSON序列化后丢失了topic属性，这可能是数据结构问题`, "warn");
+        }
+      } catch (serializeError) {
+        log(`[ClusterCache] JSON序列化检查失败: ${serializeError}`, "error");
+        // 修复或清理问题数据
+        for (const [clusterId, cluster] of Object.entries(clusterResult)) {
+          const c = cluster as any;
+          // 清理潜在的循环引用或无法序列化的属性
+          if (c.centroid && c.centroid.length > 0) {
+            // 保留前10个元素用于调试，避免存储过大数据
+            c.centroid = c.centroid.slice(0, 10);
+          }
+        }
+      }
+      
       // 保存到缓存（添加重试逻辑）
       const maxRetries = 2;
       let retries = 0;
@@ -566,7 +610,7 @@ export class ClusterCacheService {
       
       while (retries <= maxRetries && !saved) {
         try {
-          await storage.saveClusterResultCache(
+          const result = await storage.saveClusterResultCache(
             userId,
             clusterResult,
             clusterCount,
@@ -574,7 +618,7 @@ export class ClusterCacheService {
             this.cacheExpiryHours
           );
           saved = true;
-          log(`[ClusterCache] 成功缓存用户${userId}的聚类结果，包含${clusterCount}个聚类，${vectorCount}个向量，有效期${this.cacheExpiryHours}小时`);
+          log(`[ClusterCache] 成功缓存用户${userId}的聚类结果，ID=${result.id}，包含${clusterCount}个聚类，${vectorCount}个向量，有效期${this.cacheExpiryHours}小时`);
         } catch (saveError) {
           retries++;
           if (retries <= maxRetries) {
