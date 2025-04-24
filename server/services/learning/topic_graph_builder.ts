@@ -23,8 +23,24 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
  */
 async function callGeminiModel(prompt: string, options: { model: string }): Promise<string> {
   try {
-    // 确保使用正确的模型名称，默认回退到gemini-1.5-flash
-    const modelName = options.model === 'gemini-2.0-flash' ? 'gemini-1.5-flash' : options.model;
+    // 确保使用正确的轻量级模型，按照系统中已经存在的命名
+    let modelName = 'gemini-1.5-flash'; // 基础默认模型(已知系统中使用此模型)
+    
+    // 根据options.model设置合适的模型
+    if (options.model === 'gemini-2.0-flash') {
+      // 如果有gemini-2.0-flash则尝试使用
+      modelName = 'gemini-1.5-flash';  // 安全回退
+    } else {
+      // 使用指定的模型
+      modelName = options.model;
+    }
+    
+    // 额外的安全检查 - 确保使用轻量级模型
+    if (modelName.includes('pro') && !modelName.includes('flash')) {
+      console.log(`【警告】尝试使用pro模型(${modelName})，切换到flash模型以减少配额使用`);
+      modelName = 'gemini-1.5-flash';
+    }
+    
     console.log(`【诊断】[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
     log(`[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
     
@@ -99,13 +115,27 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
     console.log(`【诊断】API响应前100字符: ${responseText.substring(0, 100)}...`);
     return responseText;
   } catch (error) {
-    // 更详细的错误记录
+    // 更详细的错误记录和分析
     const errorMessage = error instanceof Error ? error.message : String(error);
-    log(`[TopicGraphBuilder] Gemini API调用失败: ${errorMessage}`);
-    console.log(`【诊断】Gemini API调用失败: ${errorMessage}`);
+    
+    // 更强的错误诊断
+    let detailedError = errorMessage;
+    if (errorMessage.includes('model not found')) {
+      detailedError = `模型未找到错误 - 尝试使用的模型名称"${options.model}"不存在或不可用`;
+      console.log(`【致命错误】模型不存在: ${options.model} - 请更新为有效的模型名称`);
+    } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
+      detailedError = `权限错误 - API密钥可能没有此模型的访问权限`;
+      console.log(`【致命错误】API密钥权限问题`);
+    } else if (errorMessage.includes('limit') || errorMessage.includes('quota')) {
+      detailedError = `配额错误 - 可能已超出API使用限制`;
+      console.log(`【致命错误】API使用配额已超限`);
+    }
+    
+    log(`[TopicGraphBuilder] Gemini API调用失败: ${detailedError}`);
+    console.log(`【诊断】Gemini API调用失败: ${detailedError}`);
     
     // 返回更具体的错误信息
-    return `调用失败: API请求出错 - ${errorMessage}`;
+    return `调用失败: API请求出错 - ${detailedError}`;
   }
 }
 
