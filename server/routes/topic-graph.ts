@@ -82,7 +82,7 @@ router.post('/:userId/refresh', async (req, res) => {
 });
 
 // 诊断API - 用于显示合并操作的具体信息
-router.get('/diagnose-api', async (req, res) => {
+router.get('/diagnose-api', (req, res) => {
   try {
     log(`[TopicGraph] 运行主题图谱诊断API`);
     
