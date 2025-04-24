@@ -22,12 +22,17 @@ interface KnowledgeNode {
   color?: string;
 }
 
-// 定义知识图谱连接类型
+// 定义知识图谱连接类型 - 扩展接口以匹配实际数据结构
 interface KnowledgeLink {
   source: string;
   target: string;
   value: number;
   type?: string;
+  bidirectional?: boolean; // 是否为双向关系
+  reason?: string; // 关系说明
+  strength?: number; // 关系强度
+  learningOrder?: string; // 学习顺序建议
+  label?: string; // 关系标签
 }
 
 // 知识图谱数据结构
@@ -149,19 +154,16 @@ export default function KnowledgeGraphDetail() {
   const [localLoading, setLocalLoading] = useState(false);
   const [localKnowledgeGraph, setLocalKnowledgeGraph] = useState<KnowledgeGraph | null>(null);
 
-  // 改进的刷新图谱处理函数 - 保持页面不刷新，仅更新数据
+  // 优化的刷新图谱处理函数 - 更安全的刷新方式，避免引起页面崩溃
   const handleRefreshGraph = async () => {
     if (user?.userId) {
       try {
-        // 清除缓存
-        clearKnowledgeGraphCache(user.userId);
-        console.log("已清除知识图谱缓存，开始重新获取数据...");
-        
         // 显示加载状态
         setLocalLoading(true);
+        console.log("开始刷新知识图谱数据...");
         
-        // 强制从服务器获取新数据 (不使用缓存)
-        const response = await fetch(`/api/learning-path/${user.userId}/knowledge-graph?t=${Date.now()}`, {
+        // 使用更安全的刷新方式 - 不清除缓存，只请求最新数据
+        const response = await fetch(`/api/learning-path/${user?.userId}/knowledge-graph?refresh=true&t=${Date.now()}`, {
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
@@ -183,11 +185,22 @@ export default function KnowledgeGraphDetail() {
           throw new Error("接收到的知识图谱数据格式无效");
         }
         
-        // 确保强制更新画布，现在使用本地状态
-        setLocalKnowledgeGraph(freshData);
+        // 创建新的对象，避免引用问题
+        const updatedData = {
+          nodes: [...freshData.nodes],
+          links: [...freshData.links],
+          version: freshData.version || Date.now()
+        };
         
-        // 使用预加载器缓存数据，以便其他组件使用
-        await preloadKnowledgeGraphData(user.userId, true);
+        // 更新本地状态
+        setLocalKnowledgeGraph(updatedData);
+        
+        // 延迟一下再更新缓存，确保UI更新优先
+        setTimeout(() => {
+          // 更新预加载缓存
+          preloadKnowledgeGraphData(user.userId)
+            .then(() => console.log("知识图谱缓存已更新"));
+        }, 500);
         
         // 通知用户刷新成功
         console.log("知识图谱数据刷新成功:", freshData.nodes.length, "个节点");
@@ -198,8 +211,8 @@ export default function KnowledgeGraphDetail() {
         console.error("刷新知识图谱数据失败:", error);
         // 重置加载状态
         setLocalLoading(false);
-        // 如果失败，回退到使用refetch
-        refetch();
+        // 如果失败，优雅地回退，不使用refetch强制刷新
+        setTimeout(() => alert("刷新图谱时出现问题，请尝试重新加载页面"), 100);
       }
     }
   };
@@ -497,7 +510,7 @@ export default function KnowledgeGraphDetail() {
   
   console.log(`处理知识图谱数据: ${validNodes.length}个节点, ${validLinks.length}个连接`);
   
-  // 转换数据格式
+  // 转换数据格式 - 修复了链接染色问题
   const graphData = {
     nodes: validNodes.map(node => ({
       id: node.id,
@@ -509,12 +522,48 @@ export default function KnowledgeGraphDetail() {
       label: node.label,
       category: node.category
     })),
-    links: validLinks.map(link => ({
-      source: link.source,
-      target: link.target,
-      strokeWidth: link.value * 3,
-      color: 'rgba(59, 130, 246, 0.5)'
-    }))
+    links: validLinks.map(link => {
+      // 根据关系类型设置颜色
+      let linkColor;
+      switch (link.type) {
+        case 'prerequisite':
+          linkColor = 'rgba(220, 38, 38, 0.7)'; // 前置知识 - 深红色
+          break;
+        case 'contains':
+          linkColor = 'rgba(59, 102, 241, 0.7)'; // 包含关系 - 靛蓝色
+          break;
+        case 'applies':
+          linkColor = 'rgba(14, 165, 233, 0.7)'; // 应用关系 - 天蓝色
+          break;
+        case 'similar':
+          linkColor = 'rgba(16, 185, 129, 0.7)'; // 相似概念 - 绿色
+          break;
+        case 'complements':
+          linkColor = 'rgba(245, 158, 11, 0.7)'; // 互补知识 - 琥珀色
+          break;
+        case 'references':
+          linkColor = 'rgba(139, 92, 246, 0.7)'; // 引用关系 - 紫色
+          break;
+        case 'related':
+          linkColor = 'rgba(79, 70, 229, 0.7)'; // 相关概念 - 靛紫色
+          break;
+        case 'unrelated':
+          linkColor = 'rgba(156, 163, 175, 0.5)'; // 无直接关系 - 浅灰色
+          break;
+        default:
+          linkColor = 'rgba(59, 130, 246, 0.6)'; // 默认 - 蓝色
+      }
+      
+      return {
+        source: link.source,
+        target: link.target,
+        strokeWidth: link.value * 3,
+        color: linkColor,
+        type: link.type || 'default',
+        bidirectional: !!link.bidirectional,
+        reason: link.reason || ''
+      };
+    })
   };
 
   return (
@@ -662,8 +711,68 @@ export default function KnowledgeGraphDetail() {
                   </div>
                 </div>
                 
-                {/* 直接添加图例组件，不使用details标签 */}
-
+                {/* 直接在页面上添加图例 */}
+                <div className="mt-4 p-4 bg-black/80 rounded-md text-white text-sm border border-blue-900/50" style={{maxWidth: '800px', margin: '20px auto'}}>
+                  <div className="font-medium mb-2 text-center text-yellow-300">知识图谱关系图例</div>
+                  
+                  {/* 节点类型图例 */}
+                  <div className="mb-3">
+                    <div className="text-xs text-gray-300 mb-1 font-bold">节点类型:</div>
+                    <div className="flex flex-wrap gap-3">
+                      <div className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: 'rgba(59, 130, 246, 0.8)' }}></div>
+                        <span className="text-xs">主题</span>
+                      </div>
+                      <div className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: 'rgba(16, 185, 129, 0.8)' }}></div>
+                        <span className="text-xs">关键词</span>
+                      </div>
+                      <div className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: 'rgba(245, 158, 11, 0.8)' }}></div>
+                        <span className="text-xs">记忆</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* 关系类型图例 */}
+                  <div>
+                    <div className="text-xs text-gray-300 mb-1 font-bold">关系类型:</div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                      <div className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                        <div className="w-6 h-2 rounded" style={{ backgroundColor: 'rgba(220, 38, 38, 0.7)' }}></div>
+                        <span className="text-xs">前置知识</span>
+                      </div>
+                      <div className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                        <div className="w-6 h-2 rounded" style={{ backgroundColor: 'rgba(59, 102, 241, 0.7)' }}></div>
+                        <span className="text-xs">包含关系</span>
+                      </div>
+                      <div className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                        <div className="w-6 h-2 rounded" style={{ backgroundColor: 'rgba(14, 165, 233, 0.7)' }}></div>
+                        <span className="text-xs">应用关系</span>
+                      </div>
+                      <div className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                        <div className="w-6 h-2 rounded" style={{ backgroundColor: 'rgba(16, 185, 129, 0.7)' }}></div>
+                        <span className="text-xs">相似概念</span>
+                      </div>
+                      <div className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                        <div className="w-6 h-2 rounded" style={{ backgroundColor: 'rgba(245, 158, 11, 0.7)' }}></div>
+                        <span className="text-xs">互补知识</span>
+                      </div>
+                      <div className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                        <div className="w-6 h-2 rounded" style={{ backgroundColor: 'rgba(139, 92, 246, 0.7)' }}></div>
+                        <span className="text-xs">引用关系</span>
+                      </div>
+                      <div className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                        <div className="w-6 h-2 rounded" style={{ backgroundColor: 'rgba(79, 70, 229, 0.7)' }}></div>
+                        <span className="text-xs">相关概念</span>
+                      </div>
+                      <div className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                        <div className="w-6 h-2 rounded" style={{ backgroundColor: 'rgba(156, 163, 175, 0.5)' }}></div>
+                        <span className="text-xs">无直接关系</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </>
             )}
           </div>
