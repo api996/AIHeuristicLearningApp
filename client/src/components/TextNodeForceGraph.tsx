@@ -23,6 +23,10 @@ interface GraphLink {
   value: number;
   type?: string;
   color?: string;
+  bidirectional?: boolean;
+  reason?: string;
+  strength?: number;
+  learningOrder?: string;
 }
 
 // 组件属性类型定义
