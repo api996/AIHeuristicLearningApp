@@ -518,22 +518,23 @@ export class ClusterCacheService {
                 const memorySamples = clusterMemories.slice(0, 5); // 最多使用5条记忆
                 log(`[ClusterCache] 向GenAI传递${memorySamples.length}条样本和元数据生成主题`);
                 
-                // 确保genAiService已完全初始化
+                // 确保genAiService已完全初始化并使用它生成主题
                 let topic = null;
                 try {
-                  // 导入模块并验证服务是否已初始化
-                  let { genAiService } = await import("../genai/genai_service");
+                  // 导入模块并初始化服务
+                  let { initializeGenAIService } = await import("../genai/genai_service");
                   
-                  // 如果genAiService可用，使用它生成主题
-                  if (genAiService && typeof genAiService.generateTopicForMemories === 'function') {
-                    topic = await genAiService.generateTopicForMemories(memorySamples, clusterMetadata);
+                  // 确保服务已初始化
+                  const genAiService = await initializeGenAIService();
+                  
+                  log(`[ClusterCache] GenAI服务已就绪，正在生成主题`, "info");
+                  // 使用服务生成主题
+                  topic = await genAiService.generateTopicForMemories(memorySamples, clusterMetadata);
+                  
+                  if (topic) {
+                    log(`[ClusterCache] 成功使用GenAI生成主题: "${topic}"`);
                   } else {
-                    log(`[ClusterCache] 警告: GenAI服务未完全初始化，使用备用方案`, "warn");
-                    // 如果服务不可用，尝试提取关键词作为主题
-                    const keywords = await this.extractKeywordsFromCluster(clusterMemories);
-                    if (keywords && keywords.length > 0) {
-                      topic = keywords[0];
-                    }
+                    log(`[ClusterCache] GenAI返回空主题`, "warn");
                   }
                 } catch (aiError) {
                   log(`[ClusterCache] 使用GenAI服务生成主题时出错: ${aiError}`, "error");
@@ -629,12 +630,17 @@ export class ClusterCacheService {
       
       // 尝试使用GenAI服务生成摘要
       try {
-        // 导入模块并验证服务是否已初始化
-        let { genAiService } = await import("../genai/genai_service");
+        // 导入模块并初始化服务
+        let { initializeGenAIService } = await import("../genai/genai_service");
         
-        // 如果genAiService可用，使用它生成摘要
-        if (genAiService && typeof genAiService.generateSummary === 'function') {
-          return await genAiService.generateSummary(combinedContent);
+        // 确保服务已初始化
+        const genAiService = await initializeGenAIService();
+        
+        // 使用服务生成摘要
+        const summary = await genAiService.generateSummary(combinedContent);
+        if (summary) {
+          log(`[ClusterCache] 成功使用GenAI生成摘要`, "info");
+          return summary;
         }
       } catch (aiError) {
         log(`[ClusterCache] 使用GenAI服务生成摘要时出错: ${aiError}`, "warn");
@@ -664,12 +670,17 @@ export class ClusterCacheService {
       
       // 尝试使用GenAI服务提取关键词
       try {
-        // 导入模块并验证服务是否已初始化
-        let { genAiService } = await import("../genai/genai_service");
+        // 导入模块并初始化服务
+        let { initializeGenAIService } = await import("../genai/genai_service");
         
-        // 如果genAiService可用，使用它提取关键词
-        if (genAiService && typeof genAiService.extractKeywords === 'function') {
-          return await genAiService.extractKeywords(combinedContent);
+        // 确保服务已初始化
+        const genAiService = await initializeGenAIService();
+        
+        // 使用服务提取关键词
+        const keywords = await genAiService.extractKeywords(combinedContent);
+        if (keywords && keywords.length > 0) {
+          log(`[ClusterCache] 成功使用GenAI提取关键词: ${keywords.join(', ')}`, "info");
+          return keywords;
         }
       } catch (aiError) {
         log(`[ClusterCache] 使用GenAI服务提取关键词时出错: ${aiError}`, "warn");
