@@ -99,43 +99,42 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
       let linkColor: string;
       let linkWidth: number = 1;
       
+      // 确保双向关系标志被正确设置
+      const isBidirectional = !!link.bidirectional;
+      
       // 首先检查是否已有颜色属性，如果有则优先使用
       if (link.color) {
         linkColor = link.color;
       } else {
         // 根据连接类型设置样式
         switch (link.type) {
-          case 'contains':
-            linkColor = 'rgba(99, 102, 241, 0.7)'; // 包含关系 - 靛蓝色
+          case 'prerequisite':
+            linkColor = 'rgba(220, 38, 38, 0.7)'; // 前置知识 - 深红色
             linkWidth = 2;
             break;
-          case 'references':
-            linkColor = 'rgba(139, 92, 246, 0.7)'; // 引用关系 - 紫色
-            linkWidth = 1.8;
+          case 'contains':
+            linkColor = 'rgba(79, 70, 229, 0.7)'; // 包含关系 - 靛蓝色
+            linkWidth = 2;
             break;
           case 'applies':
             linkColor = 'rgba(14, 165, 233, 0.7)'; // 应用关系 - 天蓝色
             linkWidth = 1.6;
             break;
           case 'similar':
-            linkColor = 'rgba(16, 185, 129, 0.7)'; // 相似关系 - 绿色
+            linkColor = 'rgba(34, 197, 94, 0.7)'; // 相似概念 - 绿色
             linkWidth = 1.5;
             break;
-          case 'hierarchy':
-            linkColor = 'rgba(75, 85, 99, 0.7)';  // 层级关系 - 灰色
-            linkWidth = 2;
-            break;
-          case 'proximity':
-            linkColor = 'rgba(99, 102, 241, 0.7)';  // 相似/邻近 - 靛蓝色
+          case 'complements':
+            linkColor = 'rgba(245, 158, 11, 0.7)'; // 互补知识 - 琥珀色
             linkWidth = 1.5;
             break;
-          case 'semantic':
-            linkColor = 'rgba(16, 185, 129, 0.7)';  // 语义关联 - 翠绿色
-            linkWidth = 1.5;
+          case 'references':
+            linkColor = 'rgba(168, 85, 247, 0.7)'; // 引用关系 - 紫色
+            linkWidth = 1.8;
             break;
-          case 'temporal':
-            linkColor = 'rgba(245, 158, 11, 0.7)';  // 时间关系 - 琥珀色
-            linkWidth = 1;
+          case 'related':
+            linkColor = 'rgba(139, 92, 246, 0.7)'; // 相关概念 - 紫色
+            linkWidth = 1.5;
             break;
           default:
             linkColor = 'rgba(209, 213, 219, 0.7)';  // 默认 - 浅灰色
@@ -211,6 +210,24 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
     }
   }, [graphData]);
   
+  // 自定义链接粒子渲染 - 根据是否为双向关系动态调整粒子数量和速度
+  const linkDirectionalParticlesAccessor = useCallback((link: any) => {
+    // 双向关系使用更多的粒子
+    return link.bidirectional ? 4 : 2;
+  }, []);
+
+  // 自定义链接粒子宽度
+  const linkDirectionalParticleWidthAccessor = useCallback((link: any) => {
+    // 双向关系使用更宽的粒子
+    return link.bidirectional ? 2 : 1.5;
+  }, []);
+
+  // 自定义链接粒子速度
+  const linkDirectionalParticleSpeedAccessor = useCallback((link: any) => {
+    // 双向关系使用更快的粒子
+    return link.bidirectional ? 0.015 : 0.01;
+  }, []);
+
   return (
     <div className="text-node-force-graph-container" style={{ width, height, overflow: 'hidden' }}>
       {graphData.nodes.length > 0 ? (
@@ -223,10 +240,14 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
           nodeThreeObjectExtend={false} // 完全替换节点默认渲染
           linkColor="color"
           linkWidth="width"
-          linkOpacity={0.6}
+          linkOpacity={0.7} // 略微增加不透明度
           backgroundColor="rgba(0,0,0,0)" // 透明背景
-          linkDirectionalParticles={2} // 链接上的粒子
-          linkDirectionalParticleWidth={1.5} // 粒子大小
+          
+          // 使用动态粒子设置更清晰地显示双向关系
+          linkDirectionalParticles={linkDirectionalParticlesAccessor}
+          linkDirectionalParticleWidth={linkDirectionalParticleWidthAccessor}
+          linkDirectionalParticleSpeed={linkDirectionalParticleSpeedAccessor}
+          
           onNodeClick={handleNodeClick}
           showNavInfo={false} // 不显示导航信息
           enableNodeDrag={true} // 允许拖拽节点
