@@ -159,8 +159,10 @@ def cluster_vectors(vector_data):
         # 打印结果结构
         logger.info(f"输出格式化结果，包含 {len(formatted_result)} 个聚类")
         
+        # 返回原始聚类中心和内存ID信息，便于JavaScript层处理
         return {
             "centroids": centroids,
+            "raw_clusters": formatted_result,  # 包含原始聚类数据供JavaScript层使用
             "topics": [data["topic"] for data in formatted_result.values()]
         }
         
