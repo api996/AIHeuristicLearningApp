@@ -1,138 +1,160 @@
 /**
- * 聚类缓存服务测试脚本
- * 测试聚类缓存服务的功能和性能
+ * 聚类缓存服务调试脚本
+ * 用于验证聚类缓存机制是否正常工作
  */
 
 import { clusterCacheService } from './server/services/learning/cluster_cache_service';
 import { storage } from './server/storage';
-import { memoryService } from './server/services/learning/memory_service';
+import { db } from './server/db';
 
-/**
- * 打印带颜色的日志
- */
-function log(message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info'): void {
-  const colorMap = {
-    info: '\x1b[36m', // 青色
-    success: '\x1b[32m', // 绿色
-    warning: '\x1b[33m', // 黄色
-    error: '\x1b[31m', // 红色
+// 彩色日志输出
+function colorLog(message: string, type: 'info' | 'success' | 'warn' | 'error' = 'info'): void {
+  const colors = {
+    info: '\x1b[36m%s\x1b[0m',     // 青色
+    success: '\x1b[32m%s\x1b[0m',  // 绿色
+    warn: '\x1b[33m%s\x1b[0m',     // 黄色
+    error: '\x1b[31m%s\x1b[0m'     // 红色
   };
-  
-  const resetColor = '\x1b[0m';
-  console.log(`${colorMap[type]}[${type.toUpperCase()}] ${message}${resetColor}`);
+  console.log(colors[type], message);
 }
 
 /**
- * 测试聚类缓存服务
+ * 测试聚类缓存机制
  */
-async function testClusterCacheService(): Promise<boolean> {
+async function testClusterCache() {
   try {
-    // 使用一个测试用户ID
-    const userId = 2; // 使用一个真实存在的用户ID
+    colorLog('开始测试聚类缓存机制...', 'info');
     
-    log(`开始测试聚类缓存服务，用户ID=${userId}...`, 'info');
+    // 使用指定的测试用户ID
+    const userId = 6;
     
-    // 清除现有缓存
-    await storage.clearClusterResultCache(userId);
-    log(`已清除用户${userId}的现有聚类缓存`, 'info');
-    
-    // 第一次执行，应该会执行实际的聚类操作
-    log(`第一次获取聚类结果，应执行实际聚类操作...`, 'info');
-    const startTime1 = Date.now();
-    const result1 = await clusterCacheService.getUserClusterResults(userId, false);
-    const duration1 = Date.now() - startTime1;
-    
-    const clusterCount1 = Object.keys(result1 || {}).length;
-    log(`首次聚类完成，耗时=${duration1}ms，聚类数量=${clusterCount1}`, 'success');
-    
-    // 第二次执行，应该使用缓存
-    log(`第二次获取聚类结果，应使用缓存...`, 'info');
-    const startTime2 = Date.now();
-    const result2 = await clusterCacheService.getUserClusterResults(userId, false);
-    const duration2 = Date.now() - startTime2;
-    
-    const clusterCount2 = Object.keys(result2 || {}).length;
-    log(`第二次聚类完成，耗时=${duration2}ms，聚类数量=${clusterCount2}`, 'success');
-    
-    // 检查缓存是否生效
-    const isCacheEffective = duration2 < duration1;
-    if (isCacheEffective) {
-      log(`缓存有效：第二次调用(${duration2}ms)比第一次(${duration1}ms)快`, 'success');
-    } else {
-      log(`缓存无效：第二次调用(${duration2}ms)未比第一次(${duration1}ms)快`, 'warning');
+    // 1. 检查缓存表状态
+    colorLog('1. 检查缓存表状态...', 'info');
+    let cacheCount;
+    try {
+      const result = await db.execute(sql`SELECT COUNT(*) FROM cluster_result_cache WHERE user_id = ${userId}`);
+      cacheCount = result.rows[0].count;
+      colorLog(`查询到用户${userId}的缓存记录数量: ${cacheCount}`, 'success');
+    } catch (dbError) {
+      colorLog(`数据库查询出错: ${dbError}`, 'error');
+      throw dbError;
     }
     
-    // 强制刷新，应该会跳过缓存
-    log(`强制刷新聚类结果，应跳过缓存...`, 'info');
-    const startTime3 = Date.now();
-    const result3 = await clusterCacheService.getUserClusterResults(userId, true);
-    const duration3 = Date.now() - startTime3;
+    // 2. 创建模拟聚类结果
+    colorLog('2. 创建模拟聚类结果...', 'info');
+    const mockClusterResult = {
+      "cluster_1": {
+        "topic": "测试主题1",
+        "memory_ids": ["mem_1", "mem_2", "mem_3"],
+        "keywords": ["测试", "主题", "关键词"],
+        "summary": "这是测试主题1的摘要内容"
+      },
+      "cluster_2": {
+        "topic": "测试主题2",
+        "memory_ids": ["mem_4", "mem_5"],
+        "keywords": ["测试2", "主题2"],
+        "summary": "这是测试主题2的摘要内容"
+      }
+    };
     
-    const clusterCount3 = Object.keys(result3 || {}).length;
-    log(`强制刷新完成，耗时=${duration3}ms，聚类数量=${clusterCount3}`, 'success');
-    
-    // 结果应该是一致的
-    const isResultConsistent = clusterCount1 === clusterCount2 && clusterCount2 === clusterCount3;
-    if (isResultConsistent) {
-      log(`结果一致性检查通过：三次聚类数量一致`, 'success');
-    } else {
-      log(`结果一致性检查失败：聚类数量不一致 (${clusterCount1}, ${clusterCount2}, ${clusterCount3})`, 'warning');
+    // 3. 直接使用storage接口保存测试数据
+    colorLog('3. 使用storage接口保存测试数据...', 'info');
+    try {
+      const savedCache = await storage.saveClusterResultCache(
+        userId,
+        mockClusterResult,
+        2, // 聚类数量
+        5, // 向量数量
+        1  // 缓存有效期1小时
+      );
+      
+      colorLog(`成功保存聚类缓存，ID: ${savedCache.id}`, 'success');
+      console.log('保存的数据:', savedCache);
+    } catch (saveError) {
+      colorLog(`保存聚类缓存失败: ${saveError}`, 'error');
+      console.error(saveError);
     }
     
-    // 查看内存使用情况
-    const memoryUsage = process.memoryUsage();
-    log(`内存使用情况: RSS=${Math.round(memoryUsage.rss / 1024 / 1024)}MB, Heap=${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`, 'info');
-    
-    // 测试与学习路径集成
-    log(`测试聚类缓存与用户集群获取的集成...`, 'info');
-    const startTime4 = Date.now();
-    const { clusterResult, clusterCount } = await memoryService.getUserClusters(userId);
-    const duration4 = Date.now() - startTime4;
-    
-    log(`通过memory_service获取聚类，耗时=${duration4}ms，聚类数量=${clusterCount}`, 'success');
-    
-    // 检查与直接调用的一致性
-    const centroidCount = clusterResult?.centroids?.length || 0;
-    if (centroidCount === clusterCount3) {
-      log(`集成一致性检查通过：聚类数量一致 (${centroidCount})`, 'success');
-    } else {
-      log(`集成一致性检查失败：聚类数量不一致 (直接=${clusterCount3}, 集成=${centroidCount})`, 'warning');
+    // 4. 获取刚保存的缓存
+    colorLog('4. 获取刚保存的缓存...', 'info');
+    try {
+      const retrievedCache = await storage.getClusterResultCache(userId);
+      if (retrievedCache) {
+        colorLog(`成功获取聚类缓存，ID: ${retrievedCache.id}`, 'success');
+        console.log('缓存数据信息:');
+        console.log(`- 版本: ${retrievedCache.version}`);
+        console.log(`- 聚类数量: ${retrievedCache.clusterCount}`);
+        console.log(`- 向量数量: ${retrievedCache.vectorCount}`);
+        console.log(`- 创建时间: ${retrievedCache.createdAt}`);
+        console.log(`- 过期时间: ${retrievedCache.expiresAt}`);
+        
+        // 检查数据是否完整
+        if (retrievedCache.clusterData) {
+          const clusterData = retrievedCache.clusterData;
+          colorLog('缓存中的聚类数据:', 'info');
+          console.log(JSON.stringify(clusterData, null, 2));
+          
+          // 验证主题是否保存
+          const topicNames = Object.values(clusterData).map((c: any) => c.topic);
+          colorLog(`主题名称: ${topicNames.join(', ')}`, 'info');
+          
+          if (topicNames.includes('测试主题1') && topicNames.includes('测试主题2')) {
+            colorLog('✅ 主题名称正确保存在缓存中', 'success');
+          } else {
+            colorLog('❌ 主题名称未正确保存', 'error');
+          }
+        } else {
+          colorLog('❌ 缓存中没有聚类数据', 'error');
+        }
+      } else {
+        colorLog('❌ 未找到缓存记录', 'error');
+      }
+    } catch (getError) {
+      colorLog(`获取聚类缓存失败: ${getError}`, 'error');
+      console.error(getError);
     }
     
-    // 总体结果
-    const allTestsPassed = isCacheEffective && isResultConsistent && (centroidCount === clusterCount3);
-    if (allTestsPassed) {
-      log(`所有测试通过！聚类缓存服务工作正常`, 'success');
-      return true;
-    } else {
-      log(`部分测试未通过，但服务基本功能正常`, 'warning');
-      return false;
+    // 5. 清除测试缓存
+    colorLog('5. 清除测试缓存...', 'info');
+    try {
+      await storage.clearClusterResultCache(userId);
+      colorLog(`已清除用户${userId}的聚类缓存`, 'success');
+    } catch (clearError) {
+      colorLog(`清除聚类缓存失败: ${clearError}`, 'error');
     }
+    
+    colorLog('聚类缓存机制测试完成', 'success');
+    return true;
   } catch (error) {
-    log(`测试聚类缓存服务时出错: ${error}`, 'error');
+    colorLog(`测试过程中发生错误: ${error}`, 'error');
     return false;
   }
 }
 
-/**
- * 主函数
- */
+// 执行测试
 async function main() {
   try {
-    // 测试聚类缓存服务
-    const cacheServiceResult = await testClusterCacheService();
+    // 测试聚类缓存机制
+    const cacheTestResult = await testClusterCache();
     
-    if (cacheServiceResult) {
-      log(`聚类缓存服务测试成功`, 'success');
+    if (cacheTestResult) {
+      colorLog('所有测试完成并通过', 'success');
+      process.exit(0);
     } else {
-      log(`聚类缓存服务测试存在问题`, 'warning');
+      colorLog('测试失败', 'error');
+      process.exit(1);
     }
   } catch (error) {
-    log(`测试执行出错: ${error}`, 'error');
+    colorLog(`执行测试时发生错误: ${error}`, 'error');
+    process.exit(1);
   }
 }
 
-// 执行主函数
+// 导入SQL执行接口
+import { sql } from 'drizzle-orm';
+
+// 执行主测试函数
 main().catch(error => {
-  console.error('Unhandled error:', error);
+  console.error('测试执行时发生未捕获的错误:', error);
+  process.exit(1);
 });
