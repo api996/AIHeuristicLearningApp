@@ -38,11 +38,51 @@ def start_clustering_service():
         
         logger.info(f"启动聚类API服务，端口: {port}, 路径: {app_path}")
         
-        # 启动Flask应用
-        clustering_process = subprocess.Popen(
-            [sys.executable, app_path],
-            env=os.environ.copy()
-        )
+        # 启动Flask应用 - 添加更多调试信息和错误处理
+        try:
+            # 确保app.py存在
+            if not os.path.exists(app_path):
+                logger.error(f"无法找到Flask应用文件: {app_path}")
+                return False
+                
+            # 确保我们使用的Python可以导入所需的依赖
+            try:
+                import numpy
+                import sklearn
+                import flask
+                logger.info(f"已确认所需依赖存在: numpy={numpy.__version__}, sklearn={sklearn.__version__}, flask={flask.__version__}")
+            except ImportError as e:
+                logger.error(f"缺少必要的Python依赖: {e}")
+                logger.info("正在尝试自动安装缺失的依赖...")
+                subprocess.run([sys.executable, "-m", "pip", "install", "numpy", "scikit-learn", "flask"])
+                
+            # 设置更详细的环境以帮助调试
+            env_copy = os.environ.copy()
+            env_copy['PYTHONUNBUFFERED'] = '1'  # 确保输出不缓冲
+            
+            logger.info(f"正在启动Flask应用: {app_path}, Python路径: {sys.executable}")
+            
+            # 使用subprocess启动Flask应用
+            clustering_process = subprocess.Popen(
+                [sys.executable, app_path],
+                env=env_copy,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True
+            )
+            
+            # 立即读取一小段输出，看看是否有明显错误
+            stderr_output = ''
+            try:
+                stderr_output = clustering_process.stderr.readline()
+                if stderr_output:
+                    logger.warning(f"Flask应用启动时输出错误: {stderr_output}")
+            except:
+                pass
+                
+        except Exception as e:
+            logger.error(f"启动Flask应用时发生异常: {str(e)}")
+            return False
         
         if clustering_process.poll() is None:
             logger.info(f"聚类API服务已启动，PID: {clustering_process.pid}")
