@@ -622,14 +622,6 @@ export default function KnowledgeGraphDetail() {
                     height={isFullScreen ? window.innerHeight - 80 : window.innerWidth < 768 ? window.innerHeight * 0.4 : 600}
                     onNodeClick={onClickNode}
                   />
-                  
-                  {/* 添加图例，右上角显示 */}
-                  <div className="absolute top-2 right-2 z-10">
-                    <KnowledgeGraphLegend 
-                      className="opacity-80 hover:opacity-100 transition-opacity"
-                      showBidirectional={true}
-                    />
-                  </div>
                 </div>
               </div>
             ) : (
@@ -662,29 +654,47 @@ export default function KnowledgeGraphDetail() {
             )}
             
             {knowledgeGraph && knowledgeGraph.nodes.length > 0 && (
-              <div className="flex flex-col md:flex-row flex-wrap justify-between items-start md:items-center mt-4 pt-4 border-t border-blue-900/30">
-                <div className="text-sm text-neutral-300 mb-2 md:mb-0">
-                  <span className="font-medium">节点数:</span> {knowledgeGraph.nodes.length}
-                  <span className="mx-2">|</span>
-                  <span className="font-medium">关联数:</span> {knowledgeGraph.links.length}
+              <>
+                <div className="flex flex-col md:flex-row flex-wrap justify-between items-start md:items-center mt-4 pt-4 border-t border-blue-900/30">
+                  <div className="text-sm text-neutral-300 mb-2 md:mb-0">
+                    <span className="font-medium">节点数:</span> {knowledgeGraph.nodes.length}
+                    <span className="mx-2">|</span>
+                    <span className="font-medium">关联数:</span> {knowledgeGraph.links.length}
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    {['cluster', 'keyword', 'memory'].map(category => (
+                      <div key={category} className="flex items-center gap-1">
+                        <div className={`w-3 h-3 rounded-full ${
+                          category === 'cluster' ? 'bg-blue-500' : 
+                          category === 'keyword' ? 'bg-green-500' : 
+                          'bg-yellow-500'
+                        }`}></div>
+                        <span className="text-xs text-neutral-400">
+                          {category === 'cluster' ? '主题' : 
+                           category === 'keyword' ? '关键词' : '记忆'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 
-                <div className="flex flex-wrap gap-2">
-                  {['cluster', 'keyword', 'memory'].map(category => (
-                    <div key={category} className="flex items-center gap-1">
-                      <div className={`w-3 h-3 rounded-full ${
-                        category === 'cluster' ? 'bg-blue-500' : 
-                        category === 'keyword' ? 'bg-green-500' : 
-                        'bg-yellow-500'
-                      }`}></div>
-                      <span className="text-xs text-neutral-400">
-                        {category === 'cluster' ? '主题' : 
-                         category === 'keyword' ? '关键词' : '记忆'}
-                      </span>
+                {/* 完整图例区域 - 可滚动查看 */}
+                <div className="mt-8 pb-4 border-t border-blue-900/30 pt-4">
+                  <details>
+                    <summary className="cursor-pointer text-blue-400 font-medium flex items-center gap-2 mb-4">
+                      <Info size={16} />
+                      <span>查看知识图谱关系类型与颜色说明</span>
+                    </summary>
+                    <div className="mt-4">
+                      <KnowledgeGraphLegend 
+                        className="w-full max-w-none bg-black/40 border border-blue-900/50" 
+                        showBidirectional={true}
+                      />
                     </div>
-                  ))}
+                  </details>
                 </div>
-              </div>
+              </>
             )}
           </div>
         </CardContent>
