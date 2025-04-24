@@ -1,11 +1,10 @@
 /**
  * 知识图谱视图组件 
- * （从原TopicGraphToggleView重构而来，移除了主题图谱，统一使用知识图谱）
+ * 统一图谱数据展示，使用新的unified-graph-preloader
  */
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Rocket, Brain, RotateCcw, ChevronDown, Sparkles } from 'lucide-react';
+import { ChevronDown, Brain, Rocket, RotateCcw } from 'lucide-react';
 import { 
   preloadGraphData, 
   GraphData 

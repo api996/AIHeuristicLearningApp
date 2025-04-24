@@ -1,6 +1,7 @@
 /**
  * 统一图谱预加载器
- * 合并了知识图谱和主题图谱的功能，解决技术债务和重复代码问题
+ * 完全统一了图谱数据结构和API，移除了多余的主题图谱概念
+ * 所有调用都被路由到知识图谱API，完全消除技术债务和重复代码
  */
 
 // 定义统一图谱数据类型
@@ -82,14 +83,11 @@ export async function preloadGraphData(
     return pendingPromises.get(cacheKey)!;
   }
   
-  // 创建新的获取请求
-  const promise = graphType === 'knowledge'
-    ? (forceRefresh 
-       ? fetchKnowledgeGraphDataForceRefresh(userId)
-       : fetchKnowledgeGraphData(userId))
-    : (forceRefresh
-       ? fetchTopicGraphDataForceRefresh(userId)
-       : fetchTopicGraphData(userId));
+  // 创建新的获取请求 - 统一使用知识图谱API
+  // 注意：无论要求的是什么类型的图谱，我们都使用知识图谱API
+  const promise = forceRefresh
+    ? fetchKnowledgeGraphDataForceRefresh(userId)
+    : fetchKnowledgeGraphData(userId);
   
   pendingPromises.set(cacheKey, promise);
   
@@ -305,80 +303,23 @@ async function fetchKnowledgeGraphDataForceRefresh(userId: number): Promise<Grap
 }
 
 /**
- * 主题图谱数据获取函数 - 无缓存破坏版本
+ * 主题图谱数据获取函数 - 统一使用知识图谱API
  * @param userId 用户ID
- * @returns 承诺主题图谱数据
+ * @returns 承诺主题图谱数据（实际上是知识图谱数据）
  */
 async function fetchTopicGraphData(userId: number): Promise<GraphData> {
-  try {
-    const response = await fetch(`/api/topic-graph/${userId}`, {
-      headers: {
-        'Cache-Control': 'max-age=300' // 5分钟缓存
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`获取主题图谱失败: ${response.status} ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    
-    // 验证数据结构有效性
-    if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
-      console.error("收到无效的主题图谱数据格式:", data);
-      throw new Error("主题图谱数据格式无效");
-    }
-    
-    console.log("主题图谱数据成功获取:", data.nodes.length, "个节点,", data.links.length, "个连接");
-    
-    // 处理边的类型和颜色
-    processLinkColors(data);
-    
-    return data;
-  } catch (error) {
-    console.error("获取主题图谱数据失败:", error);
-    throw error;
-  }
+  console.log("主题图谱功能现已与知识图谱合并，使用知识图谱API代替");
+  return fetchKnowledgeGraphData(userId);
 }
 
 /**
- * 带缓存破坏的主题图谱数据获取函数 - 仅用于强制刷新
+ * 带缓存破坏的主题图谱数据获取函数 - 统一使用知识图谱API
  * @param userId 用户ID
- * @returns 承诺主题图谱数据
+ * @returns 承诺主题图谱数据（实际上是知识图谱数据）
  */
 async function fetchTopicGraphDataForceRefresh(userId: number): Promise<GraphData> {
-  try {
-    const response = await fetch(`/api/topic-graph/${userId}/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`刷新主题图谱失败: ${response.status} ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    
-    // 验证数据结构有效性
-    if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
-      console.error("刷新后收到无效的主题图谱数据格式:", data);
-      throw new Error("主题图谱数据格式无效");
-    }
-    
-    // 处理边的类型和颜色
-    processLinkColors(data);
-    
-    console.log("主题图谱数据刷新成功:", data.nodes.length, "个节点", data.links.length, "个连接");
-    return data;
-  } catch (error) {
-    console.error("刷新主题图谱数据失败:", error);
-    throw error;
-  }
+  console.log("主题图谱功能现已与知识图谱合并，使用知识图谱API代替");
+  return fetchKnowledgeGraphDataForceRefresh(userId);
 }
 
 /**
