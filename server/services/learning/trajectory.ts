@@ -473,6 +473,88 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
  */
 async function getDefaultLearningPath(userId?: number): Promise<LearningPathResult> {
   try {
+    // 如果有用户ID，尝试从聚类API获取实际的聚类标签
+    if (userId) {
+      try {
+        // 导入内存服务
+        const memoryService = (await import('./memory_service')).memoryService;
+        log(`[trajectory] 尝试从聚类API获取用户 ${userId} 的聚类数据`);
+        
+        // 获取用户的所有记忆
+        const memories = await storage.getMemoriesByUserId(userId);
+        
+        // 如果有足够的记忆，尝试获取聚类
+        if (memories && memories.length >= 5) {
+          // 获取聚类结果
+          const clusterResult = await memoryService.analyzeMemoryClusters(userId, 
+            memories as any, [], true);
+          
+          if (clusterResult && clusterResult.topics && clusterResult.topics.length > 0) {
+            log(`[trajectory] 成功从聚类API获取到 ${clusterResult.topics.length} 个聚类`);
+            
+            // 构建知识图谱节点
+            const nodes: TrajectoryNode[] = clusterResult.topics.map((cluster: any) => {
+              // 计算节点大小（基于百分比或默认值）
+              const size = cluster.percentage 
+                ? Math.max(10, Math.min(50, 10 + cluster.percentage * 0.4))
+                : 15;
+              
+              return {
+                id: cluster.id,
+                label: cluster.topic || `主题 ${cluster.id}`,
+                size,
+                category: '记忆主题',
+                clusterId: cluster.id
+              };
+            });
+            
+            // 构建知识图谱连接
+            const links: TrajectoryLink[] = [];
+            if (clusterResult.topics.length > 1) {
+              // 找出最大的聚类
+              const largestCluster = [...clusterResult.topics].sort((a, b) => 
+                (b.percentage || 0) - (a.percentage || 0))[0];
+              
+              // 将其他聚类连接到最大聚类
+              for (const cluster of clusterResult.topics) {
+                if (cluster.id !== largestCluster.id) {
+                  links.push({
+                    source: largestCluster.id,
+                    target: cluster.id,
+                    value: Math.max(1, Math.min(10, (cluster.percentage || 10) / 10))
+                  });
+                }
+              }
+            }
+            
+            // 使用聚类真实标签生成主题
+            const topics = clusterResult.topics.map((cluster: any) => {
+              return {
+                topic: cluster.label || cluster.topic || `集群 ${cluster.id}`,
+                id: cluster.id,
+                count: cluster.count || 1,
+                percentage: cluster.percentage || 10
+              };
+            });
+            
+            // 根据聚类生成学习建议
+            const suggestions = generateSuggestionsFromMemorySpaceClusters(clusterResult.topics);
+            
+            // 返回使用实际聚类标签的结果
+            return {
+              nodes,
+              links,
+              progress: [],
+              suggestions,
+              topics
+            };
+          }
+        }
+      } catch (apiError) {
+        log(`[trajectory] 从聚类API获取数据失败: ${apiError}`);
+      }
+    }
+    
     // 返回空结果，不尝试从少量记忆生成主题
     log(`[trajectory] 不使用默认主题，返回空学习轨迹结果`);
     
