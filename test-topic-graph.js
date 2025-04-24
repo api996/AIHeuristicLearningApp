@@ -3,7 +3,7 @@
  * 这个脚本用于验证主题图谱API是否成功重定向到知识图谱API
  */
 
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
 function log(message, type = 'info') {
   const colors = {

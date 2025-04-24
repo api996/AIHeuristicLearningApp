@@ -9,7 +9,7 @@ import { testTopicGraphBuilder } from '../services/learning/topic_graph_builder'
 const router = express.Router();
 
 // 获取用户智能主题图谱 - 重定向到知识图谱API
-router.get('/api/topic-graph/:userId', async (req, res) => {
+router.get('/:userId', async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     
@@ -41,7 +41,7 @@ router.get('/api/topic-graph/:userId', async (req, res) => {
 });
 
 // 强制刷新用户主题图谱 - 重定向到知识图谱刷新API
-router.post('/api/topic-graph/:userId/refresh', async (req, res) => {
+router.post('/:userId/refresh', async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     
@@ -82,7 +82,7 @@ router.post('/api/topic-graph/:userId/refresh', async (req, res) => {
 });
 
 // 诊断API - 用于显示合并操作的具体信息
-router.get('/api/topic-graph/diagnose-api', async (req, res) => {
+router.get('/diagnose-api', async (req, res) => {
   try {
     log(`[TopicGraph] 运行主题图谱诊断API`);
     
@@ -103,7 +103,7 @@ router.get('/api/topic-graph/diagnose-api', async (req, res) => {
 });
 
 // 测试API - 仅在开发环境可用
-router.get('/api/topic-graph/test', async (req, res) => {
+router.get('/test', async (req, res) => {
   try {
     if (process.env.NODE_ENV === 'production') {
       return res.status(403).json({ error: '测试API在生产环境不可用' });
