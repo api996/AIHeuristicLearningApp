@@ -8,6 +8,7 @@ import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle, Refre
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
 import TextNodeForceGraph from "@/components/TextNodeForceGraph";
+import KnowledgeGraphLegend from "@/components/KnowledgeGraphLegend";
 // 导入学习轨迹页面的iPad滚动修复CSS
 import "@/components/ui/learning-path-fixes.css";
 // 导入知识图谱样式
@@ -434,7 +435,8 @@ export default function LearningPath() {
                 </div>
               </div>
               
-              {/* 此处不再显示图例组件 */}
+              {/* 恢复图例组件 */}
+              <KnowledgeGraphLegend />
             </CardContent>
           </Card>
         </TabsContent>
