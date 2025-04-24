@@ -33,17 +33,15 @@ const KnowledgeGraphLegend: React.FC<{
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-medium text-blue-300">知识图谱关系说明</h3>
         
-        {/* 只有当提供了节点和连接数量时才显示统计信息 */}
-        {(nodeCount !== undefined && linkCount !== undefined) && (
-          <div className="flex items-center space-x-3 text-sm">
-            <div className="px-2 py-1 bg-blue-900/30 rounded-md text-blue-200 flex items-center">
-              <span className="font-medium mr-1">节点:</span> {nodeCount}
-            </div>
-            <div className="px-2 py-1 bg-indigo-900/30 rounded-md text-indigo-200 flex items-center">
-              <span className="font-medium mr-1">连接:</span> {linkCount}
-            </div>
+        {/* 显示节点和连接数量统计信息 - 实时更新 */}
+        <div className="flex items-center space-x-3 text-sm">
+          <div className="px-2 py-1 bg-blue-900/30 rounded-md text-blue-200 flex items-center">
+            <span className="font-medium mr-1">节点:</span> {nodeCount || 0}
           </div>
-        )}
+          <div className="px-2 py-1 bg-indigo-900/30 rounded-md text-indigo-200 flex items-center">
+            <span className="font-medium mr-1">连接:</span> {linkCount || 0}
+          </div>
+        </div>
       </div>
       
       {/* 关系说明 */}
