@@ -29,6 +29,7 @@ interface GraphLink {
   reason?: string; // 关系原因
   strength?: number; // 关系强度
   learningOrder?: string; // 学习顺序
+  distributionPercentage?: number; // 学习分布百分比
 }
 
 // 图谱组件属性
@@ -499,7 +500,8 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
       label: link.label,
       reason: link.reason,
       strength: link.strength,
-      learningOrder: link.learningOrder
+      learningOrder: link.learningOrder,
+      distributionPercentage: link.distributionPercentage
     };
     
     // 查找完整的源节点和目标节点信息，以便在对话框中显示更详细的数据
@@ -547,7 +549,8 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
         label: link.label,
         reason: link.reason,
         strength: link.strength,
-        learningOrder: link.learningOrder
+        learningOrder: link.learningOrder,
+        distributionPercentage: link.distributionPercentage
       };
       setHighlightedLink(processedLink);
     } else {
@@ -733,12 +736,12 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
                     <div 
                       className="h-full transition-all duration-500 ease-out" 
                       style={{ 
-                        width: `${calculateTopicPercentage(selectedLink)}%`,
+                        width: `${selectedLink.distributionPercentage || calculateTopicPercentage(selectedLink)}%`,
                         background: selectedLink.color || 'rgba(59, 130, 246, 0.8)'
                       }}
                     ></div>
                   </div>
-                  <span className="text-sm ml-2 font-medium">{Math.round(calculateTopicPercentage(selectedLink))}%</span>
+                  <span className="text-sm ml-2 font-medium">{selectedLink.distributionPercentage || Math.round(calculateTopicPercentage(selectedLink))}%</span>
                 </div>
               </div>
               
