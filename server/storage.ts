@@ -1726,6 +1726,27 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
+  /**
+   * 清除用户的学习轨迹数据
+   * @param userId 用户ID
+   */
+  async clearLearningPath(userId: number): Promise<void> {
+    try {
+      if (!userId || isNaN(userId)) {
+        log(`清除学习轨迹失败: 无效的用户ID ${userId}`);
+        throw new Error("Invalid user ID");
+      }
+      
+      await db.delete(learningPaths)
+        .where(eq(learningPaths.userId, userId));
+      
+      log(`已清除用户 ${userId} 的学习轨迹数据`);
+    } catch (error) {
+      log(`清除学习轨迹数据时出错: ${error}`);
+      throw error;
+    }
+  }
 
   // System config methods
   async getSystemConfig(key: string): Promise<SystemConfig | undefined> {
