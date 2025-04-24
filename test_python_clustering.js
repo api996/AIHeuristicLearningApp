@@ -1,17 +1,16 @@
 /**
- * Python聚类服务测试脚本 (TypeScript版本)
+ * Python聚类服务测试脚本
  * 用于验证Python脚本直接调用能否正常工作
  */
 
-import { directPythonService, VectorData } from './server/services/learning/direct_python_service';
-import { ClusterResult } from './server/services/learning/cluster_types';
+const { directPythonService } = require('./server/services/learning/direct_python_service');
 
-async function testPythonClustering(): Promise<boolean> {
+async function testPythonClustering() {
   console.log('开始测试Python聚类服务...');
   
   try {
     // 创建测试向量数据
-    const testVectors: VectorData[] = [];
+    const testVectors = [];
     // 生成5个不同组的向量，每组2个相似向量
     for (let group = 0; group < 5; group++) {
       for (let i = 0; i < 2; i++) {
