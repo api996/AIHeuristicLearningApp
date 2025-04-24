@@ -65,7 +65,7 @@ const TextNodeKnowledgeGraph: React.FC<TextNodeKnowledgeGraphProps> = ({
     reason?: string;
     color: string;
     width: number;
-    labelText: string;
+    labelText: string | undefined; // 允许undefined以避免类型错误
     reasonText: string;
   }
   
@@ -205,7 +205,7 @@ const TextNodeKnowledgeGraph: React.FC<TextNodeKnowledgeGraphProps> = ({
         color: link.color || linkColor,
         width: linkWidth,
         // 添加标签信息用于悬停显示
-        labelText: link.label || link.type,
+        labelText: link.label || link.type || '连接',
         reasonText: link.reason || ''
       };
     });

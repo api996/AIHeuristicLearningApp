@@ -173,6 +173,11 @@ export default function KnowledgeGraphView({ userId, className = '' }: Knowledge
         <h3 className="text-lg font-medium flex items-center">
           <Brain className="mr-2 h-5 w-5" />
           知识图谱
+          {graph && graph.nodes && (
+            <span className="ml-3 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-md">
+              {graph.nodes.length} 节点 | {graph.links.length} 连接
+            </span>
+          )}
         </h3>
         
         <div className="flex space-x-2">
@@ -201,7 +206,7 @@ export default function KnowledgeGraphView({ userId, className = '' }: Knowledge
         <p className="flex items-center">
           <Brain className="h-4 w-4 mr-1 text-blue-500" />
           <span className="font-semibold">知识图谱：</span>
-          <span className="ml-1">智能分析您的学习记忆数据，自动提取主题概念和它们之间的关系，构建个性化知识连接网络。</span>
+          <span className="ml-1">智能分析您的学习记忆数据，展示各知识点之间的关系，构建个性化知识连接网络。</span>
         </p>
       </div>
     </div>
