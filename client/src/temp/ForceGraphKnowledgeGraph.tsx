@@ -514,7 +514,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
           {selectedLink && (
             <div className="space-y-4 animate-fadeIn">
               <div className="flex items-center justify-between px-1">
-                <span className="text-sm font-medium">关系强度:</span>
+                <span className="text-sm font-medium">学习分布:</span>
                 <div className="flex items-center">
                   <div className="w-24 h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div 
