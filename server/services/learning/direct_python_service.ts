@@ -87,8 +87,8 @@ class DirectPythonService {
         return;
       }
       
-      // 执行Python脚本
-      const pythonProcess = spawn('python', [scriptPath, inputFilePath, outputFilePath]);
+      // 执行Python脚本 - 在Replit环境中使用python3命令
+      const pythonProcess = spawn('python3', [scriptPath, inputFilePath, outputFilePath]);
       
       let stdoutData = '';
       let stderrData = '';
