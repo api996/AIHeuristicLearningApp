@@ -154,7 +154,7 @@ asyncio.run(cluster_memories())
               // 创建聚类对象
               const cluster: Cluster = {
                 id: topicId,
-                label: (topicData as any).topic || `主题 ${formattedClusters.length + 1}`,
+                label: (topicData as any).topic || `待分析主题 ${formattedClusters.length + 1}`,
                 centroid: (topicData as any).centroid || [],
                 memoryIds: (topicData as any).memory_ids || [],
                 keywords: (topicData as any).keywords || [],
