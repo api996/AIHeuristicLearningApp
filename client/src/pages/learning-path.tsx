@@ -47,6 +47,8 @@ interface KnowledgeGraph {
 export default function LearningPath() {
   const [, setLocation] = useLocation();
   const [user, setUser] = useState<{userId: number; role: string; username?: string} | null>(null);
+  const [isGraphLoading, setIsGraphLoading] = useState(false);
+  const [graphData, setGraphData] = useState<KnowledgeGraph | null>(null);
 
   // 从localStorage获取用户信息
   useEffect(() => {
@@ -93,10 +95,15 @@ export default function LearningPath() {
     enabled: !!user?.userId,
   });
   
+  // 在knowledgeGraphData更新时同步到graphData
+  useEffect(() => {
+    if (knowledgeGraphData) {
+      setGraphData(knowledgeGraphData);
+    }
+  }, [knowledgeGraphData]);
+  
   // 获取知识图谱数据 - 使用预加载与缓存策略
-  const [isGraphLoading, setIsGraphLoading] = useState(false);
-  const [graphData, setGraphData] = useState<KnowledgeGraph | null>(null);
-  const { data: knowledgeGraph } = useQuery({
+  const { data: knowledgeGraphData } = useQuery({
     queryKey: ["/api/learning-path/knowledge-graph", user?.userId],
     queryFn: async () => {
       try {
@@ -549,7 +556,7 @@ export default function LearningPath() {
                 </div>
               </div>
             </div>
-          ) : knowledgeGraph?.nodes && knowledgeGraph.nodes.length > 0 ? (
+          ) : graphData?.nodes && graphData.nodes.length > 0 ? (
             <div className="relative h-[calc(100vh-200px)] w-full">
               {/* 全屏模式下的知识图谱 */}
               <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/40 to-purple-950/30 rounded-lg border border-indigo-900/30 p-4 overflow-hidden">
@@ -605,12 +612,12 @@ export default function LearningPath() {
                   <div className="absolute inset-0" style={{ backdropFilter: 'blur(2px)' }}>
                     {/* 使用优化后的文本节点力导向图 */}
                     <TextNodeForceGraph
-                      nodes={knowledgeGraph.nodes}
-                      links={knowledgeGraph.links}
+                      nodes={graphData.nodes}
+                      links={graphData.links}
                       width={window.innerWidth - 80} // 留出边距
                       height={window.innerHeight - 280} // 留出页面头部和底部的空间
                       onNodeClick={(nodeId) => {
-                        const node = knowledgeGraph.nodes.find((n: any) => n.id === nodeId);
+                        const node = graphData.nodes.find((n: any) => n.id === nodeId);
                         if (node) {
                           console.log(`点击了节点: ${node.label || nodeId}`);
                           
