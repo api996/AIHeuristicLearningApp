@@ -131,7 +131,7 @@ router.get('/api/topic-graph/test', async (req, res) => {
 });
 
 // API诊断端点 - 用于诊断关系分析API问题
-router.get('/api/topic-graph/diagnose-api', async (req, res) => {
+router.get('/api/diagnostics/topic-relations', async (req, res) => {
   try {
     if (process.env.NODE_ENV === 'production') {
       return res.status(403).json({ error: '诊断API在生产环境不可用' });
