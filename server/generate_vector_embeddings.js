@@ -49,36 +49,60 @@ const genAiService = new SimpleEmbeddingGenerator();
  * 获取所有没有向量嵌入的记忆
  */
 async function getMemoriesWithoutEmbeddings() {
+  console.log("尝试查找所有缺失嵌入的记忆...");
+  
   const query = `
     SELECT m.id, m.content
     FROM memories m
-    LEFT JOIN memory_embeddings me ON m.id = me.memory_id
-    WHERE me.id IS NULL
+    WHERE NOT EXISTS (
+      SELECT 1 FROM memory_embeddings me 
+      WHERE me.memory_id = m.id
+    )
     AND m.content IS NOT NULL
+    AND m.content <> '从记忆文件导入的内容'
     AND length(m.content) > 10
     ORDER BY m.created_at DESC
     LIMIT 50
   `;
-  const result = await pool.query(query);
-  return result.rows;
+  
+  try {
+    const result = await pool.query(query);
+    console.log(`查询结果: 找到 ${result.rows.length} 条缺失嵌入的记忆`);
+    return result.rows;
+  } catch (err) {
+    console.error(`查询出错: ${err.message}`);
+    return [];
+  }
 }
 
 /**
  * 获取所有没有有效向量嵌入的时间戳格式ID记忆
  */
 async function getTimeStampMemoriesWithoutEmbeddings() {
+  console.log("尝试查找所有缺失嵌入的记忆...");
+  
   const query = `
     SELECT m.id, m.content
     FROM memories m
-    LEFT JOIN memory_embeddings me ON m.id = me.memory_id
-    WHERE me.id IS NULL
+    WHERE NOT EXISTS (
+      SELECT 1 FROM memory_embeddings me 
+      WHERE me.memory_id = m.id
+    )
     AND m.content IS NOT NULL
     AND length(m.content) > 10
+    AND m.id ~ '^\\d{14}'
     ORDER BY m.created_at DESC
     LIMIT 50
   `;
-  const result = await pool.query(query);
-  return result.rows;
+  
+  try {
+    const result = await pool.query(query);
+    console.log(`查询结果: 找到 ${result.rows.length} 条缺失嵌入的记忆`);
+    return result.rows;
+  } catch (err) {
+    console.error(`查询出错: ${err.message}`);
+    return [];
+  }
 }
 
 /**
