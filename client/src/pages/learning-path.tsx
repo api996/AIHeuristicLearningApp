@@ -577,8 +577,12 @@ export default function LearningPath() {
                               console.log(`知识图谱数据刷新成功: ${data.nodes.length}个节点`);
                               // 预加载新数据并刷新本地缓存
                               preloadKnowledgeGraphData(user.userId, true)
-                                .then(() => {
-                                  window.location.reload();
+                                .then((data) => {
+                                  // 使用新加载的数据更新状态，而不是重新加载整个页面
+                                  if (data && data.nodes && data.links) {
+                                    setKnowledgeGraph(data);
+                                  }
+                                  setIsGraphLoading(false);
                                 });
                             })
                             .catch(err => {
