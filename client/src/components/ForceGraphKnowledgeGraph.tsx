@@ -459,17 +459,27 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
       { type: 'memory', label: '记忆', color: 'rgba(245, 158, 11, 0.8)' }
     ];
     
+    // 添加内联样式确保图例可见
+    const legendStyle = {
+      position: 'relative',
+      zIndex: 1000,
+      margin: '15px auto',
+      maxWidth: '500px',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)'
+    } as React.CSSProperties;
+    
     return (
-      <div className="graph-legend mt-4 p-3 bg-black/70 rounded-md text-white text-sm">
-        <div className="font-medium mb-2">知识图谱图例</div>
+      <div className="graph-legend mt-4 p-3 bg-black/90 rounded-md text-white text-sm" style={legendStyle}>
+        <div className="font-medium mb-2 text-center text-yellow-300">👁️ 知识图谱图例 👁️</div>
         
         {/* 节点类型图例 */}
-        <div className="mb-2">
-          <div className="text-xs text-gray-300 mb-1">节点类型</div>
+        <div className="mb-3">
+          <div className="text-xs text-gray-300 mb-1 font-bold">节点类型:</div>
           <div className="flex flex-wrap gap-3">
             {nodeTypes.map(node => (
-              <div key={node.type} className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: node.color }}></div>
+              <div key={node.type} className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: node.color }}></div>
                 <span className="text-xs">{node.label}</span>
               </div>
             ))}
@@ -478,11 +488,11 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
         
         {/* 关系类型图例 */}
         <div>
-          <div className="text-xs text-gray-300 mb-1">关系类型</div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          <div className="text-xs text-gray-300 mb-1 font-bold">关系类型:</div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
             {relationTypes.map(relation => (
-              <div key={relation.type} className="flex items-center gap-1">
-                <div className="w-4 h-1" style={{ backgroundColor: relation.color }}></div>
+              <div key={relation.type} className="flex items-center gap-1 border border-gray-700 rounded px-2 py-1">
+                <div className="w-6 h-2 rounded" style={{ backgroundColor: relation.color }}></div>
                 <span className="text-xs">{relation.label}</span>
               </div>
             ))}
