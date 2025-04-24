@@ -1,143 +1,130 @@
+#!/usr/bin/env python
 """
-聚类服务启动脚本
-用于启动Flask API服务
+聚类API服务启动脚本
 """
+
 import os
 import sys
 import subprocess
-import time
-import signal
 import logging
+import signal
 import atexit
 
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('service_starter')
 
-# 服务配置
-DEFAULT_PORT = 5050
-FLASK_APP_PATH = os.path.join(os.path.dirname(__file__), 'app.py')
+# 聚类API进程
+clustering_process = None
 
-# 存储进程引用
-flask_process = None
-
-def start_service(port=DEFAULT_PORT):
+def start_clustering_service():
     """
-    启动Flask聚类服务
-    
-    Args:
-        port: 服务端口
-    
-    Returns:
-        服务进程
+    启动聚类API服务
     """
-    global flask_process
-    
-    # 确保旧进程已关闭
-    stop_service()
-    
-    # 确保port是整数
-    port = int(port)
-    
-    # 启动Flask应用
-    logger.info(f"启动聚类服务API，监听端口: {port}")
-    
-    env = os.environ.copy()
-    env['CLUSTERING_API_PORT'] = str(port)
-    
-    # 使用subprocess启动服务
-    flask_process = subprocess.Popen(
-        [sys.executable, FLASK_APP_PATH],
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
-    
-    # 注册退出时的清理函数
-    atexit.register(stop_service)
-    
-    # 等待服务启动
-    time.sleep(1)
-    
-    # 检查进程是否成功启动
-    if flask_process.poll() is not None:
-        # 进程已退出
-        stdout, stderr = flask_process.communicate()
-        logger.error(f"聚类服务启动失败！\n输出: {stdout}\n错误: {stderr}")
-        flask_process = None
-        return None
-    
-    logger.info(f"聚类服务已成功启动，PID: {flask_process.pid}")
-    return flask_process
-
-def stop_service():
-    """
-    停止Flask聚类服务
-    """
-    global flask_process
-    
-    if flask_process is not None:
-        logger.info(f"正在停止聚类服务 (PID: {flask_process.pid})...")
-        
-        try:
-            # 尝试优雅地关闭进程
-            flask_process.terminate()
-            
-            # 等待进程结束
-            try:
-                flask_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                # 如果超时，强制关闭
-                logger.warning("聚类服务未及时响应终止信号，强制关闭...")
-                flask_process.kill()
-            
-            logger.info("聚类服务已停止")
-        except Exception as e:
-            logger.error(f"停止聚类服务时出错: {str(e)}")
-        
-        flask_process = None
-
-def is_service_running():
-    """
-    检查服务是否正在运行
-    
-    Returns:
-        布尔值，表示服务是否运行
-    """
-    global flask_process
-    
-    if flask_process is None:
-        return False
-    
-    # 检查进程是否仍在运行
-    return flask_process.poll() is None
-
-# 如果直接运行此脚本，启动服务
-if __name__ == '__main__':
-    port = int(os.environ.get('CLUSTERING_API_PORT', DEFAULT_PORT))
+    global clustering_process
     
     try:
-        # 启动服务
-        proc = start_service(port)
+        # 获取当前脚本的目录
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        app_path = os.path.join(script_dir, 'app.py')
         
-        if proc is not None:
-            # 保持脚本运行，直到收到中断信号
-            try:
-                while is_service_running():
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                logger.info("收到中断信号，正在停止服务...")
-            finally:
-                stop_service()
+        # 设置端口（避免与其他服务冲突）
+        port = int(os.environ.get('CLUSTERING_API_PORT', 5001))
+        os.environ['CLUSTERING_API_PORT'] = str(port)
+        
+        logger.info(f"启动聚类API服务，端口: {port}, 路径: {app_path}")
+        
+        # 启动Flask应用
+        clustering_process = subprocess.Popen(
+            [sys.executable, app_path],
+            env=os.environ.copy()
+        )
+        
+        if clustering_process.poll() is None:
+            logger.info(f"聚类API服务已启动，PID: {clustering_process.pid}")
+            return True
         else:
-            logger.error("服务启动失败，退出脚本")
-            sys.exit(1)
+            logger.error(f"聚类API服务启动失败，退出码: {clustering_process.returncode}")
+            return False
     
     except Exception as e:
-        logger.error(f"启动服务时出错: {str(e)}")
-        sys.exit(1)
+        logger.error(f"启动聚类API服务时出错: {e}")
+        return False
+
+def stop_clustering_service():
+    """
+    停止聚类API服务
+    """
+    global clustering_process
+    
+    if clustering_process is not None:
+        logger.info(f"正在停止聚类API服务，PID: {clustering_process.pid}")
+        
+        try:
+            # 尝试优雅终止
+            clustering_process.terminate()
+            clustering_process.wait(timeout=5)
+            logger.info("聚类API服务已优雅终止")
+        except subprocess.TimeoutExpired:
+            # 如果超时，强制终止
+            logger.warning("聚类API服务未响应终止信号，强制终止")
+            clustering_process.kill()
+        
+        clustering_process = None
+
+def handle_exit():
+    """
+    处理脚本退出事件
+    """
+    stop_clustering_service()
+
+# 注册退出处理函数
+atexit.register(handle_exit)
+
+# 处理信号
+def signal_handler(sig, frame):
+    logger.info(f"收到信号 {sig}，正在停止服务")
+    stop_clustering_service()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+def main():
+    """
+    主函数
+    """
+    logger.info("正在启动聚类服务...")
+    
+    # 启动聚类服务
+    success = start_clustering_service()
+    
+    if success:
+        logger.info("聚类服务已成功启动，按Ctrl+C停止")
+        
+        # 保持主进程运行
+        try:
+            # 监控子进程，如果异常退出则重启
+            while True:
+                if clustering_process.poll() is not None:
+                    logger.warning(f"聚类服务意外终止，退出码: {clustering_process.returncode}，正在重启...")
+                    start_clustering_service()
+                
+                # 避免CPU占用过高
+                import time
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("收到用户中断，正在停止服务")
+            stop_clustering_service()
+    else:
+        logger.error("无法启动聚类服务，退出")
+        return 1
+    
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
