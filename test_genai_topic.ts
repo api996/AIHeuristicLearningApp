@@ -29,16 +29,15 @@ async function testGenAITopicGeneration(): Promise<void> {
   try {
     colorLog('开始测试GenAI主题生成功能...', 'info');
     
-    // 在Promise是完成之前等待
-    // 直接使用服务器中的genAiService变量
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // 创建一个自定义的GenAI服务实例，以便测试
+    // 导入GoogleGenerativeAI
+    const GoogleGenerativeAI = await import('@google/generative-ai');
     
-    // 然后导入GenAI服务
-    const { genAiService } = await import('./server/services/genai/genai_service');
+    // 导入GenAIService类型定义
+    const { GeminiService } = await import('./server/services/genai/genai_service.js');
     
-    if (!genAiService) {
-      throw new Error('genAiService未初始化或不可用');
-    }
+    // 等待初始化完成
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // 准备测试数据
     const testTexts = [

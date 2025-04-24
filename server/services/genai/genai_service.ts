@@ -232,8 +232,9 @@ class GeminiService implements GenAIService {
       const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       // 构建提示词
-      let prompt = `分析这些文本，创建一个简短、有意义的主题标签（最多6个词或20个字符）。
-直接输出主题名称，不要引号，不要解释。`;
+      let prompt = `你是一个主题标签专家。请分析这些文本，创建一个简短且有描述性的主题标签（最多6个词或20个字符）。
+标签应表达内容的核心概念或关键主题，清晰明了，易于理解，同时要有足够描述性，使人一眼就能理解内容大意。
+直接输出主题名称，不要使用引号，不要添加解释。`;
 
       // 如果有元数据，添加上下文信息
       if (metadata && metadata.cluster_info) {
@@ -243,12 +244,17 @@ class GeminiService implements GenAIService {
         // 如果有关键词信息，添加到提示中
         if (metadata.cluster_info.keywords && metadata.cluster_info.keywords.length > 0) {
           const keywordsText = metadata.cluster_info.keywords.slice(0, 5).join('、');
-          prompt += `\n聚类关键词包括：${keywordsText}。`;
+          prompt += `\n聚类关键词包括：${keywordsText}。请确保主题与这些关键词相关，但不要局限于单个关键词，应该能概括整体主题。`;
         }
         
         // 如果有记忆类型信息，添加到提示中
         if (metadata.cluster_info.memory_types) {
           prompt += `\n记忆类型主要是：${metadata.cluster_info.memory_types}。`;
+        }
+        
+        // 如果有原始聚类数据，添加聚类信息
+        if (metadata.cluster_info.raw_data) {
+          prompt += `\n这是一个紧密相关的聚类，请确保主题能够概括所有记忆的共同要点。`;
         }
       }
       
@@ -330,6 +336,18 @@ class FallbackService implements GenAIService {
   async generateTopicForMemories(texts: string[], metadata?: any): Promise<string | null> {
     // 尝试从文本中提取第一个关键词作为主题
     log("[genai_service] 使用简单关键词作为后备主题生成", "warn");
+    
+    // 如果有元数据中包含关键词，优先使用元数据关键词
+    if (metadata && metadata.cluster_info && 
+        metadata.cluster_info.keywords && 
+        metadata.cluster_info.keywords.length > 0) {
+      // 使用元数据中提供的关键词
+      const metaKeywords = metadata.cluster_info.keywords;
+      log(`[genai_service] 使用元数据中的关键词作为主题: ${metaKeywords[0]}`);
+      return metaKeywords[0];
+    }
+    
+    // 否则使用文本内容提取关键词
     const keywords = await this.extractKeywords(texts.join(" "));
     return keywords && keywords.length > 0 ? keywords[0] : "记忆集合";
   }
