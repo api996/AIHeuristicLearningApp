@@ -435,8 +435,11 @@ export default function LearningPath() {
                 </div>
               </div>
               
-              {/* 恢复图例组件 */}
-              <KnowledgeGraphLegend />
+              {/* 恢复图例组件 - 传入真实的节点和连接数 */}
+              <KnowledgeGraphLegend 
+                nodeCount={graphData?.nodes?.length || 0}
+                linkCount={graphData?.links?.length || 0}
+              />
             </CardContent>
           </Card>
         </TabsContent>
