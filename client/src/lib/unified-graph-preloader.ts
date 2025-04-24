@@ -391,41 +391,35 @@ async function fetchTopicGraphDataForceRefresh(userId: number): Promise<GraphDat
  * 统一处理连接线的颜色，确保始终基于type属性来设置颜色
  * @param data 图谱数据
  */
+/**
+ * 统一处理连接线的颜色，确保始终基于type属性来设置颜色
+ * @param data 图谱数据
+ */
 function processLinkColors(data: GraphData): void {
   // 如果links数组为空或undefined，直接返回
   if (!data.links || !Array.isArray(data.links) || data.links.length === 0) {
     return;
   }
 
-  // 固定的颜色数组 - 确保视觉上的明显区分
-  const colorPalette = [
-    'rgba(220, 38, 38, 0.8)',   // 深红色 - 前置知识
-    'rgba(59, 102, 241, 0.8)',  // 靛蓝色 - 包含关系
-    'rgba(14, 165, 233, 0.8)',  // 天蓝色 - 应用关系
-    'rgba(16, 185, 129, 0.8)',  // 绿色 - 相似概念
-    'rgba(245, 158, 11, 0.8)',  // 琥珀色 - 互补知识
-    'rgba(139, 92, 246, 0.8)',  // 紫色 - 引用关系
-    'rgba(79, 70, 229, 0.8)',   // 靛紫色 - 相关概念
-  ];
-
-  // 为每个连接强制分配不同颜色，忽略任何先前设置的颜色或类型
-  // 这是最简单的方式，确保每个连接都有不同颜色
-  for (let i = 0; i < data.links.length; i++) {
-    const link = data.links[i];
-    // 强制设置颜色 - 使用循环索引确保所有颜色都被使用
-    link.color = colorPalette[i % colorPalette.length];
-    
-    // 为了显示效果，也根据颜色设置不同的连接类型名称
-    // 这将影响连接的宽度和视觉特性
-    const typeNames = [
-      'prerequisite', 'contains', 'applies', 'similar', 
-      'complements', 'references', 'related'
-    ];
-    link.type = typeNames[i % typeNames.length];
-    
-    // 增强连接宽度以提高可见性
-    link.value = 1.5;
+  // 保持原有的颜色和类型，仅记录信息用于调试
+  console.log(`正在分析${data.links.length}条连接的颜色信息:`);
+  const typeCount: Record<string, number> = {};
+  for (const link of data.links) {
+    typeCount[link.type] = (typeCount[link.type] || 0) + 1;
   }
   
-  console.log(`强制为${data.links.length}条连接分配了${Math.min(data.links.length, colorPalette.length)}种不同颜色`);
+  // 输出统计信息
+  console.log('连接类型统计:', typeCount);
+  
+  // 记录一条示例连接的信息
+  if (data.links.length > 0) {
+    const sampleLink = data.links[0];
+    console.log('示例连接:', {
+      source: sampleLink.source,
+      target: sampleLink.target,
+      type: sampleLink.type,
+      color: sampleLink.color,
+      label: sampleLink.label
+    });
+  }
 }
