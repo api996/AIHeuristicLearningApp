@@ -262,7 +262,19 @@ export class DatabaseStorage implements IStorage {
         log(`删除用户 ${userId} 的设置`);
         await tx.delete(userSettings).where(eq(userSettings.userId, userId));
         
-        // 10. 最后删除用户本身
+        // 10. 删除知识图谱缓存
+        log(`删除用户 ${userId} 的知识图谱缓存`);
+        await tx.delete(knowledgeGraphCache).where(eq(knowledgeGraphCache.userId, userId));
+        
+        // 11. 删除聚类结果缓存
+        log(`删除用户 ${userId} 的聚类结果缓存`);
+        await tx.delete(clusterResultCache).where(eq(clusterResultCache.userId, userId));
+        
+        // 12. 删除学习轨迹数据
+        log(`删除用户 ${userId} 的学习轨迹数据`);
+        await tx.delete(learningPaths).where(eq(learningPaths.userId, userId));
+        
+        // 13. 最后删除用户本身
         log(`删除用户 ${userId}`);
         await tx.delete(users).where(eq(users.id, userId));
       });
@@ -1545,6 +1557,172 @@ export class DatabaseStorage implements IStorage {
       return analytics;
     } catch (error) {
       log(`获取对话阶段分析历史错误: ${error}`);
+      throw error;
+    }
+  }
+  
+  // 学习轨迹方法实现
+  async saveLearningPath(
+    userId: number,
+    topics: any[],
+    distribution: any[],
+    suggestions: string[],
+    knowledgeGraph?: any,
+    progressHistory?: any[],
+    isOptimized?: boolean
+  ): Promise<LearningPath> {
+    try {
+      if (!userId || isNaN(userId)) {
+        log(`保存学习轨迹失败: 无效的用户ID ${userId}`);
+        throw new Error("Invalid user ID");
+      }
+      
+      log(`保存用户 ${userId} 的学习轨迹数据，${topics.length} 个主题`);
+      
+      // 检查用户是否已有学习轨迹
+      const existingPath = await this.getLearningPath(userId);
+      
+      if (existingPath) {
+        // 如果存在，更新现有记录
+        log(`更新用户 ${userId} 的现有学习轨迹记录`);
+        
+        // 准备更新数据
+        const updateData: any = {
+          topics: topics,
+          distribution: distribution,
+          suggestions: suggestions,
+          updatedAt: new Date(),
+          version: existingPath.version + 1
+        };
+        
+        // 只有当提供了这些可选字段时才更新它们
+        if (knowledgeGraph) updateData.knowledgeGraph = knowledgeGraph;
+        if (isOptimized !== undefined) updateData.isOptimized = isOptimized;
+        
+        // 处理历史记录
+        if (progressHistory) {
+          // 如果提供了新的历史记录，则替换旧记录
+          updateData.progressHistory = progressHistory;
+        } else if (existingPath.progressHistory) {
+          // 如果没有提供新记录但有旧记录，保留旧记录并添加当前状态
+          const currentProgressEntry = {
+            date: new Date().toISOString().split('T')[0], // 当前日期，格式为YYYY-MM-DD
+            topics: distribution
+          };
+          
+          // 获取现有历史记录，确保它是数组
+          const existingHistory = Array.isArray(existingPath.progressHistory) 
+            ? existingPath.progressHistory 
+            : [];
+            
+          // 添加新的记录并保存
+          updateData.progressHistory = [...existingHistory, currentProgressEntry];
+        }
+        
+        // 执行更新操作
+        const [updatedPath] = await db.update(learningPaths)
+          .set(updateData)
+          .where(eq(learningPaths.userId, userId))
+          .returning();
+          
+        log(`用户 ${userId} 的学习轨迹已更新，版本: ${updatedPath.version}`);
+        return updatedPath;
+      } else {
+        // 如果不存在，创建新记录
+        log(`为用户 ${userId} 创建首次学习轨迹记录`);
+        
+        // 准备创建数据
+        const newData: any = {
+          userId,
+          topics,
+          distribution,
+          suggestions,
+          version: 1,
+          isOptimized: isOptimized || false
+        };
+        
+        // 只在提供时设置可选字段
+        if (knowledgeGraph) newData.knowledgeGraph = knowledgeGraph;
+        
+        // 初始化历史记录
+        if (progressHistory) {
+          newData.progressHistory = progressHistory;
+        } else {
+          // 创建初始历史记录
+          newData.progressHistory = [{
+            date: new Date().toISOString().split('T')[0],
+            topics: distribution
+          }];
+        }
+        
+        // 创建记录
+        const [newPath] = await db.insert(learningPaths)
+          .values(newData)
+          .returning();
+          
+        log(`为用户 ${userId} 创建了新的学习轨迹记录`);
+        return newPath;
+      }
+    } catch (error) {
+      log(`保存学习轨迹错误: ${error}`);
+      throw error;
+    }
+  }
+  
+  async getLearningPath(userId: number): Promise<LearningPath | undefined> {
+    try {
+      if (!userId || isNaN(userId)) {
+        log(`获取学习轨迹失败: 无效的用户ID ${userId}`);
+        return undefined;
+      }
+      
+      const [path] = await db.select()
+        .from(learningPaths)
+        .where(eq(learningPaths.userId, userId));
+        
+      return path;
+    } catch (error) {
+      log(`获取学习轨迹错误: ${error}`);
+      throw error;
+    }
+  }
+  
+  async updateLearningPathHistory(userId: number, newProgressEntry: any): Promise<LearningPath | undefined> {
+    try {
+      if (!userId || isNaN(userId)) {
+        log(`更新学习轨迹历史失败: 无效的用户ID ${userId}`);
+        throw new Error("Invalid user ID");
+      }
+      
+      // 获取现有学习轨迹
+      const existingPath = await this.getLearningPath(userId);
+      if (!existingPath) {
+        log(`更新学习轨迹历史失败: 用户 ${userId} 没有现有学习轨迹`);
+        return undefined;
+      }
+      
+      // 确保进度历史是数组
+      const existingHistory = Array.isArray(existingPath.progressHistory) 
+        ? existingPath.progressHistory 
+        : [];
+        
+      // 添加新的历史记录
+      const updatedHistory = [...existingHistory, newProgressEntry];
+      
+      // 更新数据库记录
+      const [updatedPath] = await db.update(learningPaths)
+        .set({ 
+          progressHistory: updatedHistory,
+          updatedAt: new Date(),
+          version: existingPath.version + 1
+        })
+        .where(eq(learningPaths.userId, userId))
+        .returning();
+        
+      log(`用户 ${userId} 的学习轨迹历史已更新，历史记录数: ${updatedHistory.length}`);
+      return updatedPath;
+    } catch (error) {
+      log(`更新学习轨迹历史错误: ${error}`);
       throw error;
     }
   }
