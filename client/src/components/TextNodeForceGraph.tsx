@@ -205,7 +205,9 @@ const TextNodeForceGraph: React.FC<TextNodeForceGraphProps> = ({
       
       // 初始缩放到合适比例
       setTimeout(() => {
-        graphRef.current.cameraPosition({ z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
+        if (graphRef.current) {
+          graphRef.current.cameraPosition({ z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
+        }
       }, 500);
     }
   }, [graphData]);
