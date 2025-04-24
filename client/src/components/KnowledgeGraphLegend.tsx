@@ -1,21 +1,11 @@
 import React from 'react';
-import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { ArrowRight, ArrowLeft, ArrowUpDown } from 'lucide-react';
-
-interface KnowledgeGraphLegendProps {
-  className?: string;
-  showBidirectional?: boolean;
-}
 
 /**
  * 知识图谱关系类型图例组件
- * 显示不同颜色代表的关系类型和方向指示
+ * 简化版显示不同颜色代表的关系类型和方向指示
  */
-const KnowledgeGraphLegend: React.FC<KnowledgeGraphLegendProps> = ({ 
-  className = '',
-  showBidirectional = true 
-}) => {
+const KnowledgeGraphLegend: React.FC = () => {
   // 定义所有关系类型及其颜色
   const relationTypes = [
     { type: 'prerequisite', label: '前置知识', color: 'rgba(220, 38, 38, 0.7)', description: '学习B需要先掌握A的知识' },
@@ -43,77 +33,56 @@ const KnowledgeGraphLegend: React.FC<KnowledgeGraphLegendProps> = ({
   ];
 
   return (
-    <Card className={`p-3 bg-black/60 text-white rounded-md shadow-md max-w-md ${className}`}>
-      <div className="text-sm font-medium mb-2">知识图谱图例</div>
+    <div className="p-3 bg-black/60 text-white rounded-md shadow-md w-full mt-4 border border-blue-900/50">
+      <h3 className="text-lg font-medium mb-4 text-blue-300">知识图谱颜色说明</h3>
       
-      {/* 关系类型图例 */}
-      <div className="mb-3">
-        <div className="text-xs text-gray-300 mb-1">关系类型</div>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-          {relationTypes.map((relation) => (
-            <div key={relation.type} className="flex items-center gap-2">
-              <div 
-                className="w-4 h-1 rounded-full" 
-                style={{ backgroundColor: relation.color }}
-              />
-              <span className="text-xs">{relation.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* 节点类型图例 */}
-      <div className="mb-3">
-        <div className="text-xs text-gray-300 mb-1">节点类型</div>
+      <div className="mb-4">
+        <h4 className="text-sm text-blue-100 mb-2">节点类型</h4>
         <div className="grid grid-cols-3 gap-2">
           {nodeTypes.map((node) => (
             <div key={node.type} className="flex items-center gap-2">
               <div 
-                className="w-3 h-3 rounded-full" 
+                className="w-4 h-4 rounded-full" 
                 style={{ backgroundColor: node.color }}
               />
-              <span className="text-xs">{node.label}</span>
+              <span className="text-sm">{node.label}</span>
             </div>
           ))}
         </div>
       </div>
       
-      {/* 方向图例，仅在showBidirectional为true时显示 */}
-      {showBidirectional && (
-        <div>
-          <div className="text-xs text-gray-300 mb-1">方向指示</div>
-          <div className="grid grid-cols-3 gap-2">
-            {directionTypes.map((direction) => (
-              <div key={direction.type} className="flex items-center gap-2">
-                <div className="w-6 h-6 flex items-center justify-center bg-gray-800/60 rounded-full">
-                  {direction.icon}
-                </div>
-                <span className="text-xs">{direction.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 更多详细说明 - 可展开部分 */}
-      <details className="mt-3">
-        <summary className="text-xs text-blue-300 cursor-pointer">查看关系详细解释</summary>
-        <div className="mt-2 space-y-2 text-xs text-gray-300">
+      {/* 关系类型图例 */}
+      <div className="mb-4">
+        <h4 className="text-sm text-blue-100 mb-2">关系类型</h4>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3">
           {relationTypes.map((relation) => (
-            <div key={`detail-${relation.type}`}>
-              <div className="flex items-center gap-2 font-medium text-white">
-                <div 
-                  className="w-3 h-3" 
-                  style={{ backgroundColor: relation.color }}
-                />
-                {relation.label}
-              </div>
-              <p className="ml-5 text-gray-400">{relation.description}</p>
+            <div key={relation.type} className="flex items-center gap-2">
+              <div 
+                className="w-6 h-2 rounded-full" 
+                style={{ backgroundColor: relation.color }}
+              />
+              <span className="text-sm">{relation.label}</span>
             </div>
           ))}
         </div>
-      </details>
-    </Card>
+      </div>
+      
+      {/* 方向图例 */}
+      <div>
+        <h4 className="text-sm text-blue-100 mb-2">连接方向</h4>
+        <div className="grid grid-cols-3 gap-4">
+          {directionTypes.map((direction) => (
+            <div key={direction.type} className="flex items-center gap-2">
+              <div className="w-6 h-6 flex items-center justify-center bg-blue-900/40 rounded-full">
+                {direction.icon}
+              </div>
+              <span className="text-sm">{direction.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 };
 
