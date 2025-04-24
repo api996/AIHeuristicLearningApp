@@ -28,34 +28,10 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
     console.log(`【诊断】[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
     log(`[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
     
-    // 模拟响应，便于诊断
-    // 这段代码仅用于测试API问题，可以帮助我们诊断为什么不能得到多样化的关系类型
+    // 纯粹诊断目的，不模拟任何响应
     if (prompt.includes('主题A') && prompt.includes('主题B')) {
-      // 如果是分析主题关系的请求，返回一个示例JSON
-      console.log(`【诊断】正在请求主题关系分析，添加模拟测试响应机制`);
-      
-      // 保留原始API调用，并添加一个随机因子
-      if (Math.random() < 0.3) {
-        // 30%概率返回一个示例响应，帮助我们测试JSON解析代码
-        console.log(`【诊断】触发了测试响应！生成一个非"related"关系`);
-        
-        // 创建一个数组，包含不同的关系类型
-        const relationTypes = [
-          '前置知识', '包含关系', '应用关系', '相似概念', '互补知识'
-        ];
-        
-        // 随机选择一个非"相关概念"的关系类型
-        const randomType = relationTypes[Math.floor(Math.random() * relationTypes.length)];
-        const randomStrength = Math.floor(Math.random() * 5) + 5; // 5-10之间的强度
-        
-        return `{
-          "relationType": "${randomType}",
-          "strength": ${randomStrength},
-          "learningOrder": "可同时学习",
-          "explanation": "这是一个测试生成的关系，用于验证不同类型关系的颜色显示。",
-          "bidirectional": true
-        }`;
-      }
+      console.log(`【诊断】检测到主题关系分析请求，记录提示词长度: ${prompt.length}字符`);
+      console.log(`【诊断】主题A和B: "${prompt.match(/主题A: (.*)/)?.[1] || '未提取'}" <-> "${prompt.match(/主题B: (.*)/)?.[1] || '未提取'}"`);
     }
     
     const model = genAI.getGenerativeModel({ model: modelName });
@@ -65,6 +41,10 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
       setTimeout(() => reject(new Error("API调用超时(15秒)")), 15000);
     });
     
+    // 为不同类型的请求使用不同的温度，让主题关系分析使用更低的温度以提高确定性
+    const temperature = prompt.includes('知识关系分析') ? 0.0 : 0.3;
+    console.log(`【诊断参数】设置temperature=${temperature}, 请求类型: ${prompt.includes('知识关系分析') ? '主题关系分析' : '其他请求'}`);
+    
     // 实际API调用
     const apiPromise = model.generateContent({
       contents: [{
@@ -72,7 +52,7 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
         parts: [{ text: prompt }]
       }],
       generationConfig: {
-        temperature: 0.3,
+        temperature: temperature,
         topP: 0.8,
         topK: 40,
         maxOutputTokens: 500
@@ -334,7 +314,7 @@ async function extractRelations(
       }
       
       const prompt = `
-作为知识关系分析专家，请分析以下两个学习主题之间的关系，提供详尽的知识图谱连接分析:
+你是一个严格的结构化数据分析工具，任务是返回精确的JSON格式响应。你会分析两个学习主题之间的关系，并提供一个严格遵守格式的JSON对象。
 
 主题A: ${A}
 ${metadataA}
@@ -344,44 +324,45 @@ ${metadataB}
 ${textSummaryA}
 ${textSummaryB}
 
-请深入分析这两个主题之间的知识关系，特别关注以下几个方面:
+请分析这两个主题的关系，给出以下几个信息：
 
-1. 关系类型(必选一项):
-   - 前置知识: 一个主题是另一个的基础，学习顺序明确
-   - 包含关系: 一个主题是另一个的子集或超集
-   - 应用关系: 一个主题的知识应用于另一个主题
-   - 相似概念: 两个主题有显著相似之处
-   - 互补知识: 两个主题相互补充，共同构成更完整的知识体系
-   - 无直接关系: 主题间没有明显联系
+1. 关系类型(以下必选其一，不得使用其他类型):
+   - "前置知识": 表示一个主题是另一个的基础，有明确的学习顺序
+   - "包含关系": 表示一个主题是另一个的子集或超集
+   - "应用关系": 表示一个主题的知识应用于另一个主题
+   - "相似概念": 表示两个主题有显著相似之处
+   - "互补知识": 表示两个主题相互补充，共同构成更完整的知识体系
+   - "相关概念": 表示主题有关联但不属于上述类型
+   - "无直接关系": 表示主题间没有明显联系
 
-2. 关系强度: 从1(非常弱)到10(非常强)评分
+2. 关系强度: 必须是1-10之间的整数
 
-3. 学习顺序建议:
-   - 应该先学习哪个主题，再学习哪个？
-   - 如果可以同时学习，请明确说明
+3. 学习顺序: 必须是"先学A后学B"、"先学B后学A"、"可同时学习"三者之一
 
-4. 关系描述:
-   - 用1-2句话简明扼要地解释这两个主题之间的具体关系
+4. 关系简述: 简短的一句话描述
 
-请按以下JSON格式输出结果，不要包含额外的说明或文本:
+严格按照下面的JSON格式回复，不要添加任何其他解释、注释或文本:
 {
   "relationType": "关系类型",
-  "strength": 数字(1-10),
-  "learningOrder": "先学A后学B" 或 "先学B后学A" 或 "可同时学习",
-  "explanation": "关系说明",
-  "bidirectional": true或false  // 关系是否双向
+  "strength": 数字,
+  "learningOrder": "学习顺序",
+  "explanation": "关系简述",
+  "bidirectional": true或false
 }
 
-仅返回JSON格式数据，无需任何其他解释或前缀。`;
+必须确保回复是有效的JSON格式，且只包含JSON数据，不带前缀、后缀或说明。回复不得包含反引号(\`)或注释。`;
 
         try {
           // 添加更多提示和调试信息
           log(`[TopicGraphBuilder] 为主题对 "${A}" <-> "${B}" 分析关系`);
           
+          console.log(`【诊断前】正在调用API分析主题关系: ${A} <-> ${B}`);
           const resp = await callGeminiModel(prompt, { model: 'gemini-1.5-flash' });
+          console.log(`【诊断中】API响应完整内容: ${resp}`);
           
           // 检查API调用是否返回错误消息
           if (resp.startsWith('调用失败:')) {
+            console.log(`【诊断错误】API调用明确返回错误信息: ${resp}`);
             log(`[TopicGraphBuilder] API调用返回错误: ${resp}`);
             throw new Error(resp);
           }
@@ -389,6 +370,15 @@ ${textSummaryB}
           // 记录更短的响应摘要，避免日志过大
           const respSummary = resp.length > 200 ? resp.substring(0, 200) + '...' : resp;
           log(`[TopicGraphBuilder] 主题关系分析原始响应: ${respSummary}`);
+          
+          // 诊断: 检查API响应中是否包含关键字
+          const hasRelationTypeWord = resp.includes('relationType') || resp.includes('关系类型');
+          const hasStrengthWord = resp.includes('strength') || resp.includes('强度');
+          const hasJsonSyntax = resp.includes('{') && resp.includes('}');
+          
+          console.log(`【诊断评估】响应包含关系类型关键字: ${hasRelationTypeWord}`);
+          console.log(`【诊断评估】响应包含强度关键字: ${hasStrengthWord}`);
+          console.log(`【诊断评估】响应包含JSON语法标记: ${hasJsonSyntax}`);
           
           // 尝试解析JSON响应
           let relationData;
