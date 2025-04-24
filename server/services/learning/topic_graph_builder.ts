@@ -23,29 +23,48 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
  */
 async function callGeminiModel(prompt: string, options: { model: string }): Promise<string> {
   try {
+    // 验证API密钥是否存在
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.trim() === '') {
+      throw new Error("GEMINI_API_KEY 环境变量未设置或为空");
+    }
+    
     // 确保使用正确的模型名称，默认回退到gemini-1.5-flash
     const modelName = options.model === 'gemini-2.0-flash' ? 'gemini-1.5-flash' : options.model;
-    console.log(`【诊断】[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
+    console.log(`【诊断API】使用模型: ${modelName}`);
     log(`[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
     
-    // 纯粹诊断目的，不模拟任何响应
+    // 记录提示词特征
     if (prompt.includes('主题A') && prompt.includes('主题B')) {
-      console.log(`【诊断】检测到主题关系分析请求，记录提示词长度: ${prompt.length}字符`);
-      console.log(`【诊断】主题A和B: "${prompt.match(/主题A: (.*)/)?.[1] || '未提取'}" <-> "${prompt.match(/主题B: (.*)/)?.[1] || '未提取'}"`);
+      const topicA = prompt.match(/主题A: (.*?)(?:\n|$)/)?.[1]?.trim() || '未提取';
+      const topicB = prompt.match(/主题B: (.*?)(?:\n|$)/)?.[1]?.trim() || '未提取';
+      console.log(`【诊断API】关系分析请求: "${topicA}" <-> "${topicB}"`);
+      console.log(`【诊断API】提示词长度: ${prompt.length}字符`);
     }
     
     const model = genAI.getGenerativeModel({ model: modelName });
     
     // 添加安全超时处理
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("API调用超时(15秒)")), 15000);
+      setTimeout(() => reject(new Error("API调用超时(20秒)")), 20000);
     });
     
-    // 为不同类型的请求使用不同的温度，让主题关系分析使用更低的温度以提高确定性
-    const temperature = prompt.includes('知识关系分析') ? 0.0 : 0.3;
-    console.log(`【诊断参数】设置temperature=${temperature}, 请求类型: ${prompt.includes('知识关系分析') ? '主题关系分析' : '其他请求'}`);
+    // 为关系分析使用更精确的温度设置
+    let temperature = 0.3; // 默认温度
+    
+    if (prompt.includes('知识关系分析') || prompt.includes('分析两个主题的关系')) {
+      temperature = 0.0; // 关系分析用最低温度，提高确定性
+      console.log(`【诊断API】检测到关系分析请求，使用temperature=${temperature}`);
+    } else if (prompt.includes('提炼出一句精准的中文主题名称')) {
+      temperature = 0.2; // 主题名称提取用较低温度
+      console.log(`【诊断API】检测到主题提取请求，使用temperature=${temperature}`);
+    } else {
+      console.log(`【诊断API】常规请求，使用标准temperature=${temperature}`);
+    }
     
     // 实际API调用
+    console.log(`【诊断API】开始发送请求...`);
+    const startTime = Date.now();
+    
     const apiPromise = model.generateContent({
       contents: [{
         role: 'user',
@@ -62,16 +81,40 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
     // 使用Promise.race实现超时保护
     const result = await Promise.race([apiPromise, timeoutPromise]);
     const responseText = result.response.text().trim();
+    const elapsedTime = Date.now() - startTime;
     
-    // 记录成功响应的前100个字符，避免日志过长
-    log(`[TopicGraphBuilder] 模型响应成功，返回内容前100字符: ${responseText.substring(0, 100)}...`);
-    console.log(`【诊断】API响应前100字符: ${responseText.substring(0, 100)}...`);
+    console.log(`【诊断API】请求成功，耗时: ${elapsedTime}ms`);
+    
+    // 简化日志，只记录关键部分
+    const shortResp = responseText.length > 150 
+      ? responseText.substring(0, 70) + '...' + responseText.substring(responseText.length - 70) 
+      : responseText;
+    
+    log(`[TopicGraphBuilder] 模型响应成功: ${shortResp}`);
+    
+    // 检查JSON内容是否存在
+    const hasJson = responseText.includes('{') && responseText.includes('}');
+    console.log(`【诊断API】响应中包含JSON结构: ${hasJson ? '是' : '否'}`);
+    
+    if (prompt.includes('主题A') && prompt.includes('主题B')) {
+      // 检查关系类型
+      const relationTypeMatches = [
+        '前置知识', '包含关系', '应用关系', '相似概念', '互补知识', '相关概念'
+      ].filter(type => responseText.includes(type));
+      
+      if (relationTypeMatches.length > 0) {
+        console.log(`【诊断API】检测到关系类型: ${relationTypeMatches.join(', ')}`);
+      } else {
+        console.log(`【诊断API】未检测到任何预期的关系类型`);
+      }
+    }
+    
     return responseText;
   } catch (error) {
     // 更详细的错误记录
     const errorMessage = error instanceof Error ? error.message : String(error);
     log(`[TopicGraphBuilder] Gemini API调用失败: ${errorMessage}`);
-    console.log(`【诊断】Gemini API调用失败: ${errorMessage}`);
+    console.log(`【诊断API】调用失败: ${errorMessage}`);
     
     // 返回更具体的错误信息
     return `调用失败: API请求出错 - ${errorMessage}`;
@@ -1073,26 +1116,64 @@ export async function diagnoseRelationAPI(): Promise<void> {
       console.log(`【诊断测试】使用temperature=0, 模型=gemini-1.5-flash`);
       
       try {
-        // 直接调用API
-        console.log(`【诊断测试】发送请求...`);
+        // 直接调用API，测试不同的温度值
+        // 首先用温度为0
+        console.log(`【诊断测试】发送请求(温度=0)...`);
         const resp = await callGeminiModel(prompt, { model: 'gemini-1.5-flash' });
         
-        // 记录完整响应
-        console.log(`【诊断测试】收到响应: ${resp}`);
+        // 使用分隔符格式化输出，使其更易读
+        console.log(`【诊断测试】收到响应:\n---开始响应内容---\n${resp}\n---结束响应内容---`);
+        
+        // 检查响应中的关键字
+        const containsKeywords = {
+          "前置知识": resp.includes("前置知识"),
+          "包含关系": resp.includes("包含关系"),
+          "应用关系": resp.includes("应用关系"),
+          "相似概念": resp.includes("相似概念"),
+          "互补知识": resp.includes("互补知识"),
+          "相关概念": resp.includes("相关概念")
+        };
+        
+        console.log(`【诊断测试】关键词检测:\n${Object.entries(containsKeywords)
+          .map(([key, val]) => `  - ${key}: ${val ? '✓' : '✗'}`)
+          .join('\n')}`);
         
         // 尝试解析JSON
         try {
           // 查找JSON对象
           const jsonMatch = resp.match(/\{[\s\S]*?\}/);
           if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            console.log(`【诊断测试】成功解析JSON: ${JSON.stringify(parsed, null, 2)}`);
-            console.log(`【诊断测试】关系类型: ${parsed.relationType}, 强度: ${parsed.strength}`);
+            const jsonText = jsonMatch[0];
+            console.log(`【诊断测试】找到JSON文本:\n${jsonText}`);
+            
+            try {
+              const parsed = JSON.parse(jsonText);
+              console.log(`【诊断测试】成功解析JSON: ${JSON.stringify(parsed, null, 2)}`);
+              console.log(`【诊断测试】关系类型: ${parsed.relationType}, 强度: ${parsed.strength}`);
+            } catch (parseError) {
+              console.log(`【诊断测试】JSON解析失败: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+              
+              // 尝试修复常见JSON问题
+              const fixedJson = jsonText
+                .replace(/[\r\n]+/g, ' ')
+                .replace(/,\s*\}/g, '}')
+                .replace(/([{,])\s*([a-zA-Z0-9_]+):/g, '$1"$2":')
+                .replace(/:\s*'([^']*)'/g, ':"$1"');
+                
+              console.log(`【诊断测试】尝试修复后的JSON: ${fixedJson}`);
+              
+              try {
+                const parsedFixed = JSON.parse(fixedJson);
+                console.log(`【诊断测试】修复后成功解析: ${JSON.stringify(parsedFixed, null, 2)}`);
+              } catch (fixError) {
+                console.log(`【诊断测试】修复仍然失败: ${fixError instanceof Error ? fixError.message : String(fixError)}`);
+              }
+            }
           } else {
             console.log(`【诊断测试】未能在响应中找到JSON对象`);
           }
         } catch (jsonError) {
-          console.log(`【诊断测试】JSON解析错误: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`);
+          console.log(`【诊断测试】JSON处理过程错误: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`);
         }
       } catch (apiError) {
         console.log(`【诊断测试】API调用错误: ${apiError instanceof Error ? apiError.message : String(apiError)}`);
