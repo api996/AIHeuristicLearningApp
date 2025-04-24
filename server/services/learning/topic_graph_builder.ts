@@ -389,13 +389,15 @@ ${textSummaryB}
 
 请深入分析这两个主题之间的知识关系，特别关注以下几个方面:
 
-1. 关系类型(必选一项):
-   - 前置知识: 一个主题是另一个的基础，学习顺序明确
-   - 包含关系: 一个主题是另一个的子集或超集
-   - 应用关系: 一个主题的知识应用于另一个主题
-   - 相似概念: 两个主题有显著相似之处
-   - 互补知识: 两个主题相互补充，共同构成更完整的知识体系
-   - 无直接关系: 主题间没有明显联系
+1. 关系类型(必须选择一种最合适的类型，并使用确切的类型名称，不要自创新类型):
+   - prerequisite (前置知识): 一个主题是另一个的基础，学习顺序明确
+   - contains (包含关系): 一个主题是另一个的子集或超集
+   - applies (应用关系): 一个主题的知识应用于另一个主题
+   - similar (相似概念): 两个主题有显著相似之处
+   - complements (互补知识): 两个主题相互补充，共同构成更完整的知识体系
+   - references (引用关系): 一个主题引用或参考了另一个主题的内容
+   - unrelated (无直接关系): 主题间没有明显联系
+   - related (相关概念): 如果不符合上述任何一种特定关系，但两者仍有联系
 
 2. 关系强度: 从1(非常弱)到10(非常强)评分
 
@@ -406,9 +408,11 @@ ${textSummaryB}
 4. 关系描述:
    - 用1-2句话简明扼要地解释这两个主题之间的具体关系
 
+重要提示：必须使用以上8种标准关系类型中的一种，不要创造新的类型名称。关系类型应该多样化，不要对所有主题对都使用"related"类型。
+
 请按以下JSON格式输出结果，不要包含额外的说明或文本:
 {
-  "relationType": "关系类型",
+  "relationType": "必须是上述8种标准类型之一，优先使用英文类型名",
   "strength": 数字(1-10),
   "learningOrder": "先学A后学B" 或 "先学B后学A" 或 "可同时学习",
   "explanation": "关系说明",
@@ -518,6 +522,13 @@ ${textSummaryB}
           }
           
           // 规范化关系类型并映射到英文类型标识符(与前端一致)
+          // 先定义有效的标准英文类型
+          const standardTypes = [
+            'prerequisite', 'contains', 'applies', 'similar',
+            'complements', 'references', 'related', 'unrelated'
+          ];
+          
+          // 中文类型映射到英文标识符
           const relationTypeMapping: Record<string, string> = {
             "前置知识": "prerequisite", 
             "包含关系": "contains", 
@@ -529,13 +540,50 @@ ${textSummaryB}
             "无直接关系": "unrelated"
           };
           
-          // 检查是否有效的中文关系类型
-          if (!Object.keys(relationTypeMapping).includes(relationData.relationType)) {
-            relationData.relationType = "相关概念"; // 默认为相关概念
-          }
+          // 确定最终的关系类型代码
+          let relationTypeCode: string;
           
-          // 转换为英文类型标识符
-          const relationTypeCode = relationTypeMapping[relationData.relationType] || "related";
+          // 如果AI返回的是有效的英文标识符，直接使用
+          if (standardTypes.includes(relationData.relationType.toLowerCase())) {
+            relationTypeCode = relationData.relationType.toLowerCase();
+            console.log(`【诊断】发现有效的英文关系类型: ${relationTypeCode}`);
+          } 
+          // 如果是有效的中文类型，使用映射转换
+          else if (Object.keys(relationTypeMapping).includes(relationData.relationType)) {
+            relationTypeCode = relationTypeMapping[relationData.relationType];
+            console.log(`【诊断】中文关系类型映射: ${relationData.relationType} -> ${relationTypeCode}`);
+          } 
+          // 否则使用默认的关系类型
+          else {
+            // 尝试模糊匹配一些同义词，提高准确性
+            const lowerType = relationData.relationType.toLowerCase();
+            if (lowerType.includes('prerequisite') || lowerType.includes('required')) {
+              relationTypeCode = 'prerequisite';
+            }
+            else if (lowerType.includes('contain') || lowerType.includes('include')) {
+              relationTypeCode = 'contains';
+            }
+            else if (lowerType.includes('appl') || lowerType.includes('use')) {
+              relationTypeCode = 'applies';
+            }
+            else if (lowerType.includes('similar') || lowerType.includes('like')) {
+              relationTypeCode = 'similar';
+            }
+            else if (lowerType.includes('complement') || lowerType.includes('补充')) {
+              relationTypeCode = 'complements';
+            }
+            else if (lowerType.includes('refer') || lowerType.includes('cite')) {
+              relationTypeCode = 'references';
+            }
+            else if (lowerType.includes('unrelated') || lowerType.includes('no relation')) {
+              relationTypeCode = 'unrelated';
+            }
+            else {
+              relationTypeCode = 'related'; // 最终默认值
+            }
+            
+            console.log(`【诊断】无法直接识别的关系类型: "${relationData.relationType}" 使用模糊匹配后的类型: "${relationTypeCode}"`);
+          }
           
           // 确保强度在1-10范围内
           relationData.strength = Math.max(1, Math.min(10, relationData.strength));
