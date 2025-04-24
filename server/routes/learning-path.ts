@@ -376,33 +376,145 @@ router.get('/:userId/refresh-cache', async (req, res) => {
     const memoryService = (await import('../services/learning/memory_service')).memoryService;
     const memories = await storage.getMemoriesByUserId(userId);
     
+    // 获取记忆向量嵌入
+    log(`[API] 开始获取用户 ${userId} 的记忆向量嵌入`);
+    const memoryIds = memories.map(m => m.id);
+    const embeddingsMap = await storage.getEmbeddingsByMemoryIds(memoryIds);
+    
+    // 检查是否有嵌入向量
+    if (!embeddingsMap || Object.keys(embeddingsMap).length === 0) {
+      log(`[API] 错误: 用户 ${userId} 的记忆没有向量嵌入，无法进行聚类分析`);
+      res.json({ 
+        success: false, 
+        message: `用户 ${userId} 的记忆没有向量嵌入，无法进行聚类分析`,
+        topicCount: 0,
+        clusters: 0
+      });
+      return;
+    }
+    
+    // 构建对齐的向量数组
+    const embeddings = memories.map(memory => {
+      const embedding = embeddingsMap[memory.id];
+      return embedding ? embedding.vectorData : null;
+    }).filter(Boolean) as number[][];
+    
+    log(`[API] 用户 ${userId} 有 ${memories.length} 条记忆，其中 ${embeddings.length} 条有向量嵌入`);
+    
     // 使用memoryService获取聚类数据
-    const clusterResult = await memoryService.analyzeMemoryClusters(userId, memories as any, [], true);
+    const clusterResult = await memoryService.analyzeMemoryClusters(userId, memories as any, embeddings);
+    
+    // 记录获取到的聚类结果
+    log(`[API] 聚类API返回结果: ${JSON.stringify(clusterResult ? {
+      topicCount: clusterResult.topics?.length || 0,
+      topics: clusterResult.topics?.map((t: any) => ({
+        id: t.id,
+        label: t.label,
+        topic: t.topic,
+        keywords: t.keywords?.slice(0, 2)
+      }))
+    } : {})}`);
     
     // 强制刷新聚类和学习轨迹
     const result = await analyzeLearningPath(userId, true);
+    
+    log(`[API] 学习轨迹原始结果: ${JSON.stringify({
+      topicCount: result.topics?.length || 0,
+      topics: result.topics?.map((t: any) => ({
+        id: t.id,
+        topic: t.topic
+      }))
+    })}`);
     
     // 如果获取到了聚类数据，替换结果中的通用主题名称
     if (clusterResult && clusterResult.topics && clusterResult.topics.length > 0) {
       log(`[API] 获取到 ${clusterResult.topics.length} 个聚类，替换通用主题名称`);
       
-      // 创建一个映射，将索引映射到聚类标签
+      // 创建一个映射，将主题ID映射到聚类标签
       const clusterLabels = new Map();
+      const clusterIdMap = new Map(); // 映射聚类ID到索引
+      
+      // 记录聚类ID到索引的映射关系
       clusterResult.topics.forEach((cluster: any, index: number) => {
-        // 使用cluster.label或cluster.topic作为主题名称
-        const topicName = cluster.label || cluster.topic || `集群 ${index}`;
+        const clusterId = cluster.id || `cluster_${index}`;
+        clusterIdMap.set(clusterId, index);
+        log(`[API] 聚类ID ${clusterId} 对应索引 ${index}`);
+      });
+      
+      // 处理每个聚类的标签
+      clusterResult.topics.forEach((cluster: any, index: number) => {
+        // 优先使用label，其次是topic，最后是关键词生成标签
+        let topicName = '';
+        if (cluster.label && typeof cluster.label === 'string' && cluster.label.trim().length > 0) {
+          topicName = cluster.label;
+          log(`[API] 使用聚类 ${index} 的label: "${cluster.label}"`);
+        } else if (cluster.topic && typeof cluster.topic === 'string' && cluster.topic.trim().length > 0 &&
+                 !/^(主题|集群|聚类|Topic|Cluster|Group) \d+(-\d+)?$/.test(cluster.topic)) {
+          topicName = cluster.topic;
+          log(`[API] 使用聚类 ${index} 的topic: "${cluster.topic}"`);
+        } else if (cluster.keywords && Array.isArray(cluster.keywords) && cluster.keywords.length >= 2) {
+          topicName = `${cluster.keywords[0]} 与 ${cluster.keywords[1]}`;
+          log(`[API] 使用聚类 ${index} 的关键词生成标签: "${topicName}"`);
+        } else {
+          topicName = `实时数据聚类 ${index}`;
+          log(`[API] 使用聚类 ${index} 的默认标签: "${topicName}"`);
+        }
+        
+        // 同时用索引和ID作为键，确保不管使用哪种方式查找都能找到
         clusterLabels.set(index, topicName);
-        log(`[API] 聚类 ${index}: ${topicName}`);
+        const clusterId = cluster.id || `cluster_${index}`;
+        clusterLabels.set(clusterId, topicName);
+        log(`[API] 最终聚类 ${index} (ID=${clusterId})标签: "${topicName}"`);
       });
       
       // 替换result.topics中的通用名称
       if (result.topics && result.topics.length > 0) {
+        // 记录原始主题和更新后的主题，用于调试
+        log(`[API] 原始主题: ${JSON.stringify(result.topics.map(t => t.topic))}`);
+        
+        // 记录主题ID对应关系
+        log(`[API] 学习轨迹主题ID: ${JSON.stringify(result.topics.map(t => t.id))}`);
+        
         const updatedTopics = result.topics.map((topic, index) => {
-          if (/^主题 \d+$/.test(topic.topic) && clusterLabels.has(index)) {
+          const isGenericName = /^(主题|集群|聚类|Topic|Cluster|Group) \d+(-\d+)?$/.test(topic.topic);
+          const hasLabelByIndex = clusterLabels.has(index);
+          const hasLabelById = clusterLabels.has(topic.id);
+          
+          log(`[API] 主题 ${index} (ID=${topic.id}) "${topic.topic}" 是否为通用名称: ${isGenericName}, 有索引标签: ${hasLabelByIndex}, 有ID标签: ${hasLabelById}`);
+          
+          // 首先尝试用ID查找标签
+          if (isGenericName && hasLabelById) {
+            const newTopic = clusterLabels.get(topic.id);
+            log(`[API] 按ID替换主题名称: "${topic.topic}" -> "${newTopic}"`);
             return {
               ...topic,
-              topic: clusterLabels.get(index)
+              topic: newTopic
             };
+          } 
+          // 然后尝试用索引查找标签
+          else if (isGenericName && hasLabelByIndex) {
+            const newTopic = clusterLabels.get(index);
+            log(`[API] 按索引替换主题名称: "${topic.topic}" -> "${newTopic}"`);
+            return {
+              ...topic,
+              topic: newTopic
+            };
+          } 
+          // 如果没找到匹配的标签但仍然是通用名称，使用关键词生成一个
+          else if (isGenericName && clusterResult.topics.length > index) {
+            const cluster = clusterResult.topics[index];
+            if (cluster.keywords && Array.isArray(cluster.keywords) && cluster.keywords.length >= 2) {
+              const generatedTopic = `${cluster.keywords[0]} 与 ${cluster.keywords[1]}`;
+              log(`[API] 使用关键词生成主题: "${topic.topic}" -> "${generatedTopic}"`);
+              return {
+                ...topic,
+                topic: generatedTopic
+              };
+            } else {
+              log(`[API] 保留原始通用主题名称: "${topic.topic}"`);
+            }
+          } else {
+            log(`[API] 保留原始主题名称: "${topic.topic}"`);
           }
           return topic;
         });
