@@ -97,6 +97,7 @@ export interface TrajectoryLink {
   label?: string;       // 连接标签 (显示的文本)
   reason?: string;      // 连接原因 (说明)
   strength?: number;    // 关系强度 (可选)
+  distributionPercentage?: number; // 学习分布百分比 (与topic_graph_builder保持一致)
   learningOrder?: string; // 学习顺序 (可选)
   color?: string;       // 连接颜色
 }
