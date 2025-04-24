@@ -57,9 +57,10 @@ export interface GenAIService {
   /**
    * 为一组记忆生成主题标签
    * @param texts 文本数组
+   * @param metadata 可选的元数据，例如聚类特征信息
    * @returns 主题标签
    */
-  generateTopicForMemories(texts: string[]): Promise<string | null>;
+  generateTopicForMemories(texts: string[], metadata?: any): Promise<string | null>;
 }
 
 /**
@@ -208,7 +209,7 @@ class GeminiService implements GenAIService {
     }
   }
 
-  async generateTopicForMemories(texts: string[]): Promise<string | null> {
+  async generateTopicForMemories(texts: string[], metadata?: any): Promise<string | null> {
     if (!this.genAI) {
       log("[genai_service] 无法生成主题: API未初始化", "warn");
       return null;
@@ -216,7 +217,7 @@ class GeminiService implements GenAIService {
 
     try {
       // 记录输入数据以便调试
-      log(`[genai_service] 开始生成主题，接收到${texts.length}条文本样本`);
+      log(`[genai_service] 开始生成主题，接收到${texts.length}条文本样本${metadata ? '和元数据' : ''}`);
       if (texts.length === 0) {
         log("[genai_service] 警告: 收到空文本数组，无法生成主题", "warn");
         return "一般讨论";
@@ -230,23 +231,40 @@ class GeminiService implements GenAIService {
       // 使用Gemini 1.5 Flash模型生成主题（更快速的模型版本）
       const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
-      // 简化提示词，使其更可靠
+      // 构建提示词
+      let prompt = `分析这些文本，创建一个简短、有意义的主题标签（最多6个词或20个字符）。
+直接输出主题名称，不要引号，不要解释。`;
+
+      // 如果有元数据，添加上下文信息
+      if (metadata && metadata.cluster_info) {
+        // 添加聚类相关的元数据
+        prompt += `\n\n这些文本属于一个聚类组，聚类中包含${metadata.cluster_info.memory_count || '多'}条相关记忆。`;
+        
+        // 如果有关键词信息，添加到提示中
+        if (metadata.cluster_info.keywords && metadata.cluster_info.keywords.length > 0) {
+          const keywordsText = metadata.cluster_info.keywords.slice(0, 5).join('、');
+          prompt += `\n聚类关键词包括：${keywordsText}。`;
+        }
+        
+        // 如果有记忆类型信息，添加到提示中
+        if (metadata.cluster_info.memory_types) {
+          prompt += `\n记忆类型主要是：${metadata.cluster_info.memory_types}。`;
+        }
+      }
+      
+      prompt += `\n\n文本:\n${combinedText}`;
+      
+      // 发送请求
       const result = await model.generateContent({
         contents: [{
           role: 'user',
-          parts: [{ text: 
-            `分析这些文本，创建一个简短的主题标签（最多4个词或15个字符）。
-直接输出主题名称，不要引号，不要解释。
-
-文本:
-${combinedText}` 
-          }]
+          parts: [{ text: prompt }]
         }],
         generationConfig: {
-          temperature: 0.1,  // 几乎确定性的结果
-          topP: 0.8,
-          topK: 30,
-          maxOutputTokens: 30
+          temperature: 0.2,  // 稍微提高温度，允许更有创意的主题
+          topP: 0.9,
+          topK: 40,
+          maxOutputTokens: 50
         }
       });
       
@@ -309,7 +327,7 @@ class FallbackService implements GenAIService {
     return uniqueWords.length > 0 ? uniqueWords : ["未知主题"];
   }
 
-  async generateTopicForMemories(texts: string[]): Promise<string | null> {
+  async generateTopicForMemories(texts: string[], metadata?: any): Promise<string | null> {
     // 尝试从文本中提取第一个关键词作为主题
     log("[genai_service] 使用简单关键词作为后备主题生成", "warn");
     const keywords = await this.extractKeywords(texts.join(" "));
