@@ -4,11 +4,12 @@ import {
   memories, memoryKeywords, memoryEmbeddings,
   promptTemplates, searchResults, conversationAnalytics,
   userFiles, userSettings, systemConfig,
-  knowledgeGraphCache, clusterResultCache,
+  knowledgeGraphCache, clusterResultCache, learningPaths,
   type Memory, type MemoryKeyword, type MemoryEmbedding,
   type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding,
   type PromptTemplate, type SearchResult, type ConversationAnalytic,
-  type SystemConfig, type KnowledgeGraphCache, type ClusterResultCache
+  type SystemConfig, type KnowledgeGraphCache, type ClusterResultCache, type LearningPath,
+  type InsertLearningPath
 } from "@shared/schema";
 import { db } from "./db";
 import { 
@@ -124,6 +125,19 @@ export interface IStorage {
   ): Promise<ConversationAnalytic>;
   getLatestConversationAnalytic(chatId: number): Promise<ConversationAnalytic | undefined>;
   getConversationAnalyticHistory(chatId: number): Promise<ConversationAnalytic[]>;
+  
+  // Learning path methods
+  saveLearningPath(
+    userId: number,
+    topics: any[],
+    distribution: any[],
+    suggestions: string[],
+    knowledgeGraph?: any,
+    progressHistory?: any[],
+    isOptimized?: boolean
+  ): Promise<LearningPath>;
+  getLearningPath(userId: number): Promise<LearningPath | undefined>;
+  updateLearningPathHistory(userId: number, newProgressEntry: any): Promise<LearningPath | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
