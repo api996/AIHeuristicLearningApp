@@ -352,4 +352,41 @@ router.post('/:userId/repair-memories', async (req, res) => {
   }
 });
 
+/**
+ * 测试路由 - 强制刷新用户的聚类结果
+ * GET /api/learning-path/:userId/refresh-cache
+ */
+router.get('/:userId/refresh-cache', async (req, res) => {
+  try {
+    const userId = utils.safeParseInt(req.params.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ error: "无效的用户ID" });
+    }
+    
+    log(`[API] 强制刷新用户 ${userId} 的聚类缓存`);
+    
+    // 清除现有缓存
+    await storage.clearClusterResultCache(userId);
+    
+    // 清除学习轨迹数据
+    await storage.clearLearningPath(userId);
+    
+    // 强制刷新聚类和学习轨迹
+    const result = await analyzeLearningPath(userId, true);
+    
+    res.json({ 
+      success: true, 
+      message: `已成功刷新用户 ${userId} 的聚类缓存和学习轨迹数据`,
+      topicCount: result.topics.length,
+      clusters: Object.keys(result).includes('distribution') 
+        ? (result as any).distribution.length 
+        : result.progress.length
+    });
+  } catch (error) {
+    log(`[API] 刷新聚类缓存出错: ${error}`);
+    res.status(500).json({ error: utils.sanitizeErrorMessage(error) });
+  }
+});
+
 export default router;
