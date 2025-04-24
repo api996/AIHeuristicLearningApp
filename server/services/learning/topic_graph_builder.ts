@@ -543,6 +543,9 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
         case 'complements':
           linkColor = 'rgba(245, 158, 11, 0.7)'; // 琥珀色，表示互补关系
           break;
+        case 'related':
+          linkColor = 'rgba(79, 70, 229, 0.7)'; // 靛紫色，增强相关概念的视觉效果
+          break;
         default:
           linkColor = 'rgba(156, 163, 175, 0.7)'; // 灰色
       }

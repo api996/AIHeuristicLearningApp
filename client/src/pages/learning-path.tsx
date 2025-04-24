@@ -622,13 +622,11 @@ export default function LearningPath() {
                   </div>
                 </div>
                 
-                {/* 只保留简单的节点和连接计数统计 */}
-                <div className="absolute bottom-4 left-4 z-10 bg-gray-900/80 p-3 rounded-lg backdrop-blur-sm border border-gray-800 shadow-lg">
-                  <div className="flex items-center">
-                    <p className="text-xs text-gray-400">
-                      {graphData?.nodes?.length || 0}个节点 | {graphData?.links?.length || 0}个连接
-                    </p>
-                  </div>
+                {/* 简洁的节点统计信息 */}
+                <div className="absolute bottom-4 left-4 z-10 bg-gray-900/80 px-3 py-2 rounded-lg backdrop-blur-sm border border-gray-800 shadow-lg">
+                  <p className="text-xs text-gray-400">
+                    {graphData?.nodes?.length || 0}个节点 | {graphData?.links?.length || 0}个连接
+                  </p>
                 </div>
                 
                 {/* 帮助提示 */}
