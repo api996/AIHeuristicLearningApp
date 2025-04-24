@@ -21,6 +21,10 @@ externalPort = 80
 localPort = 5001
 externalPort = 3000
 
+[[ports]]
+localPort = 9001
+externalPort = 3001
+
 [workflows]
 runButton = "修复记忆文件系统并重启"
 

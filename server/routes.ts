@@ -414,6 +414,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId || isNaN(Number(userId))) {
         return res.status(400).json({ error: "无效的用户ID" });
       }
+      
+      // 管理员用户（用户ID=1）不需要学习轨迹功能
+      if (Number(userId) === 1) {
+        return res.json({
+          topics: [],
+          progress: [],
+          suggestions: [
+            "管理员用户无需学习轨迹功能",
+            "该功能仅适用于普通用户账户"
+          ],
+          knowledge_graph: {
+            nodes: [],
+            links: []
+          }
+        });
+      }
 
       // 检查记忆目录状态 (仅用于日志)
       const memoryDir = "memory_space";

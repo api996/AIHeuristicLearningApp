@@ -17,8 +17,8 @@ const __dirname = dirname(__filename);
 // 日志工具
 import { log } from './utils';
 
-// 默认API配置
-const DEFAULT_API_PORT = 5001;
+// 默认API配置 - 使用高端口号避免与其他服务冲突
+const DEFAULT_API_PORT = 9001; // 使用9001端口，远离常用端口范围
 const DEFAULT_API_URL = `http://localhost:${DEFAULT_API_PORT}`;
 
 // API服务实例
