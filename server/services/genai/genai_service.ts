@@ -388,16 +388,40 @@ export let genAiService: GenAIService;
 // 暂时使用一个简单的Promise占位，等待初始化完成
 let serviceInitPromise: Promise<void>;
 
-// 异步初始化
+// 创建初始化函数，方便外部代码使用
+export const initializeGenAIService = async (): Promise<GenAIService> => {
+  if (genAiService) {
+    // 已初始化，直接返回
+    return genAiService;
+  }
+
+  try {
+    log(`[genai_service] 正在初始化GenAI服务...`, "info");
+    const service = await createGenAIService();
+    genAiService = service;
+    return service;
+  } catch (error) {
+    log(`[genai_service] 初始化失败: ${error}`, "error");
+    
+    // 返回后备服务，确保任何时候都有功能
+    log(`[genai_service] 使用后备服务`, "warn");
+    const fallbackService = new FallbackService();
+    genAiService = fallbackService;
+    return fallbackService;
+  }
+};
+
+// 立即执行初始化
 (async () => {
   serviceInitPromise = new Promise(async (resolve) => {
     try {
-      genAiService = await createGenAIService();
+      // 使用初始化函数
+      genAiService = await initializeGenAIService();
       resolve();
     } catch (error) {
-      log(`[genai_service] 初始化失败: ${error}`, "error");
-      // 不再使用后备服务，直接抛出错误
-      throw new Error(`Gemini服务初始化失败，请确保API密钥正确: ${error}`);
+      log(`[genai_service] 初始化错误处理: ${error}`, "error");
+      // 即使出错也要解决Promise，避免阻塞
+      resolve();
     }
   });
 })();
@@ -406,5 +430,7 @@ let serviceInitPromise: Promise<void>;
 setTimeout(() => {
   if (!genAiService) {
     log(`[genai_service] 警告：服务初始化可能失败，API调用可能会出错`, "error");
+    // 创建一个后备服务以防万一
+    genAiService = new FallbackService();
   }
 }, 5000);
