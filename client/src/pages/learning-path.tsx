@@ -12,43 +12,18 @@ import TextNodeForceGraph from "@/components/TextNodeForceGraph";
 import "@/components/ui/learning-path-fixes.css";
 // 导入知识图谱样式
 import "@/components/ui/knowledge-graph-fixes.css";
-// 导入知识图谱预加载器
-import { preloadKnowledgeGraphData } from '@/lib/knowledge-graph-preloader';
+// 导入统一图谱预加载器
+import { preloadGraphData, GraphData, GraphNode, GraphLink } from '@/lib/unified-graph-preloader';
 // 导入知识图谱图例组件
 import KnowledgeGraphLegend from '@/components/KnowledgeGraphLegend';
 
-// 定义知识图谱节点类型
-interface KnowledgeNode {
-  id: string;
-  label: string;
-  size: number;
-  category?: string;
-  clusterId?: string;
-  color?: string;
-  x?: number;
-  y?: number;
-}
-
-// 定义知识图谱连接类型
-interface KnowledgeLink {
-  source: string;
-  target: string;
-  value: number;
-  type?: string;
-}
-
-// 知识图谱数据结构
-interface KnowledgeGraph {
-  nodes: KnowledgeNode[];
-  links: KnowledgeLink[];
-  version?: number;
-}
+// 使用统一的GraphData类型，替代自定义KnowledgeGraph接口
 
 export default function LearningPath() {
   const [, setLocation] = useLocation();
   const [user, setUser] = useState<{userId: number; role: string; username?: string} | null>(null);
   const [isGraphLoading, setIsGraphLoading] = useState(false);
-  const [graphData, setGraphData] = useState<KnowledgeGraph | null>(null);
+  const [graphData, setGraphData] = useState<GraphData | null>(null);
 
   // 从localStorage获取用户信息
   useEffect(() => {
@@ -86,14 +61,14 @@ export default function LearningPath() {
       // 设置加载状态
       setIsGraphLoading(true);
       
-      // 使用预加载函数获取数据
-      preloadKnowledgeGraphData(user.userId)
-        .then(data => {
+      // 使用统一预加载函数获取数据
+      preloadGraphData(user.userId, 'knowledge')
+        .then((data: GraphData) => {
           // 成功获取数据后，更新状态
           setGraphData(data);
           console.log(`知识图谱数据加载成功: ${data.nodes.length}个节点, ${data.links.length}个连接`);
         })
-        .catch(err => {
+        .catch((err: Error) => {
           console.error("知识图谱数据加载失败:", err);
         })
         .finally(() => {
@@ -560,8 +535,8 @@ export default function LearningPath() {
                             .then(data => {
                               console.log(`知识图谱数据刷新成功: ${data.nodes.length}个节点`);
                               // 预加载新数据并刷新本地缓存
-                              preloadKnowledgeGraphData(user.userId, true)
-                                .then((data) => {
+                              preloadGraphData(user.userId, 'knowledge', true)
+                                .then((data: GraphData) => {
                                   // 使用新加载的数据更新状态，而不是重新加载整个页面
                                   if (data && data.nodes && data.links) {
                                     setGraphData(data);
