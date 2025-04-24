@@ -362,14 +362,15 @@ export class ClusterAnalyzerService {
   
   /**
    * 获取记忆的关键词
-   * @param memoryId 记忆ID
+   * @param memoryId 记忆ID（字符串或数字类型）
    * @returns 关键词数组
    */
-  private async getKeywordsForMemory(memoryId: number): Promise<string[]> {
+  private async getKeywordsForMemory(memoryId: string | number): Promise<string[]> {
     try {
       // 从storage导入，确保避免循环引用
       const { storage } = await import('../../storage');
       const keywords = await storage.getKeywordsByMemoryId(memoryId);
+      log(`[cluster_analyzer] 成功获取记忆#${memoryId}的关键词: ${keywords.length}个`);
       return keywords.map(k => k.keyword);
     } catch (error) {
       log(`[cluster_analyzer] 获取记忆#${memoryId}的关键词失败: ${error}`, "warn");
