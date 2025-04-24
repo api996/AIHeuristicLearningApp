@@ -48,9 +48,8 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
 
 // 聚类中心类型定义
 interface ClusterCenter {
-  id: string;                // e.g. "cluster_0"
-  texts: string[];           // 聚类后属于此中心的原始文本段落列表
-  originalLabel?: string;    // 从记忆服务获取的原始主题标签
+  id: string;            // e.g. "cluster_0"
+  texts: string[];       // 聚类后属于此中心的原始文本段落列表
 }
 
 // 主题关系类型
@@ -59,8 +58,7 @@ interface Relation {
   target: string; 
   type: string;
   reason: string;
-  strength?: number;         // 关系强度（1-10）- 为兼容旧版保留
-  distributionPercentage?: number; // 学习分布（百分比）
+  strength?: number;         // 关系强度（1-10）
   learningOrder?: string;    // 学习顺序建议
 }
 
@@ -81,7 +79,6 @@ interface GraphData {
     reason?: string;
     value?: number;
     strength?: number;
-    distributionPercentage?: number; // 学习分布（百分比）
     learningOrder?: string;
     color?: string;
   }[];
@@ -326,15 +323,11 @@ ${textSummaryB}
           // 确保强度在1-10范围内
           relationData.strength = Math.max(1, Math.min(10, relationData.strength));
           
-          // 计算学习分布百分比 (1-10 => 10-90%)
-          const distributionPercent = Math.max(10, Math.min(90, (relationData.strength * 9) - 5));
-          
           rels.push({
             source: A,
             target: B,
             type: relationData.relationType,
             strength: relationData.strength,
-            distributionPercentage: distributionPercent,
             learningOrder: relationData.learningOrder,
             reason: relationData.explanation || "主题间存在知识关联"
           });
@@ -349,7 +342,6 @@ ${textSummaryB}
             target: B,
             type: "相关概念",
             strength: 5,
-            distributionPercentage: 50, // 默认50%的学习分布
             learningOrder: "可同时学习",
             reason: "主题间可能存在知识关联"
           });
@@ -362,38 +354,6 @@ ${textSummaryB}
   }
   
   return rels;
-}
-
-/**
- * 计算两个主题间的学习分布百分比
- * @param source 源主题
- * @param target 目标主题
- * @param nodes 图谱中的所有节点
- * @param strength 关系强度（1-10，可选）
- * @returns 学习分布百分比（0-100）
- */
-function calculateDistributionPercentage(source: string, target: string, nodes: any[], strength?: number): number {
-  // 查找源节点和目标节点
-  const sourceNode = nodes.find(n => n.id === source);
-  const targetNode = nodes.find(n => n.id === target);
-  
-  if (!sourceNode || !targetNode) return 50; // 默认值
-  
-  // 如果提供了强度值，根据强度值转换为百分比 (1-10 => 10-90)
-  if (strength !== undefined) {
-    return Math.max(10, Math.min(90, (strength * 9) - 5));
-  }
-  
-  // 如果没有强度值，根据节点大小计算
-  // 计算这两个节点的大小总和占所有节点大小总和的百分比
-  const nodeSizeSum = nodes.reduce((sum, node) => sum + (node.size || 5), 0);
-  const currentNodesSizeSum = (sourceNode.size || 5) + (targetNode.size || 5);
-  
-  // 转换为百分比 (0-100)
-  const percentage = (currentNodesSizeSum / nodeSizeSum) * 100;
-  
-  // 限制范围在10-90之间，确保有意义的显示效果
-  return Math.max(10, Math.min(90, percentage));
 }
 
 /**
@@ -441,22 +401,11 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
   try {
     log(`[TopicGraphBuilder] 开始构建图谱，共有 ${centers.length} 个聚类中心`);
     
-    // 1. 提取主题名称 - 优先使用原始标签
-    const topics: string[] = [];
-    for (const center of centers) {
-      if (center.originalLabel) {
-        // 优先使用从记忆服务获取的原始标签
-        topics.push(center.originalLabel);
-        log(`[TopicGraphBuilder] 使用原始标签: ${center.originalLabel}`);
-      } else {
-        // 如果没有原始标签，则尝试提取
-        const extractedTopic = await extractTopicName(center);
-        topics.push(extractedTopic);
-        log(`[TopicGraphBuilder] 提取的主题: ${extractedTopic}`);
-      }
-    }
+    // 1. 提取主题名称
+    const topicPromises = centers.map(c => extractTopicName(c));
+    const topics = await Promise.all(topicPromises);
     
-    log(`[TopicGraphBuilder] 最终使用的主题列表: ${topics.join(', ')}`);
+    log(`[TopicGraphBuilder] 提取的主题: ${topics.join(', ')}`);
     
     // 为深度分析准备文本内容映射
     const topicTextsMap: Record<string, string[]> = {};
@@ -489,16 +438,12 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
       const size = 15 + Math.floor(Math.random() * 5); // 15-20之间的随机大小
       const color = themeColors[index % themeColors.length]; // 循环使用颜色
       
-      // 为每个主题创建一个唯一ID，用于跟踪
-      const clusterId = `cluster_${topic.replace(/\s+/g, '_').toLowerCase()}_${Math.random().toString(36).substring(2, 8)}`;
-      
       return {
         id: topic,
         label: topic,
         category,
         size,
-        color,
-        clusterId // 添加clusterId字段，与trajectory.ts保持一致
+        color
       };
     });
     
@@ -536,9 +481,6 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
         ? (rel.strength / 10) * 2 // 将1-10的强度转换为0.2-2.0的值
         : value;
       
-      // 计算分布百分比
-      const distributionPercent = calculateDistributionPercentage(rel.source, rel.target, nodes, rel.strength);
-      
       // 获取学习顺序信息
       const learningOrderLabel = rel.learningOrder 
         ? ` (${rel.learningOrder})` 
@@ -556,7 +498,6 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
         reason: rel.reason,
         color: linkColor,
         strength: rel.strength,
-        distributionPercentage: distributionPercent, // 添加学习分布百分比
         learningOrder: rel.learningOrder
       };
     });
@@ -592,8 +533,7 @@ export interface KnowledgeLink {
   type?: string;          // 连接类型
   label?: string;         // 连接标签
   reason?: string;        // 关系说明
-  strength?: number;      // 关系强度（1-10）- 为兼容旧版保留
-  distributionPercentage?: number; // 学习分布（百分比）
+  strength?: number;      // 关系强度（1-10）
   learningOrder?: string; // 学习顺序建议
   color?: string;         // 连接颜色
 }
@@ -726,11 +666,8 @@ export async function buildUserKnowledgeGraph(userId: number, forceRefresh: bool
             .sort(() => 0.5 - Math.random()) // 随机排序
             .slice(0, Math.min(5, userMemories.length)); // 取前5个
       
-      // 使用从记忆服务获取的实际主题名称而不是生成新的名称
-      // 这是关键修复：使用聚类节点原始的label，这样我们就能保留聚类分析生成的主题名称
       clusters.push({
-        id: clusterNode.id, // 使用原始ID，保持一致性
-        originalLabel: clusterNode.label, // 保存原始标签，用于构建图谱
+        id: `cluster_${clusterId}`,
         texts: memoriesToUse.map(m => m.summary || m.content)
       });
     }

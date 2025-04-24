@@ -15,7 +15,7 @@ export interface ClusterTopic {
   count: number;
   percentage: number;
   // 该聚类中的记忆ID
-  memoryIds?: any[]; // 同时支持字符串ID和数字ID
+  memoryIds?: number[];
   // 该主题的代表性记忆
   representativeMemory?: Memory;
 }
@@ -25,89 +25,7 @@ export interface ClusterResult {
   error?: string;
 }
 
-interface FlaskClusterResult {
-  centroids: {
-    center: number[];
-    points: { id: string }[];
-  }[];
-  topics: string[];
-  clusters?: {
-    points: string[];
-  }[];
-}
-
 export class ClusterAnalyzerService {
-  /**
-   * 直接分析向量数据，生成聚类分析结果
-   * 这个方法由memory_service的analyzeUserMemories方法调用
-   * 
-   * @param userId 用户ID
-   * @param memoryIds 记忆ID数组
-   * @param vectors 向量数组
-   * @returns 聚类分析结果
-   */
-  async analyzeVectors(userId: number, memoryIds: string[], vectors: number[][]): Promise<ClusterResult | null> {
-    try {
-      log(`[cluster_analyzer] 开始为用户 ${userId} 分析向量数据，共 ${vectors.length} 个向量...`);
-      
-      // 检查参数有效性
-      if (!memoryIds || !vectors || memoryIds.length === 0 || vectors.length === 0) {
-        log(`[cluster_analyzer] 无效的参数: 记忆ID或向量数组为空`, 'error');
-        return null;
-      }
-      
-      if (memoryIds.length !== vectors.length) {
-        log(`[cluster_analyzer] 记忆ID数量与向量数量不匹配: ${memoryIds.length} vs ${vectors.length}`, 'error');
-        return null;
-      }
-      
-      // 使用Flask聚类服务进行分析
-      try {
-        const { clusterVectors } = await import('./flask_clustering_service');
-        log(`[cluster_analyzer] 使用Flask聚类服务处理 ${vectors.length} 个向量...`);
-        
-        const clusteringResult = await clusterVectors(memoryIds, vectors) as FlaskClusterResult;
-        
-        if (!clusteringResult || !clusteringResult.centroids || clusteringResult.centroids.length === 0) {
-          log(`[cluster_analyzer] Flask聚类服务未返回有效结果`, 'error');
-          return null;
-        }
-        
-        log(`[cluster_analyzer] 聚类完成，发现 ${clusteringResult.centroids.length} 个聚类`);
-        
-        // 为每个聚类生成主题名称
-        const topics: ClusterTopic[] = [];
-        for (let i = 0; i < clusteringResult.centroids.length; i++) {
-          const cluster = clusteringResult.centroids[i];
-          
-          // 获取该聚类中的记忆
-          const clusterMemoryIds = cluster.points.map(point => point.id);
-          const percentage = (clusterMemoryIds.length / memoryIds.length) * 100;
-          
-          // 使用Gemini生成主题名称
-          const topic = await genAiService.generateClusterTopic(clusterMemoryIds.slice(0, 5));
-          
-          topics.push({
-            id: uuidv4(),
-            topic: topic || `主题 ${i + 1}`,
-            count: clusterMemoryIds.length,
-            percentage: Math.round(percentage * 100) / 100,
-            memoryIds: clusterMemoryIds
-          });
-        }
-        
-        log(`[cluster_analyzer] 已为用户 ${userId} 完成聚类分析，生成 ${topics.length} 个主题`);
-        return { topics };
-      } catch (error) {
-        log(`[cluster_analyzer] 调用Flask聚类服务时出错: ${error}`, 'error');
-        return null;
-      }
-    } catch (error) {
-      log(`[cluster_analyzer] 分析向量数据时出错: ${error}`, 'error');
-      return null;
-    }
-  }
-  
   /**
    * 使用简单聚类算法分析记忆向量
    * 
@@ -171,7 +89,7 @@ export class ClusterAnalyzerService {
       }
       
       // 为每个聚类生成主题
-      const topics = await this.generateTopicsForMemoryClusters(clusters);
+      const topics = await this.generateTopicsForClusters(clusters);
       
       return { topics };
       
@@ -247,7 +165,7 @@ export class ClusterAnalyzerService {
    * @param clusters 聚类数组
    * @returns 主题对象数组
    */
-  private async generateTopicsForMemoryClusters(clusters: Memory[][]): Promise<ClusterTopic[]> {
+  private async generateTopicsForClusters(clusters: Memory[][]): Promise<ClusterTopic[]> {
     const totalMemories = clusters.reduce((sum, cluster) => sum + cluster.length, 0);
     const topics: ClusterTopic[] = [];
     
@@ -447,7 +365,7 @@ export class ClusterAnalyzerService {
    * @param memoryId 记忆ID
    * @returns 关键词数组
    */
-  private async getKeywordsForMemory(memoryId: string | number): Promise<string[]> {
+  private async getKeywordsForMemory(memoryId: number): Promise<string[]> {
     try {
       // 从storage导入，确保避免循环引用
       const { storage } = await import('../../storage');
@@ -694,76 +612,6 @@ export class ClusterAnalyzerService {
     } catch (error) {
       log(`[cluster_analyzer] 生成轨迹描述时出错: ${error}`, "error");
       return "无法生成学习轨迹描述";
-    }
-  }
-
-  /**
-   * 为Flask API聚类结果生成主题
-   * @param clusterResult Flask API的聚类结果
-   * @param memories 记忆数组
-   * @returns 格式化的聚类主题结果
-   */
-  async generateTopicsForFlaskClusters(clusterResult: any, memories: any[]): Promise<ClusterResult> {
-    try {
-      if (!clusterResult || !clusterResult.centroids || clusterResult.centroids.length === 0) {
-        return { topics: [] };
-      }
-      
-      const totalMemories = memories.length;
-      const topics: ClusterTopic[] = [];
-      
-      // 遍历每个聚类
-      for (let i = 0; i < clusterResult.centroids.length; i++) {
-        const cluster = clusterResult.centroids[i];
-        
-        // 过滤出该聚类包含的记忆
-        const clusterMemoryIds = cluster.points.map((p: any) => p.id);
-        const clusterMemories = memories.filter(memory => 
-          clusterMemoryIds.includes(memory.id)
-        );
-        
-        if (clusterMemories.length === 0) {
-          continue;
-        }
-        
-        // 为该聚类生成主题
-        let topic = '';
-        
-        // 尝试使用Flask API提供的主题名称
-        if (clusterResult.topics && clusterResult.topics[i]) {
-          topic = clusterResult.topics[i];
-        } else {
-          // 如果没有提供主题，生成一个
-          topic = await this.generateTopicForMemories(clusterMemories);
-        }
-        
-        // 计算该聚类在所有记忆中的占比
-        const percentage = Math.round((clusterMemories.length / totalMemories) * 100);
-        
-        // 找出最有代表性的记忆（简单选择第一个）
-        const representativeMemory = clusterMemories[0];
-        
-        // 转换记忆ID格式
-        const memoryIds = clusterMemoryIds.map((id: string) => {
-          // 尝试将ID转换为数字（如果不是数字则保持原样）
-          const numericId = Number(id);
-          return isNaN(numericId) ? id : numericId;
-        });
-        
-        topics.push({
-          id: uuidv4(),
-          topic: topic || "未分类主题",
-          count: clusterMemories.length,
-          percentage,
-          memoryIds,
-          representativeMemory
-        });
-      }
-      
-      return { topics };
-    } catch (error) {
-      log(`[cluster_analyzer] 为Flask API聚类结果生成主题时出错: ${error}`, "error");
-      return { topics: [], error: "Topic generation failed" };
     }
   }
 }

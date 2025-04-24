@@ -18,21 +18,16 @@ export interface KnowledgeNode {
   size: number;         // 节点大小（代表重要性）
   category?: string;    // 节点类别（主题、概念、关键词等）
   clusterId?: string;   // 关联的聚类ID
-  color?: string;       // 节点颜色（与学习路径数据格式保持一致）
 }
 
 /**
  * 知识图谱连接接口
  */
 export interface KnowledgeLink {
-  source: string;           // 源节点ID
-  target: string;           // 目标节点ID
-  value: number;            // 连接强度（0-1之间）
-  type?: string;            // 连接类型
-  color?: string;           // 连接颜色
-  learningOrder?: number;   // 学习顺序（与学习路径保持一致）
-  reason?: string;          // 连接理由
-  strength?: number;        // 连接强度（与学习路径保持一致）
+  source: string;       // 源节点ID
+  target: string;       // 目标节点ID
+  value: number;        // 连接强度（0-1之间）
+  type?: string;        // 连接类型
 }
 
 /**
@@ -81,24 +76,21 @@ export async function generateUserKnowledgeGraph(userId: number, forceRefresh: b
             label: '主题1',
             size: 36,
             category: 'cluster',
-            clusterId: '0',
-            color: '#6366f1' // 添加颜色属性
+            clusterId: '0'
           },
           {
             id: 'cluster_1',
             label: '主题2',
             size: 25,
             category: 'cluster',
-            clusterId: '1',
-            color: '#f43f5e' // 添加颜色属性
+            clusterId: '1'
           },
           {
             id: 'cluster_2',
             label: '知识点',
             size: 20,
             category: 'cluster',
-            clusterId: '2',
-            color: '#22c55e' // 添加颜色属性
+            clusterId: '2'
           }
         ],
         links: [
@@ -106,21 +98,13 @@ export async function generateUserKnowledgeGraph(userId: number, forceRefresh: b
             source: 'cluster_0',
             target: 'cluster_1',
             value: 0.1,
-            type: 'proximity',
-            color: '#6366f1', // 添加颜色属性
-            learningOrder: 1, // 添加学习顺序
-            reason: "学习入门", // 默认原因
-            strength: 0.5 // 默认强度
+            type: 'proximity'
           },
           {
             source: 'cluster_1',
             target: 'cluster_2',
             value: 0.1,
-            type: 'proximity',
-            color: '#f43f5e', // 添加颜色属性
-            learningOrder: 2, // 添加学习顺序
-            reason: "进阶学习", // 默认原因
-            strength: 0.5 // 默认强度
+            type: 'proximity'
           }
         ]
       };
@@ -137,43 +121,24 @@ export async function generateUserKnowledgeGraph(userId: number, forceRefresh: b
     const nodes: KnowledgeNode[] = [];
     const links: KnowledgeLink[] = [];
     
-    // 为节点预生成相同的颜色集
-    const themeColors = [
-      '#6366f1', // 靛蓝色
-      '#f43f5e', // 粉红色
-      '#22c55e', // 绿色
-      '#eab308', // 黄色
-      '#14b8a6', // 青色
-      '#f97316', // 橙色
-      '#06b6d4', // 天蓝色
-      '#a855f7', // 紫罗兰色
-    ];
-    
     // 为每个聚类创建一个节点
     clusterResult.centroids.forEach((centroid: any, index: number) => {
-      const colorIndex = index % themeColors.length;
       nodes.push({
         id: `cluster_${index}`,
         label: `主题${index + 1}`,
         size: 25 + (centroid.points?.length || 0) * 2, // 基于点数调整大小
         category: 'cluster',
-        clusterId: `${index}`,
-        color: themeColors[colorIndex] // 添加颜色属性
+        clusterId: `${index}`
       });
     });
     
     // 创建节点之间的连接，确保图谱连通
     for (let i = 0; i < nodes.length - 1; i++) {
-      const colorIndex = i % themeColors.length;
       links.push({
         source: nodes[i].id,
         target: nodes[i+1].id,
         value: 0.1, // 低相似度
-        type: 'proximity',
-        color: themeColors[colorIndex], // 添加颜色属性
-        learningOrder: i + 1, // 添加学习顺序
-        reason: "建议学习路径", // 默认原因
-        strength: 0.5 // 默认强度
+        type: 'proximity'
       });
     }
     
@@ -196,25 +161,19 @@ export async function generateUserKnowledgeGraph(userId: number, forceRefresh: b
           id: 'default_0',
           label: '记忆',
           size: 15,
-          category: 'default',
-          clusterId: '0',
-          color: '#6366f1' // 添加颜色属性
+          category: 'default'
         },
         {
           id: 'default_1',
           label: '知识',
           size: 15,
-          category: 'default',
-          clusterId: '1',
-          color: '#f43f5e' // 添加颜色属性
+          category: 'default'
         },
         {
           id: 'default_2',
           label: '学习',
           size: 15,
-          category: 'default',
-          clusterId: '2',
-          color: '#22c55e' // 添加颜色属性
+          category: 'default'
         }
       ],
       links: [
@@ -222,21 +181,13 @@ export async function generateUserKnowledgeGraph(userId: number, forceRefresh: b
           source: 'default_0',
           target: 'default_1',
           value: 0.2,
-          type: 'default',
-          color: '#6366f1', // 添加颜色属性
-          learningOrder: 1, // 添加学习顺序
-          reason: "记忆积累", // 默认原因
-          strength: 0.6 // 默认强度
+          type: 'default'
         },
         {
           source: 'default_1',
           target: 'default_2',
           value: 0.2,
-          type: 'default',
-          color: '#f43f5e', // 添加颜色属性
-          learningOrder: 2, // 添加学习顺序
-          reason: "知识应用", // 默认原因
-          strength: 0.6 // 默认强度
+          type: 'default'
         }
       ]
     };

@@ -1,10 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { Tooltip } from "@/components/ui/tooltip";
-import { TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 
 // 图谱节点类型
 interface GraphNode {
@@ -15,21 +10,15 @@ interface GraphNode {
   color?: string; // 可选，为节点指定特定颜色
   x?: number;     // 节点位置 x 坐标
   y?: number;     // 节点位置 y 坐标
-  clusterId?: string; // 聚类ID
 }
 
 // 图谱连接类型
 interface GraphLink {
-  source: any; // 可以是字符串或对象
-  target: any; // 可以是字符串或对象
+  source: string;
+  target: string;
   type?: string;
   value?: number;
   color?: string; // 可选，为连接指定特定颜色
-  label?: string; // 关系标签
-  reason?: string; // 关系原因
-  strength?: number; // 关系强度
-  learningOrder?: string; // 学习顺序
-  distributionPercentage?: number; // 学习分布百分比
 }
 
 // 图谱组件属性
@@ -60,11 +49,6 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
   const [graphData, setGraphData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] });
   // 内联设备检测
   const [isMobile, setIsMobile] = useState<boolean>(false);
-  
-  // 添加连接关系信息对话框状态
-  const [selectedLink, setSelectedLink] = useState<GraphLink | null>(null);
-  const [showLinkDialog, setShowLinkDialog] = useState<boolean>(false);
-  const [highlightedLink, setHighlightedLink] = useState<GraphLink | null>(null);
   
   // 设备检测逻辑
   useEffect(() => {
@@ -203,81 +187,24 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     }
   }, [onBackgroundClick]);
   
-  // 计算主题分布占比
-  const calculateTopicPercentage = (link: GraphLink): number => {
-    // 根据连接的源和目标节点计算它们在图中的比重
-    // 首先获取源节点和目标节点
-    const sourceNode = typeof link.source === 'string' 
-      ? graphData.nodes.find(n => n.id === link.source) 
-      : graphData.nodes.find(n => n.id === (link.source as any)?.id);
-    
-    const targetNode = typeof link.target === 'string'
-      ? graphData.nodes.find(n => n.id === link.target)
-      : graphData.nodes.find(n => n.id === (link.target as any)?.id);
-    
-    if (!sourceNode || !targetNode) return 50; // 默认值
-    
-    // 计算这两个节点的大小总和占所有节点大小总和的百分比
-    const nodeSizeSum = graphData.nodes.reduce((sum, node) => sum + (node.size || 5), 0);
-    const currentNodesSizeSum = (sourceNode.size || 5) + (targetNode.size || 5);
-    
-    // 转换为百分比 (0-100)
-    const percentage = (currentNodesSizeSum / nodeSizeSum) * 100;
-    
-    // 限制范围在10-90之间，确保有意义的显示效果
-    return Math.max(10, Math.min(90, percentage));
-  };
-
-  // 设置移动设备上性能相关配置 - 优化配置以提高交互性
+  // 设置移动设备上性能相关配置
   const getMobileConfig = useCallback(() => {
     if (isMobile) {
       return {
-        cooldownTicks: 30,       // 减少物理模拟计算量
-        cooldownTime: 2000,      // 缩短布局稳定时间
-        warmupTicks: 5,          // 减少预热时间
+        cooldownTicks: 50,       // 减少物理模拟计算量
+        cooldownTime: 3000,      // 缩短布局稳定时间
+        warmupTicks: 10,         // 减少预热时间
         linkDirectionalParticles: 0, // 禁用粒子效果以提高性能
-        linkDirectionalArrowLength: 0, // 禁用箭头
-        linkDirectionalArrowRelPos: 0, // 禁用箭头位置
-        nodeRelSize: 10,         // 增大节点相对尺寸
-        d3AlphaDecay: 0.02,      // 更快的布局收敛
-        d3VelocityDecay: 0.1,    // 更灵活的节点运动
-        dagMode: undefined,      // 禁用有向无环图模式
-        dagLevelDistance: 0,     // 禁用层级距离
-        dagNodeFilter: undefined, // 禁用节点过滤
-        rendererConfig: {
-          precision: 'lowp',     // 低精度渲染以提高性能
-          antialias: false,      // 禁用抗锯齿以提高性能
-          alpha: true,           // 启用透明通道
-          preserveDrawingBuffer: false, // 不保留绘图缓冲区
-        },
-        minZoom: 0.5,            // 设置最小缩放
-        maxZoom: 3,              // 设置最大缩放
-        enableZoomInteraction: true, // 启用缩放交互
-        enableNodeDrag: true,    // 启用节点拖拽
-        enablePanInteraction: true, // 启用平移交互
       };
     } else {
       return {
-        cooldownTicks: 80,       // 为桌面设备保留更多的物理模拟
-        cooldownTime: 8000,      // 更长的布局稳定时间
-        warmupTicks: 30,         // 更多的预热时间
+        cooldownTicks: 100,
+        cooldownTime: 15000,
+        warmupTicks: 50,
         linkDirectionalParticles: 2, // 在桌面上启用粒子效果
-        linkDirectionalParticleWidth: 2, // 粒子宽度
-        linkDirectionalParticleSpeed: 0.005, // 粒子速度
-        nodeRelSize: 8,          // 节点相对大小
-        d3AlphaDecay: 0.015,     // 正常的布局收敛
-        d3VelocityDecay: 0.08,   // 更平滑的节点运动
-        rendererConfig: {
-          precision: 'mediump',  // 中等精度渲染
-          antialias: true,       // 启用抗锯齿
-          alpha: true,           // 启用透明通道
-          preserveDrawingBuffer: true, // 保留绘图缓冲区以便截图
-        },
-        minZoom: 0.3,            // 设置最小缩放
-        maxZoom: 5,              // 设置最大缩放
       };
     }
-  }, [isMobile, graphData.nodes]);
+  }, [isMobile]);
   
   useEffect(() => {
     // 当组件挂载后，调整图形
@@ -354,7 +281,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     }
   }, [highlightedNodeId]);
   
-  // 链接标签渲染 - 完全重写以增强可点击性
+  // 链接标签渲染
   const linkCanvasObject = useCallback((link: GraphLink & {source: any; target: any; width: number}, ctx: CanvasRenderingContext2D, globalScale: number) => {
     // 获取连接的源和目标节点
     const sourceNode = graphData.nodes.find(n => n.id === link.source.id || n.id === link.source);
@@ -366,319 +293,30 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
     const start = { x: sourceNode.x || 0, y: sourceNode.y || 0 };
     const end = { x: targetNode.x || 0, y: targetNode.y || 0 };
     
-    // 计算中点
-    const midX = (start.x + end.x) / 2;
-    const midY = (start.y + end.y) / 2;
+    // 计算线宽
+    const width = link.width / globalScale;
     
-    // 确定连接宽度 - 大幅增加 (关键改动)
-    const width = Math.max(8, (link.width || 2)) / globalScale;
+    // 计算发光效果的宽度
+    const glowWidth = width + 2 / globalScale;
     
-    // 设置连接颜色
+    // 绘制发光效果
+    ctx.beginPath();
+    // 使用默认颜色或link.color
     const color = link.color || 'rgba(100, 100, 100, 0.7)';
-    
-    // 检查是否是当前高亮的连接
-    const isHighlighted = highlightedLink && 
-      ((typeof highlightedLink.source === 'string' ? highlightedLink.source : highlightedLink.source) === (typeof link.source === 'object' ? link.source.id : link.source)) && 
-      ((typeof highlightedLink.target === 'string' ? highlightedLink.target : highlightedLink.target) === (typeof link.target === 'object' ? link.target.id : link.target));
-    
-    // 绘制隐形的更宽的线用于检测点击 (关键改动)
-    // 这条线是完全透明的，但会增加连接的可点击区域
-    ctx.beginPath();
-    ctx.strokeStyle = 'rgba(0,0,0,0)'; // 完全透明
-    ctx.lineWidth = width * 4; // 非常宽的点击区域
+    ctx.strokeStyle = color.replace(/[\d.]+\)$/, '0.3)');
+    ctx.lineWidth = glowWidth;
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
     
-    // 绘制连接的主线
+    // 绘制主线
     ctx.beginPath();
-    ctx.strokeStyle = isHighlighted ? color.replace(/[\d.]+\)$/, '0.9)') : color;
-    ctx.lineWidth = isHighlighted ? width * 1.5 : width;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
-    
-    // 绘制中点指示器 (强化视觉提示)
-    // 明显增大中点指示器尺寸并添加动画效果
-    const dotSize = (isHighlighted ? 20 : 15) / globalScale;
-    
-    // 绘制一个更大的外圈以增加可点击区域
-    ctx.beginPath();
-    ctx.arc(midX, midY, dotSize * 1.5, 0, 2 * Math.PI);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.01)'; // 几乎透明
-    ctx.fill();
-    
-    // 绘制交互指示点 - 使用明亮的颜色使其明显可见
-    ctx.beginPath();
-    ctx.arc(midX, midY, dotSize, 0, 2 * Math.PI);
-    
-    // 对于高亮连接使用白色加发光效果，否则使用半透明白色
-    if (isHighlighted) {
-      // 添加发光效果
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    } else {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    }
-    
-    ctx.fill();
-    ctx.shadowBlur = 0; // 重置阴影效果
-    
-    // 中心点添加边框使其更明显
-    ctx.beginPath();
-    ctx.arc(midX, midY, dotSize, 0, 2 * Math.PI);
-    ctx.strokeStyle = color.replace(/[\d.]+\)$/, '0.9)');
-    ctx.lineWidth = 2 / globalScale;
-    ctx.stroke();
-    
-    // 仅在悬停或缩放足够大时显示标签
-    if ((link.label || link.type) && (isHighlighted || globalScale > 0.6)) {
-      // 显示关系标签
-      const labelText = link.label || link.type || "相关";
-      
-      // 使用更大更明显的字体
-      const fontSize = isHighlighted ? 16 : 14;
-      const scaledFontSize = Math.max(fontSize, fontSize / globalScale);
-      ctx.font = `${isHighlighted ? 'bold' : 'normal'} ${scaledFontSize}px Arial`;
-      
-      // 为标签添加背景使其更明显
-      const textWidth = ctx.measureText(labelText).width;
-      const bckgDimensions = [textWidth + 16, scaledFontSize + 10].map(n => n / globalScale);
-      
-      // 带有边框的标签背景
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-      ctx.fillRect(
-        midX - bckgDimensions[0] / 2,
-        midY - bckgDimensions[1] / 2 - dotSize - (bckgDimensions[1] / 2), // 将标签放在点的上方
-        bckgDimensions[0],
-        bckgDimensions[1]
-      );
-      
-      // 添加边框使标签更明显
-      ctx.strokeStyle = color.replace(/[\d.]+\)$/, '0.6)');
-      ctx.lineWidth = 1 / globalScale;
-      ctx.strokeRect(
-        midX - bckgDimensions[0] / 2,
-        midY - bckgDimensions[1] / 2 - dotSize - (bckgDimensions[1] / 2),
-        bckgDimensions[0],
-        bckgDimensions[1]
-      );
-      
-      // 绘制文本
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'white';
-      ctx.fillText(
-        labelText,
-        midX,
-        midY - dotSize - (bckgDimensions[1] / 2)
-      );
-    }
-    
-    // 在中点文字提示点击功能
-    if (isHighlighted && globalScale > 0.5) {
-      ctx.font = `${12 / globalScale}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'white';
-      ctx.fillText("点击查看", midX, midY + dotSize + (12 / globalScale));
-    }
-  }, [graphData, highlightedLink]);
-  
-  // 处理链接点击
-  const handleLinkClick = useCallback((link: any) => {
-    console.log("边点击事件触发:", link);
-    
-    // 确保link有正确的类型格式
-    const processedLink: GraphLink = {
-      source: typeof link.source === 'object' ? link.source.id : link.source,
-      target: typeof link.target === 'object' ? link.target.id : link.target,
-      type: link.type,
-      value: link.value,
-      color: link.color,
-      label: link.label,
-      reason: link.reason,
-      strength: link.strength,
-      learningOrder: link.learningOrder,
-      distributionPercentage: link.distributionPercentage
-    };
-    
-    // 查找完整的源节点和目标节点信息，以便在对话框中显示更详细的数据
-    const sourceNode = typeof link.source === 'object' ? link.source : 
-      graphData.nodes.find(n => n.id === link.source);
-    
-    const targetNode = typeof link.target === 'object' ? link.target : 
-      graphData.nodes.find(n => n.id === link.target);
-    
-    // 如果找到节点，添加更详细的标签信息
-    if (sourceNode && sourceNode.label) {
-      processedLink.source = sourceNode.label;
-    }
-    
-    if (targetNode && targetNode.label) {
-      processedLink.target = targetNode.label;
-    }
-    
-    // 添加触觉反馈，如果设备支持
-    if (navigator.vibrate && typeof navigator.vibrate === 'function') {
-      try {
-        navigator.vibrate(50); // 短暂的振动反馈
-      } catch (e) {
-        // 忽略不支持振动API的设备
-      }
-    }
-    
-    // 高亮当前连接
-    setHighlightedLink(processedLink);
-    
-    // 显示对话框
-    setSelectedLink(processedLink);
-    setShowLinkDialog(true);
   }, [graphData]);
-  
-  // 处理链接悬停
-  const handleLinkHover = useCallback((link: any | null) => {
-    if (link) {
-      const processedLink: GraphLink = {
-        source: typeof link.source === 'object' ? link.source.id : link.source,
-        target: typeof link.target === 'object' ? link.target.id : link.target,
-        type: link.type,
-        color: link.color,
-        value: link.value,
-        label: link.label,
-        reason: link.reason,
-        strength: link.strength,
-        learningOrder: link.learningOrder,
-        distributionPercentage: link.distributionPercentage
-      };
-      setHighlightedLink(processedLink);
-    } else {
-      setHighlightedLink(null);
-    }
-  }, []);
-  
-  // 关闭对话框
-  const handleCloseDialog = useCallback(() => {
-    setShowLinkDialog(false);
-    setSelectedLink(null);
-  }, []);
-  
-  // 添加自定义点击事件处理
-  useEffect(() => {
-    if (graphRef.current) {
-      // 获取canvas元素
-      const canvas = graphRef.current.canvas();
-      if (!canvas) return;
-      
-      // 添加自定义点击事件
-      const handleCanvasClick = (event: MouseEvent) => {
-        const graphInstance = graphRef.current;
-        if (!graphInstance) return;
-        
-        // 获取画布位置
-        const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        
-        // 将屏幕坐标转换为图形坐标
-        const pos = graphInstance.screen2GraphCoords(x, y);
-        
-        // 检查点击是否在连接上
-        // 获取所有连接
-        const links = graphData.links;
-        
-        let closestLink: any = null;
-        let minDistance = Infinity;
-        let minMidPointDistance = Infinity;
-        
-        links.forEach((link: any) => {
-          // 获取源节点和目标节点
-          const sourceNode = typeof link.source === 'object' ? link.source : 
-            graphData.nodes.find((n: any) => n.id === link.source);
-          
-          const targetNode = typeof link.target === 'object' ? link.target : 
-            graphData.nodes.find((n: any) => n.id === link.target);
-          
-          if (!sourceNode || !targetNode) return;
-          
-          // 计算源和目标的位置
-          const source = { x: sourceNode.x || 0, y: sourceNode.y || 0 };
-          const target = { x: targetNode.x || 0, y: targetNode.y || 0 };
-          
-          // 计算中点
-          const midPoint = {
-            x: (source.x + target.x) / 2,
-            y: (source.y + target.y) / 2
-          };
-          
-          // 计算点击点到中点的距离
-          const midPointDist = Math.sqrt(
-            Math.pow(pos.x - midPoint.x, 2) + 
-            Math.pow(pos.y - midPoint.y, 2)
-          );
-          
-          // 特别判断中点附近的点击 (优先检查中点) - 扩大点击区域
-          if (midPointDist < 30 && midPointDist < minMidPointDistance) {
-            closestLink = link;
-            minMidPointDistance = midPointDist;
-            return; // 如果点击在中点附近，立即选择该连接
-          }
-          
-          // 计算点击点到线段的距离 (备用方案)
-          // 源自: https://stackoverflow.com/questions/849211
-          const a = pos.x - source.x;
-          const b = pos.y - source.y;
-          const c = target.x - source.x;
-          const d = target.y - source.y;
-          
-          const dot = a * c + b * d;
-          const len_sq = c * c + d * d;
-          let param = -1;
-          
-          if (len_sq !== 0) param = dot / len_sq;
-          
-          let xx, yy;
-          
-          if (param < 0) {
-            xx = source.x;
-            yy = source.y;
-          } else if (param > 1) {
-            xx = target.x;
-            yy = target.y;
-          } else {
-            xx = source.x + param * c;
-            yy = source.y + param * d;
-          }
-          
-          const dx = pos.x - xx;
-          const dy = pos.y - yy;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          // 如果距离小于阈值且小于当前最小距离 - 扩大线段点击区域
-          if (distance < 25 && distance < minDistance) {
-            closestLink = link;
-            minDistance = distance;
-          }
-        });
-        
-        // 如果找到最近的连接，触发点击事件
-        if (closestLink) {
-          console.log("自定义点击检测：检测到连接点击", closestLink);
-          handleLinkClick(closestLink);
-          event.stopPropagation(); // 阻止事件冒泡
-        }
-      };
-      
-      // 添加点击事件监听器
-      canvas.addEventListener('click', handleCanvasClick);
-      
-      // 在组件卸载时移除事件监听器
-      return () => {
-        canvas.removeEventListener('click', handleCanvasClick);
-      };
-    }
-  }, [graphData, handleLinkClick]);
   
   return (
     <div className="knowledge-graph-container">
@@ -698,114 +336,10 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
           linkWidth="width"
           backgroundColor="#111827"
           onNodeClick={handleNodeClick}
-          onLinkHover={handleLinkHover as any}
           onBackgroundClick={handleBackgroundClick}
-          linkHoverPrecision={8}    // 增加链接悬停检测精度
-          enablePointerInteraction={true}
           {...getMobileConfig()}
         />
       )}
-      
-      {/* 连接关系信息对话框 */}
-      <Dialog open={showLinkDialog} onOpenChange={handleCloseDialog}>
-        <DialogContent className="sm:max-w-md border-t-4" style={{ borderTopColor: selectedLink?.color || 'rgba(59, 130, 246, 0.8)' }}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span>知识关联详情</span>
-              {selectedLink && (
-                <Badge 
-                  variant="outline" 
-                  className="ml-2 animate-fadeIn" 
-                  style={{ 
-                    borderColor: selectedLink.color || 'rgba(59, 130, 246, 0.8)',
-                    color: selectedLink.color ? selectedLink.color.replace(/[\d.]+\)$/, '1)') : 'rgba(59, 130, 246, 1)'
-                  }}
-                >
-                  {selectedLink.type || '相关关系'}
-                </Badge>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedLink && (
-            <div className="space-y-4 animate-fadeIn">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-sm font-medium">学习分布:</span>
-                <div className="flex items-center">
-                  <div className="w-24 h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full transition-all duration-500 ease-out" 
-                      style={{ 
-                        width: `${selectedLink.distributionPercentage || calculateTopicPercentage(selectedLink)}%`,
-                        background: selectedLink.color || 'rgba(59, 130, 246, 0.8)'
-                      }}
-                    ></div>
-                  </div>
-                  <span className="text-sm ml-2 font-medium">{selectedLink.distributionPercentage || Math.round(calculateTopicPercentage(selectedLink))}%</span>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-4 mt-2">
-                <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg hover:shadow-md transition-shadow duration-300">
-                  <div className="p-2 rounded-full" style={{ background: `${selectedLink.color?.replace(/[\d.]+\)$/, '0.2)') || 'rgba(59, 130, 246, 0.2)'}` }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: selectedLink.color || 'rgba(59, 130, 246, 0.8)' }}><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/></svg>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">关联主题</h4>
-                    <div className="flex gap-2 mt-1 flex-wrap items-center">
-                      <Badge 
-                        className="py-1 text-base transition-colors hover:bg-indigo-200 dark:hover:bg-indigo-800"
-                        style={{ 
-                          background: 'rgba(99, 102, 241, 0.1)', 
-                          color: 'rgb(79, 70, 229)', 
-                          borderColor: 'rgba(99, 102, 241, 0.2)' 
-                        }}
-                      >
-                        {typeof selectedLink.source === 'string' ? selectedLink.source : (selectedLink.source as any)?.label || (selectedLink.source as any)?.id}
-                      </Badge>
-                      <span className="text-gray-400 px-1">→</span>
-                      <Badge 
-                        className="py-1 text-base transition-colors hover:bg-violet-200 dark:hover:bg-violet-800"
-                        style={{ 
-                          background: 'rgba(139, 92, 246, 0.1)', 
-                          color: 'rgb(109, 40, 217)', 
-                          borderColor: 'rgba(139, 92, 246, 0.2)' 
-                        }}
-                      >
-                        {typeof selectedLink.target === 'string' ? selectedLink.target : (selectedLink.target as any)?.label || (selectedLink.target as any)?.id}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg hover:shadow-md transition-shadow duration-300">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 rounded-full bg-green-100 dark:bg-green-900">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600 dark:text-green-300"><path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12"/><circle cx="17" cy="7" r="5"/></svg>
-                  </div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">学习建议</h4>
-                </div>
-                <div className="rounded-md p-2 text-sm mt-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
-                  {selectedLink.learningOrder || '可同时学习这两个主题，它们相互补充'}
-                </div>
-              </div>
-              
-              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg hover:shadow-md transition-shadow duration-300">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600 dark:text-amber-300"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                  </div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">关系解释</h4>
-                </div>
-                <div className="rounded-md p-2 text-sm mt-1 whitespace-pre-line bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800">
-                  {selectedLink.reason || '这些主题在学习过程中存在关联，帮助你构建更完整的知识体系。'}
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
