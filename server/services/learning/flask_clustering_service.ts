@@ -24,7 +24,7 @@ let servicePort = DEFAULT_API_PORT;
  * 启动聚类API服务
  * @returns Promise<boolean> 是否成功启动
  */
-async function startClusteringService(): Promise<boolean> {
+export async function startClusteringService(): Promise<boolean> {
   // 如果服务已经启动，直接返回成功
   if (serviceStarted && serviceProcess && !serviceProcess.killed) {
     return true;
@@ -140,11 +140,38 @@ async function ensureServiceRunning(): Promise<boolean> {
   const isRunning = await checkServiceHealth();
   if (isRunning) {
     serviceStarted = true;
+    log(`[flask_clustering] 服务已经在运行，无需启动`, 'info');
     return true;
   }
 
+  log(`[flask_clustering] 服务未运行，尝试启动...`, 'info');
+  
   // 如果没在运行，尝试启动服务
-  return startClusteringService();
+  const startSuccess = await startClusteringService();
+  
+  if (startSuccess) {
+    // 服务启动成功，再次验证健康状态
+    let healthCheckRetries = 5;
+    let serviceHealthy = false;
+    
+    while (healthCheckRetries > 0 && !serviceHealthy) {
+      log(`[flask_clustering] 检查服务健康状态，剩余重试次数: ${healthCheckRetries}`, 'info');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // 等待1秒
+      serviceHealthy = await checkServiceHealth();
+      healthCheckRetries--;
+    }
+    
+    if (serviceHealthy) {
+      log(`[flask_clustering] 服务健康检查通过`, 'info');
+      return true;
+    } else {
+      log(`[flask_clustering] 服务已启动但健康检查失败`, 'error');
+      return false;
+    }
+  }
+  
+  log(`[flask_clustering] 服务启动失败`, 'error');
+  return false;
 }
 
 /**

@@ -614,6 +614,76 @@ export class ClusterAnalyzerService {
       return "无法生成学习轨迹描述";
     }
   }
+
+  /**
+   * 为Flask API聚类结果生成主题
+   * @param clusterResult Flask API的聚类结果
+   * @param memories 记忆数组
+   * @returns 格式化的聚类主题结果
+   */
+  async generateTopicsForClusters(clusterResult: any, memories: any[]): Promise<ClusterResult> {
+    try {
+      if (!clusterResult || !clusterResult.centroids || clusterResult.centroids.length === 0) {
+        return { topics: [] };
+      }
+      
+      const totalMemories = memories.length;
+      const topics: ClusterTopic[] = [];
+      
+      // 遍历每个聚类
+      for (let i = 0; i < clusterResult.centroids.length; i++) {
+        const cluster = clusterResult.centroids[i];
+        
+        // 过滤出该聚类包含的记忆
+        const clusterMemoryIds = cluster.points.map((p: any) => p.id);
+        const clusterMemories = memories.filter(memory => 
+          clusterMemoryIds.includes(memory.id)
+        );
+        
+        if (clusterMemories.length === 0) {
+          continue;
+        }
+        
+        // 为该聚类生成主题
+        let topic = '';
+        
+        // 尝试使用Flask API提供的主题名称
+        if (clusterResult.topics && clusterResult.topics[i]) {
+          topic = clusterResult.topics[i];
+        } else {
+          // 如果没有提供主题，生成一个
+          topic = await this.generateTopicForMemories(clusterMemories);
+        }
+        
+        // 计算该聚类在所有记忆中的占比
+        const percentage = Math.round((clusterMemories.length / totalMemories) * 100);
+        
+        // 找出最有代表性的记忆（简单选择第一个）
+        const representativeMemory = clusterMemories[0];
+        
+        // 转换记忆ID格式
+        const memoryIds = clusterMemoryIds.map(id => {
+          // 尝试将ID转换为数字（如果不是数字则保持原样）
+          const numericId = Number(id);
+          return isNaN(numericId) ? id : numericId;
+        });
+        
+        topics.push({
+          id: uuidv4(),
+          topic: topic || "未分类主题",
+          count: clusterMemories.length,
+          percentage,
+          memoryIds,
+          representativeMemory
+        });
+      }
+      
+      return { topics };
+    } catch (error) {
+      log(`[cluster_analyzer] 为Flask API聚类结果生成主题时出错: ${error}`, "error");
+      return { topics: [], error: "Topic generation failed" };
+    }
+  }
 }
 
 // 导出服务实例
