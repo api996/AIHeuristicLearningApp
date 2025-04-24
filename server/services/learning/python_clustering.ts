@@ -176,7 +176,7 @@ def main():
             formatted_result[str(i)] = {
                 "centroid": centroid["center"], 
                 "memory_ids": [point["id"] for point in centroid["points"]],
-                "topic": f"主题 {i}",
+                "topic": result.get("topics", {}).get(str(i), f"主题 {i}"),
                 "cluster_id": centroid.get("cluster_id", str(i))
             }
             print(f"聚类 {i}: {len(formatted_result[str(i)]['memory_ids'])} 个记忆")
