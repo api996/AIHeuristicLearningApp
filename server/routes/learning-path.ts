@@ -463,8 +463,24 @@ router.get('/:userId/refresh-cache', async (req, res) => {
           topicName = `${cluster.keywords[0]} 与 ${cluster.keywords[1]}`;
           log(`[API] 使用聚类 ${index} 的关键词生成标签: "${topicName}"`);
         } else {
-          topicName = `实时数据聚类 ${index}`;
-          log(`[API] 使用聚类 ${index} 的默认标签: "${topicName}"`);
+          // 使用更有意义的默认标签
+          const meaningfulLabels = [
+            "学习笔记", "知识概览", "技术探索", "概念讨论", 
+            "问题分析", "编程技术", "数据科学", "学习资料",
+            "框架学习", "算法研究", "系统设计", "工具使用"
+          ];
+          
+          // 选择标签，避免重复
+          const labelIndex = index % meaningfulLabels.length;
+          let topicNameTmp = meaningfulLabels[labelIndex];
+          
+          // 如果索引超出数组长度，添加编号
+          if (index >= meaningfulLabels.length) {
+            topicNameTmp = `${topicNameTmp} ${Math.floor(index / meaningfulLabels.length) + 1}`;
+          }
+          
+          topicName = topicNameTmp;
+          log(`[API] 使用聚类 ${index} 的有意义默认标签: "${topicName}"`);
         }
         
         // 同时用索引和ID作为键，确保不管使用哪种方式查找都能找到
