@@ -397,16 +397,8 @@ export class ClusterCacheService {
           log(`[ClusterCache] 聚类${clusterId}包含${clusterMemories.length}条记忆，正在处理`);
           log(`[ClusterCache] 聚类${clusterId}的现有主题: "${clusterData.topic || '无'}"`);
           
-          // 直接使用有意义的预定义主题名称
-          log(`[ClusterCache] 为聚类${clusterId}应用主题...`);
-          
-          // 使用有意义的预定义主题名称
-          const meaningfulTopics = [
-            "学习笔记", "知识概览", "技术探索", "概念讨论", "问题分析",
-            "实践经验", "理论基础", "解决方案", "工具使用", "学习资源",
-            "编程技巧", "系统设计", "项目管理", "数据分析", "算法研究",
-            "前端开发", "后端架构", "数据库应用", "API设计", "用户体验"
-          ];
+          // 使用GenAI进行智能分析生成聚类主题
+          log(`[ClusterCache] 开始为聚类${clusterId}生成智能主题...`);
           
           try {
             // 如果已有Python服务提供的有意义标题，就不做修改
@@ -414,42 +406,47 @@ export class ClusterCacheService {
               log(`[ClusterCache] 保留聚类${clusterId}的现有主题: "${clusterData.topic}"`);
             } 
             else {
-              // 生成主题名称 - 如果聚类序号在范围内使用有意义的名称，否则使用通用名称
-              const numericId = parseInt(clusterId.replace(/\D/g, ''), 10) || parseInt(clusterId, 10) || 0;
-              const topicIndex = numericId % meaningfulTopics.length;
-              const meaningfulTopic = meaningfulTopics[topicIndex];
-              
-              log(`[ClusterCache] 为聚类${clusterId}分配预定义主题: "${meaningfulTopic}"`);
-              clusterData.topic = meaningfulTopic;
-              
-              // 可选：尝试从记忆内容中提取关键词，丰富主题描述
+              // 记忆内容示例
               if (clusterMemories.length > 0) {
-                try {
-                  const sampleContent = clusterMemories[0].substring(0, 100) + 
-                    (clusterMemories[0].length > 100 ? '...' : '');
-                  log(`[ClusterCache] 聚类${clusterId}内容示例: "${sampleContent}"`);
+                const sampleContent = clusterMemories[0].substring(0, 100) + 
+                  (clusterMemories[0].length > 100 ? '...' : '');
+                log(`[ClusterCache] 聚类${clusterId}内容示例: "${sampleContent}"`);
+              }
+              
+              // 从服务获取genAiService对象进行智能主题分析
+              const { genAiService } = await import("../genai/genai_service");
+              
+              if (clusterMemories.length === 0) {
+                log(`[ClusterCache] 警告: 聚类${clusterId}没有记忆内容，无法生成主题`, 'warn');
+                clusterData.topic = `主题${clusterId}`;
+              } else {
+                // 使用多个记忆内容示例进行主题生成
+                const memorySamples = clusterMemories.slice(0, 5); // 最多使用5条记忆
+                const topic = await genAiService.generateTopicForMemories(memorySamples);
+                
+                if (topic) {
+                  log(`[ClusterCache] 成功为聚类${clusterId}生成智能主题: "${topic}"`);
+                  clusterData.topic = topic;
+                } else {
+                  log(`[ClusterCache] 警告: 无法为聚类${clusterId}生成主题，尝试关键词方法`, 'warn');
                   
-                  // 尝试提取关键词，进一步个性化主题(但仍保留有意义的标题作为前缀)
+                  // 尝试从记忆中提取关键词作为主题
                   const keywords = await this.extractKeywordsFromCluster(clusterMemories);
                   if (keywords && keywords.length > 0) {
-                    const enhancedTopic = `${meaningfulTopic}`;
-                    log(`[ClusterCache] 保留简洁主题: "${enhancedTopic}"`);
-                    clusterData.topic = enhancedTopic;
-                    
-                    // 将关键词保存到单独字段
+                    const newTopic = keywords.slice(0, 2).join('与') + '相关内容';
+                    log(`[ClusterCache] 使用关键词生成主题: "${newTopic}"`);
+                    clusterData.topic = newTopic;
                     clusterData.keywords = keywords;
+                  } else {
+                    log(`[ClusterCache] 无法通过任何方式生成主题，使用默认值`, 'warn');
+                    clusterData.topic = `主题${clusterId}`;
                   }
-                } catch (keywordError) {
-                  // 提取关键词失败不影响主题名称
-                  log(`[ClusterCache] 无法提取关键词: ${keywordError}`, 'warn');
                 }
               }
             }
           } catch (error) {
             log(`[ClusterCache] 生成聚类${clusterId}主题时发生错误: ${error}`, 'error');
-            // 如果出错，仍使用有意义的主题而不是通用"聚类X"
-            const fallbackIndex = parseInt(clusterId.replace(/\D/g, ''), 10) % meaningfulTopics.length;
-            clusterData.topic = meaningfulTopics[fallbackIndex];
+            clusterData.topic = `主题${clusterId}`;
           }
           
           // 生成摘要
