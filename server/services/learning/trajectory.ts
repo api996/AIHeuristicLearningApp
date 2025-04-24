@@ -259,72 +259,17 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
     if (memorySpaceClusters && memorySpaceClusters.length > 0) {
       log(`[trajectory] 使用memory_service提供的聚类结果生成学习轨迹`);
       
-      // 构建知识图谱节点 - 保留原始主题名称，但处理特殊情况
+      // 构建知识图谱节点
       const nodes: TrajectoryNode[] = memorySpaceClusters.map((cluster: any) => {
         // 计算节点大小（基于百分比）
         const size = Math.max(10, Math.min(50, 10 + cluster.percentage * 0.4));
         
-        // 处理主题名称 - 清理错误信息和非正常主题名
-        let topicName = cluster.topic || "";
-        
-        // 检测并修复错误状态消息作为主题名
-        if (topicName.includes('暂时无法使用') || 
-            topicName.includes('连接服务失败') ||
-            topicName.includes('topic 1 analysis') ||
-            topicName.includes('lack of initial findings')) {
-          
-          // 提取关键词，尝试生成更好的主题名
-          const keywords = topicName.split('、').map(k => k.trim());
-          // 过滤掉错误消息
-          const validKeywords = keywords.filter(k => 
-            !k.includes('暂时无法使用') && 
-            !k.includes('连接服务失败') && 
-            !k.includes('topic') && 
-            !k.includes('analysis') && 
-            !k.includes('lack of') && 
-            !k.includes('initial findings')
-          );
-          
-          if (validKeywords.length > 0) {
-            // 使用有效关键词作为主题名
-            topicName = validKeywords.join('、');
-          } else {
-            // 如果没有有效关键词，使用通用主题名
-            topicName = "未分类主题";
-          }
-        }
-        
-        // 从主题名称中提取核心部分，去除额外描述性文本
-        topicName = topicName.split('：')[0].split(' - ')[0].trim();
-        
-        // 确保主题名不为空
-        if (!topicName || topicName.length === 0) {
-          topicName = "主题" + cluster.id.substring(0, 4);
-        }
-        
-        // 定义一组主题颜色
-        const themeColors = [
-          '#6366f1', // 靛蓝色
-          '#f43f5e', // 粉红色
-          '#22c55e', // 绿色
-          '#eab308', // 黄色
-          '#14b8a6', // 青色
-          '#f97316', // 橙色
-          '#06b6d4', // 天蓝色
-          '#a855f7', // 紫罗兰色
-        ];
-        
-        // 为每个主题选择一个唯一的颜色
-        const colorIndex = Math.abs(topicName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % themeColors.length;
-        const color = themeColors[colorIndex];
-        
         return {
-          id: topicName, // 使用简化后的主题名称作为ID
-          label: topicName, // 同样使用简化后的主题名称作为标签
+          id: cluster.id,
+          label: cluster.topic,
           size,
-          category: 'cluster', // 使用与知识图谱相同的类别名称
-          clusterId: cluster.id,
-          color // 添加颜色属性，保持与topic_graph_builder.ts一致
+          category: '记忆主题', // 这里可以增加分类逻辑
+          clusterId: cluster.id
         };
       });
       
@@ -334,86 +279,14 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
         // 找出最大的聚类
         const largestCluster = [...memorySpaceClusters].sort((a, b) => b.percentage - a.percentage)[0];
         
-        // 处理最大聚类的主题名称 - 与节点处理保持一致
-        let largestTopicName = largestCluster.topic || "";
-        
-        // 检测并修复错误状态消息作为主题名
-        if (largestTopicName.includes('暂时无法使用') || 
-            largestTopicName.includes('连接服务失败') ||
-            largestTopicName.includes('topic 1 analysis') ||
-            largestTopicName.includes('lack of initial findings')) {
-          
-          // 提取关键词，尝试生成更好的主题名
-          const keywords = largestTopicName.split('、').map(k => k.trim());
-          // 过滤掉错误消息
-          const validKeywords = keywords.filter(k => 
-            !k.includes('暂时无法使用') && 
-            !k.includes('连接服务失败') && 
-            !k.includes('topic') && 
-            !k.includes('analysis') && 
-            !k.includes('lack of') && 
-            !k.includes('initial findings')
-          );
-          
-          if (validKeywords.length > 0) {
-            // 使用有效关键词作为主题名
-            largestTopicName = validKeywords.join('、');
-          } else {
-            // 如果没有有效关键词，使用通用主题名
-            largestTopicName = "未分类主题";
-          }
-        }
-        
-        // 从主题名称中提取核心部分，去除额外描述性文本
-        largestTopicName = largestTopicName.split('：')[0].split(' - ')[0].trim();
-        
-        // 确保主题名不为空
-        if (!largestTopicName || largestTopicName.length === 0) {
-          largestTopicName = "主题" + largestCluster.id.substring(0, 4);
-        }
-        
-        // 节点ID映射表 - 保证连接使用与节点ID一致的名称
-        const nodeIdMap = new Map<string, string>();
-        nodes.forEach(node => {
-          nodeIdMap.set(node.clusterId || "", node.id);
-        });
-        
         // 将其他聚类连接到最大聚类
         for (const cluster of memorySpaceClusters) {
           if (cluster.id !== largestCluster.id) {
-            // 如果在节点映射表中存在，直接使用节点的ID
-            const targetId = nodeIdMap.get(cluster.id) || "";
-            
-            // 确保目标ID有效
-            if (targetId && targetId.length > 0) {
-              // 定义连接颜色映射
-              const linkColorMap = {
-                'related': 'rgba(99, 102, 241, 0.7)', // 靛蓝色
-                'depends_on': 'rgba(220, 38, 38, 0.7)', // 深红色
-                'applies': 'rgba(14, 165, 233, 0.7)', // 天蓝色
-                'similar': 'rgba(34, 197, 94, 0.7)', // 绿色
-              };
-              
-              // 模拟关系强度
-              const strength = Math.ceil(Math.random() * 10);
-              
-              // 计算学习分布百分比 (1-10 => 10-90%)，与topic_graph_builder.ts保持一致
-              const distributionPercent = Math.max(10, Math.min(90, (strength * 9) - 5));
-              
-              // 为连接添加必要的属性
-              links.push({
-                source: largestTopicName, // 使用提取的主题名称作为源
-                target: targetId,  // 使用节点ID映射表中的ID确保一致性
-                value: Math.max(1, Math.min(10, cluster.percentage / 10)), // 缩放到1-10范围
-                type: 'related', // 添加类型以便与知识图谱保持一致
-                label: '相关', // 添加连接标签
-                color: linkColorMap['related'], // 添加颜色属性
-                strength: strength, // 模拟关系强度
-                distributionPercentage: distributionPercent, // 添加分布百分比
-                reason: `${largestTopicName}与${targetId}之间存在概念关联`, // 添加关系说明
-                learningOrder: '随意' // 添加学习顺序建议
-              });
-            }
+            links.push({
+              source: largestCluster.id,
+              target: cluster.id,
+              value: Math.max(1, Math.min(10, cluster.percentage / 10)) // 缩放到1-10范围
+            });
           }
         }
       }

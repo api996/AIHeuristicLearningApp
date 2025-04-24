@@ -68,7 +68,6 @@ export interface IStorage {
   getEmbeddingByMemoryId(memoryId: number | string): Promise<MemoryEmbedding | undefined>;
   getEmbeddingsByMemoryIds(memoryIds: (number | string)[]): Promise<Record<string, MemoryEmbedding>>;
   findSimilarMemories(userId: number, vectorData: number[], limit?: number): Promise<Memory[]>;
-  getUserMemoryVectors(userId: number): Promise<Array<{memoryId: string, vectorData: number[]}>>;
   
   // Knowledge graph methods
   saveKnowledgeGraphCache(
@@ -1215,51 +1214,6 @@ export class DatabaseStorage implements IStorage {
       return scoredMemories.slice(0, limit).map(item => item.memory);
     } catch (error) {
       log(`Error finding similar memories for user ${userId}: ${error}`);
-      throw error;
-    }
-  }
-
-  /**
-   * 获取用户的所有记忆向量
-   * @param userId 用户ID
-   * @returns 包含记忆ID和向量的对象数组
-   */
-  async getUserMemoryVectors(userId: number): Promise<Array<{memoryId: string, vectorData: number[]}>> {
-    try {
-      if (!userId || isNaN(userId)) {
-        throw new Error("Invalid user ID");
-      }
-      
-      // 获取用户的所有记忆ID
-      const userMemories = await db.select({
-        id: memories.id
-      })
-      .from(memories)
-      .where(eq(memories.userId, userId));
-      
-      if (!userMemories || userMemories.length === 0) {
-        log(`No memories found for user ${userId}`);
-        return [];
-      }
-      
-      // 提取记忆ID
-      const memoryIds = userMemories.map(memory => memory.id);
-      
-      // 获取这些记忆的向量嵌入
-      const embeddings = await db.select({
-        memoryId: memoryEmbeddings.memoryId,
-        vectorData: memoryEmbeddings.vectorData
-      })
-      .from(memoryEmbeddings)
-      .where(inArray(memoryEmbeddings.memoryId, memoryIds));
-      
-      // 转换为所需的返回格式
-      return embeddings.map(embedding => ({
-        memoryId: embedding.memoryId,
-        vectorData: embedding.vectorData as number[]
-      }));
-    } catch (error) {
-      log(`Error getting memory vectors for user ${userId}: ${error}`);
       throw error;
     }
   }
