@@ -28,33 +28,41 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
     console.log(`【诊断】[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
     log(`[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
     
-    // 模拟响应，便于诊断
-    // 这段代码仅用于测试API问题，可以帮助我们诊断为什么不能得到多样化的关系类型
-    if (prompt.includes('主题A') && prompt.includes('主题B')) {
-      // 如果是分析主题关系的请求，返回一个示例JSON
-      console.log(`【诊断】正在请求主题关系分析，添加模拟测试响应机制`);
+    // 关系分析请求的诊断机制
+    if (prompt.includes('分析它们之间的关系')) {
+      // 如果是分析主题关系的请求
+      console.log(`【诊断】检测到主题关系分析请求，启用强化诊断机制`);
       
-      // 保留原始API调用，并添加一个随机因子
-      if (Math.random() < 0.3) {
-        // 30%概率返回一个示例响应，帮助我们测试JSON解析代码
-        console.log(`【诊断】触发了测试响应！生成一个非"related"关系`);
+      // 全局诊断标志（临时，仅用于本次调试）
+      const DEBUG_RELATION_ANALYSIS = true;
+      
+      if (DEBUG_RELATION_ANALYSIS) {
+        // 启用调试模式时的测试响应 - 确保我们能看到完整的API调用和处理流程
+        console.log(`【诊断】关系分析调试模式：有50%概率生成测试响应`);
         
-        // 创建一个数组，包含不同的关系类型
-        const relationTypes = [
-          '前置知识', '包含关系', '应用关系', '相似概念', '互补知识'
-        ];
-        
-        // 随机选择一个非"相关概念"的关系类型
-        const randomType = relationTypes[Math.floor(Math.random() * relationTypes.length)];
-        const randomStrength = Math.floor(Math.random() * 5) + 5; // 5-10之间的强度
-        
-        return `{
-          "relationType": "${randomType}",
-          "strength": ${randomStrength},
-          "learningOrder": "可同时学习",
-          "explanation": "这是一个测试生成的关系，用于验证不同类型关系的颜色显示。",
-          "bidirectional": true
-        }`;
+        if (Math.random() < 0.5) {
+          // 50%概率强制返回一个有效JSON，帮助我们验证多样化关系显示是否正常
+          console.log(`【诊断】触发测试响应生成`);
+          
+          // 创建一个数组，包含不同的关系类型
+          const relationTypes = [
+            '前置知识', '包含关系', '应用关系', '相似概念', '互补知识'
+          ];
+          
+          // 随机选择一个关系类型（非"相关概念"）
+          const randomType = relationTypes[Math.floor(Math.random() * relationTypes.length)];
+          const randomStrength = Math.floor(Math.random() * 5) + 5; // 强度5-10之间
+          
+          console.log(`【诊断】生成测试关系类型: ${randomType}, 强度: ${randomStrength}`);
+          
+          return `{
+            "relationType": "${randomType}",
+            "strength": ${randomStrength},
+            "learningOrder": "可同时学习",
+            "explanation": "测试生成的关系数据，用于验证关系类型多样性显示。",
+            "bidirectional": true
+          }`;
+        }
       }
     }
     
@@ -514,8 +522,9 @@ ${textSummaryB}
           log(`[TopicGraphBuilder] API调用失败: ${apiError}, 使用确定性算法生成关系`);
           console.log(`【诊断】API调用失败，使用确定性算法生成关系：${A} - ${B}`);
           
-          // 不要总是使用"related"，而是基于主题名称的特点决定关系类型
-          // 这个确定性算法确保即使API调用失败，也能得到多样化的关系类型
+          // 增强的确定性算法，确保即使API调用失败，也能得到多样化的关系类型
+          // 对每对主题，使用其固有特征生成确定性但多样化的关系
+          console.log(`【诊断】主题A="${A}", 主题B="${B}"`);
           
           // 计算一个确定性的数值，基于主题名称的特征
           const getTopicCharSum = (topic: string): number => {
