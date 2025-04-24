@@ -533,32 +533,32 @@ ${textSummaryB}
           
           if (combinedSum < 15) {
             // 15%概率：前置知识
-            relationType = "prerequisite";
-            chineseName = "前置知识";
+            relationType = "prerequisite"; // 这里使用英文标识符，与前端匹配
+            chineseName = "前置知识";      // 中文名称仅用于显示
             strength = 7 + (combinedSum % 4); // 7-10之间
           } else if (combinedSum < 30) {
             // 15%概率：包含关系
-            relationType = "contains";
+            relationType = "contains";     // 使用英文标识符
             chineseName = "包含关系";
             strength = 6 + (combinedSum % 3); // 6-8之间
           } else if (combinedSum < 45) {
             // 15%概率：应用关系
-            relationType = "applies";
-            chineseName = "应用关系";
+            relationType = "applies";      // 使用英文标识符
+            chineseName = "应用关系"; 
             strength = 5 + (combinedSum % 4); // 5-8之间
           } else if (combinedSum < 60) {
             // 15%概率：相似概念
-            relationType = "similar";
+            relationType = "similar";      // 使用英文标识符
             chineseName = "相似概念";
             strength = 6 + (combinedSum % 3); // 6-8之间
           } else if (combinedSum < 75) {
             // 15%概率：互补知识
-            relationType = "complements";
+            relationType = "complements";  // 使用英文标识符
             chineseName = "互补知识";
             strength = 5 + (combinedSum % 4); // 5-8之间
           } else {
             // 25%概率：相关概念
-            relationType = "related";
+            relationType = "related";      // 使用英文标识符
             chineseName = "相关概念";
             strength = 3 + (combinedSum % 4); // 3-6之间
           }
@@ -588,10 +588,11 @@ ${textSummaryB}
           ];
           const reasonIndex = (charSumA + charSumB) % reasons.length;
           
+          // 关键修复：确保type字段与relationType一致，不再硬编码为"related"
           rels.push({
             source: A,
             target: B,
-            type: relationType,
+            type: relationType, // 这个字段会影响前端的颜色显示
             chineseName: chineseName,
             strength: strength,
             learningOrder: learningOrder,
@@ -757,7 +758,21 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
         : '';
       
       // 构建更详细的标签，包含关系类型和学习顺序
-      const detailedLabel = `${rel.type}${learningOrderLabel}`;
+      // 使用英文类型名作为基础，方便与CSS样式匹配
+      // 对应的中文显示名可以是rel.chineseName，或者转换如下
+      let displayType = "";
+      switch(type) {
+        case 'prerequisite': displayType = "前置知识"; break;
+        case 'contains': displayType = "包含关系"; break;
+        case 'applies': displayType = "应用关系"; break;
+        case 'similar': displayType = "相似概念"; break;
+        case 'complements': displayType = "互补知识"; break;
+        case 'references': displayType = "引用关系"; break;
+        case 'related': displayType = "相关概念"; break;
+        default: displayType = "相关";
+      }
+      
+      const detailedLabel = `${displayType}${learningOrderLabel}`;
       
       return {
         source: rel.source,
