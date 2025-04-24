@@ -594,4 +594,14 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
   );
 };
 
-export default ForceGraphKnowledgeGraph;
+// 禁用临时版本组件，强制使用components文件夹下的版本
+// export default ForceGraphKnowledgeGraph;
+// 导出一个错误提示组件，这样如果被错误导入会立即显示警告
+export default () => {
+  console.error('警告：使用了临时版本的ForceGraphKnowledgeGraph组件');
+  return (
+    <div className="p-4 bg-red-100 text-red-600 rounded-md">
+      错误：使用了临时版本的ForceGraphKnowledgeGraph组件
+    </div>
+  );
+};
