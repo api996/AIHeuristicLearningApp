@@ -434,8 +434,7 @@ export default function LearningPath() {
                 </div>
               </div>
               
-              {/* 使用独立的图例组件 */}
-              <KnowledgeGraphLegend />
+              {/* 此处不再显示图例组件 */}
             </CardContent>
           </Card>
         </TabsContent>
@@ -623,27 +622,12 @@ export default function LearningPath() {
                   </div>
                 </div>
                 
-                {/* 组合图例和统计信息，使界面更简洁 */}
+                {/* 只保留简单的节点和连接计数统计 */}
                 <div className="absolute bottom-4 left-4 z-10 bg-gray-900/80 p-3 rounded-lg backdrop-blur-sm border border-gray-800 shadow-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-white">知识节点统计</p>
+                  <div className="flex items-center">
                     <p className="text-xs text-gray-400">
                       {graphData?.nodes?.length || 0}个节点 | {graphData?.links?.length || 0}个连接
                     </p>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-indigo-500"></span>
-                      <span className="text-xs text-gray-300">主题</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
-                      <span className="text-xs text-gray-300">关键词</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-amber-500"></span>
-                      <span className="text-xs text-gray-300">记忆</span>
-                    </div>
                   </div>
                 </div>
                 
