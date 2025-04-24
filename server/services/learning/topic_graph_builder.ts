@@ -57,6 +57,7 @@ interface Relation {
   source: string;
   target: string; 
   type: string;
+  chineseName?: string;      // 中文关系名称
   reason: string;
   strength?: number;         // 关系强度（1-10）
   learningOrder?: string;    // 学习顺序建议
@@ -352,14 +353,25 @@ ${textSummaryB}
             };
           }
           
-          // 规范化关系类型
-          const validRelationTypes = [
-            "前置知识", "包含关系", "应用关系", "相似概念", "互补知识", "无直接关系"
-          ];
+          // 规范化关系类型并映射到英文类型标识符(与前端一致)
+          const relationTypeMapping: Record<string, string> = {
+            "前置知识": "prerequisite", 
+            "包含关系": "contains", 
+            "应用关系": "applies", 
+            "相似概念": "similar", 
+            "互补知识": "complements", 
+            "引用关系": "references",
+            "相关概念": "related",
+            "无直接关系": "unrelated"
+          };
           
-          if (!validRelationTypes.includes(relationData.relationType)) {
-            relationData.relationType = "相关概念";
+          // 检查是否有效的中文关系类型
+          if (!Object.keys(relationTypeMapping).includes(relationData.relationType)) {
+            relationData.relationType = "相关概念"; // 默认为相关概念
           }
+          
+          // 转换为英文类型标识符
+          const relationTypeCode = relationTypeMapping[relationData.relationType] || "related";
           
           // 确保强度在1-10范围内
           relationData.strength = Math.max(1, Math.min(10, relationData.strength));
@@ -370,7 +382,8 @@ ${textSummaryB}
           rels.push({
             source: A,
             target: B,
-            type: relationData.relationType,
+            type: relationTypeCode, // 使用映射后的英文标识符
+            chineseName: relationData.relationType, // 保留中文名称用于显示
             strength: relationData.strength,
             learningOrder: relationData.learningOrder,
             reason: relationData.explanation || "主题间存在知识关联",
@@ -385,7 +398,8 @@ ${textSummaryB}
           rels.push({
             source: A,
             target: B,
-            type: "相关概念",
+            type: "related", // 使用英文类型标识符
+            chineseName: "相关概念", // 保留中文名称
             strength: 5,
             learningOrder: "可同时学习",
             reason: "主题间可能存在知识关联",
