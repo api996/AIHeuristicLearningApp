@@ -95,6 +95,7 @@ export default function LearningPath() {
   
   // 获取知识图谱数据 - 使用预加载与缓存策略
   const [isGraphLoading, setIsGraphLoading] = useState(false);
+  const [graphData, setGraphData] = useState<KnowledgeGraph | null>(null);
   const { data: knowledgeGraph } = useQuery({
     queryKey: ["/api/learning-path/knowledge-graph", user?.userId],
     queryFn: async () => {
@@ -580,7 +581,7 @@ export default function LearningPath() {
                                 .then((data) => {
                                   // 使用新加载的数据更新状态，而不是重新加载整个页面
                                   if (data && data.nodes && data.links) {
-                                    setKnowledgeGraph(data);
+                                    setGraphData(data);
                                   }
                                   setIsGraphLoading(false);
                                 });
