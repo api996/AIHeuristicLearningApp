@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, RefreshCw, ZoomIn, ZoomOut, Maximize } from "lucide-react";
+import { ArrowLeft, RefreshCw, ZoomIn, ZoomOut, Maximize, Info } from "lucide-react";
 // 使用组件
 import ForceGraphKnowledgeGraph from "@/components/ForceGraphKnowledgeGraph";
 import SimpleGraphChart from "@/components/SimpleGraphChart";
+import KnowledgeGraphLegend from "@/components/KnowledgeGraphLegend";
 // 导入iPad滚动修复CSS
 import '@/components/ui/knowledge-graph-fixes.css';
 // 导入知识图谱数据预加载器
@@ -613,13 +614,23 @@ export default function KnowledgeGraphDetail() {
                   alignItems: 'center'
                 }}
               >
-                <ForceGraphKnowledgeGraph
-                  nodes={graphData.nodes}
-                  links={graphData.links}
-                  width={isFullScreen ? window.innerWidth - 40 : window.innerWidth > 768 ? 800 : window.innerWidth - 20}
-                  height={isFullScreen ? window.innerHeight - 80 : window.innerWidth < 768 ? window.innerHeight * 0.4 : 600}
-                  onNodeClick={onClickNode}
-                />
+                <div className="relative w-full h-full">
+                  <ForceGraphKnowledgeGraph
+                    nodes={graphData.nodes}
+                    links={graphData.links}
+                    width={isFullScreen ? window.innerWidth - 40 : window.innerWidth > 768 ? 800 : window.innerWidth - 20}
+                    height={isFullScreen ? window.innerHeight - 80 : window.innerWidth < 768 ? window.innerHeight * 0.4 : 600}
+                    onNodeClick={onClickNode}
+                  />
+                  
+                  {/* 添加图例，右上角显示 */}
+                  <div className="absolute top-2 right-2 z-10">
+                    <KnowledgeGraphLegend 
+                      className="opacity-80 hover:opacity-100 transition-opacity"
+                      showBidirectional={true}
+                    />
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-[50vh]">
