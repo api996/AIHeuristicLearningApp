@@ -353,12 +353,15 @@ export class MemoryService {
           
           log(`[MemoryService] 使用缓存服务获取用户${userId}的聚类数据: ${clusterCount}个聚类`);
           
+          // 确保将主题信息也包含在返回结果中
           return {
             clusterResult: {
               centroids: Object.values(cachedResult).map((c: any) => ({
                 points: c.memory_ids.map((id: string) => ({ id })),
                 center: c.centroid
-              }))
+              })),
+              // 添加主题信息到结果中
+              topics: Object.values(cachedResult).map((c: any) => c.topic || null).filter(Boolean)
             },
             clusterCount: clusterCount
           };
