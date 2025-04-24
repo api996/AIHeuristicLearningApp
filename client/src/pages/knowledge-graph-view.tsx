@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw, Sparkles } from 'lucide-react';
-import ForceGraphKnowledgeGraph from '@/components/ForceGraphKnowledgeGraph';
-import TopicGraphToggleView from '@/components/TopicGraphToggleView';
-import { preloadKnowledgeGraphData, getKnowledgeGraphData, clearKnowledgeGraphCache } from '@/lib/knowledge-graph-preloader';
-import { getTopicGraphData, preloadTopicGraphData, clearTopicGraphCache } from '@/lib/topic-graph-preloader';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
+import KnowledgeGraphComponent from '@/components/KnowledgeGraphView';
+import { preloadGraphData, clearGraphCache } from '@/lib/unified-graph-preloader';
 
 interface SimpleNode {
   id: string;
@@ -27,7 +25,7 @@ interface KnowledgeGraph {
 }
 
 // 创建一个超简化的知识图谱视图页面，专注于性能和视觉效果
-export default function KnowledgeGraphView() {
+export default function KnowledgeGraphPage() {
   const [, setLocation] = useLocation();
   const [userId, setUserId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,7 +68,7 @@ export default function KnowledgeGraphView() {
         setError(null); // 重置错误状态
         
         // 直接使用预加载器获取数据，它会处理缓存逻辑
-        const data = await preloadKnowledgeGraphData(userId as number);
+        const data = await preloadGraphData(userId as number, 'knowledge');
         
         if (isMounted && data && Array.isArray(data.nodes)) {
           console.log(`知识图谱数据节点数: ${data.nodes.length}, 连接数: ${data.links.length}`);
@@ -109,11 +107,11 @@ export default function KnowledgeGraphView() {
       setError(null); // 重置错误状态
       
       // 清除缓存
-      clearKnowledgeGraphCache(userId as number);
+      clearGraphCache(userId as number, 'knowledge');
       console.log('已清除缓存，正在刷新知识图谱数据...');
       
       // 直接使用预加载器的强制刷新模式
-      const data = await preloadKnowledgeGraphData(userId as number, true);
+      const data = await preloadGraphData(userId as number, 'knowledge', true);
       
       // 验证数据结构
       if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
@@ -181,8 +179,8 @@ export default function KnowledgeGraphView() {
           </div>
         ) : userId ? (
           <div className="w-full h-full">
-            {/* 使用新的主题图谱切换组件 */}
-            <TopicGraphToggleView userId={userId} />
+            {/* 使用新的知识图谱组件 */}
+            <KnowledgeGraphComponent userId={userId} />
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center">
