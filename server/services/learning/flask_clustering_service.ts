@@ -51,10 +51,41 @@ export async function startClusteringService(): Promise<boolean> {
       }
 
       // 设置环境变量
-      const env = { ...process.env, CLUSTERING_API_PORT: servicePort.toString() };
+      const env = { 
+        ...process.env, 
+        CLUSTERING_API_PORT: servicePort.toString(),
+        PYTHONUNBUFFERED: '1' // 确保Python输出不缓冲
+      };
 
-      // 启动服务进程
-      serviceProcess = spawn('python', [scriptPath], { env });
+      log(`[flask_clustering] 尝试启动聚类服务: ${scriptPath}`, 'info');
+      
+      // 检查Python路径
+      const pythonPath = process.env.PYTHON_PATH || 'python3';
+      
+      // 启动服务进程 - 优先使用python3，如果失败再尝试python
+      try {
+        serviceProcess = spawn(pythonPath, [scriptPath], { 
+          env,
+          stdio: ['ignore', 'pipe', 'pipe']
+        });
+        
+        log(`[flask_clustering] 使用 ${pythonPath} 启动聚类服务`, 'info');
+      } catch (error: any) {
+        log(`[flask_clustering] 使用 ${pythonPath} 启动失败: ${error.message}`, 'warn');
+        
+        // 尝试使用python
+        try {
+          serviceProcess = spawn('python', [scriptPath], { 
+            env,
+            stdio: ['ignore', 'pipe', 'pipe']
+          });
+          
+          log(`[flask_clustering] 改用 python 启动聚类服务`, 'info');
+        } catch (pythonError: any) {
+          log(`[flask_clustering] 使用 python 启动也失败: ${pythonError.message}`, 'error');
+          throw new Error('无法启动Python聚类服务');
+        }
+      }
 
       // 设置超时，确保不会无限等待
       const timeout = setTimeout(() => {

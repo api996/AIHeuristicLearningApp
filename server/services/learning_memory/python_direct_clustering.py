@@ -132,11 +132,22 @@ def cluster_vectors(vector_data):
             cluster_indices = np.where(labels == i)[0]
             cluster_ids = [ids[idx] for idx in cluster_indices]
             
+            # 使用有意义的主题名称
+            meaningful_topics = [
+                "学习笔记", "知识概览", "技术探索", "概念讨论", "问题分析",
+                "实践经验", "理论基础", "解决方案", "工具使用", "学习资源",
+                "编程技巧", "系统设计", "项目管理", "数据分析", "算法研究",
+                "前端开发", "后端架构", "数据库应用", "API设计", "用户体验"
+            ]
+            
+            # 生成主题名称 - 如果聚类序号在范围内使用有意义的名称，否则使用通用名称
+            topic_name = meaningful_topics[i] if i < len(meaningful_topics) else f"主题领域 {i}"
+            
             # 添加到结果中
             formatted_result[str(i)] = {
                 "centroid": centers[i].tolist(), 
                 "memory_ids": cluster_ids,
-                "topic": f"主题 {i}",
+                "topic": topic_name,
                 "cluster_id": str(i)
             }
             logger.info(f"聚类 {i}: {len(formatted_result[str(i)]['memory_ids'])} 个记忆")
