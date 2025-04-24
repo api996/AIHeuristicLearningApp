@@ -1021,3 +1021,89 @@ export async function testTopicGraphBuilder() {
 }
 
 // SQL函数已在顶部导入
+
+/**
+ * 诊断函数：直接测试API调用关系分析
+ * 这个函数会绕过所有其他逻辑，直接测试API调用是否能正确返回多样化的关系类型
+ */
+export async function diagnoseRelationAPI(): Promise<void> {
+  try {
+    console.log(`【诊断测试】开始直接测试主题关系分析API调用...`);
+    
+    // 使用明确不同的主题对进行测试
+    const testPairs = [
+      ["编程基础知识", "算法设计"],
+      ["数据结构", "算法复杂度分析"],
+      ["React框架", "前端性能优化"],
+      ["数据库设计", "SQL优化技巧"],
+      ["机器学习基础", "深度神经网络"]
+    ];
+    
+    // 依次测试每对主题
+    for (const [topicA, topicB] of testPairs) {
+      console.log(`\n【诊断测试】测试主题对: "${topicA}" <-> "${topicB}"`);
+      
+      // 构建一个干净的简化提示词
+      const prompt = `
+你是一个严格的结构化数据分析工具，任务是返回精确的JSON格式响应。分析以下两个学习主题之间的关系。
+
+主题A: ${topicA}
+主题B: ${topicB}
+
+请分析这两个主题的关系，给出以下几个信息：
+
+1. 关系类型(以下必选其一):
+   - "前置知识": 一个主题是另一个的基础
+   - "包含关系": 一个主题是另一个的子集或超集
+   - "应用关系": 一个主题的知识应用于另一个主题
+   - "相似概念": 两个主题有显著相似之处
+   - "互补知识": 两个主题相互补充，共同构成更完整的知识体系
+   - "相关概念": 主题有关联但不属于上述类型
+
+2. 关系强度: 1-10之间的整数
+
+请严格按照下面的JSON格式回复:
+{
+  "relationType": "关系类型",
+  "strength": 数字,
+  "explanation": "关系简述"
+}`;
+
+      // 选项设置
+      console.log(`【诊断测试】使用temperature=0, 模型=gemini-1.5-flash`);
+      
+      try {
+        // 直接调用API
+        console.log(`【诊断测试】发送请求...`);
+        const resp = await callGeminiModel(prompt, { model: 'gemini-1.5-flash' });
+        
+        // 记录完整响应
+        console.log(`【诊断测试】收到响应: ${resp}`);
+        
+        // 尝试解析JSON
+        try {
+          // 查找JSON对象
+          const jsonMatch = resp.match(/\{[\s\S]*?\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            console.log(`【诊断测试】成功解析JSON: ${JSON.stringify(parsed, null, 2)}`);
+            console.log(`【诊断测试】关系类型: ${parsed.relationType}, 强度: ${parsed.strength}`);
+          } else {
+            console.log(`【诊断测试】未能在响应中找到JSON对象`);
+          }
+        } catch (jsonError) {
+          console.log(`【诊断测试】JSON解析错误: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`);
+        }
+      } catch (apiError) {
+        console.log(`【诊断测试】API调用错误: ${apiError instanceof Error ? apiError.message : String(apiError)}`);
+      }
+      
+      // 在每次测试之间暂停一下，避免API限流
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    console.log(`\n【诊断测试】完成所有测试`);
+  } catch (error) {
+    console.log(`【诊断测试】总体测试失败: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
