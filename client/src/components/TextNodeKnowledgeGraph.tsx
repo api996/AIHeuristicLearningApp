@@ -124,25 +124,37 @@ const TextNodeKnowledgeGraph: React.FC<TextNodeKnowledgeGraphProps> = ({
       let linkWidth: number = 1;
       
       switch (link.type) {
-        case 'contains':
-          linkColor = 'rgba(59, 130, 246, 0.7)'; // 包含关系 - 蓝色
+        case 'prerequisite':
+          linkColor = 'rgba(220, 38, 38, 0.7)'; // 前置知识 - 深红色
           linkWidth = 2;
           break;
-        case 'references':
-          linkColor = 'rgba(139, 92, 246, 0.7)'; // 引用关系 - 紫色
-          linkWidth = 1.8;
+        case 'contains':
+          linkColor = 'rgba(59, 102, 241, 0.7)'; // 包含关系 - 靛蓝色
+          linkWidth = 2;
           break;
         case 'applies':
           linkColor = 'rgba(14, 165, 233, 0.7)'; // 应用关系 - 天蓝色
           linkWidth = 1.6;
           break;
         case 'similar':
-          linkColor = 'rgba(16, 185, 129, 0.7)'; // 相似关系 - 绿色
+          linkColor = 'rgba(16, 185, 129, 0.7)'; // 相似概念 - 绿色
           linkWidth = 1.5;
           break;
+        case 'complements':
+          linkColor = 'rgba(245, 158, 11, 0.7)'; // 互补知识 - 琥珀色
+          linkWidth = 1.5;
+          break;
+        case 'references':
+          linkColor = 'rgba(139, 92, 246, 0.7)'; // 引用关系 - 紫色
+          linkWidth = 1.8;
+          break;
         case 'related':
-          linkColor = 'rgba(245, 158, 11, 0.7)'; // 相关关系 - 橙色
-          linkWidth = 1;
+          linkColor = 'rgba(79, 70, 229, 0.7)'; // 相关概念 - 靛紫色
+          linkWidth = 1.2;
+          break;
+        case 'unrelated':
+          linkColor = 'rgba(156, 163, 175, 0.5)'; // 无直接关系 - 浅灰色
+          linkWidth = 0.8;
           break;
         default:
           linkColor = 'rgba(156, 163, 175, 0.7)'; // 默认 - 灰色
