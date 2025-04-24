@@ -199,7 +199,9 @@ ${textsToUse.map((t, i) => `${i+1}. ${t}`).join('\n')}
 
 只输出主题名称，不要其它说明。`;
 
-    const resp = await callGeminiModel(prompt, { model: 'gemini-2.0-flash' });
+    // 为主题名称提取也使用轻量级模型
+    console.log(`【主题提取】发起API请求，使用轻量级模型分析主题名称`);
+    const resp = await callGeminiModel(prompt, { model: 'gemini-1.5-flash' });
     const cleanResp = resp.trim();
     
     // 验证响应是否有意义，如果看起来像默认值或错误信息，使用备用方案
@@ -419,6 +421,8 @@ ${textSummaryB}
           // 添加更多提示和调试信息
           log(`[TopicGraphBuilder] 为主题对 "${A}" <-> "${B}" 分析关系`);
           
+          // 使用我们确定能工作的轻量级模型
+          console.log(`【关系分析】发起API请求，使用轻量级模型处理主题关系分析`);
           const resp = await callGeminiModel(prompt, { model: 'gemini-1.5-flash' });
           
           // 检查API调用是否返回错误消息
