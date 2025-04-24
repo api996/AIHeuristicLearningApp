@@ -123,6 +123,10 @@ class DirectPythonService {
               if (!result.centroids || result.centroids.length === 0) {
                 resolve({ centroids: [] });
               } else {
+                // 确保返回raw_clusters以供以后处理
+                if (result.raw_clusters) {
+                  log(`[DirectPythonService] 聚类结果包含raw_clusters数据，${Object.keys(result.raw_clusters).length}个聚类`, "info");
+                }
                 resolve(result);
               }
             } catch (parseError) {

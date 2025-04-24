@@ -370,6 +370,34 @@ export class ClusterCacheService {
     
     log(`[ClusterCache] Python聚类完成，返回了${clusterResult.centroids.length}个中心点`);
     
+    // 首先检查是否有raw_clusters字段，它包含完整的聚类信息
+    if (clusterResult.raw_clusters && Object.keys(clusterResult.raw_clusters).length > 0) {
+      log(`[ClusterCache] 使用Python返回的raw_clusters数据，包含${Object.keys(clusterResult.raw_clusters).length}个聚类`);
+      
+      // 转换为应用需要的格式
+      const transformedResult: any = {};
+      
+      // 遍历raw_clusters中的聚类
+      for (const [clusterId, cluster] of Object.entries(clusterResult.raw_clusters)) {
+        const clusterData = cluster as any;
+        
+        // 使用原始聚类的ID作为键
+        transformedResult[`cluster_${clusterId}`] = {
+          centroid: clusterData.centroid,       // 保存中心向量
+          memory_ids: clusterData.memory_ids,   // 保存记忆ID列表
+          topic: clusterData.topic || "",       // 保存主题(如果有)
+          cluster_id: `cluster_${clusterId}`
+        };
+        
+        log(`[ClusterCache] 处理raw_clusters: 聚类cluster_${clusterId}包含${clusterData.memory_ids?.length || 0}条记忆`);
+      }
+      
+      return transformedResult;
+    }
+    
+    // 如果没有raw_clusters字段，退回到使用centroids字段
+    log(`[ClusterCache] 未找到raw_clusters数据，使用centroids字段转换格式`);
+    
     // 转换为应用需要的格式 - 从centroids结构转换为clusterId -> {topic, memory_ids, centroid} 映射
     const transformedResult: any = {};
     
