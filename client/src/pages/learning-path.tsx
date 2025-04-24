@@ -228,9 +228,9 @@ export default function LearningPath() {
       <Tabs defaultValue="overview">
         <TabsList className="mb-6">
           <TabsTrigger value="overview">总览</TabsTrigger>
-          <TabsTrigger value="progress">学习分布</TabsTrigger>
-          <TabsTrigger value="suggestions">学习建议</TabsTrigger>
           <TabsTrigger value="knowledge-graph">知识图谱</TabsTrigger>
+          <TabsTrigger value="graph-rules">图谱规则</TabsTrigger>
+          <TabsTrigger value="suggestions">学习建议</TabsTrigger>
         </TabsList>
 
         {/* 总览标签页 */}
