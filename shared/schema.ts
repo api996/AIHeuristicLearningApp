@@ -217,6 +217,28 @@ export const clusterResultCache = pgTable("cluster_result_cache", {
   expiresAt: timestamp("expires_at"), // 缓存过期时间
 });
 
+// 学习轨迹表：存储用户的学习轨迹和分布数据
+export const learningPaths = pgTable("learning_paths", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  // 主题数据，包含主题名称和百分比
+  topics: json("topics").notNull(), // 格式：[{topic: "主题1", id: "topic_1", percentage: 80}, ...]
+  // 学习分布数据
+  distribution: json("distribution").notNull(), // 格式：[{topic: "主题1", percentage: 80}, ...]
+  // 学习建议
+  suggestions: json("suggestions").notNull(), // 格式：["建议1", "建议2", ...]
+  // 学习进度历史记录，用于跟踪进步
+  progressHistory: json("progress_history"), // 格式：[{date: "2023-01-01", topics: [{topic: "主题1", percentage: 75}, ...]}]
+  // 用于知识图谱展示的节点和连接数据
+  knowledgeGraph: json("knowledge_graph"), // 格式：{nodes: [...], links: [...]}
+  // 版本号，用于缓存控制
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  // 标记学习轨迹数据是否已优化/精确化
+  isOptimized: boolean("is_optimized").default(false),
+});
+
 export const insertMemorySchema = createInsertSchema(memories);
 export const insertMemoryKeywordSchema = createInsertSchema(memoryKeywords);
 export const insertMemoryEmbeddingSchema = createInsertSchema(memoryEmbeddings);
@@ -226,6 +248,7 @@ export const insertSystemConfigSchema = createInsertSchema(systemConfig);
 export const insertConversationAnalyticsSchema = createInsertSchema(conversationAnalytics);
 export const insertUserFileSchema = createInsertSchema(userFiles);
 export const insertUserSettingSchema = createInsertSchema(userSettings);
+export const insertLearningPathSchema = createInsertSchema(learningPaths);
 
 export type User = typeof users.$inferSelect;
 export type Chat = typeof chats.$inferSelect;
@@ -243,6 +266,7 @@ export type UserSetting = typeof userSettings.$inferSelect;
 export type SystemConfig = typeof systemConfig.$inferSelect;
 export type KnowledgeGraphCache = typeof knowledgeGraphCache.$inferSelect;
 export type ClusterResultCache = typeof clusterResultCache.$inferSelect;
+export type LearningPath = typeof learningPaths.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertChat = z.infer<typeof insertChatSchema>;
@@ -256,3 +280,4 @@ export type InsertConversationAnalytic = z.infer<typeof insertConversationAnalyt
 export type InsertUserFile = z.infer<typeof insertUserFileSchema>;
 export type InsertUserSetting = z.infer<typeof insertUserSettingSchema>;
 export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;
+export type InsertLearningPath = z.infer<typeof insertLearningPathSchema>;
