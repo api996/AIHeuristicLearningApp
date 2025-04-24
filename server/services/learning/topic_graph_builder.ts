@@ -375,54 +375,19 @@ ${textSummaryB}
 仅返回JSON格式数据，无需任何其他解释或前缀。`;
 
         try {
-          // 添加控制台调试输出
-          console.log(`【调试】[TopicGraphBuilder] 执行主题关系分析: "${A}" <-> "${B}"`);
+          // 添加更多提示和调试信息
+          log(`[TopicGraphBuilder] 为主题对 "${A}" <-> "${B}" 分析关系`);
           
-          // 随机使用模拟数据而不是API调用
-          // 这使得我们可以测试不同类型的关系
-          let resp;
-          
-          // 随机决定是否使用模拟数据
-          const useMockData = Math.random() < 0.8; // 80%概率使用模拟数据
-          
-          if (useMockData) {
-            const relationTypes = [
-              '前置知识', '包含关系', '应用关系', '相似概念', '互补知识'
-            ];
-            const randomType = relationTypes[Math.floor(Math.random() * relationTypes.length)];
-            const randomStrength = Math.floor(Math.random() * 5) + 5; // 5-10之间
-            console.log(`【调试】生成模拟关系: ${randomType}`);
-            
-            const mockData = {
-              relationType: randomType,
-              strength: randomStrength,
-              learningOrder: (randomType === '前置知识') ? `先学${A}后学${B}` : "可同时学习",
-              explanation: `这是一个测试生成的${randomType}关系，用于验证颜色显示机制`,
-              bidirectional: randomType !== '前置知识'
-            };
-            
-            // 转换为JSON字符串
-            resp = JSON.stringify(mockData, null, 2);
-            
-            // 记录使用了模拟数据
-            console.log(`【调试】使用模拟API响应: ${resp}`);
-            log(`[TopicGraphBuilder] 使用模拟数据: ${randomType}`);
-          } else {
-            // 如果不使用模拟数据，则执行原始API调用
-            log(`[TopicGraphBuilder] 为主题对 "${A}" <-> "${B}" 分析关系`);
-            resp = await callGeminiModel(prompt, { model: 'gemini-1.5-flash' });
-          }
+          const resp = await callGeminiModel(prompt, { model: 'gemini-1.5-flash' });
           
           // 检查API调用是否返回错误消息
           if (resp.startsWith('调用失败:')) {
             log(`[TopicGraphBuilder] API调用返回错误: ${resp}`);
-            console.log(`【调试】API调用返回错误: ${resp}`);
             throw new Error(resp);
           }
           
           // 记录更短的响应摘要，避免日志过大
           const respSummary = resp.length > 200 ? resp.substring(0, 200) + '...' : resp;
-          console.log(`【调试】API响应成功: ${respSummary}`);
           log(`[TopicGraphBuilder] 主题关系分析原始响应: ${respSummary}`);
           
           // 尝试解析JSON响应
@@ -548,35 +513,16 @@ ${textSummaryB}
         } catch (apiError) {
           log(`[TopicGraphBuilder] API调用失败: ${apiError}, 使用默认关系`);
           
-          // 如果API调用失败，使用随机一种关系类型，避免所有关系都是同一种类型
-          // 这使得图谱更加多样化，即使API调用失败
-          
-          // 关系类型数组
-          const fallbackTypes = [
-            { type: "prerequisite", chinese: "前置知识", color: "rgba(220, 38, 38, 0.7)" },
-            { type: "contains", chinese: "包含关系", color: "rgba(99, 102, 241, 0.7)" },
-            { type: "applies", chinese: "应用关系", color: "rgba(14, 165, 233, 0.7)" },
-            { type: "similar", chinese: "相似概念", color: "rgba(16, 185, 129, 0.7)" },
-            { type: "complements", chinese: "互补知识", color: "rgba(245, 158, 11, 0.7)" },
-            { type: "related", chinese: "相关概念", color: "rgba(79, 70, 229, 0.7)" }
-          ];
-          
-          // 随机选择一种关系类型
-          const randomIndex = Math.floor(Math.random() * fallbackTypes.length);
-          const fallbackType = fallbackTypes[randomIndex];
-          
-          // 记录使用了哪种后备关系类型
-          console.log(`【调试】API调用失败，使用随机后备关系类型: ${fallbackType.chinese}`);
-          
+          // 如果API调用失败，添加默认关系
           rels.push({
             source: A,
             target: B,
-            type: fallbackType.type, // 使用随机选择的关系类型
-            chineseName: fallbackType.chinese, // 对应的中文名称
-            strength: 5 + Math.floor(Math.random() * 5), // 5-9的随机强度
-            learningOrder: fallbackType.type === "prerequisite" ? `先学${A}后学${B}` : "可同时学习",
-            reason: `主题间存在${fallbackType.chinese}关系`,
-            bidirectional: fallbackType.type !== "prerequisite" // 除了前置知识外都设为双向
+            type: "related", // 使用英文类型标识符
+            chineseName: "相关概念", // 保留中文名称
+            strength: 5,
+            learningOrder: "可同时学习",
+            reason: "主题间可能存在知识关联",
+            bidirectional: true  // 默认设为双向关系
           });
         }
       
