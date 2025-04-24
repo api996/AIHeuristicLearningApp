@@ -173,6 +173,7 @@ export class MemoryService {
       }
       
       // 检查是否使用优化的Flask API聚类服务
+      const vectorDimensions = embeddings[0].length;
       if (vectorDimensions >= 3000) {
         try {
           const { clusterVectors } = await import('./flask_clustering_service');
