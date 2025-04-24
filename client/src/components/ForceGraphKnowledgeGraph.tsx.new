@@ -54,6 +54,39 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
   // 内联设备检测
   const [isMobile, setIsMobile] = useState<boolean>(false);
   
+  // 辅助函数：绘制箭头
+  const drawArrow = useCallback((
+    ctx: CanvasRenderingContext2D, 
+    fromX: number, 
+    fromY: number, 
+    toX: number, 
+    toY: number, 
+    color: string, 
+    width: number, 
+    globalScale: number
+  ) => {
+    // 计算箭头方向
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    const angle = Math.atan2(dy, dx);
+    
+    // 箭头大小，随缩放和线宽调整
+    const arrowSize = (7 + width) / globalScale;
+    
+    // 绘制箭头
+    ctx.save();
+    ctx.beginPath();
+    ctx.translate(toX, toY);
+    ctx.rotate(angle);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-arrowSize, -arrowSize / 2);
+    ctx.lineTo(-arrowSize, arrowSize / 2);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+  }, []);
+  
   // 设备检测逻辑
   useEffect(() => {
     const checkIfMobile = () => {
@@ -405,32 +438,7 @@ const ForceGraphKnowledgeGraph: React.FC<ForceGraphKnowledgeGraphProps> = ({
       ctx.textBaseline = 'middle';
       ctx.fillText(link.reason, midX, midY);
     }
-  }, [graphData, highlightedNodeId]);
-  
-  // 辅助函数：绘制箭头
-  const drawArrow = useCallback((ctx: CanvasRenderingContext2D, fromX: number, fromY: number, 
-    toX: number, toY: number, color: string, width: number, globalScale: number) => {
-    // 计算箭头方向
-    const dx = toX - fromX;
-    const dy = toY - fromY;
-    const angle = Math.atan2(dy, dx);
-    
-    // 箭头大小，随缩放和线宽调整
-    const arrowSize = (7 + width) / globalScale;
-    
-    // 绘制箭头
-    ctx.save();
-    ctx.beginPath();
-    ctx.translate(toX, toY);
-    ctx.rotate(angle);
-    ctx.moveTo(0, 0);
-    ctx.lineTo(-arrowSize, -arrowSize / 2);
-    ctx.lineTo(-arrowSize, arrowSize / 2);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.restore();
-  }, []);
+  }, [graphData, highlightedNodeId, drawArrow]);
   
   return (
     <div className="knowledge-graph-container">

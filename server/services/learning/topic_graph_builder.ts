@@ -60,6 +60,7 @@ interface Relation {
   reason: string;
   strength?: number;         // 关系强度（1-10）
   learningOrder?: string;    // 学习顺序建议
+  bidirectional?: boolean;   // 关系是否双向
 }
 
 // 图谱数据结构
@@ -363,13 +364,17 @@ ${textSummaryB}
           // 确保强度在1-10范围内
           relationData.strength = Math.max(1, Math.min(10, relationData.strength));
           
+          // 提取双向关系属性，默认为false
+          const isBidirectional = relationData.bidirectional === true;
+          
           rels.push({
             source: A,
             target: B,
             type: relationData.relationType,
             strength: relationData.strength,
             learningOrder: relationData.learningOrder,
-            reason: relationData.explanation || "主题间存在知识关联"
+            reason: relationData.explanation || "主题间存在知识关联",
+            bidirectional: isBidirectional
           });
           
           log(`[TopicGraphBuilder] 成功分析主题关系: ${A} - ${B}, 类型: ${relationData.relationType}, 强度: ${relationData.strength}`);
@@ -383,7 +388,8 @@ ${textSummaryB}
             type: "相关概念",
             strength: 5,
             learningOrder: "可同时学习",
-            reason: "主题间可能存在知识关联"
+            reason: "主题间可能存在知识关联",
+            bidirectional: true  // 默认设为双向关系
           });
         }
       
@@ -550,7 +556,8 @@ export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
         reason: rel.reason,
         color: linkColor,
         strength: rel.strength,
-        learningOrder: rel.learningOrder
+        learningOrder: rel.learningOrder,
+        bidirectional: rel.bidirectional === true  // 传递双向关系标志
       };
     });
     
@@ -588,6 +595,7 @@ export interface KnowledgeLink {
   strength?: number;      // 关系强度（1-10）
   learningOrder?: string; // 学习顺序建议
   color?: string;         // 连接颜色
+  bidirectional?: boolean; // 关系是否双向
 }
 
 /**
