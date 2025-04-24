@@ -863,6 +863,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "replit-object-storage" },
     { name = "scikit-learn" },
+    { name = "scipy" },
     { name = "sqlalchemy" },
     { name = "uvicorn" },
 ]
@@ -880,6 +881,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "replit-object-storage", specifier = ">=1.0.2" },
     { name = "scikit-learn", specifier = ">=1.6.1" },
+    { name = "scipy", specifier = ">=1.15.2" },
     { name = "sqlalchemy", specifier = ">=2.0.40" },
     { name = "uvicorn", specifier = ">=0.34.0" },
 ]
