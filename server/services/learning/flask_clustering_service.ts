@@ -7,6 +7,12 @@ import axios from 'axios';
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// 获取当前文件的目录路径（ES模块替代__dirname）
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // 日志工具
 import { log } from './utils';
