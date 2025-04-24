@@ -65,22 +65,7 @@ export default function LearningPath() {
     }
   }, [setLocation]);
 
-  // 在页面加载后立即开始预加载知识图谱数据
-  useEffect(() => {
-    if (user?.userId) {
-      // 在组件挂载时开始预加载知识图谱数据，无需等待用户点击
-      console.log("学习轨迹页面预加载知识图谱数据...");
-      
-      // 立即开始异步预加载，不阻塞页面渲染
-      preloadKnowledgeGraphData(user.userId)
-        .then(data => {
-          console.log(`知识图谱数据预加载成功: ${data.nodes.length}个节点, ${data.links.length}个连接`);
-        })
-        .catch(err => {
-          console.error("知识图谱数据预加载失败:", err);
-        });
-    }
-  }, [user?.userId]);
+  // 注意：知识图谱数据加载已经移至下面的useEffect中，这里不再需要单独的预加载
 
   // 获取学习轨迹数据
   const { data: learningPath, isLoading, error } = useQuery({
@@ -95,37 +80,28 @@ export default function LearningPath() {
     enabled: !!user?.userId,
   });
   
-  // 在knowledgeGraphData更新时同步到graphData
+  // 加载知识图谱数据 - 使用预加载和自定义state管理方案
   useEffect(() => {
-    if (knowledgeGraphData) {
-      setGraphData(knowledgeGraphData);
+    if (user?.userId) {
+      // 设置加载状态
+      setIsGraphLoading(true);
+      
+      // 使用预加载函数获取数据
+      preloadKnowledgeGraphData(user.userId)
+        .then(data => {
+          // 成功获取数据后，更新状态
+          setGraphData(data);
+          console.log(`知识图谱数据加载成功: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+        })
+        .catch(err => {
+          console.error("知识图谱数据加载失败:", err);
+        })
+        .finally(() => {
+          // 无论成功失败，都结束加载状态
+          setIsGraphLoading(false);
+        });
     }
-  }, [knowledgeGraphData]);
-  
-  // 获取知识图谱数据 - 使用预加载与缓存策略
-  const { data: knowledgeGraphData } = useQuery({
-    queryKey: ["/api/learning-path/knowledge-graph", user?.userId],
-    queryFn: async () => {
-      try {
-        setIsGraphLoading(true);
-        // 优先使用已预加载的数据
-        console.log("从预加载缓存获取知识图谱数据...");
-        const cachedData = await preloadKnowledgeGraphData(user?.userId || 0);
-        return cachedData;
-      } catch (err) {
-        // 回退到标准请求
-        console.log("缓存获取失败，直接请求知识图谱数据...");
-        const response = await fetch(`/api/learning-path/${user?.userId}/knowledge-graph`);
-        if (!response.ok) {
-          throw new Error("获取知识图谱失败");
-        }
-        return response.json();
-      } finally {
-        setIsGraphLoading(false);
-      }
-    },
-    enabled: !!user?.userId,
-  });
+  }, [user?.userId]);
 
   // 如果用户未登录，显示提示信息
   if (!user?.userId) {
@@ -612,12 +588,12 @@ export default function LearningPath() {
                   <div className="absolute inset-0" style={{ backdropFilter: 'blur(2px)' }}>
                     {/* 使用优化后的文本节点力导向图 */}
                     <TextNodeForceGraph
-                      nodes={graphData.nodes}
-                      links={graphData.links}
+                      nodes={graphData?.nodes || []}
+                      links={graphData?.links || []}
                       width={window.innerWidth - 80} // 留出边距
                       height={window.innerHeight - 280} // 留出页面头部和底部的空间
                       onNodeClick={(nodeId) => {
-                        const node = graphData.nodes.find((n: any) => n.id === nodeId);
+                        const node = graphData?.nodes?.find((n: any) => n.id === nodeId);
                         if (node) {
                           console.log(`点击了节点: ${node.label || nodeId}`);
                           
@@ -679,7 +655,7 @@ export default function LearningPath() {
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-medium text-white">知识节点统计</p>
                     <p className="text-xs text-gray-400">
-                      {knowledgeGraph.nodes.length}个节点 | {knowledgeGraph.links.length}个连接
+                      {graphData?.nodes?.length || 0}个节点 | {graphData?.links?.length || 0}个连接
                     </p>
                   </div>
                   <div className="flex gap-3">
