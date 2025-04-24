@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle, RefreshCw, Maximize, Minimize, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle, RefreshCw, Maximize, Minimize, Sparkles, HelpCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
 import TextNodeForceGraph from "@/components/TextNodeForceGraph";
@@ -14,6 +14,8 @@ import "@/components/ui/learning-path-fixes.css";
 import "@/components/ui/knowledge-graph-fixes.css";
 // 导入知识图谱预加载器
 import { preloadKnowledgeGraphData } from '@/lib/knowledge-graph-preloader';
+// 导入知识图谱图例组件
+import KnowledgeGraphLegend from '@/components/KnowledgeGraphLegend';
 
 // 定义知识图谱节点类型
 interface KnowledgeNode {
@@ -446,6 +448,41 @@ export default function LearningPath() {
           </Card>
         </TabsContent>
 
+        {/* 图谱规则标签页 - 新增 */}
+        <TabsContent value="graph-rules">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Info className="mr-2 h-5 w-5" /> 知识图谱说明
+              </CardTitle>
+              <CardDescription>了解知识图谱中不同关系类型与颜色的含义</CardDescription>
+            </CardHeader>
+            <CardContent className="card-content">
+              <div className="p-4 border rounded-lg bg-black/30 mb-5">
+                <h3 className="text-lg font-medium text-blue-300 mb-3">知识图谱简介</h3>
+                <p className="text-neutral-300 mb-3">
+                  知识图谱是对您学习过程中涉及的概念、主题和它们之间关系的可视化表示。它能帮助您理解不同知识点之间的联系，发现学习路径，并更好地组织知识结构。
+                </p>
+                <div className="flex items-start text-neutral-300 space-y-2 flex-col mb-3">
+                  <div className="flex items-center gap-2">
+                    <HelpCircle className="h-4 w-4 text-blue-400" />
+                    <span className="font-medium">如何使用:</span> 
+                  </div>
+                  <ul className="list-disc pl-10 space-y-1 text-sm text-neutral-300">
+                    <li>点击节点查看详细信息</li>
+                    <li>拖动节点可以调整布局</li>
+                    <li>滚轮可以缩放图表</li>
+                    <li>点击"刷新数据"可更新最新的知识结构</li>
+                  </ul>
+                </div>
+              </div>
+              
+              {/* 使用独立的图例组件 */}
+              <KnowledgeGraphLegend />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
         {/* 学习建议标签页 */}
         <TabsContent value="suggestions">
           <Card>
