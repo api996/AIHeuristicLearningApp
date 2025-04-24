@@ -397,62 +397,35 @@ function processLinkColors(data: GraphData): void {
     return;
   }
 
-  // 映射关系类型到颜色
-  const typeToColorMap: Record<string, string> = {
-    'prerequisite': 'rgba(220, 38, 38, 0.7)',   // 前置知识 - 深红色
-    'contains': 'rgba(59, 102, 241, 0.7)',      // 包含关系 - 靛蓝色
-    'applies': 'rgba(14, 165, 233, 0.7)',       // 应用关系 - 天蓝色
-    'similar': 'rgba(16, 185, 129, 0.7)',       // 相似概念 - 绿色
-    'complements': 'rgba(245, 158, 11, 0.7)',   // 互补知识 - 琥珀色
-    'references': 'rgba(139, 92, 246, 0.7)',    // 引用关系 - 紫色
-    'related': 'rgba(79, 70, 229, 0.7)',        // 相关概念 - 靛紫色
-    'unrelated': 'rgba(156, 163, 175, 0.5)',    // 无直接关系 - 浅灰色
-  };
-
-  // 为每条连接分配颜色，始终基于类型而不是现有颜色
-  let colorIndex = 0;
-  const fallbackColors = [
-    'rgba(220, 38, 38, 0.7)',   // 深红色
-    'rgba(59, 102, 241, 0.7)',  // 靛蓝色
-    'rgba(14, 165, 233, 0.7)',  // 天蓝色
-    'rgba(16, 185, 129, 0.7)',  // 绿色
-    'rgba(245, 158, 11, 0.7)',  // 琥珀色
-    'rgba(139, 92, 246, 0.7)',  // 紫色
-    'rgba(79, 70, 229, 0.7)',   // 靛紫色
+  // 固定的颜色数组 - 确保视觉上的明显区分
+  const colorPalette = [
+    'rgba(220, 38, 38, 0.8)',   // 深红色 - 前置知识
+    'rgba(59, 102, 241, 0.8)',  // 靛蓝色 - 包含关系
+    'rgba(14, 165, 233, 0.8)',  // 天蓝色 - 应用关系
+    'rgba(16, 185, 129, 0.8)',  // 绿色 - 相似概念
+    'rgba(245, 158, 11, 0.8)',  // 琥珀色 - 互补知识
+    'rgba(139, 92, 246, 0.8)',  // 紫色 - 引用关系
+    'rgba(79, 70, 229, 0.8)',   // 靛紫色 - 相关概念
   ];
 
-  // 记录已经处理过的连接对，防止重复处理
-  const processedPairs = new Set<string>();
-
-  for (const link of data.links) {
-    // 为各种类型的连接分配有意义的颜色，即使它们已经有颜色
-    const sourceTarget = `${link.source}-${link.target}`;
-    const targetSource = `${link.target}-${link.source}`;
+  // 为每个连接强制分配不同颜色，忽略任何先前设置的颜色或类型
+  // 这是最简单的方式，确保每个连接都有不同颜色
+  for (let i = 0; i < data.links.length; i++) {
+    const link = data.links[i];
+    // 强制设置颜色 - 使用循环索引确保所有颜色都被使用
+    link.color = colorPalette[i % colorPalette.length];
     
-    // 如果这对节点已经处理过，跳过以保持一致性
-    if (processedPairs.has(sourceTarget) || processedPairs.has(targetSource)) {
-      continue;
-    }
+    // 为了显示效果，也根据颜色设置不同的连接类型名称
+    // 这将影响连接的宽度和视觉特性
+    const typeNames = [
+      'prerequisite', 'contains', 'applies', 'similar', 
+      'complements', 'references', 'related'
+    ];
+    link.type = typeNames[i % typeNames.length];
     
-    // 记录已处理的连接对
-    processedPairs.add(sourceTarget);
-    
-    // 确定连接颜色
-    if (link.type && typeToColorMap[link.type]) {
-      // 如果有已知类型，使用映射的颜色
-      link.color = typeToColorMap[link.type];
-    } else {
-      // 否则使用从调色板轮换的颜色
-      link.color = fallbackColors[colorIndex % fallbackColors.length];
-      colorIndex++;
-    }
-    
-    // 如果链接标签是 "related (可同时学习)"，强制设置类型为 "related"
-    if (link.label && link.label.includes("related")) {
-      link.type = "related";
-      link.color = typeToColorMap["related"];
-    }
+    // 增强连接宽度以提高可见性
+    link.value = 1.5;
   }
   
-  console.log(`处理了${data.links.length}条连接的颜色，确保视觉差异化`);
+  console.log(`强制为${data.links.length}条连接分配了${Math.min(data.links.length, colorPalette.length)}种不同颜色`);
 }

@@ -14,8 +14,6 @@ import "@/components/ui/learning-path-fixes.css";
 import "@/components/ui/knowledge-graph-fixes.css";
 // 导入统一图谱预加载器
 import { preloadGraphData, GraphData, GraphNode, GraphLink } from '@/lib/unified-graph-preloader';
-// 导入知识图谱图例组件
-import KnowledgeGraphLegend from '@/components/KnowledgeGraphLegend';
 
 // 使用统一的GraphData类型，替代自定义KnowledgeGraph接口
 
