@@ -138,6 +138,7 @@ export interface IStorage {
   ): Promise<LearningPath>;
   getLearningPath(userId: number): Promise<LearningPath | undefined>;
   updateLearningPathHistory(userId: number, newProgressEntry: any): Promise<LearningPath | undefined>;
+  clearLearningPath(userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
