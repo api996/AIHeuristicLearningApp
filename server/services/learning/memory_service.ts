@@ -134,28 +134,6 @@ export class MemoryService {
     createdAt: Date | null; 
   }[], embeddings: number[][]): Promise<any> {
     try {
-      // 记录向量维度信息，用于调试
-      if (embeddings && embeddings.length > 0) {
-        const vectorDimensions = embeddings[0].length;
-        log(`[MemoryService] 记忆聚类分析: 用户ID=${userId}, 记忆数量=${memories.length}, 向量维度=${vectorDimensions}`);
-        
-        // 记录第一个向量的前5个值，以便调试
-        if (embeddings[0] && embeddings[0].length > 5) {
-          // 只在真正需要调试时记录向量样本数据
-          if (process.env.DEBUG_VECTORS === 'true') {
-            const sample = embeddings[0].slice(0, 5).map(v => v.toFixed(4)).join(', ');
-            log(`[MemoryService] 向量样本 [${sample}...]`);
-          }
-        }
-        
-        // 检查向量是否为高维向量(3072维)
-        if (vectorDimensions >= 3000) {
-          log(`[MemoryService] 检测到高维向量(${vectorDimensions}维)，将使用优化的Python聚类服务`);
-        } else {
-          log(`[MemoryService] 警告: 检测到低维向量(${vectorDimensions}维)，可能导致聚类效果不佳`, "warn");
-        }
-      }
-      
       // 确保是同一用户的记忆
       const filteredMemories = memories.filter(memory => memory.userId === userId);
       if (filteredMemories.length !== memories.length) {
@@ -164,6 +142,57 @@ export class MemoryService {
       
       if (filteredMemories.length < 5) {
         return { topics: [], error: "Not enough memories for clustering" };
+      }
+      
+      // 如果传入空向量数组，自动从数据库获取向量
+      if (!embeddings || embeddings.length === 0) {
+        log(`[MemoryService] 检测到空向量数组，正在从数据库自动获取向量嵌入数据...`);
+        
+        // 获取记忆ID
+        const memoryIds = filteredMemories.map(m => m.id);
+        log(`[MemoryService] 开始获取${memoryIds.length}条记忆的向量嵌入...`);
+        
+        // 批量获取向量嵌入
+        const embeddingsMap = await storage.getEmbeddingsByMemoryIds(memoryIds);
+        
+        if (!embeddingsMap || Object.keys(embeddingsMap).length === 0) {
+          log(`[MemoryService] 错误: 未能从数据库获取到任何向量嵌入数据`, "error");
+          return { topics: [], error: "Failed to retrieve embeddings from database" };
+        }
+        
+        // 构建向量数组，确保与记忆数组顺序一致
+        const newEmbeddings: number[][] = [];
+        for (const memory of filteredMemories) {
+          const embedding = embeddingsMap[memory.id];
+          if (embedding && Array.isArray(embedding.vectorData)) {
+            newEmbeddings.push(embedding.vectorData);
+          }
+        }
+        
+        log(`[MemoryService] 成功获取${newEmbeddings.length}个向量嵌入，记忆总数${filteredMemories.length}`);
+        
+        // 更新embeddings变量
+        embeddings = newEmbeddings;
+      }
+      
+      // 记录向量维度信息，用于调试
+      if (embeddings && embeddings.length > 0) {
+        const vectorDimensions = embeddings[0].length;
+        log(`[MemoryService] 记忆聚类分析: 用户ID=${userId}, 记忆数量=${filteredMemories.length}, 向量数量=${embeddings.length}, 向量维度=${vectorDimensions}`);
+        
+        // 记录第一个向量的前5个值，以便调试
+        if (embeddings[0] && embeddings[0].length > 5) {
+          // 记录向量样本数据，便于调试
+          const sample = embeddings[0].slice(0, 5).map(v => v.toFixed(4)).join(', ');
+          log(`[MemoryService] 向量样本 [${sample}...]`);
+        }
+        
+        // 检查向量是否为高维向量(3072维)
+        if (vectorDimensions >= 3000) {
+          log(`[MemoryService] 检测到高维向量(${vectorDimensions}维)，将使用优化的Python聚类服务`);
+        } else {
+          log(`[MemoryService] 警告: 检测到低维向量(${vectorDimensions}维)，可能导致聚类效果不佳`, "warn");
+        }
       }
       
       // 确保内存向量和记忆数量匹配
