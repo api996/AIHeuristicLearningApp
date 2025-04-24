@@ -394,6 +394,12 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
                 'similar': 'rgba(34, 197, 94, 0.7)', // 绿色
               };
               
+              // 模拟关系强度
+              const strength = Math.ceil(Math.random() * 10);
+              
+              // 计算学习分布百分比 (1-10 => 10-90%)，与topic_graph_builder.ts保持一致
+              const distributionPercent = Math.max(10, Math.min(90, (strength * 9) - 5));
+              
               // 为连接添加必要的属性
               links.push({
                 source: largestTopicName, // 使用提取的主题名称作为源
@@ -402,7 +408,8 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
                 type: 'related', // 添加类型以便与知识图谱保持一致
                 label: '相关', // 添加连接标签
                 color: linkColorMap['related'], // 添加颜色属性
-                strength: Math.ceil(Math.random() * 10), // 模拟关系强度
+                strength: strength, // 模拟关系强度
+                distributionPercentage: distributionPercent, // 添加分布百分比
                 reason: `${largestTopicName}与${targetId}之间存在概念关联`, // 添加关系说明
                 learningOrder: '随意' // 添加学习顺序建议
               });
