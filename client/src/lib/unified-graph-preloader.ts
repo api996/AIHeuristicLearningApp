@@ -391,30 +391,70 @@ async function fetchTopicGraphDataForceRefresh(userId: number): Promise<GraphDat
  * 统一处理连接线的颜色，确保始终基于type属性来设置颜色
  * @param data 图谱数据
  */
-/**
- * 统一处理连接线的颜色，确保始终基于type属性来设置颜色
- * @param data 图谱数据
- */
 function processLinkColors(data: GraphData): void {
   // 如果links数组为空或undefined，直接返回
   if (!data.links || !Array.isArray(data.links) || data.links.length === 0) {
     return;
   }
 
-  // 保持原有的颜色和类型，仅记录信息用于调试
-  console.log(`正在分析${data.links.length}条连接的颜色信息:`);
+  // 关系类型映射到颜色
+  const relationColorMap: Record<string, string> = {
+    "prerequisite": "#DC2626", // 前置知识 - 深红色
+    "contains": "#4F46E5",     // 包含关系 - 靛蓝色
+    "references": "#9333EA",   // 引用关系 - 紫色
+    "applies": "#0EA5E9",      // 应用关系 - 天蓝色
+    "similar": "#10B981",      // 相似概念 - 绿色
+    "complements": "#F59E0B",  // 互补知识 - 琥珀色
+    "related": "#6D28D9",      // 相关概念 - 深紫色
+    "unrelated": "#D1D5DB"     // 无关联 - 浅灰色
+  };
+
+  console.log(`正在分析${data.links.length}条连接的颜色信息`);
+  
+  // 记录关系类型数量统计
   const typeCount: Record<string, number> = {};
+  
+  // 处理每条连接的颜色
   for (const link of data.links) {
+    // 统计各类型数量
     typeCount[link.type] = (typeCount[link.type] || 0) + 1;
+    
+    // 如果连接没有颜色或者需要更新颜色，设置新颜色
+    if (!link.color && link.type && relationColorMap[link.type]) {
+      link.color = relationColorMap[link.type];
+    }
+    
+    // 如果没有type或type无效，但有一个默认颜色，则设置为相关类型
+    if (!link.type || !relationColorMap[link.type]) {
+      link.type = 'related'; // 默认为相关概念
+      link.color = relationColorMap['related'];
+    }
+    
+    // 确保标签设置，如果没有就使用type
+    if (!link.label && link.type) {
+      // 根据关系类型设置友好的标签
+      const labelMap: Record<string, string> = {
+        "prerequisite": "前置知识", 
+        "contains": "包含关系",
+        "references": "引用关系",
+        "applies": "应用关系",
+        "similar": "相似概念",
+        "complements": "互补知识",
+        "related": "相关概念", 
+        "unrelated": "无关联"
+      };
+      
+      link.label = labelMap[link.type] || link.type;
+    }
   }
   
   // 输出统计信息
   console.log('连接类型统计:', typeCount);
   
-  // 记录一条示例连接的信息
+  // 记录样本连接信息
   if (data.links.length > 0) {
     const sampleLink = data.links[0];
-    console.log('示例连接:', {
+    console.log('样本连接:', {
       source: sampleLink.source,
       target: sampleLink.target,
       type: sampleLink.type,
