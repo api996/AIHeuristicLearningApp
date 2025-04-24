@@ -17,6 +17,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { storage } from '../storage';
+import { genAiService } from '../services/genai/genai_service';
 
 // 创建路由
 const router = Router();
@@ -159,11 +160,11 @@ router.post('/:userId/memory', async (req, res) => {
     log(`[API] 保存用户 ${userId} 的记忆: ${content.substring(0, 50)}...`);
     
     // 使用新的记忆服务
-    const memoryId = await memoryService.saveMemory(userId, content, type || 'chat');
+    const memory = await memoryService.createMemory(userId, content, type || 'chat');
     
     res.json({ 
       memory: {
-        id: memoryId,
+        id: memory.id,
         content,
         type: type || 'chat',
         timestamp: new Date().toISOString(),
@@ -348,6 +349,90 @@ router.post('/:userId/repair-memories', async (req, res) => {
     });
   } catch (error) {
     log(`[API] 修复记忆文件出错: ${error}`);
+    res.status(500).json({ error: utils.sanitizeErrorMessage(error) });
+  }
+});
+
+/**
+ * 刷新用户的学习路径，使用AI生成更有意义的主题名称
+ * POST /api/learning-path/:userId/refresh
+ */
+router.post('/:userId/refresh', async (req, res) => {
+  try {
+    const userId = utils.safeParseInt(req.params.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ error: "无效的用户ID" });
+    }
+    
+    log(`[API] 开始刷新用户 ${userId} 的学习路径，生成AI主题名称`);
+    
+    // 设置响应头，禁用缓存
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    // 获取当前学习路径数据
+    const currentPath = await storage.getLearningPath(userId);
+    if (!currentPath || !currentPath.topics || currentPath.topics.length === 0) {
+      return res.status(404).json({ error: "未找到用户学习路径数据" });
+    }
+
+    // 获取用户的记忆数据，以便为主题生成更准确的名称
+    const memories = await memoryService.getMemoriesByFilter(userId);
+    if (!memories || memories.length === 0) {
+      return res.status(404).json({ error: "未找到用户记忆数据" });
+    }
+
+    // 为每个主题生成新的有意义的名称
+    const updatedTopics = await Promise.all(
+      currentPath.topics.map(async (topic: any) => {
+        // 找出属于该主题的记忆
+        const topicMemories = memories.filter(memory => 
+          topic.id && Array.isArray(topic.memoryIds) && topic.memoryIds.includes(memory.id)
+        );
+
+        // 如果找不到相关记忆，保留原名称
+        if (topicMemories.length === 0) {
+          return topic;
+        }
+
+        // 提取记忆内容
+        const memoryContents = topicMemories.map(m => m.content || m.summary || "").join(" ");
+        
+        try {
+          // 使用AI生成更有意义的主题名称
+          const meaningfulTopic = await genAiService.generateTopicForMemories([memoryContents]);
+          log(`[API] 为主题 ${topic.topic} 生成AI名称: ${meaningfulTopic}`);
+          
+          // 更新主题名称
+          return {
+            ...topic,
+            topic: meaningfulTopic || topic.topic // 如果AI生成失败，保留原名称
+          };
+        } catch (topicError) {
+          log(`[API] 为主题 ${topic.topic} 生成AI名称失败: ${topicError}`);
+          return topic; // 出错时保留原名称
+        }
+      })
+    );
+
+    // 保存更新后的学习路径数据
+    await storage.saveLearningPath(
+      userId,
+      updatedTopics,
+      updatedTopics, // 使用更新后的主题作为分布数据
+      currentPath.suggestions || [],
+      currentPath.knowledgeGraph || undefined
+    );
+
+    // 重新获取完整的学习路径数据
+    const result = await analyzeLearningPath(userId, true);
+    result.version = new Date().getTime(); // 添加时间戳作为版本号
+    
+    res.json(result);
+  } catch (error) {
+    log(`[API] 刷新学习路径出错: ${error}`);
     res.status(500).json({ error: utils.sanitizeErrorMessage(error) });
   }
 });
