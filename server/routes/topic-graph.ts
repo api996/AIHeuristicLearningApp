@@ -4,7 +4,7 @@
  */
 import express from 'express';
 import { log } from '../vite';
-import { buildUserKnowledgeGraph, testTopicGraphBuilder, diagnoseRelationAPI } from '../services/learning/topic_graph_builder';
+import { buildUserKnowledgeGraph, testTopicGraphBuilder } from '../services/learning/topic_graph_builder';
 import { db } from '../db';
 import { knowledgeGraphCache } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -127,50 +127,6 @@ router.get('/api/topic-graph/test', async (req, res) => {
   } catch (error) {
     log(`[TopicGraph] 主题图谱测试失败: ${error}`);
     return res.status(500).json({ error: '主题图谱测试失败' });
-  }
-});
-
-// API诊断端点 - 用于诊断关系分析API问题
-router.get('/api/diagnostics/topic-relations', async (req, res) => {
-  try {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(403).json({ error: '诊断API在生产环境不可用' });
-    }
-    
-    log(`[TopicGraph] 开始API诊断测试`);
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    
-    // 设置流式响应模式
-    res.write('开始诊断API调用问题...\n\n');
-    
-    // 创建自定义控制台来捕获输出
-    const originalConsoleLog = console.log;
-    const logs: string[] = [];
-    
-    console.log = function(message: any, ...optionalParams: any[]) {
-      // 原始日志仍然保留
-      originalConsoleLog(message, ...optionalParams);
-      
-      // 只捕获诊断相关的日志
-      if (typeof message === 'string' && message.includes('【诊断')) {
-        const logMessage = `${message} ${optionalParams.join(' ')}\n`;
-        logs.push(logMessage);
-        res.write(logMessage);
-      }
-    };
-    
-    // 运行诊断
-    await diagnoseRelationAPI();
-    
-    // 恢复原始控制台
-    console.log = originalConsoleLog;
-    
-    // 结束响应
-    res.write('\n诊断完成！');
-    res.end();
-  } catch (error) {
-    log(`[TopicGraph] API诊断失败: ${error}`);
-    return res.status(500).json({ error: 'API诊断失败' });
   }
 });
 
