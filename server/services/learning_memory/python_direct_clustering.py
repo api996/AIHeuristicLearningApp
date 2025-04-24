@@ -132,12 +132,12 @@ def cluster_vectors(vector_data):
             cluster_indices = np.where(labels == i)[0]
             cluster_ids = [ids[idx] for idx in cluster_indices]
             
-            # 初始时使用通用主题名称，稍后会使用GenAI进行分析
-            # 将聚类ID保存为主题名称，这样在中间层可以识别出需要通过GenAI分析
-            topic_name = f"主题 {i}"
+            # 不设置任何预定义主题，让JavaScript层完全基于聚类内容进行智能分析
+            # 留空此字段，以便JavaScript层可以识别需要生成主题
+            topic_name = ""  # 直接留空，不使用任何占位符
             
-            # 注意：这里不再硬编码主题名称，而是保留通用标识
-            # 之后在JavaScript中通过genAiService.generateTopicForMemories进行智能分析
+            # JavaScript层将通过分析聚类中的实际内容来生成有意义的主题
+            # 完全依赖GenAI对聚类向量和记忆内容的理解
             
             # 添加到结果中
             formatted_result[str(i)] = {

@@ -401,11 +401,15 @@ export class ClusterCacheService {
           log(`[ClusterCache] 开始为聚类${clusterId}生成智能主题...`);
           
           try {
-            // 如果已有Python服务提供的有意义标题，就不做修改
-            if (clusterData.topic && !clusterData.topic.startsWith('聚类') && !clusterData.topic.startsWith('主题 ')) {
+            // 直接基于实际记忆内容智能生成主题，不依赖任何标识或占位符
+            // 只有当已经有了明确非空且有意义的主题时才保留
+            if (clusterData.topic && clusterData.topic.length > 2 && 
+                !clusterData.topic.startsWith('聚类') && 
+                !clusterData.topic.startsWith('主题')) {
               log(`[ClusterCache] 保留聚类${clusterId}的现有主题: "${clusterData.topic}"`);
             } 
             else {
+              // 无论是空主题还是通用标识，都使用GenAI进行智能生成
               // 记忆内容示例
               if (clusterMemories.length > 0) {
                 const sampleContent = clusterMemories[0].substring(0, 100) + 
