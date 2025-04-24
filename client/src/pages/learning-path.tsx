@@ -555,7 +555,7 @@ export default function LearningPath() {
                       }}
                     >
                       <RefreshCw className={`h-4 w-4 mr-1 ${isGraphLoading ? 'animate-spin' : ''}`} />
-                      刷新数据
+                      刷新数据 ({graphData?.nodes?.length || 0}节点/{graphData?.links?.length || 0}连接)
                     </Button>
                   </div>
                 </div>
@@ -630,7 +630,7 @@ export default function LearningPath() {
                 {/* 简洁的节点统计信息 */}
                 <div className="absolute bottom-4 left-4 z-10 bg-gray-900/80 px-3 py-2 rounded-lg backdrop-blur-sm border border-gray-800 shadow-lg">
                   <p className="text-xs text-gray-400">
-                    {graphData?.nodes?.length || 0}个节点 | {graphData?.links?.length || 0}个连接
+                    <span className="font-medium">{graphData?.nodes?.length || 0}</span> 节点 | <span className="font-medium">{graphData?.links?.length || 0}</span> 连接
                   </p>
                 </div>
                 
