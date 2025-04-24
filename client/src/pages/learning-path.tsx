@@ -434,7 +434,8 @@ export default function LearningPath() {
                 </div>
               </div>
               
-              {/* 图例组件已移除，保持简洁 */}
+              {/* 使用独立的图例组件 */}
+              <KnowledgeGraphLegend />
             </CardContent>
           </Card>
         </TabsContent>
