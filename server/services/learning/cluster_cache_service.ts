@@ -501,13 +501,12 @@ export class ClusterCacheService {
                 };
                 
                 // 尝试提取关键词作为额外元数据
-                try {
-                  const keywords = await this.extractKeywordsFromCluster(clusterMemories.slice(0, 3));
-                  if (keywords && keywords.length > 0) {
-                    clusterMetadata.cluster_info.keywords = keywords;
-                  }
-                } catch (keywordError) {
-                  log(`[ClusterCache] 提取聚类${clusterId}关键词失败: ${keywordError}`, "warn");
+                const keywords = await this.extractKeywordsFromCluster(clusterMemories.slice(0, 3));
+                if (keywords && keywords.length > 0) {
+                  clusterMetadata.cluster_info.keywords = keywords;
+                  log(`[ClusterCache] 为聚类${clusterId}提取了${keywords.length}个关键词: ${keywords.slice(0, 3).join(", ")}...`);
+                } else {
+                  log(`[ClusterCache] 未能为聚类${clusterId}提取关键词`, "warn");
                 }
                 
                 // 将原始聚类数据传递给元数据，如果存在的话
@@ -518,7 +517,28 @@ export class ClusterCacheService {
                 // 使用多个记忆内容示例进行主题生成，同时传递元数据
                 const memorySamples = clusterMemories.slice(0, 5); // 最多使用5条记忆
                 log(`[ClusterCache] 向GenAI传递${memorySamples.length}条样本和元数据生成主题`);
-                const topic = await genAiService.generateTopicForMemories(memorySamples, clusterMetadata);
+                
+                // 确保genAiService已完全初始化
+                let topic = null;
+                try {
+                  // 导入模块并验证服务是否已初始化
+                  let { genAiService } = await import("../genai/genai_service");
+                  
+                  // 如果genAiService可用，使用它生成主题
+                  if (genAiService && typeof genAiService.generateTopicForMemories === 'function') {
+                    topic = await genAiService.generateTopicForMemories(memorySamples, clusterMetadata);
+                  } else {
+                    log(`[ClusterCache] 警告: GenAI服务未完全初始化，使用备用方案`, "warn");
+                    // 如果服务不可用，尝试提取关键词作为主题
+                    const keywords = await this.extractKeywordsFromCluster(clusterMemories);
+                    if (keywords && keywords.length > 0) {
+                      topic = keywords[0];
+                    }
+                  }
+                } catch (aiError) {
+                  log(`[ClusterCache] 使用GenAI服务生成主题时出错: ${aiError}`, "error");
+                  // 出错时继续执行，会在后续条件中处理
+                }
                 
                 if (topic) {
                   log(`[ClusterCache] 成功为聚类${clusterId}生成智能主题: "${topic}"`);
@@ -607,7 +627,20 @@ export class ClusterCacheService {
         .join("\n---\n")
         .substring(0, 2000); // 限制长度
       
-      // 使用memorySummarizer生成摘要
+      // 尝试使用GenAI服务生成摘要
+      try {
+        // 导入模块并验证服务是否已初始化
+        let { genAiService } = await import("../genai/genai_service");
+        
+        // 如果genAiService可用，使用它生成摘要
+        if (genAiService && typeof genAiService.generateSummary === 'function') {
+          return await genAiService.generateSummary(combinedContent);
+        }
+      } catch (aiError) {
+        log(`[ClusterCache] 使用GenAI服务生成摘要时出错: ${aiError}`, "warn");
+      }
+      
+      // 备用方案：使用memorySummarizer
       const { memorySummarizer } = await import("./memory_summarizer");
       return await memorySummarizer.summarizeText(combinedContent);
     } catch (error) {
@@ -629,7 +662,20 @@ export class ClusterCacheService {
         .join("\n---\n")
         .substring(0, 2000); // 限制长度
       
-      // 使用memorySummarizer提取关键词
+      // 尝试使用GenAI服务提取关键词
+      try {
+        // 导入模块并验证服务是否已初始化
+        let { genAiService } = await import("../genai/genai_service");
+        
+        // 如果genAiService可用，使用它提取关键词
+        if (genAiService && typeof genAiService.extractKeywords === 'function') {
+          return await genAiService.extractKeywords(combinedContent);
+        }
+      } catch (aiError) {
+        log(`[ClusterCache] 使用GenAI服务提取关键词时出错: ${aiError}`, "warn");
+      }
+      
+      // 备用方案：使用memorySummarizer
       const { memorySummarizer } = await import("./memory_summarizer");
       return await memorySummarizer.extractKeywords(combinedContent);
     } catch (error) {
