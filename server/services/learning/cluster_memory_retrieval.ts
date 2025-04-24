@@ -46,6 +46,36 @@ export class ClusterMemoryRetrievalService {
       // 缓存无效或已过期，重新计算
       log(`[ClusterMemoryRetrieval] 重新计算聚类结果，用户ID=${userId}`);
       
+      // 首先尝试从数据库缓存获取主题
+      try {
+        const cache = await storage.getClusterResultCache(userId);
+        if (cache && cache.clusterData && cache.clusterData.topics) {
+          log(`[ClusterMemoryRetrieval] 从数据库缓存获取到聚类主题，用户ID=${userId}`);
+          return cache.clusterData.topics;
+        }
+      } catch (cacheError) {
+        log(`[ClusterMemoryRetrieval] 从数据库缓存获取聚类主题失败: ${cacheError}`, "warn");
+      }
+      
+      // 如果没有缓存，获取用户聚类数据
+      log(`[ClusterMemoryRetrieval] 获取用户聚类数据，包括主题信息，用户ID=${userId}`);
+      const clusterResult = await this.getUserClusters(userId, true);
+      
+      if (clusterResult && clusterResult.topics) {
+        log(`[ClusterMemoryRetrieval] 成功获取到聚类主题，用户ID=${userId}, 主题数=${clusterResult.topics.length}`);
+        
+        // 更新内存缓存
+        this.clusterCache.set(userId, {
+          topics: clusterResult.topics,
+          timestamp: now
+        });
+        
+        return clusterResult.topics;
+      }
+      
+      // 如果使用getUserClusters方法未能获取主题，则使用原始方法重新计算
+      log(`[ClusterMemoryRetrieval] 未能从getUserClusters获取主题，回退到原始计算方法`);
+      
       // 获取用户所有记忆
       const memories = await storage.getMemoriesByUserId(userId);
       
@@ -54,31 +84,49 @@ export class ClusterMemoryRetrievalService {
         return [];
       }
       
-      // 获取记忆的向量嵌入
+      // 获取记忆的向量嵌入 - 使用批量查询
+      const memoryIds = memories.map(m => m.id);
+      const embeddingsMap = await storage.getEmbeddingsByMemoryIds(memoryIds);
+      
+      if (!embeddingsMap || Object.keys(embeddingsMap).length === 0) {
+        log(`[ClusterMemoryRetrieval] 未找到任何向量嵌入数据，用户ID=${userId}`);
+        return [];
+      }
+      
+      // 构建向量数组，确保与记忆数组顺序一致
       const embeddings: number[][] = [];
       
       for (const memory of memories) {
-        const embedding = await storage.getEmbeddingByMemoryId(memory.id);
+        const embedding = embeddingsMap[memory.id];
         if (embedding && Array.isArray(embedding.vectorData)) {
           embeddings.push(embedding.vectorData);
         }
       }
       
-      if (embeddings.length < 5 || embeddings.length !== memories.length) {
-        log(`[ClusterMemoryRetrieval] 向量数量不足或与记忆不匹配，用户ID=${userId}`);
+      if (embeddings.length < 5) {
+        log(`[ClusterMemoryRetrieval] 向量数量不足，用户ID=${userId}, 只有${embeddings.length}个有效向量`);
         return [];
       }
+      
+      log(`[ClusterMemoryRetrieval] 找到${memories.length}条记忆，其中${embeddings.length}条有有效向量`);
       
       // 执行聚类分析
       const { topics } = await clusterAnalyzer.analyzeMemoryClusters(memories, embeddings);
       
-      // 更新缓存
-      this.clusterCache.set(userId, {
-        topics,
-        timestamp: now
-      });
-      
-      return topics;
+      if (topics && topics.length > 0) {
+        log(`[ClusterMemoryRetrieval] 成功生成${topics.length}个聚类主题`);
+        
+        // 更新缓存
+        this.clusterCache.set(userId, {
+          topics,
+          timestamp: now
+        });
+        
+        return topics;
+      } else {
+        log(`[ClusterMemoryRetrieval] 聚类分析未产生任何主题`);
+        return [];
+      }
     } catch (error) {
       log(`[ClusterMemoryRetrieval] 获取用户聚类主题出错: ${error}`);
       return [];

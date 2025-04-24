@@ -376,36 +376,43 @@ router.get('/:userId/refresh-cache', async (req, res) => {
     const memoryService = (await import('../services/learning/memory_service')).memoryService;
     const memories = await storage.getMemoriesByUserId(userId);
     
-    // 获取记忆向量嵌入
-    log(`[API] 开始获取用户 ${userId} 的记忆向量嵌入`);
-    const memoryIds = memories.map(m => m.id);
-    const embeddingsMap = await storage.getEmbeddingsByMemoryIds(memoryIds);
+    // 尝试通过memoryService获取聚类数据
+    log(`[API] 开始获取用户 ${userId} 的记忆向量嵌入和聚类数据`);
+
+    // 直接尝试获取用户聚类
+    const { clusterResult, clusterCount } = await memoryService.getUserClusters(userId, true);
     
-    // 检查是否有嵌入向量
-    if (!embeddingsMap || Object.keys(embeddingsMap).length === 0) {
-      log(`[API] 错误: 用户 ${userId} 的记忆没有向量嵌入，无法进行聚类分析`);
+    log(`[API] 获取到用户 ${userId} 的聚类结果: ${clusterCount} 个聚类`);
+    
+    // 如果没有聚类结果，直接返回成功但无数据
+    if (!clusterResult || !clusterResult.centroids || clusterResult.centroids.length === 0) {
+      log(`[API] 用户 ${userId} 没有有效的聚类结果`);
       res.json({ 
-        success: false, 
-        message: `用户 ${userId} 的记忆没有向量嵌入，无法进行聚类分析`,
+        success: true, 
+        message: `用户 ${userId} 的记忆聚类分析未返回结果，可能是记忆数据不足或嵌入向量缺失`,
         topicCount: 0,
         clusters: 0
       });
       return;
     }
     
-    // 构建对齐的向量数组
-    const embeddings = memories.map(memory => {
-      const embedding = embeddingsMap[memory.id];
-      return embedding ? embedding.vectorData : null;
-    }).filter(Boolean) as number[][];
+    // 将clusterResult转换为topics格式，方便后续处理
+    // 处理聚类结果，生成主题
+    const clusterTopics = await memoryService.getUserClusterTopics(userId);
     
-    log(`[API] 用户 ${userId} 有 ${memories.length} 条记忆，其中 ${embeddings.length} 条有向量嵌入`);
+    log(`[API] 用户 ${userId} 的聚类主题数: ${clusterTopics?.length || 0}`);
     
-    // 使用memoryService获取聚类数据
-    const clusterResult = await memoryService.analyzeMemoryClusters(userId, memories as any, embeddings);
+    // 将获取到的主题作为clusterResult的topics
+    if (clusterTopics && clusterTopics.length > 0) {
+      // 将topics添加到clusterResult中，或者创建一个新对象
+      clusterResult.topics = clusterTopics;
+    } else if (!clusterResult.topics) {
+      // 确保clusterResult有topics属性
+      clusterResult.topics = [];
+    }
     
     // 记录获取到的聚类结果
-    log(`[API] 聚类API返回结果: ${JSON.stringify(clusterResult ? {
+    log(`[API] 聚类API返回结果: ${JSON.stringify({
       topicCount: clusterResult.topics?.length || 0,
       topics: clusterResult.topics?.map((t: any) => ({
         id: t.id,
@@ -413,7 +420,7 @@ router.get('/:userId/refresh-cache', async (req, res) => {
         topic: t.topic,
         keywords: t.keywords?.slice(0, 2)
       }))
-    } : {})}`);
+    })}`);
     
     // 强制刷新聚类和学习轨迹
     const result = await analyzeLearningPath(userId, true);
