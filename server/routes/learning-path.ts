@@ -205,15 +205,27 @@ router.get('/:userId/clusters', async (req, res) => {
     log(`[API] 获取用户 ${userId} 的记忆聚类`);
     
     // 执行聚类 - 转换为符合Memory接口的对象
-    const memoryObjects = memories.map(memory => ({
-      id: memory.id || '',
-      content: memory.content,
-      type: memory.type,
-      timestamp: memory.timestamp,  // 保持字符串格式
-      summary: memory.summary,
-      keywords: memory.keywords || [],
-      userId: memory.userId || userId, // 确保有userId
-    }));
+    const memoryObjects = memories.map(memory => {
+      // 确保timestamp是字符串格式
+      const timestamp = memory.timestamp ? 
+        (typeof memory.timestamp === 'string' ? 
+          memory.timestamp : 
+          (memory.timestamp instanceof Date ? 
+            memory.timestamp.toISOString() : 
+            new Date().toISOString())
+        ) : 
+        new Date().toISOString();
+      
+      return {
+        id: memory.id || '',
+        content: memory.content,
+        type: memory.type,
+        timestamp: timestamp, // 确保为字符串格式
+        summary: memory.summary,
+        keywords: Array.isArray(memory.keywords) ? memory.keywords : [],
+        userId: memory.userId || userId, // 确保有userId
+      };
+    });
     
     const clusters = await clusterMemories(memoryObjects, {
       maxClusters,
@@ -374,8 +386,14 @@ router.post('/:userId/refresh', async (req, res) => {
     
     // 获取当前学习路径数据
     const currentPath = await storage.getLearningPath(userId);
-    if (!currentPath || !currentPath.topics || currentPath.topics.length === 0) {
+    if (!currentPath) {
       return res.status(404).json({ error: "未找到用户学习路径数据" });
+    }
+    
+    // 确保topics是数组
+    const topicsArray = Array.isArray(currentPath.topics) ? currentPath.topics : [];
+    if (topicsArray.length === 0) {
+      return res.status(404).json({ error: "用户学习路径中没有主题数据" });
     }
 
     // 获取用户的记忆数据，以便为主题生成更准确的名称
@@ -386,7 +404,7 @@ router.post('/:userId/refresh', async (req, res) => {
 
     // 为每个主题生成新的有意义的名称
     const updatedTopics = await Promise.all(
-      currentPath.topics.map(async (topic: any) => {
+      topicsArray.map(async (topic: any) => {
         // 找出属于该主题的记忆
         const topicMemories = memories.filter(memory => 
           topic.id && Array.isArray(topic.memoryIds) && topic.memoryIds.includes(memory.id)
@@ -417,12 +435,15 @@ router.post('/:userId/refresh', async (req, res) => {
       })
     );
 
+    // 处理suggestions
+    const suggestions = Array.isArray(currentPath.suggestions) ? currentPath.suggestions : [];
+    
     // 保存更新后的学习路径数据
     await storage.saveLearningPath(
       userId,
       updatedTopics,
       updatedTopics, // 使用更新后的主题作为分布数据
-      currentPath.suggestions || [],
+      suggestions,
       currentPath.knowledgeGraph || undefined
     );
 
