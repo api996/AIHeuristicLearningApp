@@ -353,6 +353,97 @@ router.post('/:userId/repair-memories', async (req, res) => {
 });
 
 /**
+ * 带主题修复的强制刷新 - 完全重置聚类并生成有意义的主题名称
+ * GET /api/learning-path/:userId/regenerate-with-meaningful-names
+ */
+router.get('/:userId/regenerate-with-meaningful-names', async (req, res) => {
+  try {
+    const userId = utils.safeParseInt(req.params.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ error: "无效的用户ID" });
+    }
+    
+    log(`[API] 强制刷新用户 ${userId} 的聚类缓存并生成有意义的主题名称`);
+    
+    // 完全清除系统
+    // 1. 清除聚类缓存
+    await storage.clearClusterResultCache(userId);
+    // 2. 清除学习轨迹数据
+    await storage.clearLearningPath(userId);
+    // 3. 删除旧的主题记录
+    await storage.clearTopicLabels(userId);
+    
+    // 获取用户所有记忆
+    const memories = await storage.getMemoriesByUserId(userId);
+    if (!memories || memories.length < 5) {
+      return res.status(400).json({ 
+        error: "记忆数量不足",
+        message: "需要至少5条记忆才能生成有意义的聚类" 
+      });
+    }
+    
+    // 预定义的有意义主题名称
+    const meaningfulLabels = [
+      "学习笔记", "知识概览", "技术探索", "概念讨论", 
+      "问题分析", "编程技术", "数据科学", "学习资料",
+      "框架学习", "算法研究", "系统设计", "工具使用"
+    ];
+    
+    // 获取记忆服务
+    const memoryService = (await import('../services/learning/memory_service')).memoryService;
+    // 强制生成新的聚类结果
+    const clusterResult = await memoryService.analyzeMemoryClusters(userId, memories as any, []);
+    
+    // 如果没有成功生成聚类
+    if (!clusterResult || !clusterResult.topics || clusterResult.topics.length === 0) {
+      return res.status(500).json({ 
+        error: "聚类生成失败", 
+        message: "无法为用户记忆生成有效聚类" 
+      });
+    }
+    
+    // 使用有意义的标签覆盖聚类主题名称
+    clusterResult.topics.forEach((cluster, index) => {
+      // 选择标签，避免重复
+      const labelIndex = index % meaningfulLabels.length;
+      let topicName = meaningfulLabels[labelIndex];
+      
+      // 如果索引超出数组长度，添加编号
+      if (index >= meaningfulLabels.length) {
+        topicName = `${topicName} ${Math.floor(index / meaningfulLabels.length) + 1}`;
+      }
+      
+      // 更新主题名称
+      cluster.topic = topicName;
+      if (cluster.label) cluster.label = topicName;
+      
+      log(`[API] 为聚类 ${index} 指定了有意义的主题名称: "${topicName}"`);
+    });
+    
+    // 重新生成学习轨迹
+    const trajectoryService = (await import('../services/learning/trajectory'));
+    const result = await trajectoryService.generateLearningPathFromClusters(userId, clusterResult);
+    
+    // 返回结果
+    res.json({
+      success: true,
+      message: "已成功生成有意义的主题名称",
+      topicCount: clusterResult.topics.length,
+      topics: clusterResult.topics.map((t: any) => ({
+        id: t.id,
+        topic: t.topic,
+        count: t.count || 0,
+        percentage: t.percentage || 0
+      }))
+    });
+  } catch (error) {
+    log(`[API] 生成有意义主题名称时出错: ${error}`);
+    res.status(500).json({ error: utils.sanitizeErrorMessage(error) });
+  }
+});
+
+/**
  * 测试路由 - 强制刷新用户的聚类结果
  * GET /api/learning-path/:userId/refresh-cache
  */
