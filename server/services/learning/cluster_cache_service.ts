@@ -359,8 +359,36 @@ export class ClusterCacheService {
       log(`[ClusterCache] 向量维度: ${vectors[0].vector.length}，向量总数: ${vectors.length}`);
     }
     
-    // 执行聚类并直接返回结果或抛出错误
-    return await directPythonService.clusterVectors(vectors);
+    // 执行Python聚类
+    const clusterResult = await directPythonService.clusterVectors(vectors);
+    
+    // 检查结果是否有效
+    if (!clusterResult || !clusterResult.centroids || clusterResult.centroids.length === 0) {
+      log(`[ClusterCache] Python聚类服务返回了空结果`, "warn");
+      return {};
+    }
+    
+    log(`[ClusterCache] Python聚类完成，返回了${clusterResult.centroids.length}个中心点`);
+    
+    // 转换为应用需要的格式 - 从centroids结构转换为clusterId -> {topic, memory_ids, centroid} 映射
+    const transformedResult: any = {};
+    
+    clusterResult.centroids.forEach((centroid, index) => {
+      // 提取属于该聚类的记忆ID
+      const memoryIds = centroid.points.map(p => p.id);
+      
+      // 创建聚类对象
+      transformedResult[`cluster_${index}`] = {
+        centroid: centroid.center,    // 保存中心向量
+        memory_ids: memoryIds,        // 保存记忆ID列表
+        topic: "",                    // 主题为空，等待后续生成
+        cluster_id: `cluster_${index}`
+      };
+      
+      log(`[ClusterCache] 聚类cluster_${index}包含${memoryIds.length}条记忆`);
+    });
+    
+    return transformedResult;
   }
   
   /**
