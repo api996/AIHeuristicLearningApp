@@ -215,55 +215,64 @@ class GeminiService implements GenAIService {
     }
 
     try {
+      // 记录输入数据以便调试
+      log(`[genai_service] 开始生成主题，接收到${texts.length}条文本样本`);
+      if (texts.length === 0) {
+        log("[genai_service] 警告: 收到空文本数组，无法生成主题", "warn");
+        return "一般讨论";
+      }
+      
       // 合并并截断文本，防止过长
       // 使用最多5个文本样本，并限制每个样本长度以避免超过令牌限制
-      const sampleTexts = texts.slice(0, 5).map(text => text.substring(0, 4000));
-      const combinedText = sampleTexts.join("\n---\n").substring(0, 20000);
+      const sampleTexts = texts.slice(0, 5).map(text => text.substring(0, 2000));
+      const combinedText = sampleTexts.join("\n---\n").substring(0, 10000);
       
       // 使用Gemini 1.5 Flash模型生成主题（更快速的模型版本）
       const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
-      // 全新重写的提示词，更精确更聚焦，强调专业术语提取
+      // 简化提示词，使其更可靠
       const result = await model.generateContent({
         contents: [{
           role: 'user',
           parts: [{ text: 
-            `分析下列相关文本，提取它们讨论的核心学科主题或技术概念，并创建一个简洁专业的主题标签。
-
-要求:
-1. 长度限制：2-5个词或5-20个字符
-2. 使用专业领域术语：如"量子计算"、"卷积神经网络"、"函数式编程"、"线性代数"
-3. 专注真实学科主题：避免使用"学习"、"主题"、"分析"等通用词作为标签核心词
-4. 专注内容而非格式：关注讨论了什么专业内容，而非"对话"、"问答"等
-5. 具体而非抽象：使用精确术语，如"JavaScript闭包"而非"编程概念"
-6. 直接输出主题标签：不要包含任何解释、思考过程或引号
+            `分析这些文本，创建一个简短的主题标签（最多4个词或15个字符）。
+直接输出主题名称，不要引号，不要解释。
 
 文本:
-${combinedText}
-
-请直接输出主题标签，只有标签本身，不要思考过程，不要引号。
-如果无法确定专业主题，输出"技术讨论"。` 
+${combinedText}` 
           }]
         }],
         generationConfig: {
-          temperature: 0.2,  // 降低温度以获得更稳定的结果
-          topP: 0.85,
-          topK: 40,
-          maxOutputTokens: 50
+          temperature: 0.1,  // 几乎确定性的结果
+          topP: 0.8,
+          topK: 30,
+          maxOutputTokens: 30
         }
       });
       
       // 清理结果
       let topic = result.response.text().trim();
+      log(`[genai_service] 原始AI生成的主题: "${topic}"`);
       
       // 进一步处理，确保主题简洁
       let cleanTopic = topic.replace(/["'"【】《》]/g, ""); // 移除引号和括号
       cleanTopic = cleanTopic.split(/[\n\r\t]/)[0]; // 只取第一行
       
-      return cleanTopic.length > 100 ? cleanTopic.substring(0, 97) + "..." : cleanTopic;
+      // 如果生成内容太短或为空，使用备用主题
+      if (!cleanTopic || cleanTopic.length < 2) {
+        log(`[genai_service] 警告: 生成的主题太短或为空，使用备用主题`, "warn");
+        return "学习笔记";
+      }
+      
+      // 限制长度并记录
+      const finalTopic = cleanTopic.length > 30 ? cleanTopic.substring(0, 27) + "..." : cleanTopic;
+      log(`[genai_service] 成功生成主题: "${finalTopic}"`);
+      
+      return finalTopic;
     } catch (error) {
       log(`[genai_service] 生成主题失败: ${error}`, "error");
-      return null;
+      // 错误情况下直接返回一个固定字符串，而不是null
+      return "技术讨论";
     }
   }
 }
