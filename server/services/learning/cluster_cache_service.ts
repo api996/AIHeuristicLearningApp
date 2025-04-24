@@ -371,14 +371,15 @@ export class ClusterCacheService {
     log(`[ClusterCache] Python聚类完成，返回了${clusterResult.centroids.length}个中心点`);
     
     // 首先检查是否有raw_clusters字段，它包含完整的聚类信息
-    if (clusterResult.raw_clusters && Object.keys(clusterResult.raw_clusters).length > 0) {
+    if (clusterResult.raw_clusters && typeof clusterResult.raw_clusters === 'object' && Object.keys(clusterResult.raw_clusters).length > 0) {
       log(`[ClusterCache] 使用Python返回的raw_clusters数据，包含${Object.keys(clusterResult.raw_clusters).length}个聚类`);
       
       // 转换为应用需要的格式
       const transformedResult: any = {};
       
       // 遍历raw_clusters中的聚类
-      for (const [clusterId, cluster] of Object.entries(clusterResult.raw_clusters)) {
+      const rawClusters = clusterResult.raw_clusters as Record<string, any>;
+      for (const [clusterId, cluster] of Object.entries(rawClusters)) {
         const clusterData = cluster as any;
         
         // 使用原始聚类的ID作为键
@@ -481,13 +482,22 @@ export class ClusterCacheService {
                 log(`[ClusterCache] 警告: 聚类${clusterId}没有记忆内容，无法生成主题`, 'warn');
                 clusterData.topic = `主题${clusterId}`;
               } else {
+                // 定义聚类信息类型
+                interface ClusterInfo {
+                  cluster_id: string;
+                  memory_count: number;
+                  memory_types: string;
+                  keywords?: string[];
+                  raw_data?: any;
+                }
+                
                 // 准备向GenAI传递的元数据
                 const clusterMetadata = {
                   cluster_info: {
                     cluster_id: clusterId,
                     memory_count: clusterMemories.length,
                     memory_types: "对话记忆" // 默认类型
-                  }
+                  } as ClusterInfo
                 };
                 
                 // 尝试提取关键词作为额外元数据
