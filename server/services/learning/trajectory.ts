@@ -392,6 +392,29 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
     if (memorySpaceClusters && memorySpaceClusters.length > 0) {
       log(`[trajectory] 使用memory_service提供的聚类结果生成学习轨迹`);
       
+      // 使用实际的聚类标签而非通用名称
+      memorySpaceClusters.forEach((cluster: any, index: number) => {
+        // 如果cluster有label属性，优先使用，否则使用关键词生成标签
+        if (cluster.label && typeof cluster.label === 'string' && cluster.label.trim().length > 0) {
+          // 将label值赋给topic属性，确保使用有意义的标签
+          cluster.topic = cluster.label;
+          log(`[trajectory] 聚类 ${index} 使用标签: ${cluster.label}`);
+        } else if (cluster.keywords && Array.isArray(cluster.keywords) && cluster.keywords.length >= 2) {
+          // 使用关键词生成标签
+          const keywordsLabel = `${cluster.keywords[0]} 与 ${cluster.keywords[1]}`;
+          cluster.topic = keywordsLabel;
+          log(`[trajectory] 聚类 ${index} 使用关键词生成标签: ${keywordsLabel}`);
+        } else if (!/^(主题|集群|Topic|Cluster)\s*\d+$/.test(cluster.topic)) {
+          // 如果topic不是通用名称，保留现有值
+          log(`[trajectory] 聚类 ${index} 使用现有标签: ${cluster.topic}`);
+        } else {
+          // 使用默认标签加索引号，但添加一个唯一标识符
+          const defaultLabel = `集群 ${index}-${Date.now().toString().slice(-4)}`;
+          cluster.topic = defaultLabel;
+          log(`[trajectory] 聚类 ${index} 使用默认标签: ${defaultLabel}`);
+        }
+      });
+      
       // 构建知识图谱节点
       const nodes: TrajectoryNode[] = memorySpaceClusters.map((cluster: any) => {
         // 计算节点大小（基于百分比）
@@ -399,7 +422,7 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
         
         return {
           id: cluster.id,
-          label: cluster.topic,
+          label: cluster.topic, // 使用更新后的topic名称
           size,
           category: '记忆主题', // 这里可以增加分类逻辑
           clusterId: cluster.id
