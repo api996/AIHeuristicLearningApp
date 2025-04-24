@@ -419,13 +419,19 @@ function processLinkColors(data: GraphData): void {
     // 统计各类型数量
     typeCount[link.type] = (typeCount[link.type] || 0) + 1;
     
-    // 如果连接没有颜色或者需要更新颜色，设置新颜色
-    if (!link.color && link.type && relationColorMap[link.type]) {
-      link.color = relationColorMap[link.type];
-    }
-    
-    // 如果没有type或type无效，但有一个默认颜色，则设置为相关类型
-    if (!link.type || !relationColorMap[link.type]) {
+    // 保留原始类型，只为颜色赋值
+    if (link.type) {
+      // 如果类型存在但没有对应颜色，保留原始类型
+      if (relationColorMap[link.type]) {
+        // 有对应颜色映射时，使用映射的颜色
+        link.color = relationColorMap[link.type];
+      } else {
+        // 类型不在预定义映射中但类型存在，使用默认颜色但保留类型
+        console.log(`发现未知关系类型: ${link.type}，保留原始类型但使用默认颜色`);
+        link.color = relationColorMap['related']; // 使用默认颜色
+      }
+    } else {
+      // 只有在完全没有类型时才设置默认类型
       link.type = 'related'; // 默认为相关概念
       link.color = relationColorMap['related'];
     }

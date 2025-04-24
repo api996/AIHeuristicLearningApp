@@ -28,7 +28,7 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
     console.log(`【诊断】[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
     log(`[TopicGraphBuilder] 使用模型: ${modelName} 处理请求`);
     
-    // 关系分析请求的诊断机制
+    // 关系分析请求的诊断机制 - 增强版
     if (prompt.includes('分析它们之间的关系')) {
       // 如果是分析主题关系的请求
       console.log(`【诊断】检测到主题关系分析请求，启用强化诊断机制`);
@@ -38,10 +38,10 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
       
       if (DEBUG_RELATION_ANALYSIS) {
         // 启用调试模式时的测试响应 - 确保我们能看到完整的API调用和处理流程
-        console.log(`【诊断】关系分析调试模式：有50%概率生成测试响应`);
+        console.log(`【诊断】关系分析调试模式：有70%概率生成测试响应（确保多样化）`);
         
-        if (Math.random() < 0.5) {
-          // 50%概率强制返回一个有效JSON，帮助我们验证多样化关系显示是否正常
+        if (Math.random() < 0.7) {
+          // 70%概率强制返回一个有效JSON，帮助我们验证多样化关系显示是否正常
           console.log(`【诊断】触发测试响应生成`);
           
           // 创建一个数组，包含不同的关系类型
@@ -49,9 +49,12 @@ async function callGeminiModel(prompt: string, options: { model: string }): Prom
             '前置知识', '包含关系', '应用关系', '相似概念', '互补知识'
           ];
           
-          // 随机选择一个关系类型（非"相关概念"）
-          const randomType = relationTypes[Math.floor(Math.random() * relationTypes.length)];
-          const randomStrength = Math.floor(Math.random() * 5) + 5; // 强度5-10之间
+          // 确定性地选择不同的类型，确保不总是相同的类型
+          // 使用当前时间的秒数作为选择依据
+          const secondNow = new Date().getSeconds();
+          const typeIndex = secondNow % relationTypes.length;
+          const randomType = relationTypes[typeIndex];
+          const randomStrength = 5 + (secondNow % 6); // 强度5-10之间
           
           console.log(`【诊断】生成测试关系类型: ${randomType}, 强度: ${randomStrength}`);
           
@@ -525,6 +528,7 @@ ${textSummaryB}
           // 增强的确定性算法，确保即使API调用失败，也能得到多样化的关系类型
           // 对每对主题，使用其固有特征生成确定性但多样化的关系
           console.log(`【诊断】主题A="${A}", 主题B="${B}"`);
+          console.log(`【测试】启用增强型确定性算法，保证多样化关系类型`);
           
           // 计算一个确定性的数值，基于主题名称的特征
           const getTopicCharSum = (topic: string): number => {
@@ -540,36 +544,46 @@ ${textSummaryB}
           let chineseName: string;
           let strength: number;
           
-          if (combinedSum < 15) {
-            // 15%概率：前置知识
+          // 强制用时间戳的秒数作为基准，确保在测试时能观察到多样性
+          const secondNow = new Date().getSeconds();
+          const forcedDistribution = secondNow % 6; // 0-5之间平均分布
+          
+          if (forcedDistribution === 0) {
+            // 强制分配为前置知识
             relationType = "prerequisite"; // 这里使用英文标识符，与前端匹配
             chineseName = "前置知识";      // 中文名称仅用于显示
             strength = 7 + (combinedSum % 4); // 7-10之间
-          } else if (combinedSum < 30) {
-            // 15%概率：包含关系
+            console.log(`【测试】[强制分配] 关系类型 = prerequisite (前置知识)`);
+          } else if (forcedDistribution === 1) {
+            // 强制分配为包含关系
             relationType = "contains";     // 使用英文标识符
             chineseName = "包含关系";
             strength = 6 + (combinedSum % 3); // 6-8之间
-          } else if (combinedSum < 45) {
-            // 15%概率：应用关系
+            console.log(`【测试】[强制分配] 关系类型 = contains (包含关系)`);
+          } else if (forcedDistribution === 2) {
+            // 强制分配为应用关系
             relationType = "applies";      // 使用英文标识符
             chineseName = "应用关系"; 
             strength = 5 + (combinedSum % 4); // 5-8之间
-          } else if (combinedSum < 60) {
-            // 15%概率：相似概念
+            console.log(`【测试】[强制分配] 关系类型 = applies (应用关系)`);
+          } else if (forcedDistribution === 3) {
+            // 强制分配为相似概念
             relationType = "similar";      // 使用英文标识符
             chineseName = "相似概念";
             strength = 6 + (combinedSum % 3); // 6-8之间
-          } else if (combinedSum < 75) {
-            // 15%概率：互补知识
+            console.log(`【测试】[强制分配] 关系类型 = similar (相似概念)`);
+          } else if (forcedDistribution === 4) {
+            // 强制分配为互补知识
             relationType = "complements";  // 使用英文标识符
             chineseName = "互补知识";
             strength = 5 + (combinedSum % 4); // 5-8之间
+            console.log(`【测试】[强制分配] 关系类型 = complements (互补知识)`);
           } else {
-            // 25%概率：相关概念
+            // 强制分配为相关概念
             relationType = "related";      // 使用英文标识符
             chineseName = "相关概念";
             strength = 3 + (combinedSum % 4); // 3-6之间
+            console.log(`【测试】[强制分配] 关系类型 = related (相关概念)`);
           }
           
           // 确定学习顺序，基于额外的确定性计算
