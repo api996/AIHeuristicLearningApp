@@ -386,7 +386,8 @@ export class ClusterCacheService {
           centroid: clusterData.centroid,       // 保存中心向量
           memory_ids: clusterData.memory_ids,   // 保存记忆ID列表
           topic: clusterData.topic || "",       // 保存主题(如果有)
-          cluster_id: `cluster_${clusterId}`
+          cluster_id: `cluster_${clusterId}`,
+          raw_data: clusterData               // 保存原始聚类数据，以便在主题生成时使用
         };
         
         log(`[ClusterCache] 处理raw_clusters: 聚类cluster_${clusterId}包含${clusterData.memory_ids?.length || 0}条记忆`);
@@ -480,9 +481,34 @@ export class ClusterCacheService {
                 log(`[ClusterCache] 警告: 聚类${clusterId}没有记忆内容，无法生成主题`, 'warn');
                 clusterData.topic = `主题${clusterId}`;
               } else {
-                // 使用多个记忆内容示例进行主题生成
+                // 准备向GenAI传递的元数据
+                const clusterMetadata = {
+                  cluster_info: {
+                    cluster_id: clusterId,
+                    memory_count: clusterMemories.length,
+                    memory_types: "对话记忆" // 默认类型
+                  }
+                };
+                
+                // 尝试提取关键词作为额外元数据
+                try {
+                  const keywords = await this.extractKeywordsFromCluster(clusterMemories.slice(0, 3));
+                  if (keywords && keywords.length > 0) {
+                    clusterMetadata.cluster_info.keywords = keywords;
+                  }
+                } catch (keywordError) {
+                  log(`[ClusterCache] 提取聚类${clusterId}关键词失败: ${keywordError}`, "warn");
+                }
+                
+                // 将原始聚类数据传递给元数据，如果存在的话
+                if (clusterData.raw_data) {
+                  clusterMetadata.cluster_info.raw_data = clusterData.raw_data;
+                }
+                
+                // 使用多个记忆内容示例进行主题生成，同时传递元数据
                 const memorySamples = clusterMemories.slice(0, 5); // 最多使用5条记忆
-                const topic = await genAiService.generateTopicForMemories(memorySamples);
+                log(`[ClusterCache] 向GenAI传递${memorySamples.length}条样本和元数据生成主题`);
+                const topic = await genAiService.generateTopicForMemories(memorySamples, clusterMetadata);
                 
                 if (topic) {
                   log(`[ClusterCache] 成功为聚类${clusterId}生成智能主题: "${topic}"`);
