@@ -1505,7 +1505,7 @@ ${searchResults}`;
           log(`检测到图片内容，使用Grok Vision模型进行预处理...`);
           
           // 调用Grok Vision模型分析图片
-          const grokVisionConfig = this.modelConfigs["grok-vision"];
+          const grokVisionConfig = this.modelConfigs["grok-vision-beta"];
           const imageAnalysisResponse = await grokVisionConfig.getResponse!(message);
           
           // 将图片分析结果添加到消息中
