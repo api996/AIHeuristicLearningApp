@@ -1621,7 +1621,7 @@ ${searchResults}`;
         
         // 如果有提示词模板，应用模板
         if (promptTemplate) {
-          processedMessage = this.applyPromptTemplate(
+          finalProcessedMessage = this.applyPromptTemplate(
             promptTemplate,
             message,
             contextMemories,
@@ -1633,7 +1633,7 @@ ${searchResults}`;
       
       // 关键改进：传递contextMessages给模型的getResponse函数
       const response = await config.getResponse(
-        processedMessage, 
+        finalProcessedMessage, 
         userId, 
         contextMemories, 
         searchResults, 
