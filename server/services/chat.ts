@@ -1151,7 +1151,7 @@ ${searchResults}`;
     userId?: number, 
     chatId?: number, 
     useWebSearch?: boolean,
-    contextMessages?: Message[] // 新增参数：用于指定上下文消息
+    contextMessages?: Message[] // 上下文消息历史
   ) {
     try {
       // 如果提供了参数，则更新搜索设置
@@ -1159,7 +1159,7 @@ ${searchResults}`;
         this.setWebSearchEnabled(useWebSearch);
       }
       
-      log(`Processing message with ${this.currentModel} model: ${message.substring(0, 50)}..., web search: ${this.useWebSearch}, context messages: ${contextMessages ? contextMessages.length : 'none'}`);
+      log(`处理消息，使用${this.currentModel}模型: ${message.substring(0, 50)}..., 网络搜索: ${this.useWebSearch}, 上下文消息: ${contextMessages ? `${contextMessages.length}条` : '无'}`);
       const config = this.modelConfigs[this.currentModel];
       
       // 对用户输入进行内容审查 - 前置审查
@@ -1184,80 +1184,41 @@ ${searchResults}`;
         searchResults = await this.getWebSearchResults(message);
       }
       
-      // 如果有chatId，尝试分析当前对话阶段并获取动态提示词
-      if (chatId && userId) {
+      // 如果没有提供上下文消息但有chatId和userId，则从数据库获取
+      if (!contextMessages && chatId && userId) {
         try {
-          // 优先使用提供的上下文消息，否则获取聊天历史
-          const messages = contextMessages || await storage.getChatMessages(chatId, userId, false);
-          
-          if (messages && messages.length > 0) {
-            // 添加当前用户消息到分析列表（因为它还未保存到数据库）
-            const currentMessage: Message = {
-              content: message,
-              role: "user", 
-              chatId,
-              id: 0, 
-              createdAt: new Date(),
-              model: null,
-              feedback: null,
-              feedbackText: null, // 添加缺失的feedbackText字段
-              isEdited: null,
-              isActive: true
-            };
-            
-            const messagesWithCurrent: Message[] = [
-              ...messages,
-              currentMessage
-            ];
-            
-            // 分析对话阶段
-            await conversationAnalyticsService.analyzeConversationPhase(chatId, messagesWithCurrent);
-            
-            // 判断是否使用模块化提示词管理服务
-            let processedMessage = message;
-            
-            if (config.usePromptManager) {
-              // 使用增强版提示词管理服务获取动态提示词
-              processedMessage = await promptManagerService.getDynamicPrompt(
-                this.currentModel,
-                chatId,
-                message,
-                contextMemories,
-                searchResults
-              );
-              log(`使用增强版模块化提示词处理消息，模型: ${this.currentModel}`);
-            } else {
-              // 原始方式处理提示词（向后兼容）
-              log(`使用传统提示词模板处理消息，模型: ${this.currentModel}`);
-              const promptTemplate = await this.getModelPromptTemplate(this.currentModel);
-              if (promptTemplate) {
-                processedMessage = this.applyPromptTemplate(
-                  promptTemplate,
-                  message,
-                  contextMemories,
-                  searchResults
-                );
-              }
-            }
-            
-            // 使用处理后的提示词调用模型
-            const response = await config.getResponse(processedMessage, userId, contextMemories, searchResults, this.useWebSearch);
-            
-            // 对模型输出进行内容审查 - 后置审查
-            const modelOutputModerationResult = await contentModerationService.moderateModelOutput(response.text);
-            if (modelOutputModerationResult) {
-              log(`模型输出被内容审查系统拦截，提示: ${modelOutputModerationResult}`);
-              return {
-                text: modelOutputModerationResult,
-                model: response.model
-              };
-            }
-            
-            return response;
-          }
+          contextMessages = await storage.getChatMessages(chatId, userId, false);
+          log(`从数据库获取到${contextMessages.length}条聊天历史消息`);
         } catch (error) {
-          log(`动态提示词生成错误，回退到默认提示词: ${error}`);
-          // 出错时继续使用默认提示词
+          log(`获取聊天历史失败: ${error}`);
+        }
+      }
+      
+      // 如果有上下文消息，添加当前用户消息（用于对话阶段分析）
+      let messagesWithCurrent: Message[] = [];
+      if (contextMessages && contextMessages.length > 0) {
+        const currentMessage: Message = {
+          content: message,
+          role: "user", 
+          chatId: chatId || 0,
+          id: 0, 
+          createdAt: new Date(),
+          model: null,
+          feedback: null,
+          feedbackText: null,
+          isEdited: null,
+          isActive: true
+        };
+        
+        messagesWithCurrent = [...contextMessages, currentMessage];
+        
+        // 如果有chatId，分析对话阶段
+        if (chatId) {
+          try {
+            await conversationAnalyticsService.analyzeConversationPhase(chatId, messagesWithCurrent);
+          } catch (error) {
+            log(`对话阶段分析失败: ${error}`);
+          }
         }
       }
       
@@ -1275,7 +1236,7 @@ ${searchResults}`;
             contextMemories,
             searchResults
           );
-          log(`使用增强版模块化提示词处理备用路径消息，模型: ${this.currentModel}`);
+          log(`使用增强版模块化提示词处理消息，模型: ${this.currentModel}`);
         } catch (error) {
           log(`提示词管理服务处理失败，回退到基本提示词: ${error}`);
           // 出错时继续使用原始消息
@@ -1292,12 +1253,20 @@ ${searchResults}`;
             contextMemories,
             searchResults
           );
-          log(`使用传统提示词模板处理备用路径消息，模型: ${this.currentModel}`);
+          log(`使用传统提示词模板处理消息，模型: ${this.currentModel}`);
         }
       }
       
-      // 使用处理后的提示词调用模型
-      const response = await config.getResponse(processedMessage, userId, contextMemories, searchResults, this.useWebSearch);
+      // 关键改进：传递contextMessages给模型的getResponse函数
+      const response = await config.getResponse(
+        processedMessage, 
+        userId, 
+        contextMemories, 
+        searchResults, 
+        this.useWebSearch,
+        chatId,
+        messagesWithCurrent.length > 0 ? messagesWithCurrent : contextMessages
+      );
       
       // 对模型输出进行内容审查 - 后置审查
       const modelOutputModerationResult = await contentModerationService.moderateModelOutput(response.text);
