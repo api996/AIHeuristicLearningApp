@@ -96,7 +96,7 @@ async function getTimeStampMemoriesWithoutEmbeddings() {
 }
 
 /**
- * 使用Python嵌入服务生成向量嵌入
+ * 使用Flask嵌入API服务生成向量嵌入
  */
 async function generateEmbedding(text) {
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
@@ -115,88 +115,86 @@ async function generateEmbedding(text) {
     : cleanedText;
   
   try {
-    // 使用Python嵌入服务生成向量嵌入
-    console.log('使用Python嵌入服务生成向量嵌入');
+    // 使用Flask API服务生成向量嵌入
+    console.log('使用Flask API服务生成向量嵌入');
     
-    // 使用Promise封装子进程调用
-    const result = await new Promise((resolve, reject) => {
-      // 创建Python进程
-      const scriptPath = path.join(process.cwd(), 'server', 'services', 'embedding.py');
-      console.log(`Python嵌入脚本路径: ${scriptPath}`);
-      
-      const pythonProcess = spawn('python3', [scriptPath, '--text', truncatedText]);
-      
-      let outputData = '';
-      let errorData = '';
-      
-      pythonProcess.stdout.on('data', (data) => {
-        outputData += data.toString();
-      });
-      
-      pythonProcess.stderr.on('data', (data) => {
-        errorData += data.toString();
-        console.error(`Python错误: ${data.toString().trim()}`);
-      });
-      
-      pythonProcess.on('close', (code) => {
-        if (code !== 0) {
-          console.error(`Python进程异常退出，代码: ${code}`);
-          reject(new Error(`Python进程异常退出: ${errorData}`));
-          return;
-        }
-        
-        // 尝试找到有效的JSON输出
-        try {
-          const jsonStart = outputData.indexOf('{');
-          const jsonEnd = outputData.lastIndexOf('}');
-          
-          if (jsonStart >= 0 && jsonEnd > jsonStart) {
-            // 提取JSON部分
-            const jsonStr = outputData.substring(jsonStart, jsonEnd + 1);
-            console.log(`提取JSON部分: ${jsonStr.length} 字符`);
-            
-            try {
-              // 解析JSON
-              const result = JSON.parse(jsonStr);
-              
-              if (result.success === false) {
-                console.error(`Python嵌入服务报告错误: ${result.error}`);
-                reject(new Error(result.error || '嵌入服务返回失败结果'));
-                return;
-              }
-              
-              if (result && result.embedding && Array.isArray(result.embedding)) {
-                resolve(result.embedding);
-              } else {
-                reject(new Error('嵌入结果格式不正确或缺少embedding字段'));
-              }
-            } catch (jsonError) {
-              reject(new Error(`解析JSON失败: ${jsonError.message}`));
-            }
-          } else {
-            reject(new Error(`输出中未找到有效的JSON: ${outputData}`));
-          }
-        } catch (error) {
-          reject(new Error(`处理输出时出错: ${error.message}`));
-        }
-      });
+    // API端点
+    const apiUrl = 'http://localhost:9002/api/embed';
+    
+    // 使用axios调用API
+    const axios = await import('axios');
+    
+    console.log(`发送请求到Flask嵌入API: ${apiUrl}, 文本长度: ${truncatedText.length}`);
+    const response = await axios.default.post(apiUrl, {
+      text: truncatedText
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000 // 30秒超时
     });
     
-    // 验证嵌入维度，确保是有效的向量
-    if (!result || !Array.isArray(result)) {
-      console.log('Python嵌入服务返回无效结果');
+    if (response.status !== 200) {
+      console.error(`API请求失败，状态码: ${response.status}`);
       return null;
     }
     
-    if (result.length < 1000) {
-      console.log(`警告: 嵌入维度异常 (${result.length}), 预期3072维向量`);
-    } else {
-      console.log(`成功生成${result.length}维向量嵌入`);
+    const result = response.data;
+    
+    // 验证返回的结果
+    if (!result.success) {
+      console.error(`API返回错误: ${result.error}`);
+      return null;
     }
     
-    return result;
+    if (!result.embedding || !Array.isArray(result.embedding)) {
+      console.error('API返回格式无效: 缺少embedding字段或不是数组');
+      return null;
+    }
+    
+    // 验证嵌入维度，确保是有效的向量
+    const embedding = result.embedding;
+    
+    if (embedding.length < 1000) {
+      console.log(`警告: 嵌入维度异常 (${embedding.length}), 预期3072维向量`);
+    } else {
+      console.log(`成功生成${embedding.length}维向量嵌入`);
+    }
+    
+    return embedding;
   } catch (error) {
     console.error(`生成嵌入时出错: ${error}`);
+    
+    // 检查是否是连接错误
+    if (error.code === 'ECONNREFUSED' || error.message.includes('connect')) {
+      console.log('Flask嵌入API服务可能未启动，尝试启动服务...');
+      // 这里可以尝试自动启动服务
+      try {
+        const { spawn } = await import('child_process');
+        const startScriptPath = path.join(process.cwd(), 'server', 'services', 'api', 'embedding', 'start_service.py');
+        
+        console.log(`尝试启动嵌入服务: ${startScriptPath}`);
+        const startProcess = spawn('python3', [startScriptPath], {
+          detached: true,
+          stdio: 'ignore'
+        });
+        
+        // 不等待进程完成，让它在后台运行
+        startProcess.unref();
+        
+        console.log('启动请求已发送，等待服务启动...');
+        // 短暂等待服务启动
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        
+        console.log('重试生成嵌入...');
+        // 递归调用自身，但只递归一次，避免无限循环
+        const retryResult = await generateEmbedding(text);
+        return retryResult;
+      } catch (startError) {
+        console.error(`启动Flask嵌入API服务失败: ${startError}`);
+      }
+    }
+    
     return null;
   }
 }

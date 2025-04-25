@@ -1,34 +1,42 @@
 /**
  * Python嵌入服务接口
- * 这个文件作为JavaScript到Python嵌入服务的桥接器
- * 所有向量嵌入操作将统一调用Python实现
+ * 现在使用Flask API服务进行向量嵌入
+ * 所有向量嵌入操作将统一调用HTTP API而不是命令行
  */
 
 import { log } from "../../vite";
-import { spawn } from "child_process";
-import * as path from "path";
-import { fileURLToPath } from 'url';
-
-interface EmbeddingResponse {
-  embedding: number[];
-  error?: string;
-}
+import { generateEmbedding, calculateSimilarity, startEmbeddingService } from "./flask_embedding_service";
 
 export class PythonEmbeddingService {
-  private pythonScriptPath: string;
-
   constructor() {
-    // 在ES模块中获取当前文件的目录
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
+    log(`[PythonEmbedding] 初始化服务，使用Flask API`, "info");
     
-    // Python脚本的相对路径 - 从当前目录向上两级，再进入services目录
-    this.pythonScriptPath = path.join(__dirname, "../../services/embedding.py");
-    log(`[PythonEmbedding] 初始化服务，脚本路径: ${this.pythonScriptPath}`, "info");
+    // 尝试启动Flask嵌入服务（异步启动）
+    this.ensureServiceRunning().catch(err => {
+      log(`[PythonEmbedding] 嵌入服务自动启动失败: ${err}`, "warn");
+    });
   }
 
   /**
-   * 获取文本的向量嵌入，调用Python实现
+   * 确保服务正在运行
+   */
+  private async ensureServiceRunning(): Promise<void> {
+    try {
+      log(`[PythonEmbedding] 尝试启动Flask嵌入服务...`, "info");
+      const success = await startEmbeddingService();
+      
+      if (success) {
+        log(`[PythonEmbedding] Flask嵌入服务启动成功`, "info");
+      } else {
+        log(`[PythonEmbedding] Flask嵌入服务启动失败，将在首次调用时重试`, "warn");
+      }
+    } catch (error) {
+      log(`[PythonEmbedding] 启动Flask嵌入服务出错: ${error}`, "error");
+    }
+  }
+
+  /**
+   * 获取文本的向量嵌入，调用Flask API
    * @param text 文本
    * @returns 嵌入向量，失败会抛出错误
    */
@@ -40,31 +48,21 @@ export class PythonEmbeddingService {
     }
 
     try {
-      // 准备输入数据
-      const inputData = {
-        text: text.trim(),
-        operation: "embed"
-      };
-
-      // 调用Python脚本
-      const result = await this.callPythonScript(inputData);
+      log(`[PythonEmbedding] 通过Flask API生成嵌入，文本长度: ${text.length}`, "info");
       
-      if (result.error || !result.embedding || !Array.isArray(result.embedding)) {
-        const errorMsg = `[PythonEmbedding] 嵌入生成失败: ${result.error || "无效响应"}`;
-        log(errorMsg, "error");
-        throw new Error(errorMsg);
-      }
-
+      // 调用Flask API服务
+      const embedding = await generateEmbedding(text.trim());
+      
       // 验证向量维度
       const expectedDimension = 3072;
-      if (result.embedding.length !== expectedDimension) {
-        const errorMsg = `[PythonEmbedding] 嵌入维度异常: 实际${result.embedding.length}维, 期望${expectedDimension}维`;
+      if (embedding.length !== expectedDimension) {
+        const errorMsg = `[PythonEmbedding] 嵌入维度异常: 实际${embedding.length}维, 期望${expectedDimension}维`;
         log(errorMsg, "error");
         throw new Error(errorMsg);
       }
 
-      log(`[PythonEmbedding] 成功生成${result.embedding.length}维向量嵌入`, "info");
-      return result.embedding;
+      log(`[PythonEmbedding] 成功生成${embedding.length}维向量嵌入`, "info");
+      return embedding;
     } catch (error) {
       const errorMsg = `[PythonEmbedding] 生成嵌入时出错: ${error}`;
       log(errorMsg, "error");
@@ -87,107 +85,18 @@ export class PythonEmbeddingService {
     }
 
     try {
-      // 准备输入数据
-      const inputData = {
-        text1: text1.trim(),
-        text2: text2.trim(),
-        operation: "similarity"
-      };
-
-      // 调用Python脚本
-      const result = await this.callPythonScript(inputData);
+      log(`[PythonEmbedding] 通过Flask API计算相似度`, "info");
       
-      if (result.error || typeof result.similarity !== 'number') {
-        const errorMsg = `[PythonEmbedding] 相似度计算失败: ${result.error || "无效响应"}`;
-        log(errorMsg, "error");
-        throw new Error(errorMsg);
-      }
-
-      return result.similarity;
+      // 调用Flask API服务
+      const similarity = await calculateSimilarity(text1.trim(), text2.trim());
+      
+      log(`[PythonEmbedding] 相似度计算成功: ${similarity}`, "info");
+      return similarity;
     } catch (error) {
       const errorMsg = `[PythonEmbedding] 计算相似度时出错: ${error}`;
       log(errorMsg, "error");
       throw new Error(errorMsg);
     }
-  }
-
-  /**
-   * 调用Python脚本并获取结果
-   * @param data 要传递给Python脚本的数据
-   * @returns 脚本的JSON响应
-   */
-  private callPythonScript(data: any): Promise<any> {
-    return new Promise((resolve, reject) => {
-      try {
-        // 使用命令行参数而不是标准输入来传递数据
-        const args = ["-u", this.pythonScriptPath, "--text", data.text];
-        
-        // 启动Python进程
-        log(`[PythonEmbedding] 调用Python脚本: ${args.join(' ')}`, "info");
-        const pythonProcess = spawn("python3", args);
-        
-        let outputData = "";
-        let errorData = "";
-
-        // 收集输出
-        pythonProcess.stdout.on("data", (data) => {
-          outputData += data.toString();
-        });
-
-        // 收集错误信息
-        pythonProcess.stderr.on("data", (data) => {
-          errorData += data.toString();
-          log(`[PythonEmbedding] Python错误输出: ${data.toString().trim()}`, "error");
-        });
-
-        // 处理进程结束
-        pythonProcess.on("close", (code) => {
-          if (code !== 0) {
-            const errorMsg = `[PythonEmbedding] Python进程异常退出，代码: ${code}: ${errorData}`;
-            log(errorMsg, "error");
-            return reject(new Error(errorMsg));
-          }
-
-          try {
-            // 尝试解析JSON输出
-            const jsonStart = outputData.indexOf("{");
-            const jsonEnd = outputData.lastIndexOf("}");
-            
-            if (jsonStart >= 0 && jsonEnd > jsonStart) {
-              const jsonStr = outputData.substring(jsonStart, jsonEnd + 1);
-              const result = JSON.parse(jsonStr);
-              
-              // 检查返回结果中是否有错误信息
-              if (result.error || !result.success) {
-                const errorMsg = `[PythonEmbedding] Python脚本返回错误: ${result.error || "未知错误"}`;
-                log(errorMsg, "error");
-                return reject(new Error(errorMsg));
-              }
-              
-              // 从成功结果中获取嵌入向量
-              if (result.embedding && Array.isArray(result.embedding)) {
-                return resolve({ embedding: result.embedding });
-              } else {
-                const errorMsg = `[PythonEmbedding] Python脚本返回格式无效: 缺少embedding字段`;
-                log(errorMsg, "error");
-                return reject(new Error(errorMsg));
-              }
-            } else {
-              const errorMsg = `[PythonEmbedding] 无法解析Python响应: ${outputData}`;
-              log(errorMsg, "error");
-              return reject(new Error(errorMsg));
-            }
-          } catch (parseError) {
-            const errorMsg = `[PythonEmbedding] 解析Python输出失败: ${parseError}, 输出: ${outputData}`;
-            log(errorMsg, "error");
-            return reject(new Error(errorMsg));
-          }
-        });
-      } catch (error) {
-        log(`[PythonEmbedding] 调用Python脚本失败: ${error}`, "error");
-        reject(error);
-      }
-    });
   }
 }
 
