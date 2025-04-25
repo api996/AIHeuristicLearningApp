@@ -56,6 +56,7 @@ export const chats = pgTable("chats", {
   title: text("title").notNull(),
   model: text("model").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+  metadata: json("metadata"), // 添加元数据字段，用于存储模型特定的数据如 dify_conversation_id
 });
 
 export const chatsRelations = relations(chats, ({ one, many }) => ({

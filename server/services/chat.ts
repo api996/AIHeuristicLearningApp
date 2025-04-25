@@ -818,12 +818,30 @@ ${searchResults}`;
           // Deep模型是一个工作流，直接发送用户查询而不需要复杂的提示词模板
           const userQuestion = message.trim();
           
-          // 构建Dify API请求格式
+          // 从存储中获取当前会话的Dify conversation_id（如果存在）
+          let difyConversationId = null;
+          if (chatId) {
+            try {
+              const chatInfo = await storage.getChat(chatId);
+              if (chatInfo && chatInfo.metadata) {
+                const metadata = chatInfo.metadata as Record<string, any>;
+                if (metadata.dify_conversation_id) {
+                  difyConversationId = metadata.dify_conversation_id;
+                  log(`找到已有的Dify会话ID: ${difyConversationId}`);
+                }
+              }
+            } catch (error) {
+              log(`无法获取Dify会话ID: ${error}`);
+            }
+          }
+          
+          // 构建Dify API请求格式 - 利用其内置会话管理
+          // 根据官方文档，首次请求传空字符串，后续请求使用返回的会话ID
           const requestPayload: any = {
             query: userQuestion,     // 用户原始问题
             response_mode: "blocking",
-            conversation_id: chatId ? `chat-${chatId}` : null, // 使用chatId作为会话ID
-            user: "user",
+            conversation_id: difyConversationId || "", // 首次为空，后续使用服务端返回的ID
+            user: userId ? `user-${userId}` : "user", // 添加用户标识
             inputs: {}               // 默认为空的inputs
           };
           
@@ -837,19 +855,11 @@ ${searchResults}`;
             requestPayload.inputs.search_results = searchResults;
           }
           
-          // 如果有上下文消息历史，添加到inputs
-          if (contextMessages && contextMessages.length > 0) {
-            // 转换为简单的对话历史格式
-            const history = contextMessages.map(msg => ({
-              role: msg.role,
-              content: msg.content
-            }));
-            
-            requestPayload.inputs.conversation_history = JSON.stringify(history);
-            log(`添加了${history.length}条对话历史到Dify请求`);
-          }
+          // 注意：由于Dify是有状态API，我们不需要传递完整的历史消息
+          // Dify会自动基于conversation_id维护对话上下文
           
-          log(`Dify请求格式已构建完成，有效载荷大小: ${JSON.stringify(requestPayload).length}字节`);
+          // 记录请求详情
+          log(`Dify请求: ${difyConversationId ? '使用现有会话' : '新建会话'}, 有效载荷大小: ${JSON.stringify(requestPayload).length}字节`);
           return requestPayload;
         },
         getResponse: async (
@@ -881,7 +891,7 @@ ${searchResults}`;
           }
           
           try {
-            // 构建转换后的消息，确保传递完整的上下文
+            // 构建转换后的消息
             const transformedMessage = await this.modelConfigs.deep.transformRequest!(
               message, 
               contextMemories, 
@@ -935,17 +945,23 @@ ${searchResults}`;
               throw new Error(`Dify API响应格式错误: ${parseError}`);
             }
             
-            // 检查响应中是否包含answer字段
-            if (!data.answer && data.answer !== "") {
-              log(`警告: Dify响应中没有answer字段: ${JSON.stringify(data).substring(0, 200)}...`);
-            }
-            
             // 获取响应文本
             let responseText = data.answer || "Dify模型暂时无法回应";
             
-            // 检查是否包含conversation_id，如果有则记录下来，方便调试
-            if (data.conversation_id) {
-              log(`Dify返回了对话ID: ${data.conversation_id}`);
+            // 重要：保存Dify返回的conversation_id
+            if (data.conversation_id && chatId) {
+              // 记录日志
+              log(`Dify返回了对话ID: ${data.conversation_id}，将存储到聊天${chatId}的元数据中`);
+              
+              // 尝试将conversation_id保存到聊天元数据中
+              try {
+                await storage.updateChatMetadata(chatId, {
+                  dify_conversation_id: data.conversation_id
+                });
+                log(`已更新聊天${chatId}的Dify会话ID`);
+              } catch (error) {
+                log(`无法更新聊天元数据: ${error}`);
+              }
             }
             
             // 不再使用思考过程过滤函数，直接返回原始响应
