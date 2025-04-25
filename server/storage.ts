@@ -9,7 +9,11 @@ import {
   type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding,
   type PromptTemplate, type SearchResult, type ConversationAnalytic,
   type SystemConfig, type KnowledgeGraphCache, type ClusterResultCache, type LearningPath,
-  type InsertLearningPath
+  type InsertLearningPath,
+  // 添加学生智能体相关导入
+  studentAgentPresets, studentAgentSessions, studentAgentMessages, studentAgentEvaluations,
+  type StudentAgentPreset, type StudentAgentSession, type StudentAgentMessage, type StudentAgentEvaluation,
+  type InsertStudentAgentPreset, type InsertStudentAgentSession, type InsertStudentAgentMessage, type InsertStudentAgentEvaluation
 } from "@shared/schema";
 import { db } from "./db";
 import { 
@@ -141,6 +145,53 @@ export interface IStorage {
   getLearningPath(userId: number): Promise<LearningPath | undefined>;
   updateLearningPathHistory(userId: number, newProgressEntry: any): Promise<LearningPath | undefined>;
   clearLearningPath(userId: number): Promise<void>;
+  
+  // 学生智能体配置方法
+  createStudentAgentPreset(preset: InsertStudentAgentPreset): Promise<StudentAgentPreset>;
+  updateStudentAgentPreset(presetId: number, updates: Partial<StudentAgentPreset>): Promise<StudentAgentPreset>;
+  getStudentAgentPreset(presetId: number): Promise<StudentAgentPreset | undefined>;
+  getAllStudentAgentPresets(): Promise<StudentAgentPreset[]>;
+  deleteStudentAgentPreset(presetId: number): Promise<void>;
+  
+  // 学生智能体会话方法
+  createStudentAgentSession(
+    userId: number, 
+    presetId: number, 
+    learningTopic: string,
+    name?: string
+  ): Promise<StudentAgentSession>;
+  getStudentAgentSession(sessionId: number): Promise<StudentAgentSession | undefined>;
+  getStudentAgentSessionsByUser(userId: number): Promise<StudentAgentSession[]>;
+  updateStudentAgentSessionState(
+    sessionId: number, 
+    currentState: any, 
+    motivationLevel?: number,
+    confusionLevel?: number
+  ): Promise<StudentAgentSession>;
+  completeStudentAgentSession(sessionId: number): Promise<void>;
+  
+  // 学生智能体消息方法
+  createStudentAgentMessage(
+    sessionId: number, 
+    content: string, 
+    role: "student" | "tutor" | "system",
+    stateSnapshot?: any,
+    kwlqUpdateType?: "K" | "W" | "L" | "Q" | "none",
+    kwlqUpdateContent?: string
+  ): Promise<StudentAgentMessage>;
+  getStudentAgentSessionMessages(sessionId: number): Promise<StudentAgentMessage[]>;
+  
+  // 学生智能体评估方法
+  createStudentAgentEvaluation(
+    sessionId: number,
+    evaluatorId: number,
+    realismScore: number,
+    learningTrajectoryScore: number,
+    kwlqCompletionRate: number,
+    languageDiversityScore?: number,
+    comments?: string
+  ): Promise<StudentAgentEvaluation>;
+  getStudentAgentEvaluationsBySession(sessionId: number): Promise<StudentAgentEvaluation[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1797,6 +1848,370 @@ export class DatabaseStorage implements IStorage {
       log(`已清除用户 ${userId} 的学习轨迹数据`);
     } catch (error) {
       log(`清除学习轨迹数据时出错: ${error}`);
+      throw error;
+    }
+  }
+
+  // ========== 学生智能体相关方法实现 ==========
+
+  // 学生智能体配置方法
+  async createStudentAgentPreset(preset: InsertStudentAgentPreset): Promise<StudentAgentPreset> {
+    try {
+      if (!preset.name || !preset.subject || !preset.gradeLevel) {
+        throw new Error("缺少必要的智能体配置字段");
+      }
+
+      const [newPreset] = await db.insert(studentAgentPresets)
+        .values(preset)
+        .returning();
+      
+      log(`创建新的学生智能体配置: ${newPreset.name}`);
+      return newPreset;
+    } catch (error) {
+      log(`创建学生智能体配置错误: ${error}`);
+      throw error;
+    }
+  }
+
+  async updateStudentAgentPreset(presetId: number, updates: Partial<StudentAgentPreset>): Promise<StudentAgentPreset> {
+    try {
+      // 更新时间戳
+      updates.updatedAt = new Date();
+      
+      const [updatedPreset] = await db.update(studentAgentPresets)
+        .set(updates)
+        .where(eq(studentAgentPresets.id, presetId))
+        .returning();
+      
+      if (!updatedPreset) {
+        throw new Error(`未找到ID为 ${presetId} 的智能体配置`);
+      }
+      
+      log(`更新学生智能体配置成功: ${updatedPreset.name}`);
+      return updatedPreset;
+    } catch (error) {
+      log(`更新学生智能体配置错误: ${error}`);
+      throw error;
+    }
+  }
+
+  async getStudentAgentPreset(presetId: number): Promise<StudentAgentPreset | undefined> {
+    try {
+      const [preset] = await db.select()
+        .from(studentAgentPresets)
+        .where(eq(studentAgentPresets.id, presetId));
+      
+      return preset;
+    } catch (error) {
+      log(`获取学生智能体配置错误: ${error}`);
+      throw error;
+    }
+  }
+
+  async getAllStudentAgentPresets(): Promise<StudentAgentPreset[]> {
+    try {
+      return await db.select()
+        .from(studentAgentPresets)
+        .orderBy(asc(studentAgentPresets.name));
+    } catch (error) {
+      log(`获取所有学生智能体配置错误: ${error}`);
+      throw error;
+    }
+  }
+
+  async deleteStudentAgentPreset(presetId: number): Promise<void> {
+    try {
+      // 使用事务确保数据一致性
+      await db.transaction(async (tx) => {
+        // 首先检查是否有使用此配置的会话
+        const sessions = await tx.select()
+          .from(studentAgentSessions)
+          .where(eq(studentAgentSessions.presetId, presetId));
+        
+        if (sessions.length > 0) {
+          // 将活跃会话标记为非活跃
+          await tx.update(studentAgentSessions)
+            .set({ isActive: false })
+            .where(eq(studentAgentSessions.presetId, presetId));
+          
+          log(`将使用配置 ${presetId} 的 ${sessions.length} 个会话标记为非活跃`);
+        }
+        
+        // 删除预设配置
+        await tx.delete(studentAgentPresets)
+          .where(eq(studentAgentPresets.id, presetId));
+      });
+      
+      log(`删除学生智能体配置成功: ${presetId}`);
+    } catch (error) {
+      log(`删除学生智能体配置错误: ${error}`);
+      throw error;
+    }
+  }
+
+  // 学生智能体会话方法
+  async createStudentAgentSession(
+    userId: number, 
+    presetId: number, 
+    learningTopic: string,
+    name?: string
+  ): Promise<StudentAgentSession> {
+    try {
+      // 验证用户和预设配置
+      const user = await this.getUser(userId);
+      if (!user) {
+        throw new Error(`用户不存在: ${userId}`);
+      }
+      
+      const preset = await this.getStudentAgentPreset(presetId);
+      if (!preset) {
+        throw new Error(`智能体配置不存在: ${presetId}`);
+      }
+      
+      // 创建初始状态，包含KWLQ表格
+      const initialState = {
+        kwlq: {
+          K: [""], // 已知内容
+          W: [learningTopic], // 想学内容，初始化为主题
+          L: [], // 已学内容
+          Q: [] // 问题
+        },
+        lastUpdated: new Date().toISOString()
+      };
+      
+      // 确定会话名称
+      const sessionName = name || `${learningTopic} (${preset.name})`;
+      
+      // 创建新会话
+      const [newSession] = await db.insert(studentAgentSessions)
+        .values({
+          userId,
+          presetId,
+          name: sessionName,
+          learningTopic,
+          currentState: initialState,
+          motivationLevel: preset.motivationLevel === "high" ? 80 : preset.motivationLevel === "medium" ? 60 : 40,
+          confusionLevel: 20, // 初始困惑度较低
+          isActive: true
+        })
+        .returning();
+      
+      log(`创建新的学生智能体会话: ${newSession.name}, 用户: ${userId}, 预设: ${preset.name}`);
+      return newSession;
+    } catch (error) {
+      log(`创建学生智能体会话错误: ${error}`);
+      throw error;
+    }
+  }
+
+  async getStudentAgentSession(sessionId: number): Promise<StudentAgentSession | undefined> {
+    try {
+      const [session] = await db.select()
+        .from(studentAgentSessions)
+        .where(eq(studentAgentSessions.id, sessionId));
+      
+      return session;
+    } catch (error) {
+      log(`获取学生智能体会话错误: ${error}`);
+      throw error;
+    }
+  }
+
+  async getStudentAgentSessionsByUser(userId: number): Promise<StudentAgentSession[]> {
+    try {
+      return await db.select()
+        .from(studentAgentSessions)
+        .where(eq(studentAgentSessions.userId, userId))
+        .orderBy(desc(studentAgentSessions.lastInteractionAt));
+    } catch (error) {
+      log(`获取用户学生智能体会话错误: ${error}`);
+      throw error;
+    }
+  }
+
+  async updateStudentAgentSessionState(
+    sessionId: number, 
+    currentState: any, 
+    motivationLevel?: number,
+    confusionLevel?: number
+  ): Promise<StudentAgentSession> {
+    try {
+      const updates: any = {
+        currentState,
+        lastInteractionAt: new Date()
+      };
+      
+      if (motivationLevel !== undefined) {
+        updates.motivationLevel = Math.max(0, Math.min(100, motivationLevel));
+      }
+      
+      if (confusionLevel !== undefined) {
+        updates.confusionLevel = Math.max(0, Math.min(100, confusionLevel));
+      }
+      
+      const [updatedSession] = await db.update(studentAgentSessions)
+        .set(updates)
+        .where(eq(studentAgentSessions.id, sessionId))
+        .returning();
+      
+      if (!updatedSession) {
+        throw new Error(`未找到会话: ${sessionId}`);
+      }
+      
+      log(`更新学生智能体会话状态: ${sessionId}, 动机: ${updates.motivationLevel}, 困惑: ${updates.confusionLevel}`);
+      return updatedSession;
+    } catch (error) {
+      log(`更新学生智能体会话状态错误: ${error}`);
+      throw error;
+    }
+  }
+
+  async completeStudentAgentSession(sessionId: number): Promise<void> {
+    try {
+      // 将会话标记为非活跃，计算完成的目标等
+      const session = await this.getStudentAgentSession(sessionId);
+      if (!session) {
+        throw new Error(`未找到会话: ${sessionId}`);
+      }
+      
+      // 统计KWLQ状态
+      let completedObjectives: any[] = [];
+      if (session.currentState && session.currentState.kwlq) {
+        const { kwlq } = session.currentState;
+        
+        // 将已学会的项目作为完成的目标
+        if (Array.isArray(kwlq.L)) {
+          completedObjectives = kwlq.L.map(item => ({
+            content: item,
+            completedAt: new Date().toISOString()
+          }));
+        }
+      }
+      
+      // 更新会话
+      await db.update(studentAgentSessions)
+        .set({
+          isActive: false,
+          completedObjectives,
+          lastInteractionAt: new Date()
+        })
+        .where(eq(studentAgentSessions.id, sessionId));
+      
+      log(`标记学生智能体会话为已完成: ${sessionId}, 完成目标数: ${completedObjectives.length}`);
+    } catch (error) {
+      log(`完成学生智能体会话错误: ${error}`);
+      throw error;
+    }
+  }
+
+  // 学生智能体消息方法
+  async createStudentAgentMessage(
+    sessionId: number, 
+    content: string, 
+    role: "student" | "tutor" | "system",
+    stateSnapshot?: any,
+    kwlqUpdateType?: "K" | "W" | "L" | "Q" | "none",
+    kwlqUpdateContent?: string
+  ): Promise<StudentAgentMessage> {
+    try {
+      // 获取会话以确认存在
+      const session = await this.getStudentAgentSession(sessionId);
+      if (!session) {
+        throw new Error(`未找到会话: ${sessionId}`);
+      }
+      
+      // 创建消息
+      const [newMessage] = await db.insert(studentAgentMessages)
+        .values({
+          sessionId,
+          content,
+          role,
+          stateSnapshot: stateSnapshot || session.currentState,
+          kwlqUpdateType: kwlqUpdateType || "none",
+          kwlqUpdateContent
+        })
+        .returning();
+      
+      // 更新会话的最后交互时间
+      await db.update(studentAgentSessions)
+        .set({ lastInteractionAt: new Date() })
+        .where(eq(studentAgentSessions.id, sessionId));
+      
+      log(`创建学生智能体消息: 会话ID=${sessionId}, 角色=${role}, KWLQ更新=${kwlqUpdateType || 'none'}`);
+      return newMessage;
+    } catch (error) {
+      log(`创建学生智能体消息错误: ${error}`);
+      throw error;
+    }
+  }
+
+  async getStudentAgentSessionMessages(sessionId: number): Promise<StudentAgentMessage[]> {
+    try {
+      return await db.select()
+        .from(studentAgentMessages)
+        .where(eq(studentAgentMessages.sessionId, sessionId))
+        .orderBy(asc(studentAgentMessages.timestamp));
+    } catch (error) {
+      log(`获取学生智能体会话消息错误: ${error}`);
+      throw error;
+    }
+  }
+
+  // 学生智能体评估方法
+  async createStudentAgentEvaluation(
+    sessionId: number,
+    evaluatorId: number,
+    realismScore: number,
+    learningTrajectoryScore: number,
+    kwlqCompletionRate: number,
+    languageDiversityScore?: number,
+    comments?: string
+  ): Promise<StudentAgentEvaluation> {
+    try {
+      // 验证评分范围
+      const checkScore = (score: number, name: string, min = 1, max = 10) => {
+        if (score < min || score > max) {
+          throw new Error(`${name}分数必须在 ${min}-${max} 之间`);
+        }
+      };
+      
+      checkScore(realismScore, "真实感");
+      checkScore(learningTrajectoryScore, "学习轨迹");
+      checkScore(kwlqCompletionRate, "KWLQ完成率", 0, 100);
+      
+      if (languageDiversityScore !== undefined) {
+        checkScore(languageDiversityScore, "语言多样性");
+      }
+      
+      // 创建评估记录
+      const [evaluation] = await db.insert(studentAgentEvaluations)
+        .values({
+          sessionId,
+          evaluatorId,
+          realismScore,
+          learningTrajectoryScore,
+          kwlqCompletionRate,
+          languageDiversityScore,
+          comments
+        })
+        .returning();
+      
+      log(`创建学生智能体评估: 会话ID=${sessionId}, 评估者=${evaluatorId}, 真实感=${realismScore}/10`);
+      return evaluation;
+    } catch (error) {
+      log(`创建学生智能体评估错误: ${error}`);
+      throw error;
+    }
+  }
+
+  async getStudentAgentEvaluationsBySession(sessionId: number): Promise<StudentAgentEvaluation[]> {
+    try {
+      return await db.select()
+        .from(studentAgentEvaluations)
+        .where(eq(studentAgentEvaluations.sessionId, sessionId))
+        .orderBy(desc(studentAgentEvaluations.evaluatedAt));
+    } catch (error) {
+      log(`获取学生智能体评估错误: ${error}`);
       throw error;
     }
   }
