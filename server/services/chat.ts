@@ -292,7 +292,16 @@ ${searchResults}
             log(`Received Gemini API response successfully`);
             
             // 提取响应文本
-            const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Gemini模型无法生成回应";
+            let responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Gemini模型无法生成回应";
+            
+            // 过滤Gemini模型的<think>标签内容
+            const originalLength = responseText.length;
+            responseText = responseText.replace(/<think>[\s\S]*?<\/think>/gi, '');
+            if (originalLength !== responseText.length) {
+              const reduction = originalLength - responseText.length;
+              const percentage = ((reduction / originalLength) * 100).toFixed(1);
+              log(`已过滤Gemini思考标签: ${originalLength} -> ${responseText.length} 字符，减少了 ${reduction} 字符 (${percentage}%)`);
+            }
             
             return {
               text: responseText,
@@ -978,7 +987,15 @@ ${searchResults}`;
               }
             }
             
-            // 不再使用思考过程过滤函数，直接返回原始响应
+            // 过滤Dify模型的<think>标签内容
+            const originalLength = responseText.length;
+            responseText = responseText.replace(/<think>[\s\S]*?<\/think>/gi, '');
+            if (originalLength !== responseText.length) {
+              const reduction = originalLength - responseText.length;
+              const percentage = ((reduction / originalLength) * 100).toFixed(1);
+              log(`已过滤Dify思考标签: ${originalLength} -> ${responseText.length} 字符，减少了 ${reduction} 字符 (${percentage}%)`);
+            }
+            
             log(`Dify响应长度: ${responseText.length}字符`);
             
             return {
