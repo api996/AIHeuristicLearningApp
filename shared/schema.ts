@@ -282,3 +282,121 @@ export type InsertUserFile = z.infer<typeof insertUserFileSchema>;
 export type InsertUserSetting = z.infer<typeof insertUserSettingSchema>;
 export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;
 export type InsertLearningPath = z.infer<typeof insertLearningPathSchema>;
+
+// ========== 学生智能体相关表定义 ==========
+
+// 学生智能体配置表：存储不同类型的学生智能体配置
+export const studentAgentPresets = pgTable("student_agent_presets", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(), // 配置名称，如"高中物理学生"
+  description: text("description"), // 配置描述
+  subject: text("subject").notNull(), // 学科领域
+  gradeLevel: text("grade_level").notNull(), // 年级水平
+  cognitiveLevel: text("cognitive_level", { enum: ["high", "medium", "low"] }).notNull(), // 认知能力
+  motivationLevel: text("motivation_level", { enum: ["high", "medium", "low"] }).notNull(), // 学习动机
+  learningStyle: text("learning_style", { enum: ["visual", "auditory", "kinesthetic", "mixed"] }).notNull(), // 学习风格
+  personalityTrait: text("personality_trait", { enum: ["extrovert", "introvert", "balanced"] }).notNull(), // 个性特征
+  systemPrompt: text("system_prompt").notNull(), // 完整系统提示词
+  kwlqTemplate: json("kwlq_template"), // KWLQ模板数据
+  challengeAreas: text("challenge_areas"), // 挑战领域，如"ADHD,阅读困难"
+  commonMisconceptions: json("common_misconceptions"), // 常见误解JSON数组
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: integer("created_by").references(() => users.id), // 创建者
+  isActive: boolean("is_active").default(true), // 是否激活
+});
+
+// 学生智能体会话表：记录学生智能体的会话
+export const studentAgentSessions = pgTable("student_agent_sessions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id), // 关联的测试用户
+  presetId: integer("preset_id").notNull().references(() => studentAgentPresets.id), // 使用的智能体配置
+  name: text("name"), // 会话名称
+  currentState: json("current_state"), // 当前状态，包括KWLQ表格等
+  motivationLevel: integer("motivation_level"), // 当前动机水平(0-100)
+  confusionLevel: integer("confusion_level"), // 当前困惑水平(0-100)
+  learningTopic: text("learning_topic"), // 学习主题
+  startedAt: timestamp("started_at").defaultNow(),
+  lastInteractionAt: timestamp("last_interaction_at").defaultNow(),
+  isActive: boolean("is_active").default(true), // 是否为活跃会话
+  completedObjectives: json("completed_objectives"), // 已完成的学习目标
+  sessionMetrics: json("session_metrics"), // 会话指标统计
+});
+
+// 学生智能体消息表：存储会话中的消息
+export const studentAgentMessages = pgTable("student_agent_messages", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").notNull().references(() => studentAgentSessions.id),
+  content: text("content").notNull(), // 消息内容
+  role: text("role", { enum: ["student", "tutor", "system"] }).notNull(), // 消息角色
+  timestamp: timestamp("timestamp").defaultNow(),
+  stateSnapshot: json("state_snapshot"), // 发送消息时的状态快照
+  kwlqUpdateType: text("kwlq_update_type", { enum: ["K", "W", "L", "Q", "none"] }), // 此消息更新了哪个KWLQ字段
+  kwlqUpdateContent: text("kwlq_update_content"), // 更新的KWLQ内容
+});
+
+// 学生智能体评估记录表：记录学生智能体效果评估
+export const studentAgentEvaluations = pgTable("student_agent_evaluations", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").notNull().references(() => studentAgentSessions.id),
+  evaluatorId: integer("evaluator_id").references(() => users.id), // 评估者ID
+  realismScore: integer("realism_score"), // 真实感评分(1-10)
+  learningTrajectoryScore: integer("learning_trajectory_score"), // 学习轨迹评分(1-10)
+  kwlqCompletionRate: integer("kwlq_completion_rate"), // KWLQ完成率(%)
+  languageDiversityScore: integer("language_diversity_score"), // 语言多样性评分
+  comments: text("comments"), // 评价意见
+  evaluatedAt: timestamp("evaluated_at").defaultNow(),
+});
+
+// 关系定义
+export const studentAgentPresetsRelations = relations(studentAgentPresets, ({ many }) => ({
+  sessions: many(studentAgentSessions),
+}));
+
+export const studentAgentSessionsRelations = relations(studentAgentSessions, ({ one, many }) => ({
+  preset: one(studentAgentPresets, {
+    fields: [studentAgentSessions.presetId],
+    references: [studentAgentPresets.id],
+  }),
+  user: one(users, {
+    fields: [studentAgentSessions.userId],
+    references: [users.id],
+  }),
+  messages: many(studentAgentMessages),
+  evaluations: many(studentAgentEvaluations),
+}));
+
+export const studentAgentMessagesRelations = relations(studentAgentMessages, ({ one }) => ({
+  session: one(studentAgentSessions, {
+    fields: [studentAgentMessages.sessionId],
+    references: [studentAgentSessions.id],
+  }),
+}));
+
+export const studentAgentEvaluationsRelations = relations(studentAgentEvaluations, ({ one }) => ({
+  session: one(studentAgentSessions, {
+    fields: [studentAgentEvaluations.sessionId],
+    references: [studentAgentSessions.id],
+  }),
+  evaluator: one(users, {
+    fields: [studentAgentEvaluations.evaluatorId],
+    references: [users.id],
+  }),
+}));
+
+// 创建插入模式
+export const insertStudentAgentPresetSchema = createInsertSchema(studentAgentPresets);
+export const insertStudentAgentSessionSchema = createInsertSchema(studentAgentSessions);
+export const insertStudentAgentMessageSchema = createInsertSchema(studentAgentMessages);
+export const insertStudentAgentEvaluationSchema = createInsertSchema(studentAgentEvaluations);
+
+// 类型定义
+export type StudentAgentPreset = typeof studentAgentPresets.$inferSelect;
+export type StudentAgentSession = typeof studentAgentSessions.$inferSelect;
+export type StudentAgentMessage = typeof studentAgentMessages.$inferSelect;
+export type StudentAgentEvaluation = typeof studentAgentEvaluations.$inferSelect;
+
+export type InsertStudentAgentPreset = z.infer<typeof insertStudentAgentPresetSchema>;
+export type InsertStudentAgentSession = z.infer<typeof insertStudentAgentSessionSchema>;
+export type InsertStudentAgentMessage = z.infer<typeof insertStudentAgentMessageSchema>;
+export type InsertStudentAgentEvaluation = z.infer<typeof insertStudentAgentEvaluationSchema>;
