@@ -24,26 +24,15 @@ neonConfig.webSocketConstructor = ws;
 const pool = new Pool({ connectionString: DATABASE_URL });
 
 /**
- * 简单的向量嵌入生成器
+ * 使用真实AI嵌入服务
+ * 导入服务器中已实现的GenAI服务
  */
-class SimpleEmbeddingGenerator {
-  async init() {
-    console.log("SimpleEmbeddingGenerator已初始化");
-    return true;
-  }
-  
-  async generateEmbedding(text) {
-    // 生成一个固定大小的随机向量，仅用于测试
-    // 实际应用中应使用proper ML模型
-    console.log("生成随机向量嵌入（仅用于演示）");
-    // 使用3072维向量，与系统中的其他向量保持一致
-    const embedding = Array(3072).fill(0).map(() => Math.random() * 2 - 1);
-    return embedding;
-  }
-}
 
-// 实例化嵌入生成器
-const genAiService = new SimpleEmbeddingGenerator();
+// 导入路径需要根据实际位置调整
+import { genAiService } from './services/genai/genai_service.js';
+
+// 输出日志表明使用了真实服务
+console.log("使用真实AI向量嵌入服务(GenAI Service)为记忆生成语义向量");
 
 /**
  * 获取所有没有向量嵌入的记忆

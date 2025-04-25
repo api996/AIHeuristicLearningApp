@@ -85,27 +85,12 @@ async function updatePlaceholderContent(memoryId, userId) {
 }
 
 /**
- * 简单的向量嵌入生成器
+ * 导入真实AI嵌入服务
  */
-class SimpleEmbeddingGenerator {
-  async init() {
-    log("SimpleEmbeddingGenerator已初始化", 'info');
-    return true;
-  }
-  
-  async generateEmbedding(text) {
-    // 生成高维向量嵌入，维度为3072，用于兼容系统现有的嵌入
-    log("生成3072维向量嵌入", 'info');
-    const embedding = Array.from({ length: 3072 }, () => (Math.random() * 2 - 1) * 0.01);
-    return embedding;
-  }
-}
-
-// 实例化嵌入生成器
-const embeddingGenerator = new SimpleEmbeddingGenerator();
+import { genAiService } from './server/services/genai/genai_service.js';
 
 /**
- * 生成向量嵌入
+ * 生成向量嵌入 - 使用真实AI服务
  */
 async function generateEmbedding(text) {
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
@@ -114,20 +99,22 @@ async function generateEmbedding(text) {
   }
 
   try {
-    // 初始化嵌入生成器
-    await embeddingGenerator.init();
-    
     // 清理文本，移除多余空白并截断
     const cleanedText = text.replace(/\s+/g, ' ').trim();
     const truncatedText = cleanedText.length > 8000 
       ? cleanedText.substring(0, 8000)
       : cleanedText;
     
-    // 生成向量嵌入
-    const embedding = await embeddingGenerator.generateEmbedding(truncatedText);
+    log('使用GenAI服务生成真实语义向量嵌入', 'info');
+    
+    // 确保服务已初始化
+    await genAiService.init();
+    
+    // 使用GenAI服务生成向量嵌入
+    const embedding = await genAiService.generateEmbedding(truncatedText);
     
     if (!embedding) {
-      log('嵌入生成器返回空结果', 'warning');
+      log('GenAI嵌入服务返回空结果', 'warning');
       return null;
     }
     
@@ -135,12 +122,12 @@ async function generateEmbedding(text) {
     if (embedding.length < 100) {
       log(`警告: 嵌入维度异常 (${embedding.length})`, 'warning');
     } else {
-      log(`成功生成${embedding.length}维向量嵌入`, 'success');
+      log(`成功生成${embedding.length}维语义向量嵌入`, 'success');
     }
     
     return embedding;
   } catch (error) {
-    log(`生成嵌入时出错: ${error.message}`, 'error');
+    log(`生成嵌入时出错: ${error instanceof Error ? error.message : String(error)}`, 'error');
     return null;
   }
 }
@@ -156,7 +143,7 @@ async function saveMemoryEmbedding(memoryId, vectorData) {
     );
     return true;
   } catch (error) {
-    log(`保存记忆嵌入出错: ${error.message}`, 'error');
+    log(`保存记忆嵌入出错: ${error instanceof Error ? error.message : String(error)}`, 'error');
     return false;
   }
 }
@@ -225,7 +212,7 @@ async function main() {
     `, 'success');
     
   } catch (error) {
-    log(`脚本执行失败: ${error.message}`, 'error');
+    log(`脚本执行失败: ${error instanceof Error ? error.message : String(error)}`, 'error');
   } finally {
     // 关闭数据库连接
     await pool.end();
@@ -233,4 +220,4 @@ async function main() {
 }
 
 // 运行主函数
-main().catch(e => log(`脚本执行异常: ${e.message}`, 'error'));
+main().catch(e => log(`脚本执行异常: ${e instanceof Error ? e.message : String(e)}`, 'error'));
