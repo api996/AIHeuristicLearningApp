@@ -105,6 +105,21 @@ const presetFormSchema = z.object({
   commonMisconceptions: z.string().optional(),
 });
 
+// API 提交的数据类型，解决commonMisconceptions类型不匹配问题
+interface ApiSubmitData {
+  name: string;
+  description?: string;
+  subject: string;
+  gradeLevel: string;
+  cognitiveLevel: string;
+  motivationLevel: string;
+  learningStyle: string;
+  personalityTrait: string;
+  challengeAreas?: string;
+  commonMisconceptions: string[]; // API需要字符串数组
+  userId: number;
+}
+
 type PresetFormValues = z.infer<typeof presetFormSchema>;
 
 const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
@@ -128,12 +143,9 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
 
   // 创建预设的Mutation
   const createPresetMutation = useMutation({
-    mutationFn: (presetData: PresetFormValues) => {
-      // 添加userId到请求中
-      return apiRequest('POST', '/api/student-agent/presets', {
-        ...presetData,
-        userId
-      });
+    mutationFn: (presetData: ApiSubmitData) => {
+      // 直接使用正确类型的数据
+      return apiRequest('POST', '/api/student-agent/presets', presetData);
     },
     onSuccess: () => {
       toast({
@@ -159,7 +171,7 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
       name: '',
       description: '',
       subject: '中文',
-      gradeLevel: '高中',
+      gradeLevel: '高中一年级', // 修正默认值
       cognitiveLevel: 'medium',
       motivationLevel: 'medium',
       learningStyle: 'visual',
@@ -176,13 +188,14 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
       ? data.commonMisconceptions.split('\n').filter(m => m.trim().length > 0) 
       : [];
     
-    // 使用类型转换来解决不匹配问题
-    const formattedData = {
+    // 创建符合API要求的数据对象
+    const apiData: ApiSubmitData = {
       ...data,
       commonMisconceptions: misconceptions,
+      userId
     };
 
-    createPresetMutation.mutate(formattedData as unknown as PresetFormValues);
+    createPresetMutation.mutate(apiData);
   };
 
   return (
