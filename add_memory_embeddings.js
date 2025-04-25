@@ -203,26 +203,26 @@ async function saveMemoryEmbedding(memoryId, vectorData) {
 }
 
 /**
- * 主函数
+ * 分批处理记忆记录
+ * @param {Array} memories 需要处理的记忆记录数组
+ * @param {number} batchSize 每批处理的记录数
+ * @param {number} batchDelay 批次间延迟毫秒数
  */
-async function main() {
-  log("=== 开始为缺失嵌入的记忆生成向量嵌入 ===", 'info');
+async function processBatches(memories, batchSize = 5, batchDelay = 60000) {
+  let successCount = 0;
+  let failCount = 0;
   
-  try {
-    // 获取所有没有向量嵌入的记忆记录
-    const memories = await getMemoriesWithoutEmbeddings();
+  // 分批处理记忆记录
+  for (let i = 0; i < memories.length; i += batchSize) {
+    // 获取当前批次的记忆记录
+    const batch = memories.slice(i, i + batchSize);
+    const batchNumber = Math.floor(i / batchSize) + 1;
+    const totalBatches = Math.ceil(memories.length / batchSize);
     
-    if (memories.length === 0) {
-      log("没有需要处理的记忆记录", 'info');
-      await pool.end();
-      return;
-    }
+    log(`处理第 ${batchNumber}/${totalBatches} 批记忆记录 (${batch.length}条)`, 'info');
     
-    let successCount = 0;
-    let failCount = 0;
-    
-    // 处理每条记忆记录
-    for (const memory of memories) {
+    // 处理当前批次中的每条记忆记录
+    for (const memory of batch) {
       log(`处理记忆 ${memory.id}...`, 'info');
       
       // 检查是否为占位符内容
@@ -254,9 +254,39 @@ async function main() {
         failCount++;
       }
       
-      // 添加小延迟
+      // 记录条目之间添加小延迟
       await new Promise(resolve => setTimeout(resolve, 300));
     }
+    
+    // 如果不是最后一批，等待指定时间再处理下一批
+    if (i + batchSize < memories.length) {
+      const waitSeconds = batchDelay / 1000;
+      log(`批次处理完成，等待 ${waitSeconds} 秒后处理下一批...`, 'info');
+      await new Promise(resolve => setTimeout(resolve, batchDelay));
+    }
+  }
+  
+  return { successCount, failCount };
+}
+
+/**
+ * 主函数
+ */
+async function main() {
+  log("=== 开始为缺失嵌入的记忆生成向量嵌入 ===", 'info');
+  
+  try {
+    // 获取所有没有向量嵌入的记忆记录
+    const memories = await getMemoriesWithoutEmbeddings();
+    
+    if (memories.length === 0) {
+      log("没有需要处理的记忆记录", 'info');
+      await pool.end();
+      return;
+    }
+    
+    // 分批处理记忆记录，每批5条，批次间等待60秒
+    const { successCount, failCount } = await processBatches(memories, 5, 60000);
     
     log(`
 === 记忆向量嵌入生成完成 ===
