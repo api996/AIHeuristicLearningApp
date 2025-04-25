@@ -549,8 +549,14 @@ ${searchResults}
             let responseText = responseData.choices?.[0]?.message?.content || "DeepSeek模型无法生成回应";
             log(`获取到DeepSeek原始响应文本，长度: ${responseText.length}`);
             
-            // 不再使用思考过程过滤函数，直接使用原始响应
-            log(`使用DeepSeek原始响应（长度: ${responseText.length}字符）`);
+            // 过滤DeepSeek模型的<think>标签内容
+            const originalLength = responseText.length;
+            responseText = responseText.replace(/<think>[\s\S]*?<\/think>/gi, '');
+            if (originalLength !== responseText.length) {
+              const reduction = originalLength - responseText.length;
+              const percentage = ((reduction / originalLength) * 100).toFixed(1);
+              log(`已过滤DeepSeek思考标签: ${originalLength} -> ${responseText.length} 字符，减少了 ${reduction} 字符 (${percentage}%)`);
+            }
             
             if (!responseText.trim()) {
               log(`警告: DeepSeek响应为空`);
