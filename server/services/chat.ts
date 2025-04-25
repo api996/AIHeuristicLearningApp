@@ -8,7 +8,7 @@ import { contentModerationService } from "./content-moderation";
 import { type Message } from "../../shared/schema";
 
 // 各模型的上下文窗口大小配置，基于参考架构文档
-const MODEL_WINDOW = {
+const MODEL_WINDOW: Record<string, number> = {
   "deepseek": 65536,  // DeepSeek-R1
   "gemini": 131072,   // gemini-2.5-pro
   "grok": 16384,      // grok-3-fast-beta
@@ -201,7 +201,7 @@ ${searchResults}
           });
           
           // 估算token数并在必要时进行裁剪
-          const modelMaxTokens = 120000; // Gemini-2.5-Pro的上下文窗口大小
+          const modelMaxTokens = MODEL_WINDOW["gemini"]; // 使用常量配置的Gemini窗口大小
           const estimatedTokens = JSON.stringify(requestBody.contents).length / 4; // 粗略估计
           const reservedTokens = 8192; // 为回复预留空间
           
@@ -434,7 +434,7 @@ ${searchResults}
           });
           
           // 估算token数并在必要时进行裁剪
-          const modelMaxTokens = 65536; // DeepSeek-R1的上下文窗口大小
+          const modelMaxTokens = MODEL_WINDOW["deepseek"]; // 使用常量配置的DeepSeek窗口大小
           const estimatedTokens = JSON.stringify(requestBody.messages).length / 4; // 粗略估计
           const reservedTokens = 8192; // 为回复预留空间
           
@@ -685,7 +685,7 @@ ${searchResults}`;
           });
           
           // 估算token数并在必要时进行裁剪
-          const modelMaxTokens = 128000; // Grok-3-Fast的上下文窗口
+          const modelMaxTokens = MODEL_WINDOW["grok"]; // 使用常量配置的Grok窗口大小
           const estimatedTokens = JSON.stringify(requestBody.messages).length / 4; // 粗略估计
           const reservedTokens = 4096; // 为回复预留空间
           
@@ -1024,6 +1024,66 @@ ${searchResults}`;
   }
   
   /**
+   * 动态上下文截断
+   * 根据模型的最大上下文窗口大小，智能截断消息历史
+   * 遵循参考架构：保留所有system消息，优先剪掉最早的非system消息
+   * @param messages 消息历史
+   * @param model 模型名称
+   * @returns 截断后的消息历史
+   */
+  trimContext(messages: Message[], model: string): Message[] {
+    // 获取模型的窗口大小，如果不存在则使用安全默认值
+    const modelMaxTokens = model in MODEL_WINDOW ? MODEL_WINDOW[model] : 16384; // 默认使用较小的16K窗口
+    const bufferTokens = 1024; // 为响应保留的缓冲区大小
+    const maxTokens = modelMaxTokens - bufferTokens;
+    
+    // 简单估算当前消息的token数
+    // 这是一个粗略估计，平均4个字符≈1个token
+    function estimateTokens(msg: Message): number {
+      if (!msg.content) return 0;
+      return Math.ceil(msg.content.length / 4);
+    }
+    
+    // 计算所有消息的估计token数
+    let totalTokens = messages.reduce((sum, msg) => sum + estimateTokens(msg), 0);
+    log(`模型${model}上下文窗口大小: ${modelMaxTokens}，当前估计token数: ${totalTokens}，最大允许: ${maxTokens}`);
+    
+    // 如果没有超出限制，直接返回原始消息
+    if (totalTokens <= maxTokens) {
+      return messages;
+    }
+    
+    // 复制消息数组，避免修改原始数据
+    const trimmedMessages = [...messages];
+    
+    // 继续删除最早的非system消息，直到满足限制
+    while (totalTokens > maxTokens && trimmedMessages.length > 0) {
+      // 寻找第一个非system消息的索引
+      const idx = trimmedMessages.findIndex(m => m.role !== 'system');
+      
+      // 如果没有找到非system消息，或者已经达到安全的最小长度，则停止
+      if (idx === -1 || trimmedMessages.length <= 5) {
+        log(`无法进一步裁剪消息，剩余${trimmedMessages.length}条消息`);
+        break;
+      }
+      
+      // 移除该消息并更新token计数
+      const removed = trimmedMessages.splice(idx, 1)[0];
+      totalTokens -= estimateTokens(removed);
+      
+      // 输出日志信息
+      log(`裁剪了一条${removed.role}消息，剩余${trimmedMessages.length}条消息，估计token数: ${totalTokens}`);
+    }
+    
+    // 如果仍然超出限制，发出警告
+    if (totalTokens > maxTokens) {
+      log(`警告: 即使在裁剪后，消息仍超出${model}模型的token限制`, 'warn');
+    }
+    
+    return trimmedMessages;
+  }
+  
+  /**
    * 获取模型的提示词模板
    * @param modelId 模型ID
    * @returns 提示词模板，如果不存在则返回undefined
@@ -1235,6 +1295,10 @@ ${searchResults}`;
         };
         
         messagesWithCurrent = [...contextMessages, currentMessage];
+        
+        // 使用动态上下文截断功能，根据当前模型的窗口大小裁剪消息历史
+        messagesWithCurrent = this.trimContext(messagesWithCurrent, this.currentModel);
+        log(`应用动态上下文截断后，保留${messagesWithCurrent.length}条消息`);
         
         // 如果有chatId，分析对话阶段
         if (chatId) {
