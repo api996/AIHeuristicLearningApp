@@ -38,7 +38,7 @@ export interface GenAIService {
    * @param text 输入文本
    * @returns 向量嵌入数组
    */
-  generateEmbedding(text: string): Promise<number[] | null>;
+  generateEmbedding(text: string): Promise<number[]>;
 
   /**
    * 生成文本摘要
