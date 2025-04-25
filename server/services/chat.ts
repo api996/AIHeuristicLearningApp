@@ -85,11 +85,11 @@ export class ChatService {
     this.apiKey = difyApiKey || "";
     
     // 添加专用的图像分析模型配置
-    this.visionModel = "grok-vision";
+    this.visionModel = "grok-vision-beta";
     
     this.modelConfigs = {
       // 专用图像分析模型 - 使用Grok vision模型
-      "grok-vision": {
+      "grok-vision-beta": {
         endpoint: `https://api.x.ai/v1/chat/completions`,
         headers: {
           "Authorization": `Bearer ${grokApiKey}`,
@@ -122,19 +122,19 @@ export class ChatService {
             log(`No Grok Vision API key found, returning simulated response`);
             return {
               text: `[Grok Vision模型-模拟] 这是一个模拟的图像分析响应，因为尚未配置有效的Grok API密钥。当API密钥配置后，此处将显示真实的图像分析结果。`,
-              model: "grok-vision"
+              model: "grok-vision-beta"
             };
           }
           
           try {
             // 构建转换后的请求
-            const transformedMessage = await this.modelConfigs["grok-vision"].transformRequest!(message);
+            const transformedMessage = await this.modelConfigs["grok-vision-beta"].transformRequest!(message);
             
             log(`调用Grok Vision API进行图像分析`);
             
-            const response = await fetchWithRetry(this.modelConfigs["grok-vision"].endpoint!, {
+            const response = await fetchWithRetry(this.modelConfigs["grok-vision-beta"].endpoint!, {
               method: "POST",
-              headers: this.modelConfigs["grok-vision"].headers!,
+              headers: this.modelConfigs["grok-vision-beta"].headers!,
               body: JSON.stringify(transformedMessage),
               timeout: 30000, // 30秒超时
             }, 3, 1000);
@@ -153,14 +153,14 @@ export class ChatService {
             
             return {
               text: responseText,
-              model: "grok-vision"
+              model: "grok-vision-beta"
             };
           } catch (error) {
             log(`调用Grok Vision API出错: ${error}`);
             
             return {
               text: `图像分析失败: ${error instanceof Error ? error.message : String(error)}`,
-              model: "grok-vision"
+              model: "grok-vision-beta"
             };
           }
         }
