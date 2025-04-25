@@ -48,9 +48,10 @@ export class VectorEmbeddingsService {
       throw new Error(errorMsg);
     }
     
-    // 验证嵌入维度，确保是有效的向量
-    if (embedding.length < 100) {
-      const errorMsg = `[vector_embeddings] 嵌入维度异常 (${embedding.length})，期望3072维向量`;
+    // 验证嵌入维度，确保是3072维度的向量
+    const expectedDimension = 3072;
+    if (embedding.length !== expectedDimension) {
+      const errorMsg = `[vector_embeddings] 嵌入维度异常 (${embedding.length})，期望${expectedDimension}维向量`;
       log(errorMsg, 'error');
       throw new Error(errorMsg);
     } else {
