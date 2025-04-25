@@ -10,11 +10,26 @@ import { type Message } from "../../shared/schema";
 interface ModelConfig {
   endpoint?: string;
   headers?: Record<string, string>;
-  transformRequest?: (message: string, contextMemories?: string, searchResults?: string) => any;
+  transformRequest?: (
+    message: string, 
+    contextMemories?: string, 
+    searchResults?: string, 
+    userId?: number, 
+    chatId?: number, 
+    contextMessages?: Message[]
+  ) => any;
   isSimulated: boolean;
   // 添加此标志以指示是否使用提示词管理服务
   usePromptManager?: boolean;
-  getResponse: (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => Promise<{ text: string; model: string }>;
+  getResponse: (
+    message: string, 
+    userId?: number, 
+    contextMemories?: string, 
+    searchResults?: string, 
+    useWebSearch?: boolean,
+    chatId?: number,
+    contextMessages?: Message[]
+  ) => Promise<{ text: string; model: string }>;
 }
 
 interface Memory {
@@ -64,29 +79,36 @@ export class ChatService {
         },
         usePromptManager: true, // 启用提示词管理服务
         isSimulated: !geminiApiKey,
-        transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
+        transformRequest: async (
+          message: string, 
+          contextMemories?: string, 
+          searchResults?: string,
+          userId?: number,
+          chatId?: number,
+          contextMessages?: Message[]
+        ) => {
           // 获取Gemini的提示词模板（如果有）
-          let basePrompt = '';
+          let systemPrompt = '';
           try {
             const templateRecord = await storage.getPromptTemplate('gemini');
             if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
               log('Using custom template for Gemini model');
-              basePrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
+              systemPrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
               
               // 执行模板变量替换
-              basePrompt = basePrompt
-                .replace(/{{user_input}}/g, message)
-                .replace(/{{date}}/g, new Date().toLocaleString())
+              systemPrompt = systemPrompt
                 .replace(/{{memory}}/g, contextMemories || "")
-                .replace(/{{search}}/g, searchResults || "");
+                .replace(/{{search}}/g, searchResults || "")
+                .replace(/{{current_date}}/g, new Date().toISOString().split('T')[0])
+                .replace(/{{current_time}}/g, new Date().toTimeString().split(' ')[0]);
               
               // 处理条件部分
-              basePrompt = basePrompt.replace(
+              systemPrompt = systemPrompt.replace(
                 /{{#if\s+memory}}([\s\S]*?){{\/if}}/g,
                 contextMemories ? "$1" : ""
               );
               
-              basePrompt = basePrompt.replace(
+              systemPrompt = systemPrompt.replace(
                 /{{#if\s+search}}([\s\S]*?){{\/if}}/g,
                 searchResults ? "$1" : ""
               );
@@ -96,12 +118,12 @@ export class ChatService {
           }
           
           // 如果没有自定义提示词模板，使用默认模板
-          if (!basePrompt) {
-            basePrompt = `你是一个先进的AI学习助手，能够提供个性化学习体验。`;
+          if (!systemPrompt) {
+            systemPrompt = `你是一个先进的AI学习助手，能够提供个性化学习体验。采用KWLQ教学模型，帮助学习者经历知识激活、提出问题、学习应用和拓展反思的阶段。`;
             
             // 添加记忆上下文（如果有）
             if (contextMemories) {
-              basePrompt += `
+              systemPrompt += `
               
 以下是用户的历史学习记忆和对话上下文。请在回答用户当前问题时，自然地融入这些上下文信息，使回答更加连贯和个性化。
 不要明确提及"根据你的历史记忆"或"根据你之前提到的"等字眼，而是像熟悉用户的导师一样自然地利用这些信息提供帮助。
@@ -112,39 +134,18 @@ ${contextMemories}`;
             
             // 添加搜索结果（如果有）
             if (searchResults) {
-              basePrompt += `
+              systemPrompt += `
               
-${searchResults}`;
+以下是与用户问题相关的网络搜索结果:
+${searchResults}
+
+请根据这些搜索结果为用户提供最新、最准确的信息。`;
             }
-            
-            // 添加用户问题
-            basePrompt += `
-  
-用户当前问题: ${message}
-  
-请提供详细、有帮助的回答，体现出你了解用户的学习历程。回答应当清晰、准确、富有教育意义`;
-            
-            if (contextMemories) {
-              basePrompt += `，同时与用户之前的学习轨迹保持连贯性`;
-            }
-            
-            if (searchResults) {
-              basePrompt += `。引用网络搜索结果时，可以标注来源编号`;
-            }
-            
-            basePrompt += `。`;
           }
-            
-          return {
-            contents: [
-              {
-                parts: [
-                  {
-                    text: basePrompt
-                  }
-                ]
-              }
-            ],
+          
+          // 构建Gemini API请求
+          const requestBody: any = {
+            contents: [],
             generationConfig: {
               temperature: 0.7,
               topP: 0.95,
@@ -152,8 +153,87 @@ ${searchResults}`;
               maxOutputTokens: 8192, // 增加到8192以支持更长的响应
             }
           };
+          
+          // 添加系统提示作为第一条消息
+          requestBody.contents.push({
+            role: "user",
+            parts: [{ text: systemPrompt }]
+          });
+          
+          requestBody.contents.push({
+            role: "model",
+            parts: [{ text: "我理解了。我将作为一个专注于KWLQ教学模型的AI学习助手，根据您的学习记忆和上下文提供个性化的帮助。" }]
+          });
+          
+          // 重要：如果提供了contextMessages，构建完整历史对话
+          if (contextMessages && contextMessages.length > 0) {
+            log(`Gemini API: 使用完整历史消息，共${contextMessages.length}条`);
+            
+            // 将上下文消息转换为Gemini格式并添加到contents数组
+            for (const msg of contextMessages) {
+              // 只添加用户和助手的消息，忽略系统消息
+              if (msg.role === 'user') {
+                requestBody.contents.push({
+                  role: "user",
+                  parts: [{ text: msg.content }]
+                });
+              } else if (msg.role === 'assistant') {
+                requestBody.contents.push({
+                  role: "model",
+                  parts: [{ text: msg.content }]
+                });
+              }
+            }
+          }
+          
+          // 添加当前用户消息
+          requestBody.contents.push({
+            role: "user",
+            parts: [{ text: message }]
+          });
+          
+          // 估算token数并在必要时进行裁剪
+          const modelMaxTokens = 120000; // Gemini-2.5-Pro的上下文窗口大小
+          const estimatedTokens = JSON.stringify(requestBody.contents).length / 4; // 粗略估计
+          const reservedTokens = 8192; // 为回复预留空间
+          
+          if (estimatedTokens > modelMaxTokens - reservedTokens) {
+            log(`Gemini API: 消息长度超过限制，进行裁剪。估计tokens: ${estimatedTokens}`);
+            
+            // 保留系统消息和最近的对话
+            const systemMessages = requestBody.contents.slice(0, 2); // 保留系统提示和模型确认
+            let userModelExchanges = requestBody.contents.slice(2);
+            const currentUserMessage = userModelExchanges.pop(); // 保留当前用户消息
+            
+            // 从最早的对话开始删除，直到满足限制
+            while (JSON.stringify([...systemMessages, ...userModelExchanges, currentUserMessage]).length / 4 > modelMaxTokens - reservedTokens) {
+              if (userModelExchanges.length <= 2) {
+                // 至少保留最后一轮对话
+                break;
+              }
+              // 删除最早的一对对话（用户和模型回复）
+              userModelExchanges.shift();
+              if (userModelExchanges.length > 0) {
+                userModelExchanges.shift();
+              }
+            }
+            
+            // 重建消息数组
+            requestBody.contents = [...systemMessages, ...userModelExchanges, currentUserMessage];
+            log(`Gemini API: 裁剪后消息数: ${requestBody.contents.length}`);
+          }
+          
+          return requestBody;
         },
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
+        getResponse: async (
+          message: string, 
+          userId?: number, 
+          contextMemories?: string, 
+          searchResults?: string, 
+          useWebSearch?: boolean,
+          chatId?: number,
+          contextMessages?: Message[]
+        ) => {
           // 如果没有API密钥，返回模拟响应
           if (!geminiApiKey) {
             log(`No Gemini API key found, returning simulated response`);
@@ -174,16 +254,25 @@ ${searchResults}`;
           }
           
           try {
-            const transformedMessage = await this.modelConfigs.gemini.transformRequest!(message, contextMemories, searchResults);
-            log(`Calling Gemini API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
+            // 确保传递完整的上下文消息到transformRequest
+            const transformedMessage = await this.modelConfigs.gemini.transformRequest!(
+              message, 
+              contextMemories, 
+              searchResults,
+              userId,
+              chatId,
+              contextMessages
+            );
+            
+            log(`Calling Gemini API with ${transformedMessage.contents.length} messages in context`);
             
             const url = `${this.modelConfigs.gemini.endpoint}?key=${geminiApiKey}`;
             const response = await fetchWithRetry(url, {
               method: "POST",
               headers: this.modelConfigs.gemini.headers!,
               body: JSON.stringify(transformedMessage),
-              timeout: 30000, // 30秒超时
-            }, 3, 500);
+              timeout: 60000, // 增加到60秒超时，因为上下文更大
+            }, 3, 1000); // 增加重试间隔
 
             if (!response.ok) {
               const errorText = await response.text();
@@ -192,7 +281,7 @@ ${searchResults}`;
             }
 
             const data: any = await response.json();
-            log(`Received Gemini API response`);
+            log(`Received Gemini API response successfully`);
             
             // 提取响应文本
             const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Gemini模型无法生成回应";
@@ -203,6 +292,21 @@ ${searchResults}`;
             };
           } catch (error) {
             log(`Error calling Gemini API: ${error}`);
+            
+            // 提供更详细的错误信息
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes('timeout')) {
+              return {
+                text: "Gemini API请求超时。这可能是由于消息太长或网络问题导致的。请尝试简化您的问题或稍后再试。",
+                model: "gemini"
+              };
+            } else if (errorMessage.includes('Too many requests')) {
+              return {
+                text: "Gemini API请求频率超限。请稍后再试或切换到其他模型。",
+                model: "gemini"
+              };
+            }
+            
             throw error;
           }
         }
@@ -215,29 +319,36 @@ ${searchResults}`;
         },
         usePromptManager: true, // 启用提示词管理服务
         isSimulated: !deepseekApiKey,
-        transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
+        transformRequest: async (
+          message: string, 
+          contextMemories?: string, 
+          searchResults?: string,
+          userId?: number,
+          chatId?: number,
+          contextMessages?: Message[]
+        ) => {
           // 获取DeepSeek的提示词模板（如果有）
-          let basePrompt = '';
+          let systemPrompt = '';
           try {
             const templateRecord = await storage.getPromptTemplate('deepseek');
             if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
               log('Using custom template for DeepSeek model');
-              basePrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
+              systemPrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
               
               // 执行模板变量替换
-              basePrompt = basePrompt
-                .replace(/{{user_input}}/g, message)
-                .replace(/{{date}}/g, new Date().toLocaleString())
+              systemPrompt = systemPrompt
                 .replace(/{{memory}}/g, contextMemories || "")
-                .replace(/{{search}}/g, searchResults || "");
+                .replace(/{{search}}/g, searchResults || "")
+                .replace(/{{current_date}}/g, new Date().toISOString().split('T')[0])
+                .replace(/{{current_time}}/g, new Date().toTimeString().split(' ')[0]);
               
               // 处理条件部分
-              basePrompt = basePrompt.replace(
+              systemPrompt = systemPrompt.replace(
                 /{{#if\s+memory}}([\s\S]*?){{\/if}}/g,
                 contextMemories ? "$1" : ""
               );
               
-              basePrompt = basePrompt.replace(
+              systemPrompt = systemPrompt.replace(
                 /{{#if\s+search}}([\s\S]*?){{\/if}}/g,
                 searchResults ? "$1" : ""
               );
@@ -247,12 +358,12 @@ ${searchResults}`;
           }
           
           // 如果没有自定义提示词模板，使用默认模板
-          if (!basePrompt) {
-            basePrompt = `你是一个先进的AI学习助手DeepSeek，专注于深度分析和详细解释。`;
+          if (!systemPrompt) {
+            systemPrompt = `你是一个先进的AI学习助手DeepSeek，专注于深度分析和详细解释。采用KWLQ教学模型，帮助学习者经历知识激活、提出问题、学习应用和拓展反思的阶段。`;
             
             // 添加记忆上下文（如果有）
             if (contextMemories) {
-              basePrompt += `
+              systemPrompt += `
               
 以下是用户的历史学习记忆和对话上下文:
 ${contextMemories}
@@ -262,47 +373,100 @@ ${contextMemories}
             
             // 添加搜索结果（如果有）
             if (searchResults) {
-              basePrompt += `
+              systemPrompt += `
               
 以下是与用户问题相关的网络搜索结果:
 ${searchResults}
 
 请根据这些搜索结果为用户提供准确的信息。`;
             }
-            
-            // 添加用户问题
-            basePrompt += `
-
-用户当前问题: ${message}
-
-请提供详细、有深度的回答，体现出专业的洞察力。回答应当结构清晰、内容全面、分析深入`;
-            
-            if (contextMemories) {
-              basePrompt += `，同时与用户之前的学习轨迹保持连贯性`;
-            }
-            
-            if (searchResults) {
-              basePrompt += `。引用网络搜索结果时，可以标注来源编号`;
-            }
-            
-            basePrompt += `。`;
           }
-            
-          // 适配NVIDIA NIM平台的API格式
-          return {
+          
+          // 构建DeepSeek/NVIDIA NIM平台的请求体
+          // 注意：NVIDIA NIM平台使用OpenAI兼容的接口
+          const requestBody: any = {
             model: "deepseek-ai/deepseek-r1",
-            messages: [
-              {
-                role: "user",
-                content: basePrompt
-              }
-            ],
             temperature: 0.7,
             top_p: 0.9,
-            max_tokens: 8192 // 增加到8192以支持更长的回答
+            max_tokens: 8192, // 增加到8192以支持更长的回答
+            messages: []
           };
+          
+          // 添加系统提示作为第一条消息
+          requestBody.messages.push({
+            role: "system",
+            content: systemPrompt
+          });
+          
+          // 重要：如果提供了contextMessages，构建完整历史对话
+          if (contextMessages && contextMessages.length > 0) {
+            log(`DeepSeek API: 使用完整历史消息，共${contextMessages.length}条`);
+            
+            // 将上下文消息转换为OpenAI兼容格式并添加到messages数组
+            for (const msg of contextMessages) {
+              // 根据角色转换
+              if (msg.role === 'user') {
+                requestBody.messages.push({
+                  role: "user",
+                  content: msg.content
+                });
+              } else if (msg.role === 'assistant') {
+                requestBody.messages.push({
+                  role: "assistant",
+                  content: msg.content
+                });
+              }
+            }
+          }
+          
+          // 添加当前用户消息
+          requestBody.messages.push({
+            role: "user",
+            content: message
+          });
+          
+          // 估算token数并在必要时进行裁剪
+          const modelMaxTokens = 65536; // DeepSeek-R1的上下文窗口大小
+          const estimatedTokens = JSON.stringify(requestBody.messages).length / 4; // 粗略估计
+          const reservedTokens = 8192; // 为回复预留空间
+          
+          if (estimatedTokens > modelMaxTokens - reservedTokens) {
+            log(`DeepSeek API: 消息长度超过限制，进行裁剪。估计tokens: ${estimatedTokens}`);
+            
+            // 保留系统消息和最近的对话
+            const systemMessage = requestBody.messages[0]; // 保留系统消息
+            let conversationMessages = requestBody.messages.slice(1);
+            const currentUserMessage = conversationMessages.pop(); // 保留当前用户消息
+            
+            // 从最早的对话开始删除，直到满足限制
+            while (JSON.stringify([systemMessage, ...conversationMessages, currentUserMessage]).length / 4 > modelMaxTokens - reservedTokens) {
+              if (conversationMessages.length <= 2) {
+                // 至少保留最后一轮对话
+                break;
+              }
+              // 删除最早的一对对话
+              conversationMessages.shift();
+              if (conversationMessages.length > 0) {
+                conversationMessages.shift();
+              }
+            }
+            
+            // 重建消息数组
+            requestBody.messages = [systemMessage, ...conversationMessages, currentUserMessage];
+            log(`DeepSeek API: 裁剪后消息数: ${requestBody.messages.length}`);
+          }
+          
+          return requestBody;
         },
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
+        getResponse: async (
+          message: string, 
+          userId?: number, 
+          contextMemories?: string, 
+          searchResults?: string, 
+          useWebSearch?: boolean,
+          chatId?: number,
+          contextMessages?: Message[]
+        ) => {
           // 如果没有API密钥，返回模拟响应
           if (!deepseekApiKey) {
             log(`No DeepSeek API key found, returning simulated response`);
@@ -325,13 +489,21 @@ ${searchResults}
           try {
             // 详细记录API请求信息
             log(`开始准备DeepSeek API请求...`);
-            const transformedMessage = await this.modelConfigs.deepseek.transformRequest!(message, contextMemories, searchResults);
-            log(`DeepSeek API请求准备完成，消息长度: ${JSON.stringify(transformedMessage).length}字节`);
+            
+            // 确保传递完整的上下文消息到transformRequest
+            const transformedMessage = await this.modelConfigs.deepseek.transformRequest!(
+              message, 
+              contextMemories, 
+              searchResults, 
+              userId, 
+              chatId, 
+              contextMessages
+            );
+            
+            log(`DeepSeek API请求准备完成，包含${transformedMessage.messages.length}条消息`);
             log(`DeepSeek API请求目标: ${this.modelConfigs.deepseek.endpoint!}`);
             
             log(`开始向NVIDIA NIM平台发送DeepSeek API请求...`);
-            log(`DeepSeek 请求完整信息 - Headers: ${JSON.stringify(this.modelConfigs.deepseek.headers!)}`);
-            log(`DeepSeek 请求完整信息 - Body: ${JSON.stringify(transformedMessage).substring(0, 500)}...`);
             
             const response = await fetchWithRetry(this.modelConfigs.deepseek.endpoint!, {
               method: "POST",
@@ -387,7 +559,17 @@ ${searchResults}
             
             // 给用户一个友好的错误信息，告知实际错误情况
             const errorMessage = (error instanceof Error) ? error.message : String(error);
-            const friendlyMessage = `DeepSeek模型暂时无法使用：${errorMessage.includes('timeout') ? '服务响应超时' : '连接服务失败'}。请尝试使用Gemini或Grok模型，或稍后再试。`;
+            
+            let friendlyMessage = "DeepSeek模型暂时无法使用。";
+            if (errorMessage.includes('timeout')) {
+              friendlyMessage = "DeepSeek模型请求超时。这可能是由于消息太长或网络问题导致的。请尝试简化您的问题或使用其他模型。";
+            } else if (errorMessage.includes('429') || errorMessage.includes('rate limit')) {
+              friendlyMessage = "DeepSeek API请求频率超限。请稍后再试或切换到其他模型。";
+            } else if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
+              friendlyMessage = "DeepSeek API认证失败。请检查API密钥是否正确。";
+            } else {
+              friendlyMessage = `DeepSeek模型暂时无法使用：连接服务失败。请尝试使用Gemini或Grok模型，或稍后再试。`;
+            }
             
             return {
               text: friendlyMessage,
@@ -404,7 +586,14 @@ ${searchResults}
         },
         isSimulated: !grokApiKey,
         usePromptManager: true, // 启用提示词管理服务
-        transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
+        transformRequest: async (
+          message: string, 
+          contextMemories?: string, 
+          searchResults?: string,
+          userId?: number,
+          chatId?: number,
+          contextMessages?: Message[]
+        ) => {
           // 获取Grok的提示词模板（如果有）
           let systemPrompt = '';
           try {
@@ -412,6 +601,13 @@ ${searchResults}
             if (templateRecord && (templateRecord.baseTemplate || templateRecord.promptTemplate)) {
               log('Using custom template for Grok model');
               systemPrompt = templateRecord.baseTemplate || templateRecord.promptTemplate || '';
+              
+              // 执行模板变量替换
+              systemPrompt = systemPrompt
+                .replace(/{{memory}}/g, contextMemories || "")
+                .replace(/{{search}}/g, searchResults || "")
+                .replace(/{{current_date}}/g, new Date().toISOString().split('T')[0])
+                .replace(/{{current_time}}/g, new Date().toTimeString().split(' ')[0]);
             }
           } catch (error) {
             log(`Error getting Grok template: ${error}`);
@@ -419,40 +615,109 @@ ${searchResults}
           
           // 如果没有自定义提示词模板，使用默认模板
           if (!systemPrompt) {
-            systemPrompt = `你是Grok-3，一个先进的AI助手，来自XAI公司，具有幽默感和独特见解。你的回答应该既有信息量又有趣味性。`;
-          }
-          
-          // 构建用户提示
-          let userPrompt = message;
-          
-          // 添加记忆上下文（如果有）
-          if (contextMemories) {
-            systemPrompt += `\n\n以下是用户的历史学习记忆，请在回答时自然地利用这些信息提供个性化帮助：\n${contextMemories}`;
-          }
-          
-          // 添加搜索结果（如果有）
-          if (searchResults) {
-            userPrompt = `我的问题是: ${message}\n\n这是一些相关的网络搜索结果:\n${searchResults}\n\n请使用这些信息来帮助我回答问题，但不要明确提及你在使用搜索结果。`;
-          }
+            systemPrompt = `你是Grok-3，一个先进的AI助手，来自XAI公司，具有幽默感和独特见解。你既是教育者又是学习伙伴，采用KWLQ教学模型，帮助学习者经历知识激活、提出问题、学习应用和拓展反思的阶段。`;
             
-          return {
+            // 添加记忆上下文（如果有）
+            if (contextMemories) {
+              systemPrompt += `
+              
+以下是用户的历史学习记忆，请在回答时自然地利用这些信息提供个性化帮助：
+${contextMemories}`;
+            }
+            
+            // 添加搜索结果（如果有）
+            if (searchResults) {
+              systemPrompt += `
+              
+以下是与当前问题相关的网络搜索结果，请用于提供准确信息：
+${searchResults}`;
+            }
+          }
+          
+          // 构建xAI的API请求
+          const requestBody: any = {
             model: "grok-3-fast-beta",
-            messages: [
-              {
-                role: "system",
-                content: systemPrompt
-              },
-              {
-                role: "user",
-                content: userPrompt
-              }
-            ],
             temperature: 0.7,
             top_p: 0.9,
-            max_tokens: 4096 // 增加到4096以支持更长的生成内容
+            max_tokens: 4096, // 增加到4096以支持更长的生成内容
+            messages: []
           };
+          
+          // 添加系统提示作为第一条消息
+          requestBody.messages.push({
+            role: "system",
+            content: systemPrompt
+          });
+          
+          // 重要：如果提供了contextMessages，构建完整历史对话
+          if (contextMessages && contextMessages.length > 0) {
+            log(`Grok API: 使用完整历史消息，共${contextMessages.length}条`);
+            
+            // 将上下文消息转换为OpenAI兼容格式并添加到messages数组
+            for (const msg of contextMessages) {
+              // 根据角色转换
+              if (msg.role === 'user') {
+                requestBody.messages.push({
+                  role: "user",
+                  content: msg.content
+                });
+              } else if (msg.role === 'assistant') {
+                requestBody.messages.push({
+                  role: "assistant",
+                  content: msg.content
+                });
+              }
+            }
+          }
+          
+          // 添加当前用户消息
+          requestBody.messages.push({
+            role: "user",
+            content: message
+          });
+          
+          // 估算token数并在必要时进行裁剪
+          const modelMaxTokens = 128000; // Grok-3-Fast的上下文窗口
+          const estimatedTokens = JSON.stringify(requestBody.messages).length / 4; // 粗略估计
+          const reservedTokens = 4096; // 为回复预留空间
+          
+          if (estimatedTokens > modelMaxTokens - reservedTokens) {
+            log(`Grok API: 消息长度超过限制，进行裁剪。估计tokens: ${estimatedTokens}`);
+            
+            // 保留系统消息和最近的对话
+            const systemMessage = requestBody.messages[0]; // 保留系统消息
+            let conversationMessages = requestBody.messages.slice(1);
+            const currentUserMessage = conversationMessages.pop(); // 保留当前用户消息
+            
+            // 从最早的对话开始删除，直到满足限制
+            while (JSON.stringify([systemMessage, ...conversationMessages, currentUserMessage]).length / 4 > modelMaxTokens - reservedTokens) {
+              if (conversationMessages.length <= 2) {
+                // 至少保留最后一轮对话
+                break;
+              }
+              // 删除最早的一对对话
+              conversationMessages.shift();
+              if (conversationMessages.length > 0) {
+                conversationMessages.shift();
+              }
+            }
+            
+            // 重建消息数组
+            requestBody.messages = [systemMessage, ...conversationMessages, currentUserMessage];
+            log(`Grok API: 裁剪后消息数: ${requestBody.messages.length}`);
+          }
+          
+          return requestBody;
         },
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
+        getResponse: async (
+          message: string, 
+          userId?: number, 
+          contextMemories?: string, 
+          searchResults?: string, 
+          useWebSearch?: boolean,
+          chatId?: number,
+          contextMessages?: Message[]
+        ) => {
           // 如果没有API密钥，返回模拟响应
           if (!grokApiKey) {
             log(`No Grok API key found, returning simulated response`);
@@ -473,8 +738,17 @@ ${searchResults}
           }
           
           try {
-            const transformedMessage = await this.modelConfigs.grok.transformRequest!(message, contextMemories, searchResults);
-            log(`Calling Grok API with message: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
+            // 确保传递完整的上下文消息到transformRequest
+            const transformedMessage = await this.modelConfigs.grok.transformRequest!(
+              message, 
+              contextMemories, 
+              searchResults,
+              userId,
+              chatId,
+              contextMessages
+            );
+            
+            log(`Calling Grok API with ${transformedMessage.messages.length} messages in context`);
             
             const response = await fetchWithRetry(this.modelConfigs.grok.endpoint!, {
               method: "POST",
@@ -490,7 +764,7 @@ ${searchResults}
             }
 
             const data: any = await response.json();
-            log(`Received Grok API response`);
+            log(`Received Grok API response successfully`);
             
             // 提取响应文本
             const responseText = data.choices?.[0]?.message?.content || "Grok模型无法生成回应";
@@ -504,7 +778,17 @@ ${searchResults}
             
             // 给用户一个友好的错误信息
             const errorMessage = (error instanceof Error) ? error.message : String(error);
-            const friendlyMessage = `Grok模型暂时无法使用：${errorMessage.includes('timeout') ? '服务响应超时' : '连接服务失败'}。请尝试使用Gemini或其他模型，或稍后再试。`;
+            
+            let friendlyMessage = "Grok模型暂时无法使用。";
+            if (errorMessage.includes('timeout')) {
+              friendlyMessage = "Grok模型请求超时。这可能是由于消息太长或网络问题导致的。请尝试简化您的问题或使用其他模型。";
+            } else if (errorMessage.includes('429') || errorMessage.includes('rate limit')) {
+              friendlyMessage = "Grok API请求频率超限。请稍后再试或切换到其他模型。";
+            } else if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
+              friendlyMessage = "Grok API认证失败。请检查API密钥是否正确。";
+            } else {
+              friendlyMessage = `Grok模型暂时无法使用：连接服务失败。请尝试使用Gemini或DeepSeek模型，或稍后再试。`;
+            }
             
             return {
               text: friendlyMessage,
@@ -523,23 +807,60 @@ ${searchResults}
         },
         isSimulated: !difyApiKey,
         usePromptManager: false, // Deep 直接连接到 Dify 工作流，不需要提示词管理
-        transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
+        transformRequest: async (
+          message: string, 
+          contextMemories?: string, 
+          searchResults?: string,
+          userId?: number,
+          chatId?: number,
+          contextMessages?: Message[]
+        ) => {
           // Deep模型是一个工作流，直接发送用户查询而不需要复杂的提示词模板
           const userQuestion = message.trim();
           
-          // 构建最简单的Dify API请求格式
-          const requestPayload = {
-            query: userQuestion,     // 用户原始问题，不加任何修饰
+          // 构建Dify API请求格式
+          const requestPayload: any = {
+            query: userQuestion,     // 用户原始问题
             response_mode: "blocking",
-            conversation_id: null,
+            conversation_id: chatId ? `chat-${chatId}` : null, // 使用chatId作为会话ID
             user: "user",
-            inputs: {}               // 空的inputs，让工作流自己处理一切
+            inputs: {}               // 默认为空的inputs
           };
+          
+          // 如果有记忆上下文，添加到inputs
+          if (contextMemories) {
+            requestPayload.inputs.context_memories = contextMemories;
+          }
+          
+          // 如果有搜索结果，添加到inputs
+          if (searchResults) {
+            requestPayload.inputs.search_results = searchResults;
+          }
+          
+          // 如果有上下文消息历史，添加到inputs
+          if (contextMessages && contextMessages.length > 0) {
+            // 转换为简单的对话历史格式
+            const history = contextMessages.map(msg => ({
+              role: msg.role,
+              content: msg.content
+            }));
+            
+            requestPayload.inputs.conversation_history = JSON.stringify(history);
+            log(`添加了${history.length}条对话历史到Dify请求`);
+          }
           
           log(`Dify请求格式已构建完成，有效载荷大小: ${JSON.stringify(requestPayload).length}字节`);
           return requestPayload;
         },
-        getResponse: async (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => {
+        getResponse: async (
+          message: string, 
+          userId?: number, 
+          contextMemories?: string, 
+          searchResults?: string, 
+          useWebSearch?: boolean,
+          chatId?: number,
+          contextMessages?: Message[]
+        ) => {
           // 如果没有API密钥，返回模拟响应
           if (!difyApiKey) {
             log(`未找到Dify API密钥，返回模拟响应`);
@@ -560,19 +881,24 @@ ${searchResults}
           }
           
           try {
-            // 构建转换后的消息
-            const transformedMessage = await this.modelConfigs.deep.transformRequest!(message, contextMemories, searchResults);
+            // 构建转换后的消息，确保传递完整的上下文
+            const transformedMessage = await this.modelConfigs.deep.transformRequest!(
+              message, 
+              contextMemories, 
+              searchResults,
+              userId,
+              chatId,
+              contextMessages
+            );
             
             // 记录API密钥前几个字符（安全日志）
             const apiKeyPrefix = difyApiKey.substring(0, 4) + '...' + difyApiKey.substring(difyApiKey.length - 4);
             log(`调用Dify API，使用密钥: ${apiKeyPrefix}，消息长度: ${JSON.stringify(transformedMessage).length}字节`);
-            log(`Dify请求: ${JSON.stringify(transformedMessage).substring(0, 200)}...`);
             
             const headers = {
               "Authorization": `Bearer ${difyApiKey}`,
               "Content-Type": "application/json",
             };
-            log(`Dify请求头: ${JSON.stringify(headers)}`);
             
             // 添加更多的重试次数和更长的超时时间
             const response = await fetchWithRetry(this.modelConfigs.deep.endpoint!, {
@@ -616,6 +942,11 @@ ${searchResults}
             
             // 获取响应文本
             let responseText = data.answer || "Dify模型暂时无法回应";
+            
+            // 检查是否包含conversation_id，如果有则记录下来，方便调试
+            if (data.conversation_id) {
+              log(`Dify返回了对话ID: ${data.conversation_id}`);
+            }
             
             // 不再使用思考过程过滤函数，直接返回原始响应
             log(`Dify响应长度: ${responseText.length}字符`);
