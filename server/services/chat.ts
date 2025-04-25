@@ -31,6 +31,8 @@ interface ModelConfig {
   isSimulated: boolean;
   // 添加此标志以指示是否使用提示词管理服务
   usePromptManager?: boolean;
+  // 标记模型是否支持图像输入
+  supportsImages?: boolean;
   getResponse: (
     message: string, 
     userId?: number, 
@@ -54,6 +56,7 @@ interface Memory {
 export class ChatService {
   private apiKey: string;
   private currentModel: string;
+  private visionModel: string; // 专用图像分析模型
   private modelConfigs: Record<string, ModelConfig>;
   private useWebSearch: boolean = false;
 
@@ -112,6 +115,54 @@ export class ChatService {
             max_tokens: 1500
           };
           return requestBody;
+        },
+        getResponse: async (message: string) => {
+          // 如果没有API密钥，返回模拟响应
+          if (!grokApiKey) {
+            log(`No Grok Vision API key found, returning simulated response`);
+            return {
+              text: `[Grok Vision模型-模拟] 这是一个模拟的图像分析响应，因为尚未配置有效的Grok API密钥。当API密钥配置后，此处将显示真实的图像分析结果。`,
+              model: "grok-vision"
+            };
+          }
+          
+          try {
+            // 构建转换后的请求
+            const transformedMessage = await this.modelConfigs["grok-vision"].transformRequest!(message);
+            
+            log(`调用Grok Vision API进行图像分析`);
+            
+            const response = await fetchWithRetry(this.modelConfigs["grok-vision"].endpoint!, {
+              method: "POST",
+              headers: this.modelConfigs["grok-vision"].headers!,
+              body: JSON.stringify(transformedMessage),
+              timeout: 30000, // 30秒超时
+            }, 3, 1000);
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              log(`Grok Vision API错误: ${response.status} - ${errorText}`);
+              throw new Error(`Grok Vision API错误: ${response.status} - ${errorText}`);
+            }
+
+            const data: any = await response.json();
+            log(`成功接收Grok Vision API响应`);
+            
+            // 提取响应文本
+            const responseText = data.choices?.[0]?.message?.content || "无法解析图像";
+            
+            return {
+              text: responseText,
+              model: "grok-vision"
+            };
+          } catch (error) {
+            log(`调用Grok Vision API出错: ${error}`);
+            
+            return {
+              text: `图像分析失败: ${error instanceof Error ? error.message : String(error)}`,
+              model: "grok-vision"
+            };
+          }
         }
       },
       gemini: {
