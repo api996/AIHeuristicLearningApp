@@ -29,7 +29,7 @@ const pool = new Pool({ connectionString: DATABASE_URL });
  */
 
 // 导入路径需要根据实际位置调整
-import { genAiService } from './services/genai/genai_service.js';
+import { genAiService } from './services/genai/genai_service';
 
 // 输出日志表明使用了真实服务
 console.log("使用真实AI向量嵌入服务(GenAI Service)为记忆生成语义向量");
