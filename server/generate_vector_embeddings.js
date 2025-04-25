@@ -29,10 +29,13 @@ const pool = new Pool({ connectionString: DATABASE_URL });
  */
 
 // 导入路径需要根据实际位置调整
-import { genAiService } from './services/genai/genai_service';
+import { initializeGenAIService } from './services/genai/genai_service';
 
 // 输出日志表明使用了真实服务
 console.log("使用真实AI向量嵌入服务(GenAI Service)为记忆生成语义向量");
+
+// 初始化genAiService变量，会在main函数中赋值
+let genAiService;
 
 /**
  * 获取所有没有向量嵌入的记忆
@@ -114,9 +117,6 @@ async function generateEmbedding(text) {
     : cleanedText;
   
   try {
-    // 初始化GenAI服务
-    await genAiService.init();
-    
     // 使用GenAI服务生成向量嵌入
     console.log('使用GenAI服务生成向量嵌入');
     const embedding = await genAiService.generateEmbedding(truncatedText);
@@ -163,9 +163,8 @@ async function processMemoryBatch(memories) {
   let successCount = 0;
   let failCount = 0;
 
-  // 初始化GenAI服务
-  await genAiService.init();
-  console.log("GenAI服务初始化完成");
+  // GenAI服务已经在导入时自动初始化
+  console.log("GenAI服务已自动初始化");
   
   for (const memory of memories) {
     console.log(`处理记忆 ${memory.id}...`);
@@ -202,6 +201,10 @@ async function processMemoryBatch(memories) {
 async function main() {
   try {
     console.log("=== 开始为记忆生成向量嵌入 ===");
+    
+    // 初始化GenAI服务
+    console.log("初始化GenAI服务...");
+    genAiService = await initializeGenAIService();
     
     // 优先处理时间戳格式ID的记忆
     const timestampMemories = await getTimeStampMemoriesWithoutEmbeddings();
