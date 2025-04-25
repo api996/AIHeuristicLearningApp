@@ -39,8 +39,10 @@ export interface IStorage {
   getUserChats(userId: number, isAdmin: boolean): Promise<(Chat & { username?: string })[]>;
   deleteChat(chatId: number, userId: number, isAdmin: boolean): Promise<void>;
   getChatById(chatId: number, userId: number, isAdmin: boolean): Promise<Chat | undefined>;
+  getChat(chatId: number): Promise<Chat | undefined>; // 获取聊天，不检查权限
   updateChatTitle(chatId: number, title: string): Promise<void>;
   updateChatModel(chatId: number, model: string): Promise<void>;
+  updateChatMetadata(chatId: number, metadata: Record<string, any>): Promise<void>; // 更新聊天元数据
 
   // Message methods
   createMessage(chatId: number, content: string, role: string, model?: string): Promise<Message>;
@@ -323,6 +325,7 @@ export class DatabaseStorage implements IStorage {
             title: chats.title,
             model: chats.model,
             createdAt: chats.createdAt,
+            metadata: chats.metadata,
             username: users.username
           })
           .from(chats)
@@ -416,6 +419,55 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       log(`Error getting chat by id: ${error}`);
+      throw error;
+    }
+  }
+  
+  async getChat(chatId: number): Promise<Chat | undefined> {
+    try {
+      if (!chatId || isNaN(chatId)) {
+        log(`无效的聊天ID: ${chatId}`);
+        return undefined;
+      }
+      
+      // 直接获取聊天记录，不检查权限
+      const [chat] = await db.select()
+        .from(chats)
+        .where(eq(chats.id, chatId));
+      
+      return chat;
+    } catch (error) {
+      log(`从数据库获取聊天记录时出错: ${error}`);
+      throw error;
+    }
+  }
+  
+  async updateChatMetadata(chatId: number, metadata: Record<string, any>): Promise<void> {
+    try {
+      if (!chatId || isNaN(chatId)) {
+        log(`更新元数据时遇到无效的聊天ID: ${chatId}`);
+        throw new Error("Invalid chat ID");
+      }
+      
+      // 获取当前的聊天记录
+      const chat = await this.getChat(chatId);
+      if (!chat) {
+        log(`无法更新元数据，聊天不存在: ${chatId}`);
+        throw new Error(`Chat not found: ${chatId}`);
+      }
+      
+      // 合并现有元数据与新提供的元数据
+      const currentMetadata = chat.metadata || {};
+      const newMetadata = { ...currentMetadata, ...metadata };
+      
+      // 更新聊天元数据
+      await db.update(chats)
+        .set({ metadata: newMetadata })
+        .where(eq(chats.id, chatId));
+      
+      log(`已成功更新聊天 ${chatId} 的元数据`);
+    } catch (error) {
+      log(`更新聊天元数据时出错: ${error}`);
       throw error;
     }
   }
