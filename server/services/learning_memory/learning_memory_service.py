@@ -70,7 +70,7 @@ async def save_memory(user_id, content, memory_type='chat'):
         # 插入记忆记录
         try:
             cur.execute("""
-                INSERT INTO memories (id, user_id, content, summary, memory_type, created_at, updated_at)
+                INSERT INTO memories (id, user_id, content, summary, type, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
                 RETURNING id;
             """, (memory_id, user_id, content, summary, memory_type))
