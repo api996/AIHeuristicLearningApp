@@ -3,8 +3,8 @@
  * 用于测试各个模型的上下文窗口大小和智能截断功能
  */
 
-const fetch = require('node-fetch');
-const readline = require('readline');
+import fetch from 'node-fetch';
+import readline from 'readline';
 
 // 美化日志输出的颜色函数
 function log(message, type = 'info') {

@@ -3,7 +3,7 @@
  * 无需交互式输入，直接运行此脚本测试所有模型
  */
 
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
 // 美化日志输出的颜色函数
 function log(message, type = 'info') {
@@ -21,9 +21,52 @@ function log(message, type = 'info') {
 // 可用的模型列表
 const MODELS = ['gemini', 'deepseek', 'grok', 'deep'];
 
-// 测试函数 - 发送单个消息到指定模型
-async function testModel(model, message) {
+// 创建新聊天
+async function createChat(model) {
   try {
+    log(`创建新的${model}聊天...`, 'info');
+
+    const response = await fetch('http://localhost:5000/api/chats', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: 6, // 使用测试用户ID
+        title: `测试聊天-${model}-${new Date().toISOString()}`,
+        model: model
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      log(`创建聊天失败 (${response.status}): ${errorText}`, 'error');
+      return null;
+    }
+
+    const data = await response.json();
+    log(`成功创建聊天，ID: ${data.id}`, 'success');
+    return data.id;
+  } catch (error) {
+    log(`创建聊天失败: ${error.message}`, 'error');
+    return null;
+  }
+}
+
+// 测试函数 - 发送单个消息到指定模型
+async function testModel(model, message, chatId = null) {
+  try {
+    // 如果没有提供chatId，则创建新聊天
+    if (!chatId) {
+      chatId = await createChat(model);
+      if (!chatId) {
+        log(`无法创建${model}聊天，测试终止`, 'error');
+        return null;
+      }
+      // 等待一秒，确保聊天创建完成
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
     log(`[${model}] 测试请求: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`, 'model');
     
     const endpoint = 'http://localhost:5000/api/chat';
@@ -38,6 +81,7 @@ async function testModel(model, message) {
         message,
         userId: 6, // 使用测试用户ID
         model,
+        chatId,
         useWebSearch: false
       }),
     });
@@ -48,7 +92,7 @@ async function testModel(model, message) {
     if (!response.ok) {
       const errorText = await response.text();
       log(`[${model}] API错误 (${response.status}): ${errorText}`, 'error');
-      return null;
+      return { chatId, error: errorText };
     }
     
     const data = await response.json();
@@ -60,10 +104,10 @@ async function testModel(model, message) {
     log(`[${model}] 响应模型: ${data.model}`);
     log(`-----------------------------------------`);
     
-    return data;
+    return { ...data, chatId };
   } catch (error) {
     log(`[${model}] 测试失败: ${error.message}`, 'error');
-    return null;
+    return { chatId, error: error.message };
   }
 }
 

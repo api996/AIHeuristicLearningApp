@@ -3,7 +3,7 @@
  * 这个脚本生成一个非常长的消息来测试上下文裁剪功能
  */
 
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
 // 美化日志输出的颜色函数
 function log(message, type = 'info') {
