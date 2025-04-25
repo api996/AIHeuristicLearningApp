@@ -1658,6 +1658,79 @@ ${searchResults}`;
       throw error;
     }
   }
+  
+  // 处理图片分析 - 使用Grok Vision API
+  async processImageWithGrokVision(message: string): Promise<{ text: string; model: string }> {
+    // 检查Grok API密钥是否配置
+    const grokApiKey = process.env.GROK_API_KEY;
+    
+    // 如果没有API密钥，返回模拟响应
+    if (!grokApiKey) {
+      log(`No Grok Vision API key found, returning simulated response`);
+      return {
+        text: `[Grok Vision模型-模拟] 这是一个模拟的图像分析响应，因为尚未配置有效的Grok API密钥。当API密钥配置后，此处将显示真实的图像分析结果。`,
+        model: "grok-vision-beta"
+      };
+    }
+    
+    try {
+      // 转换请求格式为Grok Vision API格式
+      const requestBody = {
+        model: "grok-vision-beta",
+        messages: [
+          {
+            role: "system",
+            content: "你是一个专业的图像分析助手。请详细描述图像内容，包括主要对象、场景、文字、色彩和布局等关键元素。"
+          },
+          {
+            role: "user",
+            content: message
+          }
+        ],
+        max_tokens: 1500
+      };
+      
+      log(`调用Grok Vision API进行图像分析`);
+      
+      // 使用自定义的fetchWithRetry函数处理请求
+      const response = await fetchWithRetry(`https://api.x.ai/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${grokApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+        timeout: 30000, // 30秒超时
+      }, 3, 1000);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        log(`Grok Vision API错误: ${response.status} - ${errorText}`);
+        throw new Error(`Grok Vision API错误: ${response.status} - ${errorText}`);
+      }
+
+      const data: any = await response.json();
+      log(`成功接收Grok Vision API响应`);
+      
+      // 提取响应文本
+      const responseText = data.choices?.[0]?.message?.content || "无法解析图像";
+      
+      // 添加说明，标明这是由Grok Vision处理的结果
+      const formattedResponse = `⚠️ 图片已由Grok Vision模型预处理并转换为文本描述：\n\n${responseText}`;
+      
+      return {
+        text: formattedResponse,
+        model: "grok-vision-beta"
+      };
+    } catch (error) {
+      log(`调用Grok Vision API出错: ${error}`);
+      
+      return {
+        text: `图像分析失败: ${error instanceof Error ? error.message : String(error)}`,
+        model: "grok-vision-beta"
+      };
+    }
+  }
 }
 
 export const chatService = new ChatService();
