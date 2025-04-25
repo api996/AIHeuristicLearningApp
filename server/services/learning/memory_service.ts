@@ -23,6 +23,34 @@ export class MemoryService {
     this.storageMode = "database";
     log(`[MemoryService] 初始化，存储模式: ${this.storageMode}，使用聚类检索: ${this.useClusterRetrieval}`, "info");
   }
+  
+  /**
+   * 保存记忆并处理向量嵌入
+   * 这是给API路由使用的封装函数，内部调用createMemory
+   * 
+   * @param userId 用户ID
+   * @param content 记忆内容
+   * @param type 记忆类型
+   * @returns 创建的记忆ID
+   */
+  async saveMemory(userId: number, content: string, type: string = "chat"): Promise<string> {
+    try {
+      log(`[MemoryService] 保存记忆: 用户=${userId}, 内容长度=${content.length}, 类型=${type}`);
+      
+      // 直接调用createMemory方法，它会处理摘要、关键词和向量嵌入
+      const memory = await this.createMemory(userId, content, type);
+      
+      // 确保返回有效的ID
+      if (!memory || !memory.id) {
+        throw new Error("创建记忆失败，未返回有效ID");
+      }
+      
+      return memory.id;
+    } catch (error) {
+      log(`[MemoryService] 保存记忆出错: ${error}`, "error");
+      throw error;
+    }
+  }
 
   /**
    * 创建新记忆并生成必要的元数据
@@ -308,10 +336,20 @@ export class MemoryService {
         // 检查是否有向量嵌入
         const embedding = await storage.getEmbeddingByMemoryId(memory.id);
         if (!embedding && memory.content) {
+          // 尝试立即生成嵌入向量
           const vectorData = await this.generateEmbedding(memory.content);
           if (vectorData) {
+            // 成功生成向量嵌入
             await storage.saveMemoryEmbedding(memory.id, vectorData);
+            log(`[MemoryService] 成功在修复过程中生成向量嵌入 - ID: ${memory.id}`, "info");
             needsRepair = true;
+          } else {
+            // 即时生成失败，触发后台向量嵌入生成服务
+            log(`[MemoryService] 修复过程中未能生成向量嵌入，触发后台生成服务 - ID: ${memory.id}`, "warn");
+            // 使用非阻塞方式触发向量嵌入生成
+            vectorEmbeddingManager.triggerForMemory(memory.id, memory.content)
+              .catch(err => log(`[MemoryService] 触发向量嵌入生成失败: ${err}`, "error"));
+            needsRepair = true; // 仍然标记为已修复，后台任务会处理
           }
         }
         
