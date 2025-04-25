@@ -279,13 +279,15 @@ asyncio.run(retrieve_memories())
       });
 
       pythonProcess.on('error', (error) => {
-        log(`[memoryStore] 启动Python进程失败: ${error}`);
-        resolve([]);
+        const errorMsg = `[memoryStore] 启动Python进程失败: ${error}，请检查Python环境配置`;
+        log(errorMsg, 'error');
+        reject(new Error(errorMsg));
       });
     });
   } catch (error) {
-    log(`[memoryStore] 检索相似记忆时遇到错误: ${error}`);
-    return [];
+    const errorMsg = `[memoryStore] 检索相似记忆时遇到错误: ${error}`;
+    log(errorMsg, 'error');
+    throw new Error(errorMsg);
   }
 }
 
@@ -360,65 +362,25 @@ export async function getMemoriesByFilter(filter: MemoryFilter): Promise<Memory[
           // 按关键词过滤
           return dbMemories.filter(memory => {
             const memKeywords = memoryKeywordsMap.get(memory.id) || [];
-            return memKeywords.some(k => keywords.includes(k));
+            return memKeywords.some((k: string) => keywords!.includes(k));
           });
         }
         
         return dbMemories;
       }
     } catch (dbError) {
-      log(`[memoryStore] 从数据库获取记忆失败: ${dbError}，将尝试使用文件系统`);
+      const errorMsg = `[memoryStore] 从数据库获取记忆失败: ${dbError}`;
+      log(errorMsg, 'error');
+      // 不再回退到文件系统，而是抛出明确的错误
+      throw new Error(errorMsg);
     }
     
-    // 如果数据库查询失败或没有结果，回退到文件系统
-    log(`[memoryStore] 从文件系统查询记忆 (回退方法)`);
-    const userDir = path.join(MEMORY_DIR, userId.toString());
-    if (!fs.existsSync(userDir)) {
-      log(`[memoryStore] 用户目录不存在: ${userDir}`);
-      return [];
-    }
-
-    // 读取用户目录下所有记忆文件
-    const files = fs.readdirSync(userDir).filter(file => file.endsWith('.json'));
-    const memories: Memory[] = [];
-
-    for (const file of files) {
-      try {
-        const filePath = path.join(userDir, file);
-        const content = fs.readFileSync(filePath, 'utf8');
-        const memoryData = JSON.parse(content);
-
-        // 应用过滤条件
-        if (
-          (!types || types.includes(memoryData.type)) &&
-          (!startDate || new Date(memoryData.timestamp) >= startDate) &&
-          (!endDate || new Date(memoryData.timestamp) <= endDate) &&
-          (!keywords || (
-            memoryData.keywords && 
-            memoryData.keywords.some((k: string) => keywords.includes(k))
-          ))
-        ) {
-          memories.push({
-            id: file.replace('.json', ''),
-            content: memoryData.content,
-            type: memoryData.type || 'chat',
-            timestamp: memoryData.timestamp,
-            userId,
-            summary: memoryData.summary,
-            keywords: memoryData.keywords,
-            embedding: memoryData.embedding
-          });
-        }
-      } catch (error) {
-        // 跳过读取失败的文件
-        log(`[memoryStore] 读取记忆文件失败: ${file}, 错误: ${error}`);
-      }
-    }
-
-    return memories;
-  } catch (error) {
-    log(`[memoryStore] 筛选记忆时遇到错误: ${error}`);
+    // 如果到达这里，表示数据库查询成功但没有找到记忆
     return [];
+  } catch (error) {
+    const errorMsg = `[memoryStore] 筛选记忆时遇到错误: ${error}`;
+    log(errorMsg, 'error');
+    throw new Error(errorMsg);
   }
 }
 
@@ -438,42 +400,37 @@ export async function updateMemorySummary(
   keywords?: string[]
 ): Promise<boolean> {
   try {
-    // 获取记忆对象
-    const memory = await getMemoryById(memoryId, userId);
+    // 从数据库获取记忆对象
+    const { db } = await import('../../db');
+    const { memories: memoriesTable } = await import('@shared/schema');
+    const { eq, and } = await import('drizzle-orm');
+    
+    // 查询记忆
+    const [memory] = await db.select()
+      .from(memoriesTable)
+      .where(and(
+        eq(memoriesTable.id, memoryId),
+        eq(memoriesTable.userId, userId)
+      ));
+    
     if (!memory) {
+      log(`[memoryStore] 未找到记忆: ${memoryId}，用户: ${userId}`, 'warn');
       return false;
     }
 
-    // 更新字段
-    memory.summary = summary;
-    if (keywords) {
-      memory.keywords = keywords;
-    }
-
-    // 获取文件路径
-    const userDir = path.join(MEMORY_DIR, userId.toString());
-    const filePath = path.join(userDir, `${memoryId}.json`);
-
-    // 如果文件不存在，尝试查找匹配的文件
-    if (!fs.existsSync(filePath)) {
-      const files = fs.readdirSync(userDir).filter(file => 
-        file.endsWith('.json') && (file === `${memoryId}.json` || file.includes(memoryId))
-      );
-
-      if (files.length === 0) {
-        return false;
-      }
-
-      const actualFilePath = path.join(userDir, files[0]);
-      fs.writeFileSync(actualFilePath, JSON.stringify(memory, null, 2), 'utf8');
-    } else {
-      // 直接写入文件
-      fs.writeFileSync(filePath, JSON.stringify(memory, null, 2), 'utf8');
-    }
-
+    // 更新数据库中的记忆
+    await db.update(memoriesTable)
+      .set({ 
+        summary: summary,
+        ...(keywords ? { keywords: JSON.stringify(keywords) } : {})
+      })
+      .where(eq(memoriesTable.id, memoryId));
+    
+    log(`[memoryStore] 成功更新记忆摘要: ${memoryId}`);
     return true;
   } catch (error) {
-    log(`[memoryStore] 更新记忆摘要时遇到错误: ${error}`);
-    return false;
+    const errorMsg = `[memoryStore] 更新记忆摘要时遇到错误: ${error}`;
+    log(errorMsg, 'error');
+    throw new Error(errorMsg);
   }
 }
