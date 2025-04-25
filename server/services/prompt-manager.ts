@@ -319,13 +319,19 @@ exit_threshold = 0.8
    */
   private hasModelSwitched(chatId: number, currentModel: string): boolean {
     const history = this.modelHistory.get(chatId);
-    // 历史记录存在且长度大于1且最后一个不是当前模型
-    return (
+    // 历史记录存在且长度大于0且上一个模型不是当前模型
+    const result = !!(
       history !== undefined && 
       history.length > 0 && 
       this.previousModelId && 
       this.previousModelId !== currentModel
     );
+    
+    if (result) {
+      log(`检测到模型切换: ${this.previousModelId} -> ${currentModel}，将添加切换校验`);
+    }
+    
+    return result;
   }
   
   /**
@@ -413,7 +419,7 @@ exit_threshold = 0.8
     // 模型切换提示
     if (this.previousModelId && this.previousModelId !== modelId) {
       // 在提示词末尾添加模型切换校验
-      updatedPrompt += `\n\n已切换至 ${modelId} 模型，请确认你已加载所有系统指令。`;
+      updatedPrompt += `\n\n${this.generateModelSwitchCheckPrompt(modelId)}`;
     }
     
     return this.cleanPrompt(updatedPrompt);
@@ -751,10 +757,10 @@ exit_threshold = 0.8
   }
   
   /**
-   * 生成模型切换校验提问
+   * 生成模型切换校验提示文本
    */
   generateModelSwitchCheckPrompt(modelId: string): string {
-    return `已切换至 ${modelId} 模型，请确认你已加载所有系统指令。`;
+    return `*** 模型切换检测 *** 已切换至 ${modelId} 模型，请确认你已加载所有系统指令并回复确认。`;
   }
 
   /**
