@@ -223,8 +223,8 @@ async function ensureServiceRunning(): Promise<boolean> {
 }
 
 /**
- * 直接调用Python嵌入脚本生成文本的向量嵌入
- * Replit环境中，直接调用Python脚本更可靠，避免维护长时间运行的服务
+ * 通过Flask API服务生成文本的向量嵌入
+ * 使用HTTP调用Python嵌入服务，更稳定、更可靠
  * @param text 需要嵌入的文本
  * @returns 向量嵌入
  */
@@ -238,225 +238,67 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
     log(`[flask_embedding] 开始生成嵌入，文本长度: ${text.length}`, 'info');
 
-    // 直接运行Python嵌入脚本
-    return new Promise<number[]>(async (resolve, reject) => {
-      try {
-        // 准备临时文件存储文本内容，避免命令行参数长度限制
-        const tempDir = path.join(os.tmpdir(), 'ai-embeddings');
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
-        }
-        
-        // 创建唯一的临时文件名
-        const tempFilePath = path.join(tempDir, `text_${Date.now()}_${Math.random().toString(36).substring(2, 15)}.txt`);
-        const outputFilePath = path.join(tempDir, `embedding_${Date.now()}_${Math.random().toString(36).substring(2, 15)}.json`);
-        
-        // 将文本写入临时文件
-        fs.writeFileSync(tempFilePath, text);
-        
-        // 确定Python脚本路径
-        const scriptDir = path.join(__dirname, '../api/embedding');
-        const scriptPath = path.join(scriptDir, 'direct_embed.py');
-        
-        // 如果direct_embed.py不存在，创建它
-        if (!fs.existsSync(scriptPath)) {
-          log(`[flask_embedding] 创建直接嵌入脚本: ${scriptPath}`, 'info');
-          const scriptContent = `#!/usr/bin/env python3
-"""
-直接嵌入脚本 - 读取文本文件，生成嵌入，将结果写入JSON文件
-"""
+    // 确保服务正在运行
+    const serviceRunning = await ensureServiceRunning();
+    if (!serviceRunning) {
+      throw new Error('嵌入服务未运行，无法生成嵌入');
+    }
 
-import sys
-import os
-import json
-import traceback
-
-# 添加父目录到系统路径
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
-sys.path.append(parent_dir)
-
-# 导入嵌入服务
-try:
-    from services.embedding import EmbeddingService
-    embedding_service = EmbeddingService()
-    
-    # 检查命令行参数
-    if len(sys.argv) != 3:
-        print("错误: 需要两个参数: 输入文件路径和输出文件路径")
-        sys.exit(1)
-    
-    input_file = sys.argv[1]
-    output_file = sys.argv[2]
-    
-    # 检查文件是否存在
-    if not os.path.exists(input_file):
-        print(f"错误: 找不到输入文件 {input_file}")
-        sys.exit(1)
-    
-    # 读取文本内容
-    with open(input_file, 'r', encoding='utf-8') as f:
-        text = f.read()
-    
-    # 生成嵌入
-    embedding = embedding_service.embed_single_text(text)
-    
-    # 将结果写入输出文件
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump({
-            "success": True,
-            "embedding": embedding,
-            "dimensions": len(embedding)
-        }, f)
-    
-    print(f"嵌入生成成功，维度: {len(embedding)}")
-    sys.exit(0)
-    
-except Exception as e:
-    traceback.print_exc()
-    
-    # 写入错误信息到输出文件
-    try:
-        with open(sys.argv[2], 'w', encoding='utf-8') as f:
-            json.dump({
-                "success": False,
-                "error": str(e)
-            }, f)
-    except:
-        pass
-    
-    print(f"错误: {e}")
-    sys.exit(1)
-`;
-          fs.writeFileSync(scriptPath, scriptContent);
-          // 确保脚本有执行权限
-          try {
-            fs.chmodSync(scriptPath, 0o755);
-          } catch (error) {
-            log(`[flask_embedding] 警告: 无法设置脚本执行权限: ${error}`, 'warn');
-          }
-        }
-        
-        // 设置超时，确保不会无限等待
-        const timeout = setTimeout(() => {
-          log(`[flask_embedding] 警告: 生成嵌入超时`, 'warn');
-          try {
-            if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-            if (fs.existsSync(outputFilePath)) fs.unlinkSync(outputFilePath);
-          } catch (error) {
-            log(`[flask_embedding] 清理临时文件失败: ${error}`, 'error');
-          }
-          reject(new Error('生成嵌入超时'));
-        }, 30000);
-        
-        log(`[flask_embedding] 执行直接嵌入脚本: ${scriptPath}`, 'info');
-        
-        // 执行Python脚本
-        const pythonPathEnv: string = process.env.PYTHON_PATH || 'python3';
-        const startTime = Date.now();
-        
-        const pyProcess = spawn(pythonPathEnv, [scriptPath, tempFilePath, outputFilePath], {
-          stdio: ['ignore', 'pipe', 'pipe']
-        });
-        
-        let stdoutData = '';
-        let stderrData = '';
-        
-        pyProcess.stdout.on('data', (data: Buffer) => {
-          stdoutData += data.toString();
-          log(`[flask_embedding] ${data.toString().trim()}`, 'info');
-        });
-        
-        pyProcess.stderr.on('data', (data: Buffer) => {
-          stderrData += data.toString();
-          log(`[flask_embedding] 错误: ${data.toString().trim()}`, 'error');
-        });
-        
-        pyProcess.on('close', (code: number) => {
-          clearTimeout(timeout);
-          const elapsedTime = Date.now() - startTime;
-          
-          if (code !== 0) {
-            log(`[flask_embedding] 脚本执行失败，退出码: ${code}, 耗时: ${elapsedTime}ms`, 'error');
-            log(`[flask_embedding] 错误输出: ${stderrData}`, 'error');
-            
-            try {
-              if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-            } catch (error) {
-              log(`[flask_embedding] 清理临时文件失败: ${error}`, 'error');
-            }
-            
-            // 尝试从输出文件读取更详细的错误信息
-            try {
-              if (fs.existsSync(outputFilePath)) {
-                const errorResult = JSON.parse(fs.readFileSync(outputFilePath, 'utf-8'));
-                fs.unlinkSync(outputFilePath);
-                
-                if (errorResult.error) {
-                  reject(new Error(`嵌入生成失败: ${errorResult.error}`));
-                  return;
-                }
-              }
-            } catch (error) {
-              log(`[flask_embedding] 读取错误输出失败: ${error}`, 'error');
-            }
-            
-            reject(new Error(`脚本执行失败，退出码: ${code}`));
-            return;
-          }
-          
-          // 从输出文件读取结果
-          try {
-            if (fs.existsSync(outputFilePath)) {
-              const result = JSON.parse(fs.readFileSync(outputFilePath, 'utf-8'));
-              
-              // 清理临时文件
-              try {
-                fs.unlinkSync(tempFilePath);
-                fs.unlinkSync(outputFilePath);
-              } catch (error) {
-                log(`[flask_embedding] 清理临时文件失败: ${error}`, 'error');
-              }
-              
-              if (!result.success || !result.embedding || !Array.isArray(result.embedding)) {
-                log(`[flask_embedding] 脚本返回无效结果: ${JSON.stringify(result)}`, 'error');
-                reject(new Error('脚本返回无效结果'));
-                return;
-              }
-              
-              log(`[flask_embedding] 嵌入生成成功，维度: ${result.dimensions}, 耗时: ${elapsedTime}ms`, 'info');
-              resolve(result.embedding);
-            } else {
-              log(`[flask_embedding] 输出文件不存在: ${outputFilePath}`, 'error');
-              
-              // 清理临时文件
-              try {
-                if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-              } catch (error) {
-                log(`[flask_embedding] 清理临时文件失败: ${error}`, 'error');
-              }
-              
-              reject(new Error('输出文件不存在'));
-            }
-          } catch (error) {
-            log(`[flask_embedding] 处理输出文件时出错: ${error}`, 'error');
-            
-            // 清理临时文件
-            try {
-              if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-              if (fs.existsSync(outputFilePath)) fs.unlinkSync(outputFilePath);
-            } catch (cleanError) {
-              log(`[flask_embedding] 清理临时文件失败: ${cleanError}`, 'error');
-            }
-            
-            reject(error);
-          }
-        });
-      } catch (error) {
-        log(`[flask_embedding] 执行脚本时出错: ${error}`, 'error');
-        reject(error);
+    // 使用Flask API生成嵌入
+    const startTime = Date.now();
+    const response = await axios.post(
+      `${DEFAULT_API_URL}/api/embed`,
+      { text },
+      { 
+        timeout: 30000,
+        headers: { 'Content-Type': 'application/json' }
       }
-    });
-  } catch (error) {
+    );
+
+    const elapsedTime = Date.now() - startTime;
+
+    if (!response.data.success || !response.data.embedding || !Array.isArray(response.data.embedding)) {
+      log(`[flask_embedding] API返回无效响应: ${JSON.stringify(response.data)}`, 'error');
+      throw new Error('API返回无效响应');
+    }
+
+    log(`[flask_embedding] 嵌入生成成功，维度: ${response.data.dimensions}, 耗时: ${elapsedTime}ms`, 'info');
+    return response.data.embedding;
+  } catch (error: any) {
+    // 处理特定的错误类型
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      log(`[flask_embedding] 连接嵌入服务失败: ${error.message}`, 'error');
+      
+      // 尝试重启服务
+      log(`[flask_embedding] 尝试重启嵌入服务...`, 'info');
+      const restartSuccess = await startEmbeddingService();
+      
+      if (restartSuccess) {
+        log(`[flask_embedding] 服务已重启，重试嵌入生成`, 'info');
+        // 等待服务启动
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // 重试请求
+        try {
+          const response = await axios.post(
+            `${DEFAULT_API_URL}/api/embed`,
+            { text },
+            { 
+              timeout: 30000,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
+          
+          if (response.data.success && response.data.embedding) {
+            log(`[flask_embedding] 重试成功，嵌入维度: ${response.data.dimensions}`, 'info');
+            return response.data.embedding;
+          }
+        } catch (retryError) {
+          log(`[flask_embedding] 重试失败: ${retryError}`, 'error');
+        }
+      }
+    }
+    
     log(`[flask_embedding] 嵌入生成出错: ${error}`, 'error');
     throw error;
   }
@@ -478,20 +320,84 @@ export async function calculateSimilarity(text1: string, text2: string): Promise
 
     log(`[flask_embedding] 开始计算相似度，文本1长度: ${text1.length}, 文本2长度: ${text2.length}`, 'info');
 
-    // 首先生成两个文本的嵌入
-    log(`[flask_embedding] 生成第一个文本的嵌入`, 'info');
-    const embedding1 = await generateEmbedding(text1);
+    // 确保服务正在运行
+    const serviceRunning = await ensureServiceRunning();
+    if (!serviceRunning) {
+      throw new Error('嵌入服务未运行，无法计算相似度');
+    }
+
+    // 使用Flask API直接计算相似度
+    const startTime = Date.now();
+    const response = await axios.post(
+      `${DEFAULT_API_URL}/api/similarity`,
+      { text1, text2 },
+      { 
+        timeout: 30000,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+
+    const elapsedTime = Date.now() - startTime;
+
+    if (!response.data.success || typeof response.data.similarity !== 'number') {
+      log(`[flask_embedding] API返回无效响应: ${JSON.stringify(response.data)}`, 'error');
+      throw new Error('API返回无效响应');
+    }
+
+    log(`[flask_embedding] 相似度计算成功: ${response.data.similarity}, 耗时: ${elapsedTime}ms`, 'info');
+    return response.data.similarity;
+  } catch (error: any) {
+    // 处理特定的错误类型
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      log(`[flask_embedding] 连接嵌入服务失败: ${error.message}`, 'error');
+      
+      // 尝试重启服务
+      log(`[flask_embedding] 尝试重启嵌入服务...`, 'info');
+      const restartSuccess = await startEmbeddingService();
+      
+      if (restartSuccess) {
+        log(`[flask_embedding] 服务已重启，重试相似度计算`, 'info');
+        // 等待服务启动
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // 重试请求
+        try {
+          const response = await axios.post(
+            `${DEFAULT_API_URL}/api/similarity`,
+            { text1, text2 },
+            { 
+              timeout: 30000,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
+          
+          if (response.data.success && typeof response.data.similarity === 'number') {
+            log(`[flask_embedding] 重试成功，相似度: ${response.data.similarity}`, 'info');
+            return response.data.similarity;
+          }
+        } catch (retryError) {
+          log(`[flask_embedding] 重试失败: ${retryError}`, 'error');
+        }
+      }
+      
+      // 如果服务无法启动或重试失败，回退到本地计算
+      log(`[flask_embedding] 无法通过API计算相似度，回退到本地计算`, 'warn');
+      
+      // 首先生成两个文本的嵌入
+      log(`[flask_embedding] 生成第一个文本的嵌入`, 'info');
+      const embedding1 = await generateEmbedding(text1);
+      
+      log(`[flask_embedding] 生成第二个文本的嵌入`, 'info');
+      const embedding2 = await generateEmbedding(text2);
+      
+      // 计算余弦相似度
+      log(`[flask_embedding] 计算余弦相似度`, 'info');
+      const similarity = cosineSimilarity(embedding1, embedding2);
+      
+      log(`[flask_embedding] 本地相似度计算成功: ${similarity}`, 'info');
+      return similarity;
+    }
     
-    log(`[flask_embedding] 生成第二个文本的嵌入`, 'info');
-    const embedding2 = await generateEmbedding(text2);
-    
-    // 计算余弦相似度
-    log(`[flask_embedding] 计算余弦相似度`, 'info');
-    const similarity = cosineSimilarity(embedding1, embedding2);
-    
-    log(`[flask_embedding] 相似度计算成功: ${similarity}`, 'info');
-    return similarity;
-  } catch (error) {
     log(`[flask_embedding] 相似度计算出错: ${error}`, 'error');
     throw error;
   }
