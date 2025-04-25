@@ -85,12 +85,14 @@ async function updatePlaceholderContent(memoryId, userId) {
 }
 
 /**
- * 导入真实AI嵌入服务
+ * 直接使用Python嵌入服务
+ * 由于在脚本中导入TypeScript模块比较复杂，我们改用直接调用Python嵌入服务
  */
-import { genAiService } from './server/services/genai/genai_service.js';
+import { spawn } from 'child_process';
+import { promisify } from 'util';
 
 /**
- * 生成向量嵌入 - 使用真实AI服务
+ * 生成向量嵌入 - 使用Python嵌入服务
  */
 async function generateEmbedding(text) {
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
@@ -105,27 +107,54 @@ async function generateEmbedding(text) {
       ? cleanedText.substring(0, 8000)
       : cleanedText;
     
-    log('使用GenAI服务生成真实语义向量嵌入', 'info');
+    log('使用Python嵌入服务生成真实语义向量嵌入', 'info');
     
-    // 确保服务已初始化
-    await genAiService.init();
-    
-    // 使用GenAI服务生成向量嵌入
-    const embedding = await genAiService.generateEmbedding(truncatedText);
-    
-    if (!embedding) {
-      log('GenAI嵌入服务返回空结果', 'warning');
-      return null;
-    }
-    
-    // 验证嵌入维度
-    if (embedding.length < 100) {
-      log(`警告: 嵌入维度异常 (${embedding.length})`, 'warning');
-    } else {
-      log(`成功生成${embedding.length}维语义向量嵌入`, 'success');
-    }
-    
-    return embedding;
+    return new Promise((resolve, reject) => {
+      // 创建一个临时文件来存储嵌入结果
+      const pythonProcess = spawn('python3', ['server/services/embedding.py', '--text', truncatedText]);
+      
+      let outputData = '';
+      let errorData = '';
+      
+      pythonProcess.stdout.on('data', (data) => {
+        outputData += data.toString();
+      });
+      
+      pythonProcess.stderr.on('data', (data) => {
+        errorData += data.toString();
+        log(`Python嵌入服务错误: ${data.toString()}`, 'error');
+      });
+      
+      pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+          log(`Python嵌入服务异常退出，代码: ${code}`, 'error');
+          reject(new Error(`Python进程异常退出: ${errorData}`));
+          return;
+        }
+        
+        try {
+          // 尝试解析输出的JSON数据
+          const result = JSON.parse(outputData);
+          
+          if (result && result.embedding && Array.isArray(result.embedding)) {
+            // 验证嵌入维度
+            if (result.embedding.length < 100) {
+              log(`警告: 嵌入维度异常 (${result.embedding.length})`, 'warning');
+            } else {
+              log(`成功生成${result.embedding.length}维语义向量嵌入`, 'success');
+            }
+            
+            resolve(result.embedding);
+          } else {
+            log('Python嵌入服务返回格式错误', 'error');
+            reject(new Error('嵌入服务返回数据格式错误'));
+          }
+        } catch (error) {
+          log(`解析嵌入结果出错: ${error.message}`, 'error');
+          reject(error);
+        }
+      });
+    });
   } catch (error) {
     log(`生成嵌入时出错: ${error instanceof Error ? error.message : String(error)}`, 'error');
     return null;
