@@ -12,6 +12,8 @@ interface ModelConfig {
   headers?: Record<string, string>;
   transformRequest?: (message: string, contextMemories?: string, searchResults?: string) => any;
   isSimulated: boolean;
+  // 添加此标志以指示是否使用提示词管理服务
+  usePromptManager?: boolean;
   getResponse: (message: string, userId?: number, contextMemories?: string, searchResults?: string, useWebSearch?: boolean) => Promise<{ text: string; model: string }>;
 }
 
@@ -61,6 +63,7 @@ export class ChatService {
           "Content-Type": "application/json",
         },
         isSimulated: !geminiApiKey,
+        usePromptManager: true, // 启用提示词管理服务
         transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
           // 获取Gemini的提示词模板（如果有）
           let basePrompt = '';
@@ -211,6 +214,7 @@ ${searchResults}`;
           "Content-Type": "application/json",
         },
         isSimulated: !deepseekApiKey,
+        usePromptManager: true, // 启用提示词管理服务
         transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
           // 获取DeepSeek的提示词模板（如果有）
           let basePrompt = '';
@@ -399,6 +403,7 @@ ${searchResults}
           "Content-Type": "application/json",
         },
         isSimulated: !grokApiKey,
+        usePromptManager: true, // 启用提示词管理服务
         transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
           // 获取Grok的提示词模板（如果有）
           let systemPrompt = '';
@@ -517,6 +522,7 @@ ${searchResults}
           "Content-Type": "application/json",
         },
         isSimulated: !difyApiKey,
+        usePromptManager: true, // 启用提示词管理服务
         transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
           // Deep模型是一个工作流，直接发送用户查询而不需要复杂的提示词模板
           const userQuestion = message.trim();
