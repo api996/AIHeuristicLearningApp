@@ -138,10 +138,10 @@ asyncio.run(cluster_memories())
         cleanupTempFile();
         
         if (code !== 0) {
-          log(`[cluster] 聚类失败，Python进程退出码: ${code}`);
-          // 使用备用方法进行简单聚类
-          const fallbackClusters = await performSimpleClustering(memories, options);
-          resolve(fallbackClusters);
+          const errorMsg = `[cluster] Python聚类服务失败，退出码: ${code}，请确保Python环境正确配置`;
+          log(errorMsg, 'error');
+          // 不使用备用方法，而是抛出错误，确保问题可见
+          reject(new Error(errorMsg));
         } else {
           try {
             const clusters = JSON.parse(output.trim());
@@ -186,10 +186,10 @@ asyncio.run(cluster_memories())
             
             resolve(formattedClusters);
           } catch (error) {
-            log(`[cluster] 解析聚类结果失败: ${error}`);
-            // 使用备用方法进行简单聚类
-            const fallbackClusters = await performSimpleClustering(memories, options);
-            resolve(fallbackClusters);
+            const errorMsg = `[cluster] 解析Python聚类结果失败: ${error}，请检查Python脚本的输出格式`;
+            log(errorMsg, 'error');
+            // 不使用备用方法，而是抛出错误，确保问题可见
+            reject(new Error(errorMsg));
           }
         }
       });
@@ -202,15 +202,16 @@ asyncio.run(cluster_memories())
         // 确保临时文件被清理
         cleanupTempFile();
         
-        log(`[cluster] 启动Python进程失败: ${error}`);
-        // 使用备用方法进行简单聚类
-        const fallbackClusters = await performSimpleClustering(memories, options);
-        resolve(fallbackClusters);
+        const errorMsg = `[cluster] 启动Python聚类进程失败: ${error}，请检查Python环境配置`;
+        log(errorMsg, 'error');
+        // 不使用备用方法，而是抛出错误，确保问题可见
+        reject(new Error(errorMsg));
       });
     });
   } catch (error) {
-    log(`[cluster] 聚类时遇到错误: ${error}`);
-    return performSimpleClustering(memories, options);
+    // 捕获并抛出错误，不使用备用方法
+    log(`[cluster] 聚类时遇到错误: ${error}`, 'error');
+    throw new Error(`Python聚类服务无法正常工作: ${error}`);
   }
 }
 
