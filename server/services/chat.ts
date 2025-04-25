@@ -61,6 +61,7 @@ export class ChatService {
         endpoint: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-exp-03-25:generateContent`,
         headers: {
           "Content-Type": "application/json",
+        usePromptManager: true, // 启用提示词管理服务
         },
         isSimulated: !geminiApiKey,
         usePromptManager: true, // 启用提示词管理服务
@@ -213,8 +214,8 @@ ${searchResults}`;
           "Authorization": `Bearer ${deepseekApiKey}`,
           "Content-Type": "application/json",
         },
-        isSimulated: !deepseekApiKey,
         usePromptManager: true, // 启用提示词管理服务
+        isSimulated: !deepseekApiKey,
         transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
           // 获取DeepSeek的提示词模板（如果有）
           let basePrompt = '';
