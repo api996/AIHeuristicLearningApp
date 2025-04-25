@@ -88,7 +88,7 @@ class GeminiService implements GenAIService {
     }
   }
 
-  async generateEmbedding(text: string): Promise<number[] | null> {
+  async generateEmbedding(text: string): Promise<number[]> {
     try {
       // 直接调用Python嵌入服务
       log("[genai_service] 调用Python嵌入服务生成向量嵌入", "info");
@@ -100,18 +100,25 @@ class GeminiService implements GenAIService {
       const embedding = await pythonEmbeddingService.generateEmbedding(text);
       
       if (!embedding) {
-        log("[genai_service] Python嵌入服务返回空结果，请检查Python环境配置", "error");
-        throw new Error("Python嵌入服务无法生成向量，请确保python3和相关依赖已正确安装");
+        const errorMsg = "[genai_service] Python嵌入服务返回空结果，请检查Python环境配置";
+        log(errorMsg, "error");
+        throw new Error(errorMsg);
+      }
+      
+      // 验证嵌入维度
+      const expectedDimension = 3072;
+      if (embedding.length !== expectedDimension) {
+        const errorMsg = `[genai_service] 嵌入维度异常: 实际${embedding.length}维, 期望${expectedDimension}维`;
+        log(errorMsg, "error");
+        throw new Error(errorMsg);
       }
       
       log(`[genai_service] 成功生成${embedding.length}维向量嵌入（通过Python服务）`, "info");
       return embedding;
     } catch (error) {
-      log(`[genai_service] 通过Python服务生成嵌入失败: ${error}`, "error");
-      
-      // 出错时抛出异常，不使用备用API
-      // 这样可以强制修复Python环境问题，而不是依赖备用方案
-      throw new Error(`嵌入向量生成失败，请确保Python环境正确安装: ${error}`);
+      const errorMsg = `[genai_service] 通过Python服务生成嵌入失败: ${error}`;
+      log(errorMsg, "error");
+      throw new Error(errorMsg);
     }
   }
 
@@ -290,10 +297,11 @@ class GeminiService implements GenAIService {
  * 后备服务实现（当API不可用时）
  */
 class FallbackService implements GenAIService {
-  async generateEmbedding(text: string): Promise<number[] | null> {
-    // 生成一个随机向量作为后备，使用3072维度以匹配高质量文本嵌入
-    log("[genai_service] 使用3072维随机向量作为后备嵌入", "warn");
-    return Array.from({ length: 3072 }, () => (Math.random() * 2 - 1) * 0.01);
+  async generateEmbedding(text: string): Promise<number[]> {
+    // 不再使用随机向量后备，而是抛出异常，确保问题可见
+    const errorMsg = "[genai_service] 嵌入服务不可用，且不再提供后备实现";
+    log(errorMsg, "error");
+    throw new Error(errorMsg);
   }
 
   async generateSummary(text: string): Promise<string | null> {
@@ -386,13 +394,10 @@ export const initializeGenAIService = async (): Promise<GenAIService> => {
     genAiService = service;
     return service;
   } catch (error) {
-    log(`[genai_service] 初始化失败: ${error}`, "error");
-    
-    // 返回后备服务，确保任何时候都有功能
-    log(`[genai_service] 使用后备服务`, "warn");
-    const fallbackService = new FallbackService();
-    genAiService = fallbackService;
-    return fallbackService;
+    // 不再静默地使用后备服务，而是向上抛出错误，使问题可见
+    const errorMsg = `[genai_service] 初始化失败: ${error}, 请检查API密钥和环境设置`;
+    log(errorMsg, "error");
+    throw new Error(errorMsg);
   }
 };
 
@@ -407,6 +412,14 @@ export const initializeGenAIService = async (): Promise<GenAIService> => {
       log(`[genai_service] 初始化错误处理: ${error}`, "error");
       // 即使出错也要解决Promise，避免阻塞
       resolve();
+      // 服务初始化失败是严重错误，应打印明确的错误信息
+      console.error(`
+====================================
+严重错误: GenAI服务初始化失败
+请确保GEMINI_API_KEY已正确设置
+记忆向量嵌入功能将不可用
+====================================
+      `);
     }
   });
 })();
@@ -414,8 +427,9 @@ export const initializeGenAIService = async (): Promise<GenAIService> => {
 // 为防止初始导出的genAiService为undefined，提供一个错误提示方法
 setTimeout(() => {
   if (!genAiService) {
-    log(`[genai_service] 警告：服务初始化可能失败，API调用可能会出错`, "error");
-    // 创建一个后备服务以防万一
-    genAiService = new FallbackService();
+    const errorMsg = "[genai_service] 严重错误：GenAI服务初始化失败，向量嵌入功能无法使用，请检查GEMINI_API_KEY配置";
+    log(errorMsg, "error");
+    // 由于我们现在不再使用后备服务，这里抛出一个更为明确的错误
+    throw new Error(errorMsg);
   }
 }, 5000);
