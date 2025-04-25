@@ -270,7 +270,12 @@ exit_threshold = 0.8
       
       // 添加模型切换校验
       if (modelSwitched) {
+        log(`正在添加模型切换校验，当前模型 ${modelId}，上一个模型 ${this.previousModelId}`);
         result = this.appendModelSwitchCheck(result, modelId);
+        // 打印添加校验后的提示词长度
+        log(`添加模型切换校验后提示词长度: ${result.length} 字符`);
+      } else {
+        log(`未添加模型切换校验，modelSwitched=${modelSwitched}, 当前模型=${modelId}, 上一个模型=${this.previousModelId}`);
       }
       
       // 添加阶段变更校验
@@ -774,8 +779,9 @@ exit_threshold = 0.8
   
   /**
    * 生成模型切换校验提示文本
+   * 公开为公共方法以方便测试
    */
-  generateModelSwitchCheckPrompt(modelId: string): string {
+  public generateModelSwitchCheckPrompt(modelId: string): string {
     return `*** 模型切换检测 *** 已切换至 ${modelId} 模型，请确认你已加载所有系统指令并回复确认。`;
   }
 
