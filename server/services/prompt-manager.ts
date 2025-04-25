@@ -309,8 +309,12 @@ exit_threshold = 0.8
       if (history.length === 0 || history[history.length - 1] !== modelId) {
         history.push(modelId);
       }
+    } else if (history.length === 0) {
+      // 首次使用，记录到历史
+      history.push(modelId);
     }
     
+    // 始终更新previousModelId
     this.previousModelId = modelId;
   }
   
