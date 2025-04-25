@@ -1525,17 +1525,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // 检测消息是否包含图片
+      // 检测消息是否包含图片或文件
       const containsImage = message.includes('![Uploaded Image](') && message.includes(')');
+      const containsFile = message.includes('[文件](') && message.includes(')') || 
+                           message.includes('[file](') && message.includes(')');
       
-      // 模型兼容性检查 - 如果包含图片但使用不支持图片的模型，自动切换到Gemini
+      // 模型兼容性检查 - 如果包含图片或文件但使用不支持的模型，自动切换到Grok
       let actualModel = model;
       let modelSwitched = false;
-      if (containsImage) {
-        // 目前只有Gemini和部分配置的Grok支持图片
-        if (model === 'deepseek' || model === 'deep') {
-          log(`检测到图片消息，但选择的模型 ${model} 不支持图片处理，自动切换到Gemini模型`);
-          actualModel = 'gemini';
+      if (containsImage || containsFile) {
+        // 目前只有Grok和Gemini支持多模态输入，但优先使用Grok
+        if (model === 'deepseek' || model === 'deep' || model === 'gemini') {
+          log(`检测到图片或文件消息，但选择的模型 ${model} 不是优选的多模态处理模型，自动切换到Grok模型`);
+          actualModel = 'grok';
           modelSwitched = true;
         }
       }
@@ -1630,7 +1632,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // 更新模型设置（如果发生了自动切换）
         if (modelSwitched) {
           chatService.setModel(actualModel);
-          log(`由于图片处理需要，模型已从 ${model} 自动切换到 ${actualModel}`);
+          const mediaType = containsImage ? (containsFile ? "图片与文件" : "图片") : "文件";
+          log(`由于${mediaType}处理需要，模型已从 ${model} 自动切换到 ${actualModel}`);
         }
         
         // 正常的处理流程，包含记忆和搜索功能
@@ -1638,7 +1641,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // 如果模型被自动切换，在响应中添加通知
         if (modelSwitched) {
-          response.text = `[系统通知: 由于您发送了图片，系统已自动切换到支持图片的Gemini模型]\n\n${response.text}`;
+          const mediaType = containsImage ? (containsFile ? "图片或文件" : "图片") : "文件";
+          response.text = `[系统通知: 由于您发送了${mediaType}，系统已自动切换到支持多模态输入的Grok模型]\n\n${response.text}`;
         }
       }
 
