@@ -1431,20 +1431,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // 获取聊天历史消息，用于构建上下文摘要
+      // 获取聊天历史消息，用于保持上下文连续性
       log(`正在为模型切换 ${chat.model} -> ${model} 获取历史消息，聊天ID: ${chatId}`);
       const messages = await storage.getChatMessages(chatId, userId, isAdmin);
-      
-      // 生成历史消息摘要
-      const historySummary = await generateChatHistorySummary(messages);
-      log(`已生成上下文摘要，长度: ${historySummary.length} 字符`);
       
       // 创建一条系统消息记录模型切换事件
       let modelSwitchMessage = `已从 ${chat.model} 模型切换至 ${model} 模型。`;
       
+      // 根据目标模型的窗口大小判断是否需要进行历史消息压缩
+      let contextContent = "";
+      let isContextTrimmed = false;
+      
+      // 构建原始消息内容 - 最多保留最近15条消息，避免过长
+      const recentMessages = messages.slice(-15);
+      for (const msg of recentMessages) {
+        if (msg.role !== "system") { // 排除系统消息
+          const prefix = msg.role === "user" ? "用户: " : "AI: ";
+          contextContent += `${prefix}${msg.content}\n\n`;
+        }
+      }
+      
+      // 检查上下文大小，根据模型限制可能需要压缩
+      // 估算当前文本的token数量（粗略估计：平均每4个字符一个token）
+      const estimatedTokens = Math.ceil(contextContent.length / 4);
+      
+      // 模型窗口大小定义
+      const MODEL_MAX_TOKENS: Record<string, number> = {
+        "deepseek": 16000,  // DeepSeek-R1
+        "gemini": 32000,    // Gemini 2.5 Pro
+        "grok": 4000,       // Grok 3 Fast Beta
+        "deep": 8000        // Deep
+      };
+      
+      const maxTokens = MODEL_MAX_TOKENS[model] || 8000; // 默认值
+      const reservedTokens = 2000; // 为系统提示和回复预留的token数
+      
+      // 如果估计的token数量超出模型限制，则进行摘要
+      if (estimatedTokens > maxTokens - reservedTokens) {
+        log(`上下文超出${model}模型限制，需要进行摘要，原始估计token: ${estimatedTokens}，限制: ${maxTokens - reservedTokens}`);
+        // 生成历史消息摘要
+        contextContent = await generateChatHistorySummary(messages);
+        isContextTrimmed = true;
+        log(`已生成上下文摘要，长度: ${contextContent.length} 字符，估计token: ${Math.ceil(contextContent.length / 4)}`);
+      } else {
+        log(`保留完整上下文，估计token: ${estimatedTokens}，${model}模型限制: ${maxTokens - reservedTokens}`);
+      }
+      
       // 在提示词管理服务中记录模型切换
-      // 使用历史摘要生成上下文保持提示
-      const modelSwitchPrompt = promptManagerService.generateModelSwitchCheckPrompt(model, historySummary);
+      // 使用历史消息或摘要生成上下文保持提示
+      const modelSwitchPrompt = promptManagerService.generateModelSwitchCheckPrompt(model, contextContent);
       
       // 创建一条系统消息用于模型切换通知
       await storage.createMessage(chatId, modelSwitchMessage, "system");
@@ -1466,7 +1501,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Chat model updated successfully",
         previousModel: chat.model,
         newModel: model,
-        contextPreserved: historySummary.length > 0,
+        contextPreserved: contextContent.length > 0,
+        contextTrimmed: isContextTrimmed,
         changed: true
       });
     } catch (error) {
