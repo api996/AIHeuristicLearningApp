@@ -24,6 +24,101 @@ import clusteringTestRoutes from './routes/clustering-test';
 import repairMemoryRoutes from './routes/repair-memory';
 import topicGraphRoutes from './routes/topic-graph';
 import { initializeBucket } from './services/file-bucket.service';
+import { promptManagerService } from './services/prompt-manager';
+import { Message } from "../shared/schema";
+
+/**
+ * 生成聊天历史摘要
+ * 将聊天历史转换为模型切换时可用的上下文摘要
+ * @param messages 聊天历史消息
+ * @param maxLength 最大摘要长度
+ * @returns 格式化的聊天历史摘要
+ */
+async function generateChatHistorySummary(messages: Message[], maxLength: number = 4000): Promise<string> {
+  if (!messages || messages.length === 0) {
+    return "";
+  }
+
+  let summary = "";
+  // 限制消息数量，避免过长
+  const recentMessages = messages.slice(-15); // 最近15条消息
+  
+  for (const msg of recentMessages) {
+    const prefix = msg.role === "user" ? "用户: " : "AI: ";
+    // 压缩每条消息，确保摘要不会过长
+    let content = msg.content;
+    if (content.length > 200) {
+      content = content.substring(0, 197) + "...";
+    }
+    summary += `${prefix}${content}\n\n`;
+  }
+  
+  // 限制总长度
+  if (summary.length > maxLength) {
+    summary = summary.substring(0, maxLength - 3) + "...";
+  }
+  
+  return summary;
+}
+
+/**
+ * 动态截断上下文
+ * 根据模型窗口大小自动截断上下文
+ * @param messages 消息列表
+ * @param model 目标模型名称
+ * @returns 截断后的消息列表
+ */
+function trimContextForModel(messages: Message[], model: string): Message[] {
+  // 模型上下文窗口大小定义
+  const MODEL_WINDOW: Record<string, number> = {
+    "deepseek": 65536,  // DeepSeek-R1
+    "gemini": 131072,   // Gemini 2.5 Pro
+    "grok": 16384       // Grok 3 Fast Beta
+  };
+  
+  const RESPONSE_BUFFER = 1024; // 预留给LLM生成的空间
+  const windowSize = MODEL_WINDOW[model] || 65536; // 默认值
+  
+  // 简单的token估算函数
+  const estimateTokens = (text: string): number => {
+    return Math.ceil(text.length / 4); // 粗略估计：每4个字符约1个token
+  };
+  
+  // 计算当前消息总token数
+  let totalTokens = messages.reduce((sum, msg) => {
+    return sum + estimateTokens(msg.content);
+  }, 0);
+  
+  // 如果总token数在限制范围内，直接返回原消息列表
+  if (totalTokens + RESPONSE_BUFFER <= windowSize) {
+    return [...messages];
+  }
+  
+  // 需要截断
+  const result = [...messages];
+  
+  // 从前向后删除非system消息，直到满足窗口限制
+  while (totalTokens + RESPONSE_BUFFER > windowSize && result.length > 0) {
+    // 找到第一个非system消息
+    const nonSystemIndex = result.findIndex(m => m.role !== "system");
+    
+    if (nonSystemIndex >= 0) {
+      // 删除该消息并重新计算token总数
+      const removedMsg = result.splice(nonSystemIndex, 1)[0];
+      totalTokens -= estimateTokens(removedMsg.content);
+    } else {
+      // 如果只剩system消息，从最早的system消息开始删除
+      const removedMsg = result.shift();
+      if (removedMsg) {
+        totalTokens -= estimateTokens(removedMsg.content);
+      } else {
+        break; // 防止无限循环
+      }
+    }
+  }
+  
+  return result;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // 简化的开发者认证API - 暂时注释
@@ -1298,7 +1393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/chats/:chatId/model", async (req, res) => {
     try {
       const chatId = parseInt(req.params.chatId, 10);
-      const { model, userId, userRole } = req.body;
+      const { model, userId, userRole, useWebSearch } = req.body;
 
       if (isNaN(chatId) || !model || !userId) {
         return res.status(400).json({ 
@@ -1336,16 +1431,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // 获取聊天历史消息，用于构建上下文摘要
+      log(`正在为模型切换 ${chat.model} -> ${model} 获取历史消息，聊天ID: ${chatId}`);
+      const messages = await storage.getChatMessages(chatId, userId, isAdmin);
+      
+      // 生成历史消息摘要
+      const historySummary = await generateChatHistorySummary(messages);
+      log(`已生成上下文摘要，长度: ${historySummary.length} 字符`);
+      
+      // 创建一条系统消息记录模型切换事件
+      let modelSwitchMessage = `已从 ${chat.model} 模型切换至 ${model} 模型。`;
+      
+      // 在提示词管理服务中记录模型切换
+      // 使用历史摘要生成上下文保持提示
+      const modelSwitchPrompt = promptManagerService.generateModelSwitchCheckPrompt(model, historySummary);
+      
+      // 创建一条系统消息用于模型切换通知
+      await storage.createMessage(chatId, modelSwitchMessage, "system");
+      log(`已添加模型切换系统消息`);
+      
       // 更新聊天模型
       await storage.updateChatModel(chatId, model);
-
       log(`已更新聊天 ${chatId} 的模型从 ${chat.model} 变更为 ${model}，用户ID: ${userId}`);
+      
+      // 设置聊天服务的模型和网络搜索状态（如果提供）
+      chatService.setModel(model);
+      if (useWebSearch !== undefined) {
+        chatService.setWebSearchEnabled(useWebSearch);
+        log(`网络搜索状态已设置为: ${useWebSearch}`);
+      }
 
       res.json({ 
         success: true, 
         message: "Chat model updated successfully",
         previousModel: chat.model,
         newModel: model,
+        contextPreserved: historySummary.length > 0,
         changed: true
       });
     } catch (error) {
