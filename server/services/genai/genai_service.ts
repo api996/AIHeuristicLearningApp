@@ -100,8 +100,8 @@ class GeminiService implements GenAIService {
       const embedding = await pythonEmbeddingService.generateEmbedding(text);
       
       if (!embedding) {
-        log("[genai_service] Python嵌入服务返回空结果", "warn");
-        return null;
+        log("[genai_service] Python嵌入服务返回空结果，请检查Python环境配置", "error");
+        throw new Error("Python嵌入服务无法生成向量，请确保python3和相关依赖已正确安装");
       }
       
       log(`[genai_service] 成功生成${embedding.length}维向量嵌入（通过Python服务）`, "info");
@@ -109,24 +109,9 @@ class GeminiService implements GenAIService {
     } catch (error) {
       log(`[genai_service] 通过Python服务生成嵌入失败: ${error}`, "error");
       
-      // 出错时尝试使用直接API调用（作为备用）
-      if (this.genAI) {
-        try {
-          // 备用方案：直接使用JavaScript SDK
-          log("[genai_service] 尝试使用备用JavaScript API", "warn");
-          const modelName = "models/embedding-001";
-          const model = this.genAI.getGenerativeModel({ model: modelName });
-          const result = await model.embedContent(text);
-          const embedding = result.embedding.values;
-          log(`[genai_service] 备用API成功生成嵌入`, "info");
-          return embedding;
-        } catch (fallbackError) {
-          log(`[genai_service] 备用API也失败: ${fallbackError}`, "error");
-          return null;
-        }
-      }
-      
-      return null;
+      // 出错时抛出异常，不使用备用API
+      // 这样可以强制修复Python环境问题，而不是依赖备用方案
+      throw new Error(`嵌入向量生成失败，请确保Python环境正确安装: ${error}`);
     }
   }
 
