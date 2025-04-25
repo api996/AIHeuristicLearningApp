@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import argparse
 from typing import List, Dict, Any, Optional
 from collections import deque
 
@@ -58,6 +59,47 @@ if not GEMINI_API_KEY:
 
 # 配置API密钥
 genai.configure(api_key=GEMINI_API_KEY)
+
+# 命令行脚本函数
+def embed_text_from_cli():
+    """
+    从命令行接收文本并返回嵌入向量
+    """
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description='生成文本的向量嵌入')
+    parser.add_argument('--text', type=str, required=True, help='要嵌入的文本')
+    args = parser.parse_args()
+    
+    # 创建嵌入服务实例
+    service = EmbeddingService()
+    
+    # 生成向量嵌入
+    try:
+        embedding = service.embed_single_text(args.text)
+        
+        # 输出JSON格式的结果
+        if embedding is None:
+            error_result = {
+                "success": False,
+                "error": "嵌入生成失败，返回为None"
+            }
+            print(json.dumps(error_result))
+            return 1
+            
+        result = {
+            "success": True,
+            "embedding": embedding,
+            "dimensions": len(embedding)
+        }
+        print(json.dumps(result))
+        return 0
+    except Exception as e:
+        error_result = {
+            "success": False,
+            "error": str(e)
+        }
+        print(json.dumps(error_result))
+        return 1
 
 class EmbeddingService:
     """提供文本嵌入服务 - 优化版本，减少API调用"""
@@ -466,56 +508,6 @@ class EmbeddingService:
                 print(error_msg)
                 raise ValueError(error_msg)
 
-# 创建服务实例
-embedding_service = EmbeddingService()
-
-# 命令行接口处理
+# 主入口点
 if __name__ == "__main__":
-    # 从标准输入读取JSON数据
-    try:
-        input_data = sys.stdin.read()
-        if not input_data:
-            print(json.dumps({"error": "没有输入数据"}))
-            sys.exit(1)
-            
-        # 解析输入
-        data = json.loads(input_data)
-        operation = data.get("operation", "")
-        
-        # 处理不同的操作
-        if operation == "embed":
-            # 嵌入单个文本
-            text = data.get("text", "")
-            if not text:
-                print(json.dumps({"error": "文本为空"}))
-                sys.exit(1)
-            
-            try:
-                embedding = embedding_service.embed_single_text(text)
-                print(json.dumps({"embedding": embedding}))
-            except Exception as e:
-                print(json.dumps({"error": f"嵌入生成失败: {str(e)}"}))
-                
-        elif operation == "similarity":
-            # 计算两个文本的相似度
-            text1 = data.get("text1", "")
-            text2 = data.get("text2", "")
-            
-            if not text1 or not text2:
-                print(json.dumps({"error": "需要两个非空文本"}))
-                sys.exit(1)
-            
-            try:
-                similarity = embedding_service.calculate_similarity(text1, text2)
-                print(json.dumps({"similarity": similarity}))
-            except Exception as e:
-                print(json.dumps({"error": f"相似度计算失败: {str(e)}"}))
-                sys.exit(1)
-            
-        else:
-            print(json.dumps({"error": f"未知操作: {operation}"}))
-            
-    except json.JSONDecodeError:
-        print(json.dumps({"error": "输入不是有效的JSON"}))
-    except Exception as e:
-        print(json.dumps({"error": f"处理请求时出错: {str(e)}"}))
+    sys.exit(embed_text_from_cli())
