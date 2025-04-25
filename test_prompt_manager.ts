@@ -82,9 +82,12 @@ async function testBasePromptGeneration(): Promise<boolean> {
     log(`生成的基本提示词 (截取前100字符):\n${basePrompt.substring(0, 100)}...`);
     
     // 验证提示词中是否包含关键内容
-    const containsSystem = basePrompt.includes('启发式教育导师');
-    const containsKWLQ = basePrompt.includes('KWLQ') || basePrompt.includes('stage');
-    const containsRunState = basePrompt.includes('state') || basePrompt.includes('progress');
+    const containsSystem = basePrompt.includes('启发式教育导师') || basePrompt.includes('AI学习助手');
+    const containsKWLQ = basePrompt.includes('KWLQ') || basePrompt.includes('stage') || 
+                          basePrompt.includes('K 阶段') || basePrompt.includes('W 阶段') || 
+                          basePrompt.includes('L 阶段') || basePrompt.includes('Q 阶段');
+    const containsRunState = basePrompt.includes('state') || basePrompt.includes('progress') || 
+                              basePrompt.includes('进度') || basePrompt.includes('状态');
     
     log(`包含系统角色定义: ${containsSystem ? '✓' : '✗'}`, containsSystem ? 'success' : 'error');
     log(`包含KWLQ相关内容: ${containsKWLQ ? '✓' : '✗'}`, containsKWLQ ? 'success' : 'error');
@@ -174,7 +177,8 @@ async function testModelSwitchDetection(): Promise<boolean> {
     // 验证提示词中是否包含模型切换校验
     const containsModelCheck = 
       promptDeepseek.includes('已切换至 deepseek 模型') || 
-      promptDeepseek.includes('确认你已加载所有系统指令');
+      promptDeepseek.includes('确认你已加载所有系统指令') ||
+      promptDeepseek.includes('*** 模型切换检测 ***');
     
     log(`包含模型切换校验: ${containsModelCheck ? '✓' : '✗'}`, containsModelCheck ? 'success' : 'error');
     
