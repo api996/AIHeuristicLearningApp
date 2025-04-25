@@ -7,6 +7,14 @@ import { conversationAnalyticsService } from "./conversation-analytics";
 import { contentModerationService } from "./content-moderation";
 import { type Message } from "../../shared/schema";
 
+// 各模型的上下文窗口大小配置，基于参考架构文档
+const MODEL_WINDOW = {
+  "deepseek": 65536,  // DeepSeek-R1
+  "gemini": 131072,   // gemini-2.5-pro
+  "grok": 16384,      // grok-3-fast-beta
+  "deep": 32768       // Dify的窗口大小(估计值)
+};
+
 interface ModelConfig {
   endpoint?: string;
   headers?: Record<string, string>;

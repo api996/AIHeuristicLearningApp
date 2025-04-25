@@ -717,18 +717,20 @@ ${truncatedContent}
       return "";
     }
     
-    let context = "以下是从网络搜索中获取的相关信息：\n\n";
+    // 使用参考架构中的格式，用【SEARCH-RESULTS】和【END-SEARCH】作为边界标记
+    let context = "【SEARCH-RESULTS】\n";
     
     snippets.forEach((snippet, index) => {
-      context += `[${index + 1}] ${snippet.title}\n`;
-      context += `${snippet.snippet}\n`;
+      context += `--- 结果 ${index + 1} ---\n`;
+      context += `标题: ${snippet.title}\n`;
+      context += `摘要: ${snippet.snippet}\n`;
       if (snippet.url) {
-        context += `来源: ${snippet.url}\n`;
+        context += `URL: ${snippet.url}\n`;
       }
       context += "\n";
     });
     
-    context += "请根据以上信息和您的知识来回答问题。如果引用特定信息，可以标注来源编号，例如[1]。\n";
+    context += "【END-SEARCH】\n";
     
     return context;
   }
