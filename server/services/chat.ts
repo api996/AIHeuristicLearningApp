@@ -6,6 +6,8 @@ import { promptManagerService } from "./prompt-manager";
 import { conversationAnalyticsService } from "./conversation-analytics";
 import { contentModerationService } from "./content-moderation";
 import { type Message } from "../../shared/schema";
+import fs from "fs";
+import path from "path";
 
 // 各模型的上下文窗口大小配置，基于最新官方规格
 const MODEL_WINDOW: Record<string, number> = {
@@ -194,11 +196,90 @@ ${searchResults}
             }
           }
           
-          // 添加当前用户消息
-          requestBody.contents.push({
-            role: "user",
-            parts: [{ text: message }]
-          });
+          // 添加当前用户消息 - 检测并处理图片内容
+          if (message.includes('![Uploaded Image](') && message.includes(')')) {
+            // 解析图片URL
+            const imageUrlMatch = message.match(/!\[Uploaded Image\]\(([^)]+)\)/);
+            if (imageUrlMatch && imageUrlMatch[1]) {
+              const imageUrl = imageUrlMatch[1];
+              log(`检测到图片消息，URL: ${imageUrl}`);
+              
+              try {
+                // 获取图片的完整路径
+                const imagePath = imageUrl.startsWith('http') 
+                  ? imageUrl 
+                  : path.join(process.cwd(), imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl);
+                
+                // 如果是本地文件，读取图片内容
+                let imageData;
+                if (!imageUrl.startsWith('http')) {
+                  // 读取图片文件
+                  const imageBuffer = fs.readFileSync(imagePath);
+                  // 转换为base64
+                  imageData = imageBuffer.toString('base64');
+                  
+                  // 文本部分 - 提示AI这是用户上传的图片
+                  const textPart = { text: "请分析我上传的这张图片:" };
+                  
+                  // 获取图片的MIME类型
+                  let mimeType = "image/jpeg"; // 默认MIME类型
+                  // 根据文件扩展名确定MIME类型
+                  const ext = path.extname(imagePath).toLowerCase();
+                  if (ext === '.png') {
+                    mimeType = "image/png";
+                  } else if (ext === '.gif') {
+                    mimeType = "image/gif";
+                  } else if (ext === '.webp') {
+                    mimeType = "image/webp";
+                  } else if (ext === '.svg') {
+                    mimeType = "image/svg+xml";
+                  }
+                  
+                  // 图片部分
+                  const imagePart = {
+                    inlineData: {
+                      mimeType: mimeType,
+                      data: imageData
+                    }
+                  };
+                  
+                  // 添加多模态内容
+                  requestBody.contents.push({
+                    role: "user",
+                    parts: [textPart, imagePart]
+                  });
+                  
+                  log(`成功添加图片内容到Gemini请求`);
+                } else {
+                  // 如果是外部URL，直接添加文本消息
+                  log(`检测到外部URL图片，仅添加文本引用: ${imageUrl}`);
+                  requestBody.contents.push({
+                    role: "user",
+                    parts: [{ text: message }]
+                  });
+                }
+              } catch (error) {
+                log(`处理图片失败: ${error}`);
+                // 出错时使用原始文本消息
+                requestBody.contents.push({
+                  role: "user",
+                  parts: [{ text: message }]
+                });
+              }
+            } else {
+              // 图片格式无效，使用原始消息
+              requestBody.contents.push({
+                role: "user",
+                parts: [{ text: message }]
+              });
+            }
+          } else {
+            // 普通文本消息
+            requestBody.contents.push({
+              role: "user",
+              parts: [{ text: message }]
+            });
+          }
           
           // 估算token数并在必要时进行裁剪
           const modelMaxTokens = MODEL_WINDOW["gemini"]; // 使用常量配置的Gemini窗口大小
