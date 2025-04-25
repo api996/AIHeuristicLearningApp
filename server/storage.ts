@@ -2074,13 +2074,31 @@ export class DatabaseStorage implements IStorage {
         throw new Error(`未找到会话: ${sessionId}`);
       }
       
+      // 定义KWLQ数据类型
+      type KWLQData = {
+        K: string[];
+        W: string[];
+        L: string[];
+        Q: string[];
+      };
+      
       // 统计KWLQ状态
-      let completedObjectives: any[] = [];
-      if (session.currentState && session.currentState.kwlq) {
-        const { kwlq } = session.currentState;
+      let completedObjectives: Array<{content: string; completedAt: string}> = [];
+      
+      if (session.currentState) {
+        // 安全地获取和处理KWLQ数据
+        const currentState = session.currentState as {kwlq?: any};
         
-        // 将已学会的项目作为完成的目标
-        if (Array.isArray(kwlq.L)) {
+        if (currentState.kwlq) {
+          // 确保KWLQ结构的每个字段都存在且为数组
+          const kwlq: KWLQData = {
+            K: Array.isArray(currentState.kwlq.K) ? currentState.kwlq.K : [],
+            W: Array.isArray(currentState.kwlq.W) ? currentState.kwlq.W : [],
+            L: Array.isArray(currentState.kwlq.L) ? currentState.kwlq.L : [],
+            Q: Array.isArray(currentState.kwlq.Q) ? currentState.kwlq.Q : []
+          };
+          
+          // 将已学会的项目作为完成的目标
           completedObjectives = kwlq.L.map(item => ({
             content: item,
             completedAt: new Date().toISOString()
