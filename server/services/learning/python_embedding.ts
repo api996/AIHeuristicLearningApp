@@ -119,8 +119,12 @@ export class PythonEmbeddingService {
   private callPythonScript(data: any): Promise<any> {
     return new Promise((resolve, reject) => {
       try {
+        // 使用命令行参数而不是标准输入来传递数据
+        const args = ["-u", this.pythonScriptPath, "--text", data.text];
+        
         // 启动Python进程
-        const pythonProcess = spawn("python3", ["-u", this.pythonScriptPath]);
+        log(`[PythonEmbedding] 调用Python脚本: ${args.join(' ')}`, "info");
+        const pythonProcess = spawn("python3", args);
         
         let outputData = "";
         let errorData = "";
@@ -154,28 +158,31 @@ export class PythonEmbeddingService {
               const result = JSON.parse(jsonStr);
               
               // 检查返回结果中是否有错误信息
-              if (result.error) {
-                const errorMsg = `[PythonEmbedding] Python脚本返回错误: ${result.error}`;
+              if (result.error || !result.success) {
+                const errorMsg = `[PythonEmbedding] Python脚本返回错误: ${result.error || "未知错误"}`;
                 log(errorMsg, "error");
                 return reject(new Error(errorMsg));
               }
               
-              return resolve(result);
+              // 从成功结果中获取嵌入向量
+              if (result.embedding && Array.isArray(result.embedding)) {
+                return resolve({ embedding: result.embedding });
+              } else {
+                const errorMsg = `[PythonEmbedding] Python脚本返回格式无效: 缺少embedding字段`;
+                log(errorMsg, "error");
+                return reject(new Error(errorMsg));
+              }
             } else {
               const errorMsg = `[PythonEmbedding] 无法解析Python响应: ${outputData}`;
               log(errorMsg, "error");
               return reject(new Error(errorMsg));
             }
           } catch (parseError) {
-            const errorMsg = `[PythonEmbedding] 解析Python输出失败: ${parseError}`;
+            const errorMsg = `[PythonEmbedding] 解析Python输出失败: ${parseError}, 输出: ${outputData}`;
             log(errorMsg, "error");
             return reject(new Error(errorMsg));
           }
         });
-
-        // 发送输入数据到Python进程
-        pythonProcess.stdin.write(JSON.stringify(data));
-        pythonProcess.stdin.end();
       } catch (error) {
         log(`[PythonEmbedding] 调用Python脚本失败: ${error}`, "error");
         reject(error);
