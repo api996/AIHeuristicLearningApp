@@ -1,0 +1,97 @@
+下面是针对“动态上下文截断”及“保留既有重试/重新生成（Regenerate）功能”的补充说明，你可以把它加到之前的技术方案中，也可直接交给 AI 智能体执行。
+
+⸻
+
+一、动态上下文截断
+
+1. 原理
+	•	按模型窗口大小自动适配
+不同模型支持的最大上下文长度不同，故截断逻辑应根据当前 model 动态获取对应的 token 限制。
+	•	只删最旧的用户/助手消息，不动系统提示
+保证所有 system 模块（身份、规则、示例等）永远保留，必要时先缩写 memory 模块，或摘要最早几条短期记忆。
+
+2. 伪代码
+
+// 模型上下文窗口（示例值）
+const MODEL_WINDOW: Record<string, number> = {
+  "DeepSeek-R1":  65536,
+  "gemini-2.5-pro": 131072,
+  "grok-3-fast-beta": 16384
+};
+
+// 预留给 LLM 生成的最小空间
+const RESPONSE_BUFFER = 1024;
+
+function trimContext(messages: Message[], model: string): Message[] {
+  const windowSize = MODEL_WINDOW[model] || 65536;
+  let tokenCount = countTokens(messages);
+  // 优先剪掉 oldest memory entries
+  const isMemory = (m: Message) => m.role === "system" && m.content.startsWith("【MEMORY】");
+  while (tokenCount + RESPONSE_BUFFER > windowSize) {
+    // 找到第一条可删消息：短期 memory 或 最早的 user/assistant
+    let idx = messages.findIndex(isMemory);
+    if (idx >= 0) {
+      messages.splice(idx, 1);
+    } else {
+      idx = messages.findIndex(m => m.role !== "system");
+      if (idx >= 0) messages.splice(idx, 1);
+      else break;
+    }
+    tokenCount = countTokens(messages);
+  }
+  return messages;
+}
+
+	•	countTokens：可用现成的 tiktoken 或类似库估算。
+	•	调用时机：在 buildPrompt(...) 生成完整 messages 后、实际发送前运行 trimContext。
+
+⸻
+
+二、保留“重新生成”功能
+
+1. 既有机制
+	•	平台通常在用户点击“Regenerate”或类似按钮时，会重用上次调用的全部参数（conversation_id、model、messages、long_term_memory、echo:false），只不过将最后一条 user 消息保持不变，重新发一次请求。
+
+2. 与截断逻辑结合
+	•	因为“Regenerate”再次构造 messages 时会调用同样的 buildPrompt + trimContext 流程，所有“重试”依旧会有最新的上下文截断策略，不会漏掉你的系统提示，也不会切断关键会话历史。
+
+3. Regenerate 示例伪码
+
+async function regenerate(conversationId: string): Promise<Response> {
+  // 从会话存储中取出上次的 model & userQuestion
+  const { model, lastUserQuestion } = await getConversationMeta(conversationId);
+  // 重新 build & trim
+  let msgs = await buildPrompt(conversationId, lastUserQuestion);
+  msgs = trimContext(msgs, model);
+  // 再次调用接口
+  return callChatAPI({
+    conversation_id: conversationId,
+    model,
+    messages: msgs,
+    long_term_memory: await loadLongTermMemory(conversationId),
+    echo: false
+  });
+}
+
+	•	“Regenerate” 不会绕过截断，也不会丢失任何 system 模块或长期记忆。
+
+⸻
+
+三、默认 Gemini & 模型切换无影响
+	1.	默认模型：代码中 DEFAULT_MODEL = "gemini-2.5-pro"
+	•	若无指定，所有调用都使用 Gemini；
+	•	动态截断与重试在任何模型下都生效。
+	2.	模型切换：前端或调度层只需更新 model 字段并保留同一 conversation_id，截断和 Regenerate 逻辑自动适配。
+	3.	功能不互斥：新增截断与 Regenerate 支持后，不会影响你原来“重新生成”或“重试”按钮的工作方式。
+
+⸻
+
+四、整合到技术报告／AI 提示
+
+在技术文档或 AI 智能体提示中，你只需补充：
+
+“在 buildPrompt 逻辑后调用 trimContext(messages, model)，该函数基于 MODEL_WINDOW[model] 自动删除最早的 memory/对话条目，保证系统提示块和近期上下文不被误删。
+
+“重试（Regenerate）时，再次通过同样的 buildPrompt+trimContext 流程构建 messages 并调用 API，DEFAULT_MODEL 默认值仍为 Gemini-2.5-Pro，不影响原有功能。”
+
+这样，AI 智能体或开发者都能一目了然地实现并验证：上下文截断自动、重试功能保留、默认模型不变。

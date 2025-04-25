@@ -781,8 +781,23 @@ exit_threshold = 0.8
    * 生成模型切换校验提示文本
    * 公开为公共方法以方便测试
    */
-  public generateModelSwitchCheckPrompt(modelId: string): string {
-    return `*** 模型切换检测 *** 已切换至 ${modelId} 模型，请确认你已加载所有系统指令并回复确认。`;
+  /**
+   * 生成模型切换校验提示
+   * 改进：从简单的提示信息变为更详细的上下文保持提示
+   * @param modelId 模型ID
+   * @param conversationSummary 可选的对话摘要
+   * @returns 模型切换校验提示
+   */
+  public generateModelSwitchCheckPrompt(modelId: string, conversationSummary?: string): string {
+    // 基础验证文本
+    let switchPrompt = `*** 模型切换检测 *** 已切换至 ${modelId} 模型，请确认你已加载所有系统指令。`;
+    
+    // 如果提供了对话摘要，则添加上下文保持提示
+    if (conversationSummary) {
+      switchPrompt += `\n\n【上下文连续性】\n${conversationSummary}\n\n请基于以上历史对话上下文继续与用户交流，保持对话的连贯性和一致性。不要直接引用"上面的历史对话"，而是自然融入你的回复中。`;
+    }
+    
+    return switchPrompt;
   }
 
   /**
