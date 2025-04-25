@@ -61,10 +61,9 @@ export class ChatService {
         endpoint: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-exp-03-25:generateContent`,
         headers: {
           "Content-Type": "application/json",
-        usePromptManager: true, // 启用提示词管理服务
         },
-        isSimulated: !geminiApiKey,
         usePromptManager: true, // 启用提示词管理服务
+        isSimulated: !geminiApiKey,
         transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
           // 获取Gemini的提示词模板（如果有）
           let basePrompt = '';
@@ -523,7 +522,7 @@ ${searchResults}
           "Content-Type": "application/json",
         },
         isSimulated: !difyApiKey,
-        usePromptManager: true, // 启用提示词管理服务
+        usePromptManager: false, // Deep 直接连接到 Dify 工作流，不需要提示词管理
         transformRequest: async (message: string, contextMemories?: string, searchResults?: string) => {
           // Deep模型是一个工作流，直接发送用户查询而不需要复杂的提示词模板
           const userQuestion = message.trim();
