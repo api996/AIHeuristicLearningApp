@@ -850,7 +850,13 @@ ${searchResults}
     
     // 如果当前模型与之前模型不同且提供了modelId，添加模型切换验证提示
     if (modelId && this.previousModelId && this.previousModelId !== modelId) {
-      const switchPrompt = this.generateModelSwitchCheckPrompt(modelId);
+      // 使用历史摘要生成更完整的上下文保持提示
+      let historySummary = "";
+      if (contextMemories) {
+        // 从context中提取上下文摘要，简化版本，保持最关键部分
+        historySummary = contextMemories.slice(0, 2000); // 限制长度，避免过长
+      }
+      const switchPrompt = this.generateModelSwitchCheckPrompt(modelId, historySummary);
       fallbackPrompt += `\n\n${switchPrompt}`;
     }
     
