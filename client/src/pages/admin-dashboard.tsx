@@ -19,12 +19,14 @@ import {
   Settings,
   Shield,
   ThumbsUp,
+  GraduationCap,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { PromptTemplateManager } from "@/components/admin/PromptTemplateManager";
 import { ContentModerationSettings } from "@/components/admin/ContentModerationSettings";
 import { SystemSettings } from "@/components/admin/SystemSettings";
 import { FeedbackAnalytics } from "@/components/admin/FeedbackAnalytics";
+import StudentAgentManager from "@/components/admin/StudentAgentManager";
 // 导入管理员界面iPad平台特定修复样式
 import "@/components/admin/admin-ipad-fixes.css";
 
@@ -133,6 +135,7 @@ export default function AdminDashboard() {
               <TabsTrigger value="feedback">反馈分析</TabsTrigger>
               <TabsTrigger value="prompts">提示词模板</TabsTrigger>
               <TabsTrigger value="moderation">内容审查</TabsTrigger>
+              <TabsTrigger value="student-agent">学生智能体</TabsTrigger>
             </TabsList>
 
             {/* Dashboard Tab */}
@@ -321,6 +324,36 @@ export default function AdminDashboard() {
                   </Card>
                 </div>
                 <ContentModerationSettings />
+              </div>
+            </TabsContent>
+
+            {/* 学生智能体管理选项卡 */}
+            <TabsContent value="student-agent" className="admin-dashboard-tabs-content">
+              <div className="py-8">
+                <div className="container mx-auto px-4 mb-6">
+                  <Card className="bg-neutral-900 border-neutral-800">
+                    <CardHeader>
+                      <div className="flex items-center">
+                        <GraduationCap className="h-6 w-6 text-purple-500 mr-2" />
+                        <CardTitle className="text-white">学生智能体模拟器</CardTitle>
+                      </div>
+                      <CardDescription>
+                        创建、测试和评估虚拟学生智能体，以验证和改进教学系统的适应性
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-neutral-400">
+                        基于KWLQ教育框架构建的学生智能体可以模拟真实学生的学习过程和问答模式，帮助优化教学AI的表现。
+                        通过创建不同认知水平、动机程度和学习风格的智能体配置，可以全面测试教学系统的能力。
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+                {localStorage.getItem("user") && (
+                  <StudentAgentManager 
+                    userId={JSON.parse(localStorage.getItem("user") || "{}")?.userId || 1} 
+                  />
+                )}
               </div>
             </TabsContent>
           </Tabs>
