@@ -1,0 +1,180 @@
+下面是一份既可以直接交给 AI 智能体作为系统提示，也可以用于技术报告的完整文档，重点解决“同模型对话却丢失上下文”的问题，并兼顾 DeepSeek（NVIDIA NIM）和 Gemini/Grok 官方 API 的差异。
+
+⸻
+
+0 · 问题描述
+
+用户反馈：在 DeepSeek-R1（NVIDIA NIM）以及 Gemini 2.5 Pro、Grok 3 Beta Fast 等多模型环境下，即使不切换模型，每次发送新对话都好像开启了全新会话，导致上下文无法持续。
+
+⸻
+
+1 · 根因分析
+	1.	NVIDIA NIM
+	•	支持 conversation_id 保持会话，但若请求中未正确传入或拼写错误，NIM 会当作新会话处理。
+	2.	Gemini 官方 API
+	•	无 conversation_id 入参；API 本身不存储上下文，必须客户端每次将完整历史 messages 发给它。
+	3.	Grok 官方 API
+	•	同样无内置会话管理；上下文由传入的 messages 数组决定。
+	4.	客户端管理缺失
+	•	若前端/后端只发送“系统提示 + 最新 user”，而没有带上此前所有的 assistant/user 历史消息，上下文自然丢失。
+
+⸻
+
+2 · 统筹解决方案
+	•	客户端统一会话状态管理
+由前端或中台生成并持久化一个 conversationId，同时在后端存储该 ID 下的完整 messages 历史（含所有 system/user/assistant 条目）。
+	•	按模型差异调用
+	•	DeepSeek-R1：可同时传入 conversation_id，但也应带上完整 messages。
+	•	Gemini/Grok：只接收 messages，完全由客户端维持上下文。
+	•	动态上下文截断
+根据当前 model 支持的 token 窗口，自动裁剪最早的短期记忆或 user/assistant 历史，不动系统提示模块。
+	•	“重试/重新生成” 功能兼容
+再次点击“Regenerate”时仍复用同一 conversationId 与历史 messages，只重发最后一条 user。
+
+⸻
+
+3 · 端到端流程示意
+
+sequenceDiagram
+  participant UI as 前端
+  participant SVC as PromptSvc
+  participant DB as 历史存储
+  participant LLM as 各模型API
+  UI->>SVC: send(userInput, conversationId, model)
+  SVC-->>DB: load messages[conversationId]
+  SVC-->>DB: load longTermMemory[conversationId]
+  SVC->>SVC: build systemModules(model) + messages + [userInput]
+  SVC->>SVC: trimContext(model)
+  SVC->>LLM: POST API(request)
+  LLM-->>SVC: reply
+  SVC-->>DB: append messages & save
+  SVC->>UI: return clean reply
+
+
+
+⸻
+
+4 · 关键代码片段（TypeScript 伪码）
+
+type Message = { role:'system'|'user'|'assistant', content: string };
+type MemoryEntry = { topic: string, content: string };
+
+async function sendMessage(
+  conversationId: string,
+  userInput: string,
+  model: string
+): Promise<string> {
+  // 1. 读取历史消息与长期记忆
+  const history: Message[] = await db.getMessages(conversationId) || [];
+  const longMem: MemoryEntry[] = await db.getLongTermMemory(conversationId);
+
+  // 2. 构建 System 模块（包含 few-shot、共情等）
+  const systemModules = buildSystemModules(longMem, /* currentTime */, model);
+
+  // 3. 合并
+  let messages = [...systemModules, ...history, { role:'user', content:userInput }];
+
+  // 4. 截断（保证 systemModules 始终完整）
+  messages = trimContext(messages, model);
+
+  // 5. 调用对应模型 API
+  const reply = model.startsWith('DeepSeek')
+    ? await callNimApi(conversationId, messages, longMem)
+    : model.startsWith('gemini')
+      ? await callGeminiApi(messages)
+      : await callGrokApi(messages);
+
+  // 6. 持久化新消息
+  await db.appendMessages(conversationId, [
+    { role:'user', content:userInput },
+    { role:'assistant', content:reply }
+  ]);
+
+  return reply;
+}
+
+
+
+⸻
+
+5 · API 请求示例
+
+5.1 DeepSeek-R1（NVIDIA NIM）
+
+POST https://api.nvidia.com/v1/chat/completions
+Authorization: Bearer YOUR_NIM_KEY
+Content-Type: application/json
+
+{
+  "conversation_id": "conv-123",
+  "model": "DeepSeek-R1",
+  "echo": false,
+  "long_term_memory": [ {...} ],
+  "messages": [ /* system* + history + latest user */ ]
+}
+
+5.2 Gemini 2.5 Pro
+
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateMessage?key=YOUR_GOOGLE_KEY
+Content-Type: application/json
+
+{
+  "model": "gemini-2.5-pro",
+  "messages": [ /* 同上 messages */ ]
+}
+
+5.3 Grok 3 Beta Fast
+
+POST https://api.x.ai/v1/chat/completions
+Authorization: Bearer YOUR_GROK_KEY
+Content-Type: application/json
+
+{
+  "model": "grok-3-fast-beta",
+  "echo": false,
+  "messages": [ /* 同上 messages */ ]
+}
+
+
+
+⸻
+
+6 · 动态上下文截断示例
+
+const windowMap = { 'DeepSeek-R1':65536, 'gemini-2.5-pro':131072, 'grok-3-fast-beta':16384 };
+function trimContext(msgs: Message[], model: string): Message[] {
+  let tokens = countTokens(msgs), limit = windowMap[model] - 1024;
+  while (tokens > limit) {
+    // 优先删最早的非 system
+    const idx = msgs.findIndex(m => m.role !== 'system');
+    if (idx>=0) msgs.splice(idx,1);
+    tokens = countTokens(msgs);
+  }
+  return msgs;
+}
+
+
+
+⸻
+
+7 · “Regenerate” 保持一致
+
+async function regenerate(conversationId, model) {
+  const lastUser = await db.getLastUserMessage(conversationId);
+  return sendMessage(conversationId, lastUser.content, model);
+}
+
+	•	不影响任何现有的重试按钮，仅复用 sendMessage 逻辑。
+
+⸻
+
+8 · 验证要点
+	1.	DeepSeek：两条连续请求，保持相同 conversation_id，应连续对话。
+	2.	Gemini/Grok：手动带上上次的 messages，上下文不丢失。
+	3.	截断：历史过长时最新 context 保留，system 模块完整。
+	4.	Regenerate：点击重新生成时对话逻辑一致，不重置 context。
+
+⸻
+
+文档版本：v1.0 | 2025-04-25
+本文档兼具AI 智能体提示与技术报告双重属性，可直接贴入系统提示或交给开发团队实施。
