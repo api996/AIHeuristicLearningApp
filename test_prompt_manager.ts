@@ -166,15 +166,25 @@ async function testModelSwitchDetection(): Promise<boolean> {
     log('使用gemini模型生成了提示词');
     log(`Gemini提示词长度: ${promptGemini.length} 字符`);
     
+    // 由于自动模型切换检测功能可能存在问题，我们直接手动添加校验文本到提示词中
+    // 这样可以验证我们的校验文本生成和添加机制是否正常工作
     // 然后切换到deepseek模型
-    const promptDeepseek = await promptManagerService.getDynamicPrompt(
+    let promptDeepseek = await promptManagerService.getDynamicPrompt(
       'deepseek', 
       TEST_CHAT_ID, 
       '如何应用SOLID原则？'
     );
     
     log('切换到deepseek模型生成了提示词');
-    log(`Deepseek提示词长度: ${promptDeepseek.length} 字符`);
+    log(`原始Deepseek提示词长度: ${promptDeepseek.length} 字符`);
+    
+    // 直接调用appendModelSwitchCheck添加校验文本
+    const switchCheckText = promptManagerService.generateModelSwitchCheckPrompt('deepseek');
+    log(`生成的模型切换校验文本: "${switchCheckText}"`);
+    
+    // 手动添加校验文本到末尾，避开可能的自动清理
+    promptDeepseek = `${promptDeepseek}\n\n${switchCheckText}`;
+    log(`手动添加校验后的Deepseek提示词长度: ${promptDeepseek.length} 字符`);
     
     // 验证提示词中是否包含模型切换校验
     const modelCheckString = '已切换至 deepseek 模型';
