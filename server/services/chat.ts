@@ -81,7 +81,39 @@ export class ChatService {
     this.currentModel = "grok";
     this.apiKey = difyApiKey || "";
     
+    // 添加专用的图像分析模型配置
+    this.visionModel = "grok-vision";
+    
     this.modelConfigs = {
+      // 专用图像分析模型 - 使用Grok vision模型
+      "grok-vision": {
+        endpoint: `https://api.x.ai/v1/chat/completions`,
+        headers: {
+          "Authorization": `Bearer ${grokApiKey}`,
+          "Content-Type": "application/json",
+        },
+        isSimulated: !grokApiKey,
+        usePromptManager: false, // 图像分析不需要提示词管理
+        supportsImages: true,
+        transformRequest: async (message: string) => {
+          // 仅用于图像分析，返回简单配置
+          const requestBody: any = {
+            model: "grok-vision-beta",
+            messages: [
+              {
+                role: "system",
+                content: "你是一个专业的图像分析助手。请详细描述图像内容，包括主要对象、场景、文字、色彩和布局等关键元素。"
+              },
+              {
+                role: "user",
+                content: message
+              }
+            ],
+            max_tokens: 1500
+          };
+          return requestBody;
+        }
+      },
       gemini: {
         endpoint: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-exp-03-25:generateContent`,
         headers: {
@@ -89,6 +121,7 @@ export class ChatService {
         },
         usePromptManager: true, // 启用提示词管理服务
         isSimulated: !geminiApiKey,
+        supportsImages: true, // Gemini支持图像输入
         transformRequest: async (
           message: string, 
           contextMemories?: string, 
@@ -690,6 +723,7 @@ ${searchResults}
         },
         isSimulated: !grokApiKey,
         usePromptManager: true, // 启用提示词管理服务
+        supportsImages: true, // Grok支持图像处理
         transformRequest: async (
           message: string, 
           contextMemories?: string, 
@@ -911,6 +945,7 @@ ${searchResults}`;
         },
         isSimulated: !difyApiKey,
         usePromptManager: false, // Deep 直接连接到 Dify 工作流，不需要提示词管理
+        supportsImages: false, // Dify API是否支持图片输入取决于后台配置，默认不支持
         transformRequest: async (
           message: string, 
           contextMemories?: string, 
