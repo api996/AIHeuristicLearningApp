@@ -1494,7 +1494,42 @@ ${searchResults}`;
         this.setWebSearchEnabled(useWebSearch);
       }
       
-      log(`处理消息，使用${this.currentModel}模型: ${message.substring(0, 50)}..., 网络搜索: ${this.useWebSearch}, 上下文消息: ${contextMessages ? `${contextMessages.length}条` : '无'}`);
+      // 检测是否包含图片，需要预处理
+      const containsImage = message.includes('![Uploaded Image](') && message.includes(')');
+      let processedMessage = message;
+      let imageProcessingNotice = "";
+      
+      // 如果消息包含图片，使用Grok Vision模型进行预处理
+      if (containsImage) {
+        try {
+          log(`检测到图片内容，使用Grok Vision模型进行预处理...`);
+          
+          // 调用Grok Vision模型分析图片
+          const grokVisionConfig = this.modelConfigs["grok-vision"];
+          const imageAnalysisResponse = await grokVisionConfig.getResponse!(message);
+          
+          // 将图片分析结果添加到消息中
+          const imageAnalysis = imageAnalysisResponse.text;
+          
+          // 将原始消息中的图片标记替换为文本描述
+          processedMessage = message.replace(
+            /!\[Uploaded Image\]\([^)]+\)/g, 
+            '[图片内容已由AI分析]'
+          );
+          
+          // 在消息前添加图片分析结果
+          processedMessage = `[图片分析结果]:\n${imageAnalysis}\n\n[用户原始消息]:\n${processedMessage}`;
+          
+          // 添加处理通知
+          imageProcessingNotice = "⚠️ 图片已由Grok Vision模型预处理并转换为文本描述";
+          log(`图片已成功分析并转换为文本描述`);
+        } catch (error) {
+          log(`图片预处理失败: ${error}`);
+          imageProcessingNotice = "⚠️ 图片分析失败，将尝试直接处理";
+        }
+      }
+      
+      log(`处理消息，使用${this.currentModel}模型: ${processedMessage.substring(0, 50)}..., 网络搜索: ${this.useWebSearch}, 上下文消息: ${contextMessages ? `${contextMessages.length}条` : '无'}`);
       const config = this.modelConfigs[this.currentModel];
       
       // 对用户输入进行内容审查 - 前置审查
@@ -1562,13 +1597,13 @@ ${searchResults}`;
       }
       
       // 确定如何处理提示词
-      let processedMessage = message;
+      let finalProcessedMessage = processedMessage;
       
       // 判断是否使用提示词管理服务
       if (config.usePromptManager) {
         try {
           // 使用提示词管理服务获取动态提示词
-          processedMessage = await promptManagerService.getDynamicPrompt(
+          finalProcessedMessage = await promptManagerService.getDynamicPrompt(
             this.currentModel,
             chatId || 0, // 如果没有chatId，使用0作为默认值
             message,
