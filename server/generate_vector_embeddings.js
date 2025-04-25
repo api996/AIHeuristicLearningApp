@@ -29,13 +29,10 @@ const pool = new Pool({ connectionString: DATABASE_URL });
  */
 
 // 导入路径需要根据实际位置调整
-import { initializeGenAIService } from './services/genai/genai_service';
+import { pythonEmbeddingService } from './services/learning/python_embedding';
 
 // 输出日志表明使用了真实服务
-console.log("使用真实AI向量嵌入服务(GenAI Service)为记忆生成语义向量");
-
-// 初始化genAiService变量，会在main函数中赋值
-let genAiService;
+console.log("使用Python嵌入服务为记忆生成3072维语义向量");
 
 /**
  * 获取所有没有向量嵌入的记忆
@@ -98,7 +95,7 @@ async function getTimeStampMemoriesWithoutEmbeddings() {
 }
 
 /**
- * 使用GenAI服务生成向量嵌入
+ * 使用Python嵌入服务生成向量嵌入
  */
 async function generateEmbedding(text) {
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
@@ -117,18 +114,18 @@ async function generateEmbedding(text) {
     : cleanedText;
   
   try {
-    // 使用GenAI服务生成向量嵌入
-    console.log('使用GenAI服务生成向量嵌入');
-    const embedding = await genAiService.generateEmbedding(truncatedText);
+    // 使用Python嵌入服务生成向量嵌入
+    console.log('使用Python嵌入服务生成向量嵌入');
+    const embedding = await pythonEmbeddingService.generateEmbedding(truncatedText);
     
     if (!embedding) {
-      console.log('GenAI嵌入服务返回空结果');
+      console.log('Python嵌入服务返回空结果');
       return null;
     }
     
     // 验证嵌入维度，确保是有效的向量
-    if (embedding.length < 100) {
-      console.log(`警告: 嵌入维度异常 (${embedding.length})`);
+    if (embedding.length < 1000) {
+      console.log(`警告: 嵌入维度异常 (${embedding.length}), 预期3072维向量`);
     } else {
       console.log(`成功生成${embedding.length}维向量嵌入`);
     }
@@ -163,8 +160,8 @@ async function processMemoryBatch(memories) {
   let successCount = 0;
   let failCount = 0;
 
-  // GenAI服务已经在导入时自动初始化
-  console.log("GenAI服务已自动初始化");
+  // Python嵌入服务已在导入时自动初始化
+  console.log("Python嵌入服务已自动初始化");
   
   for (const memory of memories) {
     console.log(`处理记忆 ${memory.id}...`);
@@ -202,9 +199,8 @@ async function main() {
   try {
     console.log("=== 开始为记忆生成向量嵌入 ===");
     
-    // 初始化GenAI服务
-    console.log("初始化GenAI服务...");
-    genAiService = await initializeGenAIService();
+    // Python嵌入服务已在导入时初始化，不需要额外初始化
+    console.log("验证Python嵌入服务路径配置...");
     
     // 优先处理时间戳格式ID的记忆
     const timestampMemories = await getTimeStampMemoriesWithoutEmbeddings();

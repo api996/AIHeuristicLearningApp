@@ -7,6 +7,7 @@
 import { log } from "../../vite";
 import { spawn } from "child_process";
 import * as path from "path";
+import { fileURLToPath } from 'url';
 
 interface EmbeddingResponse {
   embedding: number[];
@@ -17,7 +18,11 @@ export class PythonEmbeddingService {
   private pythonScriptPath: string;
 
   constructor() {
-    // Python脚本的相对路径
+    // 在ES模块中获取当前文件的目录
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    
+    // Python脚本的相对路径 - 从当前目录向上两级，再进入services目录
     this.pythonScriptPath = path.join(__dirname, "../../services/embedding.py");
     log(`[PythonEmbedding] 初始化服务，脚本路径: ${this.pythonScriptPath}`, "info");
   }
