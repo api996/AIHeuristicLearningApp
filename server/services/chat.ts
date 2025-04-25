@@ -7,12 +7,12 @@ import { conversationAnalyticsService } from "./conversation-analytics";
 import { contentModerationService } from "./content-moderation";
 import { type Message } from "../../shared/schema";
 
-// 各模型的上下文窗口大小配置，基于参考架构文档
+// 各模型的上下文窗口大小配置，基于最新官方规格
 const MODEL_WINDOW: Record<string, number> = {
-  "deepseek": 65536,  // DeepSeek-R1
-  "gemini": 131072,   // gemini-2.5-pro
-  "grok": 16384,      // grok-3-fast-beta
-  "deep": 32768       // Dify的窗口大小(估计值)
+  "deepseek": 128000,  // DeepSeek-R1 (NIM)，官方窗口为128k tokens
+  "gemini": 1000000,   // gemini-2.5-pro，官方窗口为1M tokens
+  "grok": 131072,      // grok-3-fast-beta，官方窗口为128k tokens
+  "deep": 32768        // Dify的窗口大小(取决于所集成的底层模型)
 };
 
 interface ModelConfig {
