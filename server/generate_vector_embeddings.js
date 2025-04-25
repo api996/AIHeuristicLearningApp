@@ -28,8 +28,9 @@ const pool = new Pool({ connectionString: DATABASE_URL });
  * 导入服务器中已实现的GenAI服务
  */
 
-// 导入路径需要根据实际位置调整
-import { pythonEmbeddingService } from './services/learning/python_embedding';
+// 使用spawn直接调用Python脚本，避免模块路径问题
+import { spawn } from 'child_process';
+import path from 'path';
 
 // 输出日志表明使用了真实服务
 console.log("使用Python嵌入服务为记忆生成3072维语义向量");
@@ -116,21 +117,84 @@ async function generateEmbedding(text) {
   try {
     // 使用Python嵌入服务生成向量嵌入
     console.log('使用Python嵌入服务生成向量嵌入');
-    const embedding = await pythonEmbeddingService.generateEmbedding(truncatedText);
     
-    if (!embedding) {
-      console.log('Python嵌入服务返回空结果');
+    // 使用Promise封装子进程调用
+    const result = await new Promise((resolve, reject) => {
+      // 创建Python进程
+      const scriptPath = path.join(process.cwd(), 'server', 'services', 'embedding.py');
+      console.log(`Python嵌入脚本路径: ${scriptPath}`);
+      
+      const pythonProcess = spawn('python3', [scriptPath, '--text', truncatedText]);
+      
+      let outputData = '';
+      let errorData = '';
+      
+      pythonProcess.stdout.on('data', (data) => {
+        outputData += data.toString();
+      });
+      
+      pythonProcess.stderr.on('data', (data) => {
+        errorData += data.toString();
+        console.error(`Python错误: ${data.toString().trim()}`);
+      });
+      
+      pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+          console.error(`Python进程异常退出，代码: ${code}`);
+          reject(new Error(`Python进程异常退出: ${errorData}`));
+          return;
+        }
+        
+        // 尝试找到有效的JSON输出
+        try {
+          const jsonStart = outputData.indexOf('{');
+          const jsonEnd = outputData.lastIndexOf('}');
+          
+          if (jsonStart >= 0 && jsonEnd > jsonStart) {
+            // 提取JSON部分
+            const jsonStr = outputData.substring(jsonStart, jsonEnd + 1);
+            console.log(`提取JSON部分: ${jsonStr.length} 字符`);
+            
+            try {
+              // 解析JSON
+              const result = JSON.parse(jsonStr);
+              
+              if (result.success === false) {
+                console.error(`Python嵌入服务报告错误: ${result.error}`);
+                reject(new Error(result.error || '嵌入服务返回失败结果'));
+                return;
+              }
+              
+              if (result && result.embedding && Array.isArray(result.embedding)) {
+                resolve(result.embedding);
+              } else {
+                reject(new Error('嵌入结果格式不正确或缺少embedding字段'));
+              }
+            } catch (jsonError) {
+              reject(new Error(`解析JSON失败: ${jsonError.message}`));
+            }
+          } else {
+            reject(new Error(`输出中未找到有效的JSON: ${outputData}`));
+          }
+        } catch (error) {
+          reject(new Error(`处理输出时出错: ${error.message}`));
+        }
+      });
+    });
+    
+    // 验证嵌入维度，确保是有效的向量
+    if (!result || !Array.isArray(result)) {
+      console.log('Python嵌入服务返回无效结果');
       return null;
     }
     
-    // 验证嵌入维度，确保是有效的向量
-    if (embedding.length < 1000) {
-      console.log(`警告: 嵌入维度异常 (${embedding.length}), 预期3072维向量`);
+    if (result.length < 1000) {
+      console.log(`警告: 嵌入维度异常 (${result.length}), 预期3072维向量`);
     } else {
-      console.log(`成功生成${embedding.length}维向量嵌入`);
+      console.log(`成功生成${result.length}维向量嵌入`);
     }
     
-    return embedding;
+    return result;
   } catch (error) {
     console.error(`生成嵌入时出错: ${error}`);
     return null;
@@ -155,38 +219,69 @@ async function saveMemoryEmbedding(memoryId, vectorData) {
 
 /**
  * 处理一批记忆的向量嵌入生成
+ * 实现批处理和速率限制，每批5条记忆，批次间等待60秒
  */
 async function processMemoryBatch(memories) {
   let successCount = 0;
   let failCount = 0;
-
-  // Python嵌入服务已在导入时自动初始化
-  console.log("Python嵌入服务已自动初始化");
   
-  for (const memory of memories) {
-    console.log(`处理记忆 ${memory.id}...`);
+  // 没有记忆需要处理
+  if (!memories || memories.length === 0) {
+    console.log("没有记忆需要处理");
+    return { successCount, failCount };
+  }
+
+  console.log(`开始处理 ${memories.length} 条记忆，实施批处理策略`);
+  
+  // 分批处理，每批5条记忆
+  const batchSize = 5;
+  const batchDelay = 60000; // 60秒
+  
+  // 将记忆分组
+  const batches = [];
+  for (let i = 0; i < memories.length; i += batchSize) {
+    batches.push(memories.slice(i, i + batchSize));
+  }
+  
+  console.log(`分成 ${batches.length} 批处理，每批最多 ${batchSize} 条记忆，批次间等待 ${batchDelay/1000} 秒`);
+  
+  // 处理每一批
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+    const batch = batches[batchIndex];
+    console.log(`处理第 ${batchIndex + 1}/${batches.length} 批，包含 ${batch.length} 条记忆`);
     
-    // 生成向量嵌入
-    const embedding = await generateEmbedding(memory.content);
-    
-    if (embedding) {
-      // 保存向量嵌入
-      const success = await saveMemoryEmbedding(memory.id, embedding);
+    // 处理批次中的每条记忆
+    for (const memory of batch) {
+      console.log(`处理记忆 ${memory.id}...`);
       
-      if (success) {
-        console.log(`成功为记忆 ${memory.id} 生成并保存向量嵌入`);
-        successCount++;
+      // 生成向量嵌入
+      const embedding = await generateEmbedding(memory.content);
+      
+      if (embedding) {
+        // 保存向量嵌入
+        const success = await saveMemoryEmbedding(memory.id, embedding);
+        
+        if (success) {
+          console.log(`成功为记忆 ${memory.id} 生成并保存向量嵌入`);
+          successCount++;
+        } else {
+          console.log(`保存记忆 ${memory.id} 的向量嵌入失败`);
+          failCount++;
+        }
       } else {
-        console.log(`保存记忆 ${memory.id} 的向量嵌入失败`);
+        console.log(`为记忆 ${memory.id} 生成向量嵌入失败`);
         failCount++;
       }
-    } else {
-      console.log(`为记忆 ${memory.id} 生成向量嵌入失败`);
-      failCount++;
+      
+      // 记忆间添加短暂延迟
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
     
-    // 添加小延迟
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // 如果还有后续批次，则等待指定时间
+    if (batchIndex < batches.length - 1) {
+      console.log(`批次 ${batchIndex + 1} 完成，等待 ${batchDelay/1000} 秒后处理下一批...`);
+      await new Promise(resolve => setTimeout(resolve, batchDelay));
+    }
   }
   
   return { successCount, failCount };
@@ -199,8 +294,18 @@ async function main() {
   try {
     console.log("=== 开始为记忆生成向量嵌入 ===");
     
-    // Python嵌入服务已在导入时初始化，不需要额外初始化
-    console.log("验证Python嵌入服务路径配置...");
+    // 验证Python脚本存在
+    const scriptPath = path.join(process.cwd(), 'server', 'services', 'embedding.py');
+    try {
+      const fs = await import('fs');
+      if (!fs.existsSync(scriptPath)) {
+        throw new Error(`Python嵌入脚本不存在: ${scriptPath}`);
+      }
+      console.log(`Python嵌入脚本路径有效: ${scriptPath}`);
+    } catch (error) {
+      console.error(`验证Python脚本路径出错: ${error}`);
+      throw error;
+    }
     
     // 优先处理时间戳格式ID的记忆
     const timestampMemories = await getTimeStampMemoriesWithoutEmbeddings();
