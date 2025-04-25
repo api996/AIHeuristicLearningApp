@@ -21,45 +21,43 @@ export class VectorEmbeddingsService {
    * @param text 输入文本
    * @returns 向量嵌入
    */
-  async generateEmbedding(text: string): Promise<number[] | null> {
-    try {
-      if (!text || typeof text !== 'string' || text.trim().length === 0) {
-        log('[vector_embeddings] 无法为空文本生成嵌入', 'warn');
-        return null;
-      }
-
-      // 清理文本，移除多余空白
-      const cleanedText = text
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      // 截断文本，如果过长
-      const truncatedText = cleanedText.length > 8000 
-        ? cleanedText.substring(0, 8000)
-        : cleanedText;
-      
-      // 直接使用GenAI服务生成向量嵌入
-      // 这是最可靠的方法，不依赖于子进程和Python
-      log('[vector_embeddings] 使用GenAI服务生成向量嵌入', 'info');
-      const embedding = await genAiService.generateEmbedding(truncatedText);
-      
-      if (!embedding) {
-        log('[vector_embeddings] GenAI嵌入服务返回空结果', 'warn');
-        return null;
-      }
-      
-      // 验证嵌入维度，确保是有效的向量
-      if (embedding.length < 100) {
-        log(`[vector_embeddings] 警告: 嵌入维度异常 (${embedding.length})`, 'warn');
-      } else {
-        log(`[vector_embeddings] 成功生成${embedding.length}维向量嵌入`, 'info');
-      }
-      
-      return embedding;
-    } catch (error) {
-      log(`[vector_embeddings] 生成嵌入时出错: ${error}`, 'error');
-      return null;
+  async generateEmbedding(text: string): Promise<number[]> {
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      const errorMsg = '[vector_embeddings] 无法为空文本生成嵌入';
+      log(errorMsg, 'warn');
+      throw new Error(errorMsg);
     }
+
+    // 清理文本，移除多余空白
+    const cleanedText = text
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // 截断文本，如果过长
+    const truncatedText = cleanedText.length > 8000 
+      ? cleanedText.substring(0, 8000)
+      : cleanedText;
+    
+    // 直接使用GenAI服务生成向量嵌入
+    log('[vector_embeddings] 使用GenAI服务生成向量嵌入', 'info');
+    const embedding = await genAiService.generateEmbedding(truncatedText);
+    
+    if (!embedding) {
+      const errorMsg = '[vector_embeddings] GenAI嵌入服务返回空结果';
+      log(errorMsg, 'error');
+      throw new Error(errorMsg);
+    }
+    
+    // 验证嵌入维度，确保是有效的向量
+    if (embedding.length < 100) {
+      const errorMsg = `[vector_embeddings] 嵌入维度异常 (${embedding.length})，期望3072维向量`;
+      log(errorMsg, 'error');
+      throw new Error(errorMsg);
+    } else {
+      log(`[vector_embeddings] 成功生成${embedding.length}维向量嵌入`, 'info');
+    }
+    
+    return embedding;
   }
 
   /**
@@ -74,10 +72,11 @@ export class VectorEmbeddingsService {
     content: string,
     forceEmbed: boolean = false
   ): Promise<boolean> {
+    // 确保memoryId作为字符串传递给storage.getEmbeddingByMemoryId
+    const memoryIdStr = String(memoryId);
+    
     try {
       // 首先检查是否已有嵌入
-      // 确保memoryId作为字符串传递给storage.getEmbeddingByMemoryId
-      const memoryIdStr = String(memoryId);
       const existingEmbedding = await storage.getEmbeddingByMemoryId(memoryIdStr);
       if (existingEmbedding) {
         log(`[vector_embeddings] 记忆 ${memoryIdStr} 已有嵌入，跳过生成`, 'info');
@@ -93,20 +92,21 @@ export class VectorEmbeddingsService {
         }
       }
 
-      // 生成嵌入
+      // 生成嵌入 - 这里会抛出错误如果生成失败，不会返回null
       const embedding = await this.generateEmbedding(content);
-      if (!embedding) {
-        log(`[vector_embeddings] 记忆 ${memoryIdStr} 嵌入生成失败`, 'warn');
-        return false;
-      }
 
       // 保存嵌入
       await storage.saveMemoryEmbedding(memoryIdStr, embedding);
-      log(`[vector_embeddings] 记忆 ${memoryIdStr} 的嵌入已保存`, 'info');
+      log(`[vector_embeddings] 记忆 ${memoryIdStr} 的嵌入已保存，向量维度: ${embedding.length}`, 'info');
       
       return true;
     } catch (error) {
-      log(`[vector_embeddings] 保存记忆嵌入时出错: ${error}`, 'error');
+      const errorMsg = `[vector_embeddings] 为记忆 ${memoryIdStr} 生成或保存嵌入时出错: ${error}`;
+      log(errorMsg, 'error');
+      // 允许批处理继续进行而不抛出错误，但单个处理应该抛出
+      if (content.length < 500) {  // 短内容通常是测试或单个处理
+        throw new Error(errorMsg);
+      }
       return false;
     }
   }
@@ -161,17 +161,16 @@ export class VectorEmbeddingsService {
     try {
       // 生成查询文本的向量嵌入
       const queryEmbedding = await this.generateEmbedding(text);
-      if (!queryEmbedding) {
-        log('[vector_embeddings] 无法为查询生成嵌入', 'error');
-        return [];
-      }
+      
+      // 这里不需要再检查queryEmbedding是否为null，因为generateEmbedding已经会抛出错误
 
       // 使用存储服务查找相似记忆
       const similarMemories = await storage.findSimilarMemories(userId, queryEmbedding, limit);
       return similarMemories;
     } catch (error) {
-      log(`[vector_embeddings] 查找相似记忆时出错: ${error}`, 'error');
-      return [];
+      const errorMsg = `[vector_embeddings] 查找相似记忆时出错: ${error}`;
+      log(errorMsg, 'error');
+      throw new Error(errorMsg);
     }
   }
 }
