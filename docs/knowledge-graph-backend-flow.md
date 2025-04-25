@@ -4,6 +4,25 @@
 
 知识图谱系统是基于真实用户对话记忆构建的复杂系统，其后端服务包含多个关键组件，形成了一个完整的数据处理流水线。本文档重点分析这些核心后端服务、数据流及其关键调试点。
 
+### 系统更新日志
+
+最近更新的主要功能：
+
+1. **边缘关系类型的颜色映射系统**：
+   - 实现了8种不同关系类型的颜色映射(prerequisite, contains, applies, similar, complements, references, related, unrelated)
+   - 每种关系类型使用了独特的RGBA颜色值，支持透明度设置
+   - 直观地展示了关系类型的强度和重要性
+
+2. **知识图谱统计组件**：
+   - 恢复并增强了KnowledgeGraphLegend组件
+   - 添加了实时更新的节点计数和连接统计功能
+   - 提供了分类详细的边缘类型和方向类型图例
+
+3. **渲染安全性优化**：  
+   - 修复了TextNodeForceGraph组件中的null引用问题
+   - 添加了对cameraPosition的严格null检查
+   - 改进了3D场景的性能和稳定性
+
 ### 1.1 系统整体架构
 
 ```
@@ -498,7 +517,109 @@ function validateVectorDimension(vector: number[]): boolean {
 }
 ```
 
-### 3.2 Python聚类服务集成挑战
+### 3.2 聚类调优与优化策略
+
+**聚类参数详情**：我们针对不同数据规模采用了自适应参数策略。
+
+```python
+# server/services/learning_memory/python_direct_clustering.py
+def determine_optimal_clusters(vectors: np.ndarray) -> int:
+    # 获取样本数量
+    n_samples = len(vectors)
+    
+    # 对于大量向量(400+)，强制使用较多的聚类中心
+    if n_samples >= 400:
+        forced_min_clusters = 30
+        # 使用向量数量的1/10作为初始聚类数
+        dynamic_clusters = n_samples // 10
+        initial_clusters = max(forced_min_clusters, dynamic_clusters)
+    
+    # 对于中等数量向量(100-400)
+    elif n_samples >= 100:
+        forced_min_clusters = 15
+        # 使用向量数量的1/8作为初始聚类数
+        dynamic_clusters = n_samples // 8
+        initial_clusters = max(forced_min_clusters, dynamic_clusters)
+    
+    # 对于小数据集
+    else:
+        # 使用向量数量的1/5作为聚类数，但至少8个
+        initial_clusters = max(8, n_samples // 5)
+    
+    # 确保聚类数不超过样本数的一半
+    max_clusters = n_samples // 2
+    if initial_clusters > max_clusters:
+        initial_clusters = max_clusters
+    
+    # 设置绝对最小聚类数阈值，确保图谱不会太稀疏
+    absolute_min_clusters = 10
+    if initial_clusters < absolute_min_clusters and n_samples >= absolute_min_clusters * 2:
+        initial_clusters = absolute_min_clusters
+    
+    return initial_clusters
+```
+
+**参数影响分析**：
+
+| 数据规模 | 聚类比例 | 最小聚类数 | 期望效果 |
+|---------|---------|----------|---------|
+| 大型(400+) | 1/10 | 30 | 多样化主题，丰富图谱 |
+| 中型(100-400) | 1/8 | 15 | 平衡主题数量与质量 |
+| 小型(<100) | 1/5 | 8 | 保持主题精炼且有意义 |
+
+### 3.3 边缘关系类型颜色映射详情
+
+图谱中的边缘颜色直接对应关系类型，使用以下颜色映射：
+
+```typescript
+// client/src/components/TextNodeForceGraph.tsx
+// 处理连接数据颜色映射
+const processedLinks = links.map(link => {
+  let linkColor: string;
+  
+  // 根据连接类型设置样式
+  switch (link.type) {
+    case 'prerequisite':
+      linkColor = 'rgba(220, 38, 38, 0.7)'; // 前置知识 - 深红色
+      break;
+    case 'contains':
+      linkColor = 'rgba(79, 70, 229, 0.7)'; // 包含关系 - 靛蓝色
+      break;
+    case 'applies':
+      linkColor = 'rgba(14, 165, 233, 0.7)'; // 应用关系 - 天蓝色
+      break;
+    case 'similar':
+      linkColor = 'rgba(34, 197, 94, 0.7)'; // 相似概念 - 绿色
+      break;
+    case 'complements':
+      linkColor = 'rgba(245, 158, 11, 0.7)'; // 互补知识 - 琥珀色
+      break;
+    case 'references':
+      linkColor = 'rgba(168, 85, 247, 0.7)'; // 引用关系 - 紫色
+      break;
+    case 'related':
+      linkColor = 'rgba(139, 92, 246, 0.7)'; // 相关概念 - 紫色
+      break;
+    default:
+      linkColor = 'rgba(209, 213, 219, 0.7)';  // 默认 - 浅灰色
+  }
+});
+```
+
+**关系类型与颜色对照表**：
+
+| 关系类型 | 颜色 | RGBA值 | 含义 |
+|---------|------|--------|------|
+| prerequisite | 深红色 | rgba(220, 38, 38, 0.7) | 前置知识，学习顺序关键 |
+| contains | 靛蓝色 | rgba(79, 70, 229, 0.7) | 包含关系，层次结构 |
+| applies | 天蓝色 | rgba(14, 165, 233, 0.7) | 应用关系，理论到实践 |
+| similar | 绿色 | rgba(34, 197, 94, 0.7) | 相似概念，横向关联 |
+| complements | 琥珀色 | rgba(245, 158, 11, 0.7) | 互补知识，共同作用 |
+| references | 紫色 | rgba(168, 85, 247, 0.7) | 引用关系，参考来源 |
+| related | 紫蓝色 | rgba(139, 92, 246, 0.7) | 相关概念，一般关联 |
+| unrelated | 浅灰色 | rgba(209, 213, 219, 0.7) | 默认关系，未明确分类 |
+
+### 3.4 Python聚类服务集成挑战
 
 **问题描述**：Node.js与Python服务间的通信需要处理大量向量数据，同时保证服务的可靠性和性能。
 
@@ -927,6 +1048,140 @@ def optimize_clustering_parameters(vectors, min_clusters=2, max_clusters=10):
 - prerequisite (前置知识): 15%
 - contains (包含关系): 15%
 - applies (应用关系): 15%
+- similar (相似概念): 15%
+- complements (互补知识): 15%
+- related (相关概念): 25%
+
+**关系强制分配机制**：
+
+如果API调用失败，系统使用确定性算法确保多样化的关系类型分布：
+
+```typescript
+// server/services/learning/topic_graph_builder.ts
+// 基于确定性值选择关系类型，每种类型有不同的概率区间
+let relationType: string;
+let chineseName: string;
+let strength: number;
+
+// 强制用时间戳的秒数作为基准，确保在测试时能观察到多样性
+const secondNow = new Date().getSeconds();
+const forcedDistribution = secondNow % 6; // 0-5之间平均分布
+
+if (forcedDistribution === 0) {
+  // 强制分配为前置知识
+  relationType = "prerequisite"; // 使用英文标识符，与前端匹配
+  chineseName = "前置知识";      // 中文名称仅用于显示
+  strength = 7 + (combinedSum % 4); // 7-10之间
+} else if (forcedDistribution === 1) {
+  // 强制分配为包含关系
+  relationType = "contains";    
+  chineseName = "包含关系";
+  strength = 6 + (combinedSum % 3); // 6-8之间
+} else if (forcedDistribution === 2) {
+  // 强制分配为应用关系
+  relationType = "applies";     
+  chineseName = "应用关系"; 
+  strength = 5 + (combinedSum % 4); // 5-8之间
+} 
+// ... 其他关系类型
+```
+
+### 4.4 前端视图与后端数据同步机制
+
+前端使用React组件实现知识图谱的渲染和交互，通过以下机制确保与后端数据的同步：
+
+```typescript
+// client/src/lib/unified-graph-preloader.ts
+export async function loadKnowledgeGraph(userId: number, options?: LoadOptions): Promise<GraphData> {
+  try {
+    // 构建请求URL，包含可选的刷新参数
+    const refreshParam = options?.forceRefresh ? '&refresh=true' : '';
+    const url = `${BASE_API_URL}/learning-path?userId=${userId}&role=${options?.role || 'user'}${refreshParam}`;
+    
+    console.log(`获取学习路径URL:`, url);
+    
+    // 发起请求获取后端数据
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`API请求失败，状态码: ${response.status}`);
+    }
+    
+    // 解析API响应
+    const data = await response.json();
+    
+    // 检查是否包含知识图谱数据
+    if (data && data.knowledge_graph) {
+      // 将API数据转换为前端组件所需格式
+      return transformApiDataToGraphFormat(data.knowledge_graph);
+    } else {
+      console.error("API响应中没有找到knowledge_graph数据");
+      return { nodes: [], links: [], version: Date.now() };
+    }
+  } catch (error) {
+    console.error("加载知识图谱失败:", error);
+    return { nodes: [], links: [], version: Date.now() };
+  }
+}
+
+// 将API返回的数据转换为前端图谱组件所需格式
+function transformApiDataToGraphFormat(apiData: any): GraphData {
+  // 验证API数据
+  if (!apiData || !apiData.nodes || !apiData.links) {
+    return { nodes: [], links: [], version: Date.now() };
+  }
+  
+  // 处理节点数据
+  const nodes = apiData.nodes.map((node: any) => ({
+    id: node.id,
+    label: node.label,
+    category: node.category || 'default',
+    size: node.size || 10,
+    color: node.color
+  }));
+  
+  // 处理连接数据
+  const links = apiData.links.map((link: any) => ({
+    source: link.source,
+    target: link.target,
+    value: link.value || 1,
+    type: link.type || 'default',
+    bidirectional: link.bidirectional || false,
+    reason: link.reason
+  }));
+  
+  // 返回转换后的数据
+  return {
+    nodes,
+    links,
+    version: apiData.version || Date.now(),
+    fromCache: apiData.fromCache || false
+  };
+}
+```
+
+### 4.5 动态统计更新机制
+
+知识图谱Legend组件能够实时反映图谱变化，通过以下代码实现统计数据的动态更新：
+
+```tsx
+// client/src/components/KnowledgeGraphLegend.tsx
+const KnowledgeGraphLegend: React.FC<{
+  nodeCount?: number;  // 节点数量
+  linkCount?: number;  // 连接数量
+}> = ({ nodeCount, linkCount }) => {
+  // ...组件内容...
+  
+  {/* 显示节点和连接数量统计信息 - 实时更新 */}
+  <div className="flex items-center space-x-3 text-sm">
+    <div className="px-2 py-1 bg-blue-900/30 rounded-md text-blue-200 flex items-center">
+      <span className="font-medium mr-1">节点:</span> {nodeCount || 0}
+    </div>
+    <div className="px-2 py-1 bg-indigo-900/30 rounded-md text-indigo-200 flex items-center">
+      <span className="font-medium mr-1">连接:</span> {linkCount || 0}
+    </div>
+  </div>
+}
 - similar (相似概念): 15%
 - complements (互补知识): 15%
 - related (相关概念): 25%
