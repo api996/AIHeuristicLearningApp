@@ -210,8 +210,11 @@ exit_threshold = 0.8
     searchResults?: string
   ): Promise<string> {
     try {
-      // 记录模型切换历史
-      this.trackModelHistory(chatId, modelId);
+      // 记录模型切换历史，直接获取模型切换状态
+      const modelSwitched = this.trackModelHistory(chatId, modelId);
+      if (modelSwitched) {
+        log(`检测到模型切换，将在提示词中添加模型切换校验`);
+      }
       
       // 获取当前对话阶段
       const currentPhase = await conversationAnalyticsService.getLatestPhase(chatId);
@@ -221,12 +224,6 @@ exit_threshold = 0.8
       const phaseChanged = this.hasPhaseChanged(chatId, currentPhase);
       if (phaseChanged) {
         log(`检测到阶段变更: ${this.moduleConfig.lastPhase} -> ${currentPhase}`);
-      }
-      
-      // 检测模型切换
-      const modelSwitched = this.hasModelSwitched(chatId, modelId);
-      if (modelSwitched) {
-        log(`检测到模型切换，将在提示词中添加模型切换校验`);
       }
       
       // 获取提示词模板
@@ -299,16 +296,26 @@ exit_threshold = 0.8
   /**
    * 跟踪模型切换历史
    */
-  private trackModelHistory(chatId: number, modelId: string): void {
+  /**
+   * 跟踪模型切换历史并更新previousModelId
+   * 直接在这里检测模型切换，避免复杂的检测逻辑
+   */
+  private trackModelHistory(chatId: number, modelId: string): boolean {
     if (!this.modelHistory.has(chatId)) {
       this.modelHistory.set(chatId, []);
     }
     
     const history = this.modelHistory.get(chatId)!;
     
+    // 保存当前的previousModelId，用于检测是否有模型切换
+    const oldModelId = this.previousModelId;
+    
     // 检查是否是模型切换
-    if (this.previousModelId && this.previousModelId !== modelId) {
-      log(`模型切换: ${this.previousModelId} -> ${modelId}`);
+    // 确保返回布尔值，oldModelId可能为undefined或null
+    const hasModelSwitched = !!(oldModelId && oldModelId !== modelId);
+    
+    if (hasModelSwitched) {
+      log(`模型切换: ${oldModelId} -> ${modelId}`);
       
       // 避免重复记录相同的切换
       if (history.length === 0 || history[history.length - 1] !== modelId) {
@@ -321,26 +328,19 @@ exit_threshold = 0.8
     
     // 始终更新previousModelId
     this.previousModelId = modelId;
+    
+    // 返回是否发生了模型切换，确保返回布尔值
+    return hasModelSwitched;
   }
   
   /**
    * 检查是否发生了模型切换
+   * 注意：此方法不再使用，使用trackModelHistory的返回值代替
+   * 保留此方法以保持向后兼容
    */
   private hasModelSwitched(chatId: number, currentModel: string): boolean {
-    const history = this.modelHistory.get(chatId);
-    // 历史记录存在且长度大于0且上一个模型不是当前模型
-    const result = !!(
-      history !== undefined && 
-      history.length > 0 && 
-      this.previousModelId && 
-      this.previousModelId !== currentModel
-    );
-    
-    if (result) {
-      log(`检测到模型切换: ${this.previousModelId} -> ${currentModel}，将添加切换校验`);
-    }
-    
-    return result;
+    // 使用空的实现，因为我们现在使用trackModelHistory的返回值
+    return false;
   }
   
   /**
