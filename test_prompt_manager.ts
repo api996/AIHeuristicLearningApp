@@ -164,6 +164,7 @@ async function testModelSwitchDetection(): Promise<boolean> {
     );
     
     log('使用gemini模型生成了提示词');
+    log(`Gemini提示词长度: ${promptGemini.length} 字符`);
     
     // 然后切换到deepseek模型
     const promptDeepseek = await promptManagerService.getDynamicPrompt(
@@ -173,18 +174,27 @@ async function testModelSwitchDetection(): Promise<boolean> {
     );
     
     log('切换到deepseek模型生成了提示词');
+    log(`Deepseek提示词长度: ${promptDeepseek.length} 字符`);
     
     // 验证提示词中是否包含模型切换校验
-    const containsModelCheck = 
-      promptDeepseek.includes('已切换至 deepseek 模型') || 
-      promptDeepseek.includes('确认你已加载所有系统指令') ||
-      promptDeepseek.includes('*** 模型切换检测 ***');
+    const modelCheckString = '已切换至 deepseek 模型';
+    const alternateSwitchText = '*** 模型切换检测 ***';
+    const confirmText = '确认你已加载所有系统指令';
     
+    const containsModelCheck = 
+      promptDeepseek.includes(modelCheckString) || 
+      promptDeepseek.includes(confirmText) ||
+      promptDeepseek.includes(alternateSwitchText);
+    
+    log(`包含 "${modelCheckString}": ${promptDeepseek.includes(modelCheckString)}`);
+    log(`包含 "${alternateSwitchText}": ${promptDeepseek.includes(alternateSwitchText)}`);
+    log(`包含 "${confirmText}": ${promptDeepseek.includes(confirmText)}`);
     log(`包含模型切换校验: ${containsModelCheck ? '✓' : '✗'}`, containsModelCheck ? 'success' : 'error');
     
     if (!containsModelCheck) {
       // 打印部分提示词以进行调试
-      log(`Deepseek提示词片段(末尾200字符): ${promptDeepseek.substring(promptDeepseek.length - 200)}`, 'warning');
+      log(`Deepseek提示词前200字符: ${promptDeepseek.substring(0, 200)}`, 'warning');
+      log(`Deepseek提示词末尾200字符: ${promptDeepseek.substring(promptDeepseek.length - 200)}`, 'warning');
     }
     
     return containsModelCheck;

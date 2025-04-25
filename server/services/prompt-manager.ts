@@ -286,8 +286,8 @@ exit_threshold = 0.8
       return result;
     } catch (error) {
       log(`生成动态提示词错误: ${error}`);
-      // 出错时返回默认提示词
-      return this.generateFallbackPrompt(userInput, contextMemories, searchResults);
+      // 出错时返回默认提示词，并传递当前模型ID以支持模型切换检测
+      return this.generateFallbackPrompt(userInput, contextMemories, searchResults, modelId);
     }
   }
   
@@ -521,6 +521,12 @@ exit_threshold = 0.8
       searchResults
     );
     
+    // 如果当前模型与之前模型不同，添加模型切换验证提示
+    if (this.previousModelId && this.previousModelId !== modelId) {
+      const switchPrompt = this.generateModelSwitchCheckPrompt(modelId);
+      result += `\n\n${switchPrompt}`;
+    }
+    
     return this.cleanPrompt(result);
   }
   
@@ -556,6 +562,12 @@ exit_threshold = 0.8
       contextMemories,
       searchResults
     );
+    
+    // 如果当前模型与之前模型不同，添加模型切换验证提示
+    if (this.previousModelId && this.previousModelId !== modelId) {
+      const switchPrompt = this.generateModelSwitchCheckPrompt(modelId);
+      result += `\n\n${switchPrompt}`;
+    }
     
     return this.cleanPrompt(result);
   }
@@ -773,7 +785,8 @@ exit_threshold = 0.8
   private generateFallbackPrompt(
     userInput: string,
     contextMemories?: string,
-    searchResults?: string
+    searchResults?: string,
+    modelId?: string
   ): string {
     let fallbackPrompt = `你是一位"启发式教育导师（Heuristic Education Mentor）"，精通支架式学习、苏格拉底提问法与 K-W-L-Q 教学模型。你的唯一使命：通过持续提问、逐步提示与情感共情，引导 Learner 在最近发展区内自主建构知识；除非 Learner 明确请求，否则绝不直接给出最终答案。`;
     
@@ -813,6 +826,12 @@ ${searchResults}
     }
     
     fallbackPrompt += `。`;
+    
+    // 如果当前模型与之前模型不同且提供了modelId，添加模型切换验证提示
+    if (modelId && this.previousModelId && this.previousModelId !== modelId) {
+      const switchPrompt = this.generateModelSwitchCheckPrompt(modelId);
+      fallbackPrompt += `\n\n${switchPrompt}`;
+    }
     
     return fallbackPrompt;
   }
