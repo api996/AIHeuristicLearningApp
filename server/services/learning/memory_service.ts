@@ -11,6 +11,8 @@ import { clusterAnalyzer } from "./cluster_analyzer";
 import { clusterMemoryRetrieval } from "./cluster_memory_retrieval";
 import { Memory } from "@shared/schema";
 import { clusterCacheService } from "./cluster_cache_service";
+// 导入向量嵌入管理器
+import { vectorEmbeddingManager } from "../vector_embedding_manager";
 
 export class MemoryService {
   private storageMode: "database" | "hybrid" | "file" = "database";
@@ -48,7 +50,15 @@ export class MemoryService {
       // 4. 生成向量嵌入
       const embedding = await this.generateEmbedding(content);
       if (embedding) {
+        // 成功生成向量嵌入
         await storage.saveMemoryEmbedding(memory.id, embedding);
+        log(`[MemoryService] 成功在记忆创建时生成向量嵌入 - ID: ${memory.id}`, "info");
+      } else {
+        // 即时生成失败，触发后台向量嵌入生成服务
+        log(`[MemoryService] 记忆创建时未能生成向量嵌入，触发后台生成服务 - ID: ${memory.id}`, "warn");
+        // 使用非阻塞方式触发向量嵌入生成
+        vectorEmbeddingManager.triggerForMemory(memory.id, content)
+          .catch(err => log(`[MemoryService] 触发向量嵌入生成失败: ${err}`, "error"));
       }
       
       // 5. 清除用户的聚类缓存，因为已添加新记忆

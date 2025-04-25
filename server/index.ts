@@ -5,6 +5,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { spawn, exec } from "child_process";
 import path from "path";
 import fs from "fs";
+import { vectorEmbeddingManager } from "./services/vector_embedding_manager";
 import { initializeObjectStorage } from "./services/object-storage.service";
 import { initializeStorage } from "./services/hybrid-storage.service";
 import { contentValueAnalyzer } from "./services/content-value-analyzer";
@@ -189,50 +190,8 @@ app.use((req, res, next) => {
       }
     }
 
-    // 设置定时任务，定期运行向量嵌入生成脚本
-    // 每5分钟检查一次未处理的记忆并生成向量嵌入
-    const runVectorEmbeddingGenerator = () => {
-      try {
-        log("启动向量嵌入生成定时任务...");
-        
-        // 每5分钟执行一次
-        setInterval(() => {
-          log("执行定时向量嵌入生成任务...");
-          const scriptPath = path.join(process.cwd(), "server", "generate_vector_embeddings.js");
-          
-          // 使用Node执行脚本
-          const embedProcess = exec(`node ${scriptPath}`, {
-            timeout: 60000, // 60秒超时
-          });
-          
-          embedProcess.stdout?.on('data', (data) => {
-            log(`[向量嵌入生成] ${data.toString().trim()}`);
-          });
-          
-          embedProcess.stderr?.on('data', (data) => {
-            log(`[向量嵌入生成错误] ${data.toString().trim()}`);
-          });
-          
-          embedProcess.on('close', (code) => {
-            if (code === 0) {
-              log("向量嵌入生成任务成功完成");
-            } else {
-              log(`向量嵌入生成任务失败，退出码: ${code}`);
-            }
-          });
-        }, 5 * 60 * 1000); // 5分钟间隔
-        
-        // 服务器启动后立即执行一次
-        log("服务启动后立即执行一次向量嵌入生成任务...");
-        const scriptPath = path.join(process.cwd(), "server", "generate_vector_embeddings.js");
-        exec(`node ${scriptPath}`);
-      } catch (error) {
-        log(`设置向量嵌入生成定时任务失败: ${error}`);
-      }
-    };
-    
-    // 启动定时任务
-    runVectorEmbeddingGenerator();
+    // 启动向量嵌入生成定时任务
+    vectorEmbeddingManager.startScheduler();
 
     const server = await registerRoutes(app);
 
