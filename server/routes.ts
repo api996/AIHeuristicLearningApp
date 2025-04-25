@@ -23,6 +23,7 @@ import mcpRoutes from './routes/mcp-routes';
 import clusteringTestRoutes from './routes/clustering-test';
 import repairMemoryRoutes from './routes/repair-memory';
 import topicGraphRoutes from './routes/topic-graph';
+import studentAgentRoutes from './routes/student-agent';
 import { initializeBucket } from './services/file-bucket.service';
 import { promptManagerService } from './services/prompt-manager';
 import { Message } from "../shared/schema";
@@ -2224,6 +2225,7 @@ asyncio.run(test_memory())
   app.use('/api/mcp', mcpRoutes); // MCP 搜索服务路由
   app.use('/api', conversationTestRoutes); // 对话分析和提示词测试路由
   app.use('/api/topic-graph', topicGraphRoutes); // 主题图谱服务路由
+  app.use('/api/student-agent', studentAgentRoutes); // 学生智能体模拟器路由
 
   // 调试端点：检查当前会话状态
   app.get("/api/debug/session", (req, res) => {
