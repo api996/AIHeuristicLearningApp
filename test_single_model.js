@@ -19,9 +19,9 @@ function log(message, type = 'info') {
 }
 
 // 创建新聊天
-async function createChat(model) {
+async function createChat(model, userId = 15) {
   try {
-    log(`创建新的${model}聊天...`, 'info');
+    log(`创建新的${model}聊天，用户ID: ${userId}...`, 'info');
 
     const response = await fetch('http://localhost:5000/api/chats', {
       method: 'POST',
@@ -29,7 +29,7 @@ async function createChat(model) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        userId: 6, // 使用测试用户ID
+        userId: userId, // 使用指定的用户ID
         title: `测试聊天-${model}-${new Date().toISOString()}`,
         model: model
       }),
@@ -51,7 +51,7 @@ async function createChat(model) {
 }
 
 // 测试函数 - 发送单个消息到指定模型
-async function testModel(model, message, timeout = 15000) {
+async function testModel(model, message, timeout = 60000) { // 增加超时时间到60秒
   try {
     // 创建新聊天
     const chatId = await createChat(model);
@@ -81,7 +81,7 @@ async function testModel(model, message, timeout = 15000) {
       },
       body: JSON.stringify({
         message,
-        userId: 6, // 使用测试用户ID
+        userId: 15, // 使用与创建聊天相同的用户ID
         model,
         chatId,
         useWebSearch: false
