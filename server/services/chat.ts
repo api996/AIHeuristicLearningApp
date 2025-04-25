@@ -12,7 +12,7 @@ const MODEL_WINDOW: Record<string, number> = {
   "deepseek": 128000,  // DeepSeek-R1 (NIM)，官方窗口为128k tokens
   "gemini": 1000000,   // gemini-2.5-pro，官方窗口为1M tokens
   "grok": 131072,      // grok-3-fast-beta，官方窗口为128k tokens
-  "deep": 32768        // Dify的窗口大小(取决于所集成的底层模型)
+  "deep": 1000000      // Dify的窗口大小，设置为最大以适应各种底层模型
 };
 
 interface ModelConfig {
@@ -1024,9 +1024,9 @@ ${searchResults}`;
   }
   
   /**
-   * 动态上下文截断
+   * 智能动态上下文截断
    * 根据模型的最大上下文窗口大小，智能截断消息历史
-   * 遵循参考架构：保留所有system消息，优先剪掉最早的非system消息
+   * 优先保留系统提示和最近对话，裁剪中间历史
    * @param messages 消息历史
    * @param model 模型名称
    * @returns 截断后的消息历史
@@ -1034,7 +1034,7 @@ ${searchResults}`;
   trimContext(messages: Message[], model: string): Message[] {
     // 获取模型的窗口大小，如果不存在则使用安全默认值
     const modelMaxTokens = model in MODEL_WINDOW ? MODEL_WINDOW[model] : 16384; // 默认使用较小的16K窗口
-    const bufferTokens = 1024; // 为响应保留的缓冲区大小
+    const bufferTokens = 8192; // 为响应保留的缓冲区大小，增大以确保有足够空间
     const maxTokens = modelMaxTokens - bufferTokens;
     
     // 简单估算当前消息的token数
@@ -1053,34 +1053,95 @@ ${searchResults}`;
       return messages;
     }
     
-    // 复制消息数组，避免修改原始数据
-    const trimmedMessages = [...messages];
+    // 将消息分类为系统消息、最近对话和中间历史
+    const systemMessages: Message[] = messages.filter(m => m.role === 'system');
+    const nonSystemMessages: Message[] = messages.filter(m => m.role !== 'system');
     
-    // 继续删除最早的非system消息，直到满足限制
-    while (totalTokens > maxTokens && trimmedMessages.length > 0) {
-      // 寻找第一个非system消息的索引
-      const idx = trimmedMessages.findIndex(m => m.role !== 'system');
+    // 计算系统消息的token数
+    const systemTokens = systemMessages.reduce((sum, msg) => sum + estimateTokens(msg), 0);
+    log(`系统消息占用token数: ${systemTokens}，共${systemMessages.length}条`);
+    
+    // 确保保留最后几轮对话（至少2-3轮）
+    const recentExchangeCount = Math.min(6, Math.floor(nonSystemMessages.length / 2) * 2);
+    const recentMessages = nonSystemMessages.slice(-recentExchangeCount);
+    const middleMessages = nonSystemMessages.slice(0, -recentExchangeCount);
+    
+    // 计算最近对话的token数
+    const recentTokens = recentMessages.reduce((sum, msg) => sum + estimateTokens(msg), 0);
+    log(`最近${recentExchangeCount}条消息占用token数: ${recentTokens}`);
+    
+    // 计算系统消息和最近对话的总token数
+    const essentialTokens = systemTokens + recentTokens;
+    
+    // 如果系统消息和最近对话已经超出限制，则只能保留系统消息和最重要的最近对话
+    if (essentialTokens > maxTokens) {
+      log(`警告: 系统消息和最近对话已超出token限制(${essentialTokens} > ${maxTokens})`, 'warn');
       
-      // 如果没有找到非system消息，或者已经达到安全的最小长度，则停止
-      if (idx === -1 || trimmedMessages.length <= 5) {
-        log(`无法进一步裁剪消息，剩余${trimmedMessages.length}条消息`);
-        break;
+      // 保留所有系统消息，尽可能多地保留最近对话
+      const availableTokensForRecent = Math.max(0, maxTokens - systemTokens);
+      let keepRecentMessages: Message[] = [];
+      let recentTokenCount = 0;
+      
+      // 从最近的消息开始添加，直到达到可用token限制
+      for (let i = recentMessages.length - 1; i >= 0; i--) {
+        const msgTokens = estimateTokens(recentMessages[i]);
+        if (recentTokenCount + msgTokens <= availableTokensForRecent) {
+          keepRecentMessages.unshift(recentMessages[i]);
+          recentTokenCount += msgTokens;
+        } else {
+          break;
+        }
       }
       
-      // 移除该消息并更新token计数
-      const removed = trimmedMessages.splice(idx, 1)[0];
-      totalTokens -= estimateTokens(removed);
-      
-      // 输出日志信息
-      log(`裁剪了一条${removed.role}消息，剩余${trimmedMessages.length}条消息，估计token数: ${totalTokens}`);
+      log(`紧急裁剪后保留系统消息${systemMessages.length}条和最近消息${keepRecentMessages.length}条，总token数约${systemTokens + recentTokenCount}`);
+      return [...systemMessages, ...keepRecentMessages];
     }
     
-    // 如果仍然超出限制，发出警告
-    if (totalTokens > maxTokens) {
-      log(`警告: 即使在裁剪后，消息仍超出${model}模型的token限制`, 'warn');
+    // 计算中间历史可用的token数
+    const availableTokensForMiddle = maxTokens - essentialTokens;
+    log(`中间历史可用token数: ${availableTokensForMiddle}，共${middleMessages.length}条消息`);
+    
+    // 如果没有足够空间放任何中间历史，直接返回系统消息和最近对话
+    if (availableTokensForMiddle <= 0 || middleMessages.length === 0) {
+      log(`没有足够空间放置中间历史，仅保留系统消息和最近对话`);
+      return [...systemMessages, ...recentMessages];
     }
     
-    return trimmedMessages;
+    // 从中间历史中选择性保留消息
+    let keepMiddleMessages: Message[] = [];
+    let middleTokenCount = 0;
+    
+    // 优先保留最近的中间历史
+    for (let i = middleMessages.length - 1; i >= 0; i--) {
+      const msgTokens = estimateTokens(middleMessages[i]);
+      if (middleTokenCount + msgTokens <= availableTokensForMiddle) {
+        keepMiddleMessages.unshift(middleMessages[i]);
+        middleTokenCount += msgTokens;
+      } else {
+        // 如果这是一个用户消息，检查是否有足够空间保留一个简短摘要
+        if (middleMessages[i].role === 'user' && middleMessages[i].content && middleMessages[i].content.length > 100) {
+          // 创建一个简短摘要版本
+          const truncatedContent = middleMessages[i].content.substring(0, 50) + "...[已裁剪]";
+          const truncatedMsg = { ...middleMessages[i], content: truncatedContent };
+          const truncatedTokens = estimateTokens(truncatedMsg);
+          
+          if (middleTokenCount + truncatedTokens <= availableTokensForMiddle) {
+            keepMiddleMessages.unshift(truncatedMsg);
+            middleTokenCount += truncatedTokens;
+            log(`已裁剪一条消息内容至简短摘要`);
+          }
+        }
+        // 否则跳过此消息
+      }
+    }
+    
+    // 构建最终消息数组：系统消息 + 保留的中间历史 + 最近对话
+    const finalMessages = [...systemMessages, ...keepMiddleMessages, ...recentMessages];
+    const finalTokenCount = systemTokens + middleTokenCount + recentTokens;
+    
+    log(`智能裁剪后保留${finalMessages.length}条消息，总token数约${finalTokenCount}，其中系统消息${systemMessages.length}条，中间历史${keepMiddleMessages.length}条，最近对话${recentMessages.length}条`);
+    
+    return finalMessages;
   }
   
   /**
