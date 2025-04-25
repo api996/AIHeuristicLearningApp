@@ -1,7 +1,9 @@
 import os
 import sys
 import json
+import time
 from typing import List, Dict, Any, Optional
+from collections import deque
 
 try:
     import numpy as np
@@ -69,7 +71,15 @@ class EmbeddingService:
         self._max_cache_size = 1000  # 最大缓存1000个向量
         # 文本长度限制，过长的文本将被截断以降低API调用成本
         self._max_text_length = 1000  # 限制文本长度为1000字符
+        
+        # 添加API速率限制
+        self._minute_request_limit = 5  # 每分钟最大请求数
+        self._day_request_limit = 100   # 每天最大请求数
+        self._minute_requests = deque()  # 记录过去一分钟的请求时间
+        self._day_requests = deque()    # 记录过去24小时的请求时间
+        
         print(f"嵌入服务初始化: 使用模型={self.model_name}, 最大缓存={self._max_cache_size}, 文本长度限制={self._max_text_length}")
+        print(f"API速率限制: 每分钟{self._minute_request_limit}请求, 每天{self._day_request_limit}请求")
         
     def _preprocess_text(self, text):
         """
@@ -107,6 +117,51 @@ class EmbeddingService:
         # 添加到缓存
         self._vector_cache[key] = vector
         print(f"向量已缓存，键: {key[:8]}..., 缓存大小: {len(self._vector_cache)}")
+        
+    def _check_rate_limits(self):
+        """
+        检查API速率限制，如果超出限制则等待或抛出错误
+        
+        Returns:
+            bool: 是否可以继续执行API调用
+            
+        Raises:
+            ValueError: 如果达到每日限制
+        """
+        current_time = time.time()
+        minute_ago = current_time - 60
+        day_ago = current_time - 86400  # 24小时前
+        
+        # 清理过期的请求记录
+        while self._minute_requests and self._minute_requests[0] < minute_ago:
+            self._minute_requests.popleft()
+            
+        while self._day_requests and self._day_requests[0] < day_ago:
+            self._day_requests.popleft()
+            
+        # 检查每日限制
+        if len(self._day_requests) >= self._day_request_limit:
+            error_msg = f"已达到每日API请求限制({self._day_request_limit}次)，请等待24小时后重试"
+            print(error_msg)
+            raise ValueError(error_msg)
+            
+        # 检查每分钟限制，如果超出限制则等待
+        if len(self._minute_requests) >= self._minute_request_limit:
+            oldest = self._minute_requests[0]
+            wait_time = 61 - (current_time - oldest)  # 等待时间略多于1分钟，确保最早的请求过期
+            
+            if wait_time > 0:
+                print(f"已达到每分钟API请求限制，将等待{wait_time:.1f}秒后重试...")
+                time.sleep(wait_time)
+                # 重新检查速率限制
+                return self._check_rate_limits()
+                
+        # 记录此次请求
+        self._minute_requests.append(current_time)
+        self._day_requests.append(current_time)
+        print(f"API请求计数: 分钟内{len(self._minute_requests)}/{self._minute_request_limit}, 24小时内{len(self._day_requests)}/{self._day_request_limit}")
+        
+        return True
 
     async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
@@ -162,6 +217,9 @@ class EmbeddingService:
                         try:
                             # 调用API获取嵌入向量
                             print(f"处理文本 {j+1}/{len(batch_texts)}: {text[:20]}...")
+                            
+                            # 检查API速率限制
+                            self._check_rate_limits()
                             
                             # 使用API进行嵌入
                             result = genai.embed_content(
@@ -319,6 +377,10 @@ class EmbeddingService:
                 
             # 生成嵌入
             print(f"处理文本: {processed_text[:20]}...")
+            
+            # 检查API速率限制
+            self._check_rate_limits()
+            
             result = genai.embed_content(
                 model=self.model_name,
                 content=processed_text,

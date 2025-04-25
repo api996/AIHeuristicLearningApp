@@ -71,15 +71,17 @@ async function generateChatHistoryForUser(userId) {
       // 为这一天创建一个聊天记录
       const chatTitle = `${date} 对话`;
       
-      // 插入聊天记录
-      const chatResult = await pool.query(
-        `INSERT INTO chats (user_id, created_at, title, model) 
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-        [userId, new Date(date), chatTitle, 'gemini-pro']
-      );
+      // 生成ID然后插入聊天记录
+      const nextIdResult = await pool.query('SELECT nextval(\'chats_id_seq\')');
+      const generatedChatId = parseInt(nextIdResult.rows[0].nextval);
       
-      const chatId = chatResult.rows[0].id;
-      log(`创建聊天记录: ${chatTitle}, ID: ${chatId}`);
+      // 插入聊天记录
+      await pool.query(
+        `INSERT INTO chats (id, user_id, created_at, title, model) 
+         VALUES ($1, $2, $3, $4, $5)`,
+        [generatedChatId, userId, new Date(date), chatTitle, 'gemini-pro']
+      );
+      log(`创建聊天记录: ${chatTitle}, ID: ${generatedChatId}`);
       
       // 为每条记忆创建消息记录
       for (let i = 0; i < memories.length; i++) {
@@ -110,7 +112,7 @@ async function generateChatHistoryForUser(userId) {
               await pool.query(
                 `INSERT INTO messages (chat_id, role, content, created_at, model, is_active, is_edited) 
                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [chatId, role, cleanContent, memory.timestamp, 'gemini-pro', true, false]
+                [generatedChatId, role, cleanContent, memory.timestamp, 'gemini-pro', true, false]
               );
             }
           } else {
@@ -121,7 +123,7 @@ async function generateChatHistoryForUser(userId) {
               await pool.query(
                 `INSERT INTO messages (chat_id, role, content, created_at, model, is_active, is_edited) 
                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [chatId, 'user', userContent, memory.timestamp, 'gemini-pro', true, false]
+                [generatedChatId, 'user', userContent, memory.timestamp, 'gemini-pro', true, false]
               );
             }
             
@@ -131,7 +133,7 @@ async function generateChatHistoryForUser(userId) {
               await pool.query(
                 `INSERT INTO messages (chat_id, role, content, created_at, model, is_active, is_edited) 
                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [chatId, 'assistant', assistantContent, memory.timestamp, 'gemini-pro', true, false]
+                [generatedChatId, 'assistant', assistantContent, memory.timestamp, 'gemini-pro', true, false]
               );
             }
           }
@@ -140,7 +142,7 @@ async function generateChatHistoryForUser(userId) {
         }
       }
       
-      log(`为聊天 ${chatId} 创建了消息记录`, 'success');
+      log(`为聊天 ${generatedChatId} 创建了消息记录`, 'success');
     }
     
     log(`用户 ${userId} 的聊天历史生成完成`, 'success');
