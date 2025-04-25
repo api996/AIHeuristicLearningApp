@@ -869,6 +869,7 @@ ${searchResults}
               createdAt: new Date(),
               model: null,
               feedback: null,
+              feedbackText: null, // 添加缺失的feedbackText字段
               isEdited: null,
               isActive: true
             };
@@ -881,19 +882,35 @@ ${searchResults}
             // 分析对话阶段
             await conversationAnalyticsService.analyzeConversationPhase(chatId, messagesWithCurrent);
             
-            // 使用提示词管理服务获取动态提示词
-            const dynamicPrompt = await promptManagerService.getDynamicPrompt(
-              this.currentModel,
-              chatId,
-              message,
-              contextMemories,
-              searchResults
-            );
+            // 判断是否使用模块化提示词管理服务
+            let processedMessage = message;
             
-            log(`使用动态提示词模板处理消息`);
+            if (config.usePromptManager) {
+              // 使用增强版提示词管理服务获取动态提示词
+              processedMessage = await promptManagerService.getDynamicPrompt(
+                this.currentModel,
+                chatId,
+                message,
+                contextMemories,
+                searchResults
+              );
+              log(`使用增强版模块化提示词处理消息，模型: ${this.currentModel}`);
+            } else {
+              // 原始方式处理提示词（向后兼容）
+              log(`使用传统提示词模板处理消息，模型: ${this.currentModel}`);
+              const promptTemplate = await this.getModelPromptTemplate(this.currentModel);
+              if (promptTemplate) {
+                processedMessage = this.applyPromptTemplate(
+                  promptTemplate,
+                  message,
+                  contextMemories,
+                  searchResults
+                );
+              }
+            }
             
-            // 使用动态提示词而不是原始消息
-            const response = await config.getResponse(dynamicPrompt, userId, contextMemories, searchResults, this.useWebSearch);
+            // 使用处理后的提示词调用模型
+            const response = await config.getResponse(processedMessage, userId, contextMemories, searchResults, this.useWebSearch);
             
             // 对模型输出进行内容审查 - 后置审查
             const modelOutputModerationResult = await contentModerationService.moderateModelOutput(response.text);
@@ -913,27 +930,43 @@ ${searchResults}
         }
       }
       
-      // 尝试获取模型的提示词模板
-      const promptTemplate = await this.getModelPromptTemplate(this.currentModel);
+      // 确定如何处理提示词
+      let processedMessage = message;
       
-      // 如果有提示词模板，应用模板
-      let response;
-      if (promptTemplate) {
-        const processedPrompt = this.applyPromptTemplate(
-          promptTemplate,
-          message,
-          contextMemories,
-          searchResults
-        );
-        
-        log(`Applied prompt template for model ${this.currentModel}`);
-        
-        // 使用处理后的提示词
-        response = await config.getResponse(processedPrompt, userId, contextMemories, searchResults, this.useWebSearch);
+      // 判断是否使用提示词管理服务
+      if (config.usePromptManager) {
+        try {
+          // 使用提示词管理服务获取动态提示词
+          processedMessage = await promptManagerService.getDynamicPrompt(
+            this.currentModel,
+            chatId || 0, // 如果没有chatId，使用0作为默认值
+            message,
+            contextMemories,
+            searchResults
+          );
+          log(`使用增强版模块化提示词处理备用路径消息，模型: ${this.currentModel}`);
+        } catch (error) {
+          log(`提示词管理服务处理失败，回退到基本提示词: ${error}`);
+          // 出错时继续使用原始消息
+        }
       } else {
-        // 使用默认处理（无模板）
-        response = await config.getResponse(message, userId, contextMemories, searchResults, this.useWebSearch);
+        // 尝试获取模型的提示词模板
+        const promptTemplate = await this.getModelPromptTemplate(this.currentModel);
+        
+        // 如果有提示词模板，应用模板
+        if (promptTemplate) {
+          processedMessage = this.applyPromptTemplate(
+            promptTemplate,
+            message,
+            contextMemories,
+            searchResults
+          );
+          log(`使用传统提示词模板处理备用路径消息，模型: ${this.currentModel}`);
+        }
       }
+      
+      // 使用处理后的提示词调用模型
+      const response = await config.getResponse(processedMessage, userId, contextMemories, searchResults, this.useWebSearch);
       
       // 对模型输出进行内容审查 - 后置审查
       const modelOutputModerationResult = await contentModerationService.moderateModelOutput(response.text);
