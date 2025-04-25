@@ -60,22 +60,41 @@ if not GEMINI_API_KEY:
 # 配置API密钥
 genai.configure(api_key=GEMINI_API_KEY)
 
+# 重定向标准输出，只输出JSON结果
+class JsonOnlyOutput:
+    def __init__(self):
+        self.captured = []
+        
+    def write(self, s):
+        self.captured.append(s)
+        
+    def flush(self):
+        pass
+        
 # 命令行脚本函数
 def embed_text_from_cli():
     """
     从命令行接收文本并返回嵌入向量
     """
-    # 解析命令行参数
-    parser = argparse.ArgumentParser(description='生成文本的向量嵌入')
-    parser.add_argument('--text', type=str, required=True, help='要嵌入的文本')
-    args = parser.parse_args()
+    # 隐藏常规日志输出，只返回JSON结果
+    original_stdout = sys.stdout
+    log_capture = JsonOnlyOutput()
+    sys.stdout = log_capture
     
-    # 创建嵌入服务实例
-    service = EmbeddingService()
-    
-    # 生成向量嵌入
     try:
+        # 解析命令行参数
+        parser = argparse.ArgumentParser(description='生成文本的向量嵌入')
+        parser.add_argument('--text', type=str, required=True, help='要嵌入的文本')
+        args = parser.parse_args()
+        
+        # 创建嵌入服务实例
+        service = EmbeddingService()
+        
+        # 生成向量嵌入
         embedding = service.embed_single_text(args.text)
+        
+        # 恢复标准输出
+        sys.stdout = original_stdout
         
         # 输出JSON格式的结果
         if embedding is None:
@@ -94,6 +113,9 @@ def embed_text_from_cli():
         print(json.dumps(result))
         return 0
     except Exception as e:
+        # 恢复标准输出
+        sys.stdout = original_stdout
+        
         error_result = {
             "success": False,
             "error": str(e)
@@ -507,6 +529,8 @@ class EmbeddingService:
                 error_msg = f"相似度计算完全失败: {inner_error}"
                 print(error_msg)
                 raise ValueError(error_msg)
+                
+
 
 # 主入口点
 if __name__ == "__main__":

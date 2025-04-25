@@ -117,6 +117,7 @@ async function generateEmbedding(text) {
       let errorData = '';
       
       pythonProcess.stdout.on('data', (data) => {
+        // 只收集输出数据，不立即处理
         outputData += data.toString();
       });
       
@@ -132,22 +133,46 @@ async function generateEmbedding(text) {
           return;
         }
         
+        // 尝试找到有效的JSON输出
         try {
-          // 尝试解析输出的JSON数据
-          const result = JSON.parse(outputData);
+          const jsonStart = outputData.indexOf('{');
+          const jsonEnd = outputData.lastIndexOf('}');
           
-          if (result && result.embedding && Array.isArray(result.embedding)) {
-            // 验证嵌入维度
-            if (result.embedding.length < 100) {
-              log(`警告: 嵌入维度异常 (${result.embedding.length})`, 'warning');
-            } else {
-              log(`成功生成${result.embedding.length}维语义向量嵌入`, 'success');
-            }
+          if (jsonStart >= 0 && jsonEnd > jsonStart) {
+            // 提取JSON部分
+            const jsonStr = outputData.substring(jsonStart, jsonEnd + 1);
+            log(`提取JSON部分: ${jsonStr.length} 字符`, 'info');
             
-            resolve(result.embedding);
+            try {
+              // 解析JSON
+              const result = JSON.parse(jsonStr);
+              
+              if (result.success === false) {
+                log(`Python嵌入服务报告错误: ${result.error}`, 'error');
+                reject(new Error(result.error || '嵌入服务返回失败结果'));
+                return;
+              }
+              
+              if (result && result.embedding && Array.isArray(result.embedding)) {
+                // 验证嵌入维度
+                if (result.embedding.length < 100) {
+                  log(`警告: 嵌入维度异常 (${result.embedding.length})`, 'warning');
+                } else {
+                  log(`成功生成${result.embedding.length}维语义向量嵌入`, 'success');
+                }
+                
+                resolve(result.embedding);
+              } else {
+                log('Python嵌入服务返回格式错误', 'error');
+                reject(new Error('嵌入服务返回数据格式错误'));
+              }
+            } catch (error) {
+              log(`解析嵌入结果出错: ${error.message}`, 'error');
+              reject(error);
+            }
           } else {
-            log('Python嵌入服务返回格式错误', 'error');
-            reject(new Error('嵌入服务返回数据格式错误'));
+            log('未找到有效的JSON输出', 'error');
+            reject(new Error('Python服务未返回有效的JSON数据'));
           }
         } catch (error) {
           log(`解析嵌入结果出错: ${error.message}`, 'error');
