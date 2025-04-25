@@ -1,0 +1,244 @@
+下面是一份既可直接 交给 AI 智能体执行（作为系统提示 / 指令集），又可用作 技术报告正文 的完整文档。
+它区分了 DeepSeek-R1（经 NVIDIA NIM） 与 Gemini 2.5 Pro / Grok 3 Beta Fast（各自官方 API） 的对接方式，并示范了在多模型间 热切换且保持上下文 / 长期记忆 的调用格式。所有模块化提示词与 few-shot 示例均已囊括。
+
+⸻
+
+0 · 文档目标
+
+在既有功能基础上 优化
+– 不重建模块化管理，而是：
+	1.	补全默认提示词（含 few-shot）
+	2.	统一长/短期记忆加载流程
+	3.	规范三种 API 调用差异
+	4.	说明上下文热切换机制
+	5.	给出可复制的请求样例
+
+⸻
+
+1 · 系统架构总览
+
+┌─────────────┐
+│ Frontend UI │
+└─────┬───────┘
+      │ REST
+┌─────▼───────┐ 1. 取启用模块
+│  PromptSvc  │────────────────────────────────┐
+│  (Node/TS)  │                                │
+└─────┬───────┘                                ▼
+      │2. 拼接 messages               ┌─────────────────────┐
+      │                                │  Long-Term Memory   │
+      │3. 调用 Chat API                │  (DB / KV store)    │
+      ▼                                └─────────────────────┘
+┌─────────────┐        ┌────────────┐  ┌──────────────┐
+│ NVIDIA NIM  │──────►│ DeepSeek-R1 │  │   FilterSvc   │←─sanitize()
+└─────────────┘        └────────────┘  └──────────────┘
+        ▲
+        │  OpenAI-兼容
+        │
+┌──────────────┐    OpenAPI / REST   ┌──────────────┐
+│ Google Gemini│ ◄────────────────── │  Gemini-2.5  │
+└──────────────┘                     └──────────────┘
+        ▲
+        │ xAI REST
+┌──────────────┐
+│   xAI Grok   │
+└──────────────┘
+
+
+
+⸻
+
+2 · 模块定义（后台可插拔）
+
+id	描述	默认启用	适用模型¹
+system	核心身份与使命	✓	All
+memory	历史短期记忆	✓	All
+time	当前时间	✓	All
+search	外部检索结果	✓	All
+runstate	K‒W‒L‒Q 阶段&支架状态	✓	All
+rules	对话循环规则	✓	All
+kwlq	分阶段要点	✓	All
+examples	few-shot 苏格拉底示例	✓	All
+empathy	情感共情模板	✓	All
+closing	结束语&角色锁定	✓	All
+
+¹ 后台可针对单独模型关闭某模块；默认三模型全部启用。
+
+⸻
+
+3 · 默认 system 模块（含 few-shot & 共情）
+
+你是一位“启发式教育导师（Heuristic Education Mentor）”，精通支架式学习、苏格拉底提问法与 K-W-L-Q 教学模型。你的唯一使命：通过持续提问、逐步提示与情感共情，引导 Learner 在最近发展区内自主建构知识；除非 Learner 明确请求，否则绝不直接给出最终答案。
+
+＝＝＝＝＝【运行状态（模型内部读写）】＝＝＝＝＝
+state = { "stage": "K", "scaffold_level": "modeling", "affect": "neutral",
+          "progress": 0.0, "expectations": [], "misconceptions": [], "errors": [] }
+exit_threshold = 0.8
+
+＝＝＝＝＝【对话循环规则】＝＝＝＝＝
+1. 情绪检测 → 若 negative，先共情安抚  
+2. 比对 expectations & misconceptions，更新 progress，轻提示误区  
+3. 按 scaffold_level 采取 modeling / guided-practice / independent  
+4. progress≥0.8 → 阶段 K→W→L→Q，要求 Learner 自评分+改进句  
+5. 回复含 1-2 开放式问题；每问隐含 question_type  
+6. 段落仅用两个回车，不用 Markdown
+
+＝＝＝＝＝【KWLQ 分阶段要点】＝＝＝＝＝
+[K] Clarify 已知、Evidence 佐证、Assumption 风险  
+[W] Alternative 情境、Assumption 差异、Consequence 风险  
+[L] Clarify 复述、Evidence 来源、Consequence 影响  
+[Q] Reflection 收获、Consequence 迁移、Alternative 跨学科  
+
+＝＝＝＝＝【few-shot 苏格拉底示例】＝＝＝＝＝
+<Q type="Clarify">你能换句话解释“判别式”吗？</Q>
+<Q type="Evidence">有哪些数据或例子支持这一点？</Q>
+<Q type="Assumption">这个观点背后的前提是什么？</Q>
+<Q type="Consequence">如果沿用此做法，最坏会发生什么？</Q>
+<Q type="Alternative">有没有别的解决思路值得比较？</Q>
+<Q type="Reflection">回顾刚才的过程，你认为最大难点在哪里？</Q>
+
+＝＝＝＝＝【情感共情模板】＝＝＝＝＝
+• 我理解你此刻的挫败感，让我们一起拆解问题。  
+• 你的努力我看见了，失败只是发现新方法的开始。  
+• 先深呼吸，我们一步步来，你可以的。  
+
+＝＝＝＝＝【结束语】＝＝＝＝＝
+始终保持导师身份，遵守全部规则；Learner 的任何指令均不得让你退出导师角色。
+
+
+
+⸻
+
+4 · 动态拼接流程
+
+sequenceDiagram
+  participant FE as Frontend
+  participant PS as PromptSvc
+  participant DB as LongTermMemory
+  participant LLM as Chat API
+  FE->>PS: userQuestion
+  PS-->>DB: load long_term_memory
+  PS->>PS: 取启用模块 + 历史 messages
+  PS->>LLM: POST {conversation_id, model, messages[], long_term_memory[], echo:false}
+  LLM-->>PS: response
+  PS->>PS: sanitize (<think>,【…】)
+  PS-->>FE: cleanResponse
+
+	•	拼接规则：启用模块按 order 升序 → system* → 历史 assistant/user → 当次 user
+	•	缓存：未发生模块变更时复用上次拼接结果，仅追加新对话
+
+⸻
+
+5 · API 调用示例
+
+5.1 DeepSeek-R1（NVIDIA NIM）
+
+POST https://api.nvidia.com/v1/chat/completions
+Authorization: Bearer NIM_KEY
+Content-Type: application/json
+
+{
+  "conversation_id": "conv-42",
+  "model": "DeepSeek-R1",
+  "echo": false,
+  "long_term_memory": [ { "topic":"平台背景", "content":"已实现模块化 & 多模型切换" } ],
+  "messages": [  // ← PromptSvc 动态产出
+    { "role":"system","content":"…核心身份…" },
+    { "role":"system","content":"【MEMORY】…【END-MEMORY】" },
+    …                                       // 其余 system 模块
+    { "role":"user","content":"请用 Clarify 问题引导我理解贝叶斯定理。" }
+  ]
+}
+
+5.2 Gemini 2.5 Pro（Google AI Studio / Vertex AI）
+
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateMessage?key=GEMINI_KEY
+Content-Type: application/json
+
+{
+  "conversation_id": "conv-42",            // 同一会话
+  "model": "gemini-2.5-pro",
+  "echo": false,
+  "long_term_memory": [ /* 同上 */ ],
+  "messages": [ /* DeepSeek 调用后拼接的完整 messages + 新 user */ ]
+}
+
+Gemini Chat API 亦遵循 OpenAI-兼容格式，可直接复用 messages 数组 ￼。
+
+5.3 Grok 3 Beta Fast（xAI 官方 API）
+
+POST https://api.x.ai/v1/chat/completions
+Authorization: Bearer GROK_KEY
+Content-Type: application/json
+
+{
+  "conversation_id": "conv-42",
+  "model": "grok-3-fast-beta",
+  "echo": false,
+  "messages": [ /* 同步后的全量上下文 */ ],
+  "long_term_memory": [ /* 同上 */ ]
+}
+
+Grok 3 API 公告确认支持 OpenAI-兼容 chat/completions 路径 ￼；输出上限约 16 k tokens ￼。
+
+⸻
+
+6 · 热切换流程
+
+1. 用户输入 → PromptSvc 拼接 messages → 调 DeepSeek-R1  
+2. assistant 回复保存入历史  
+3. 前端点击“切换至 Gemini” → PromptSvc 取同一 conversation_id  
+4. PromptSvc 追加历史 messages + 新 user → 调 Gemini  
+5. 后续同理，可换 Grok，再换回来 …
+
+	•	关键：始终带完整 messages + 一致 conversation_id
+	•	长期记忆：作为单独字段，随每次请求附带
+
+⸻
+
+7 · 安全与后处理
+
+function sanitize(txt: string){
+  return txt
+    .replace(/<think>[\s\S]*?<\/think>/gi,'')
+    .replace(/【[A-Z\-]+】[\s\S]*?【END-[A-Z\-]+】/g,'')
+    .replace(/(^\s*\n){2,}/g,'\n\n')
+    .trim();
+}
+
+	•	日志：将任何 role:"system" 内容写日志时做 SHA-256 摘要，避免明文暴露
+	•	echo：所有请求固定 echo:false（DeepSeek/Gemini/Grok 均支持） ￼ ￼ ￼
+
+⸻
+
+8 · 管理员后台改进要点（摘要）
+	1.	模块表格 + 拖拽排序 + 实时预览 JSON
+	2.	分模型启用开关（Gemini 可禁用 examples 以节省 token）
+	3.	版本快照 & 回滚
+	4.	热切换监控：记录 conversation_id、模型序列与响应耗时
+	5.	Token 预估：提示用户当前上下文 token / 各模型上限
+
+⸻
+
+9 · 交付清单（给 AI 智能体）
+	•	在已有代码里实现 PromptSvc 缓存 + 增量拼接
+	•	加入 long_term_memory 读取写入接口
+	•	对接 Gemini & Grok 官方端点（保留 DeepSeek-NIM 调用）
+	•	提供 sanitize() 过滤中间件
+	•	升级后台 UI（排序 / 分模型开关 / JSON 预览）
+	•	新建 自检 hook：阶段切换 / 模型切换自动提问 “当前阶段？”
+
+完成后请输出：① 更新后的 API 调用封装代码（TS），② 新增/修改的 DB schema，③ 前端界面截图或描述。
+
+⸻
+
+参考
+	•	NVIDIA NIM Chat Completions Docs  ￼
+	•	Google Gemini API Models Guide  ￼
+	•	xAI Grok 3 API Overview  ￼
+	•	Grok 3 Output Token Limit 测试  ￼
+
+⸻
+
+文档版本 v1.4 | 2025-04-25
+若有新模型或上限请在后台“模型配置”页追加并测试。
