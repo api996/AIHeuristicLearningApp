@@ -212,30 +212,31 @@ class EmbeddingService:
 
         Returns:
             相似度分数 (0-1)
+            
+        Raises:
+            ValueError: 如果计算过程中出现错误
         """
+        if not text1 or not text2:
+            error_msg = "相似度计算错误：需要两个非空文本"
+            print(error_msg)
+            raise ValueError(error_msg)
+        
         try:
+            # get_embeddings 现在会在失败时抛出错误
             embeddings = await self.get_embeddings([text1, text2])
 
-            # 安全检查
+            # 验证嵌入向量
             if not embeddings or len(embeddings) < 2:
-                print("无法获取两个文本的嵌入向量")
-                return 0.0
+                error_msg = "无法获取两个文本的嵌入向量"
+                print(error_msg)
+                raise ValueError(error_msg)
 
-            # 确保我们有两个非空向量
-            if not embeddings[0] or not embeddings[1]:
-                print("获取到空的嵌入向量")
-                # 使用字符串匹配作为回退机制
-                # 注意：这只是一个简单的替代方案，不如余弦相似度准确
-                common_words1 = set(text1.lower().split())
-                common_words2 = set(text2.lower().split())
-                if not common_words1 or not common_words2:
-                    return 0.0
-
-                intersection = common_words1.intersection(common_words2)
-                union = common_words1.union(common_words2)
-
-                # 计算Jaccard相似度作为替代
-                return len(intersection) / max(1, len(union))
+            # 验证向量维度
+            expected_dim = 3072
+            if len(embeddings[0]) != expected_dim or len(embeddings[1]) != expected_dim:
+                error_msg = f"嵌入向量维度异常 [{len(embeddings[0])}, {len(embeddings[1])}], 期望: {expected_dim}"
+                print(error_msg)
+                raise ValueError(error_msg)
 
             # 正常情况：使用scikit-learn计算余弦相似度
             try:
@@ -245,38 +246,42 @@ class EmbeddingService:
                 sim = cosine_similarity(vec1, vec2)[0][0]
                 return float(sim)
             except Exception as sklearn_error:
-                print(f"使用scikit-learn计算相似度失败: {sklearn_error}")
+                print(f"使用scikit-learn计算相似度失败: {sklearn_error}，回退到基本实现")
                 
-                # 回退到基本实现
+                # 回退到基本余弦相似度实现 - 这是数学上等价的，只是实现方法不同
                 vec1 = np.array(embeddings[0])
                 vec2 = np.array(embeddings[1])
                 
                 # 使用安全的点积与范数计算
                 try:
                     dot_product = np.dot(vec1, vec2)
-                except Exception:
+                except Exception as dot_error:
                     # 如果numpy dot 失败，使用纯Python实现
+                    print(f"numpy点积计算失败: {dot_error}，使用Python实现")
                     dot_product = sum(v1*v2 for v1, v2 in zip(vec1, vec2))
                 
                 try:
                     norm1 = np.linalg.norm(vec1)
                     norm2 = np.linalg.norm(vec2)
-                except Exception:
+                except Exception as norm_error:
                     # 如果numpy norm 失败，使用纯Python实现
+                    print(f"numpy范数计算失败: {norm_error}，使用Python实现")
                     norm1 = (sum(v*v for v in vec1)) ** 0.5
                     norm2 = (sum(v*v for v in vec2)) ** 0.5
 
                 if norm1 == 0 or norm2 == 0:
-                    print("嵌入向量范数为零")
-                    return 0.0
+                    error_msg = "嵌入向量范数为零，无法计算相似度"
+                    print(error_msg)
+                    raise ValueError(error_msg)
 
                 similarity = dot_product / (norm1 * norm2)
                 print(f"计算相似度成功: {similarity}")
                 return similarity
 
         except Exception as e:
-            print(f"计算相似度时出错: {str(e)}")
-            return 0.0
+            error_msg = f"计算相似度时出错: {str(e)}"
+            print(error_msg)
+            raise ValueError(error_msg)
             
     def embed_single_text(self, text: str) -> Optional[List[float]]:
         """
@@ -422,12 +427,12 @@ if __name__ == "__main__":
             if not text:
                 print(json.dumps({"error": "文本为空"}))
                 sys.exit(1)
-                
-            embedding = embedding_service.embed_single_text(text)
-            if embedding:
+            
+            try:
+                embedding = embedding_service.embed_single_text(text)
                 print(json.dumps({"embedding": embedding}))
-            else:
-                print(json.dumps({"error": "嵌入生成失败"}))
+            except Exception as e:
+                print(json.dumps({"error": f"嵌入生成失败: {str(e)}"}))
                 
         elif operation == "similarity":
             # 计算两个文本的相似度
@@ -437,9 +442,13 @@ if __name__ == "__main__":
             if not text1 or not text2:
                 print(json.dumps({"error": "需要两个非空文本"}))
                 sys.exit(1)
-                
-            similarity = embedding_service.calculate_similarity(text1, text2)
-            print(json.dumps({"similarity": similarity}))
+            
+            try:
+                similarity = embedding_service.calculate_similarity(text1, text2)
+                print(json.dumps({"similarity": similarity}))
+            except Exception as e:
+                print(json.dumps({"error": f"相似度计算失败: {str(e)}"}))
+                sys.exit(1)
             
         else:
             print(json.dumps({"error": f"未知操作: {operation}"}))

@@ -106,44 +106,50 @@ asyncio.run(save_memory())
  */
 export async function getMemoryById(id: string, userId?: number): Promise<Memory | null> {
   try {
-    // 这个实现依赖于文件系统，需要扫描用户目录
+    // 确保提供了用户ID
     if (!userId) {
       throw new Error('必须提供用户ID');
     }
 
-    const userDir = path.join(MEMORY_DIR, userId.toString());
-    if (!fs.existsSync(userDir)) {
-      return null;
+    // 从数据库获取记忆
+    try {
+      const { db } = await import('../../db');
+      const { memories: memoriesTable } = await import('@shared/schema');
+      const { eq, and } = await import('drizzle-orm');
+      
+      // 查询记忆
+      const [memory] = await db.select()
+        .from(memoriesTable)
+        .where(and(
+          eq(memoriesTable.id, id),
+          eq(memoriesTable.userId, userId)
+        ));
+      
+      if (!memory) {
+        log(`[memoryStore] 未找到记忆: ${id}，用户: ${userId}`, 'warn');
+        return null;
+      }
+      
+      // 确保数据格式正确
+      return {
+        id: memory.id,
+        content: memory.content,
+        type: memory.type || 'chat',
+        timestamp: memory.timestamp?.toISOString() || new Date().toISOString(),
+        userId: memory.userId,
+        summary: memory.summary || null,
+        keywords: memory.keywords || [],
+        embedding: null // 嵌入向量通常在需要时单独获取
+      };
+    } catch (dbError) {
+      const errorMsg = `[memoryStore] 从数据库获取记忆失败: ${dbError}`;
+      log(errorMsg, 'error');
+      throw new Error(errorMsg);
     }
-
-    // 查找匹配ID的文件（ID可能是文件名的一部分）
-    const files = fs.readdirSync(userDir).filter(file => 
-      file.endsWith('.json') && (file === `${id}.json` || file.includes(id))
-    );
-
-    if (files.length === 0) {
-      return null;
-    }
-
-    // 读取文件内容
-    const filePath = path.join(userDir, files[0]);
-    const content = fs.readFileSync(filePath, 'utf8');
-    const memoryData = JSON.parse(content);
-
-    // 确保数据格式正确
-    return {
-      id: files[0].replace('.json', ''),
-      content: memoryData.content,
-      type: memoryData.type || 'chat',
-      timestamp: memoryData.timestamp,
-      userId,
-      summary: memoryData.summary,
-      keywords: memoryData.keywords,
-      embedding: memoryData.embedding
-    };
   } catch (error) {
-    log(`[memoryStore] 获取记忆时遇到错误: ${error}`);
-    return null;
+    const errorMsg = `[memoryStore] 获取记忆时遇到错误: ${error}`;
+    log(errorMsg, 'error');
+    throw new Error(errorMsg);
   }
 }
 
@@ -194,8 +200,9 @@ asyncio.run(retrieve_memories())
     return new Promise((resolve, reject) => {
       pythonProcess.on('close', (code) => {
         if (code !== 0) {
-          log(`[memoryStore] 检索相似记忆失败，Python进程退出码: ${code}`);
-          resolve([]);
+          const errorMsg = `[memoryStore] 检索相似记忆失败，Python进程退出码: ${code}`;
+          log(errorMsg, 'error');
+          reject(new Error(errorMsg));  // 抛出错误，而不是返回空数组
         } else {
           try {
             // 记录完整输出以便调试
@@ -266,10 +273,10 @@ asyncio.run(retrieve_memories())
 
             resolve(formattedMemories);
           } catch (error) {
-            log(`[memoryStore] 解析相似记忆结果失败: ${error}`);
-            log(`[memoryStore] 原始输出: ${output}`);
-            // 在错误情况下返回空数组而不是抛出异常
-            resolve([]);
+            const errorMsg = `[memoryStore] 解析相似记忆结果失败: ${error}，原始输出: ${output.substring(0, 200)}...`;
+            log(errorMsg, 'error');
+            // 抛出错误而不是静默返回空结果
+            reject(new Error(errorMsg));
           }
         }
       });

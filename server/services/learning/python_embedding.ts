@@ -139,8 +139,9 @@ export class PythonEmbeddingService {
         // 处理进程结束
         pythonProcess.on("close", (code) => {
           if (code !== 0) {
-            log(`[PythonEmbedding] Python进程异常退出，代码: ${code}`, "error");
-            return resolve({ error: `进程异常退出 (${code}): ${errorData}` });
+            const errorMsg = `[PythonEmbedding] Python进程异常退出，代码: ${code}: ${errorData}`;
+            log(errorMsg, "error");
+            return reject(new Error(errorMsg));
           }
 
           try {
@@ -151,13 +152,24 @@ export class PythonEmbeddingService {
             if (jsonStart >= 0 && jsonEnd > jsonStart) {
               const jsonStr = outputData.substring(jsonStart, jsonEnd + 1);
               const result = JSON.parse(jsonStr);
+              
+              // 检查返回结果中是否有错误信息
+              if (result.error) {
+                const errorMsg = `[PythonEmbedding] Python脚本返回错误: ${result.error}`;
+                log(errorMsg, "error");
+                return reject(new Error(errorMsg));
+              }
+              
               return resolve(result);
             } else {
-              return resolve({ error: "无法解析Python响应" });
+              const errorMsg = `[PythonEmbedding] 无法解析Python响应: ${outputData}`;
+              log(errorMsg, "error");
+              return reject(new Error(errorMsg));
             }
           } catch (parseError) {
-            log(`[PythonEmbedding] 解析Python输出失败: ${parseError}`, "error");
-            return resolve({ error: `解析输出失败: ${parseError}` });
+            const errorMsg = `[PythonEmbedding] 解析Python输出失败: ${parseError}`;
+            log(errorMsg, "error");
+            return reject(new Error(errorMsg));
           }
         });
 
