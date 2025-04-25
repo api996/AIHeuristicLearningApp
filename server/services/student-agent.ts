@@ -325,19 +325,40 @@ class StudentAgentService {
       let kwlqUpdateType: "K" | "W" | "L" | "Q" | "none" = "none";
       let kwlqUpdateContent = "";
       
+      // 确保KWLQ结构的类型定义
+      type KWLQData = {
+        K: string[];
+        W: string[];
+        L: string[];
+        Q: string[];
+      };
+      
       if (stateUpdate.kwlq) {
         // 比较新旧KWLQ数据，确定更新类型
-        const oldKwlq = session.currentState?.kwlq || { K: [], W: [], L: [], Q: [] };
-        const newKwlq = stateUpdate.kwlq;
+        const oldStateKwlq = session.currentState?.kwlq || { K: [], W: [], L: [], Q: [] };
+        const oldKwlq: KWLQData = {
+          K: Array.isArray(oldStateKwlq.K) ? oldStateKwlq.K : [],
+          W: Array.isArray(oldStateKwlq.W) ? oldStateKwlq.W : [],
+          L: Array.isArray(oldStateKwlq.L) ? oldStateKwlq.L : [],
+          Q: Array.isArray(oldStateKwlq.Q) ? oldStateKwlq.Q : []
+        };
+        
+        const newStateKwlq = stateUpdate.kwlq;
+        const newKwlq: KWLQData = {
+          K: Array.isArray(newStateKwlq.K) ? newStateKwlq.K : [],
+          W: Array.isArray(newStateKwlq.W) ? newStateKwlq.W : [],
+          L: Array.isArray(newStateKwlq.L) ? newStateKwlq.L : [],
+          Q: Array.isArray(newStateKwlq.Q) ? newStateKwlq.Q : []
+        };
         
         const findNewItems = (newArr: string[], oldArr: string[]): string[] => {
           return newArr.filter(item => !oldArr.includes(item));
         };
         
-        const newK = findNewItems(newKwlq.K || [], oldKwlq.K || []);
-        const newW = findNewItems(newKwlq.W || [], oldKwlq.W || []);
-        const newL = findNewItems(newKwlq.L || [], oldKwlq.L || []);
-        const newQ = findNewItems(newKwlq.Q || [], oldKwlq.Q || []);
+        const newK = findNewItems(newKwlq.K, oldKwlq.K);
+        const newW = findNewItems(newKwlq.W, oldKwlq.W);
+        const newL = findNewItems(newKwlq.L, oldKwlq.L);
+        const newQ = findNewItems(newKwlq.Q, oldKwlq.Q);
         
         if (newL.length > 0) {
           kwlqUpdateType = "L";
@@ -431,8 +452,15 @@ class StudentAgentService {
       // 默认值
       if (!stateUpdate.motivation) stateUpdate.motivation = 60;
       if (!stateUpdate.confusion) stateUpdate.confusion = 30;
+      
+      // 确保KWLQ结构存在
       if (!stateUpdate.kwlq) {
-        stateUpdate.kwlq = { K: [], W: [], L: [], Q: [] };
+        stateUpdate.kwlq = { 
+          K: [] as string[], 
+          W: [] as string[], 
+          L: [] as string[], 
+          Q: [] as string[] 
+        };
       }
       
       // 尝试提取状态信息
@@ -468,6 +496,13 @@ class StudentAgentService {
         }
       }
       
+      // 确保KWLQ结构的每个字段都存在且为数组
+      const kwlq = stateUpdate.kwlq as { K: string[], W: string[], L: string[], Q: string[] };
+      if (!Array.isArray(kwlq.K)) kwlq.K = [];
+      if (!Array.isArray(kwlq.W)) kwlq.W = [];
+      if (!Array.isArray(kwlq.L)) kwlq.L = [];
+      if (!Array.isArray(kwlq.Q)) kwlq.Q = [];
+      
       // 解析KWLQ更新
       // 检测"我已经理解了..."或类似句式，更新L列
       if (/我(已经|现在)?(明白|理解|学会|掌握)了/.test(responseText)) {
@@ -475,11 +510,11 @@ class StudentAgentService {
         const learnedMatch = responseText.match(/我(已经|现在)?(明白|理解|学会|掌握)了([^,.!?。，！？]+)/);
         if (learnedMatch && learnedMatch[3]) {
           const learned = learnedMatch[3].trim();
-          if (learned && !stateUpdate.kwlq.L.includes(learned)) {
-            stateUpdate.kwlq.L.push(learned);
+          if (learned && !kwlq.L.includes(learned)) {
+            kwlq.L.push(learned);
             
             // 从W列移除(如果存在)
-            stateUpdate.kwlq.W = stateUpdate.kwlq.W.filter((item: string) => item !== learned);
+            kwlq.W = kwlq.W.filter((item: string) => item !== learned);
           }
         }
       }
@@ -489,8 +524,8 @@ class StudentAgentService {
       if (questionMatches) {
         questionMatches.forEach(match => {
           const question = match.trim();
-          if (question && !stateUpdate.kwlq.Q.includes(question)) {
-            stateUpdate.kwlq.Q.push(question);
+          if (question && !kwlq.Q.includes(question)) {
+            kwlq.Q.push(question);
           }
         });
       }
@@ -507,7 +542,12 @@ class StudentAgentService {
         stateUpdate: currentState || { 
           motivation: 60, 
           confusion: 30,
-          kwlq: { K: [], W: [], L: [], Q: [] },
+          kwlq: { 
+            K: [] as string[], 
+            W: [] as string[], 
+            L: [] as string[], 
+            Q: [] as string[] 
+          },
           lastUpdated: new Date().toISOString()
         }
       };
