@@ -44,19 +44,7 @@ try:
     import google.generativeai as genai
 except ImportError:
     print("严重错误：google.generativeai 未安装")
-    # 创建一个模拟类
-    class GenAIFallback:
-        def configure(self, api_key):
-            print(f"模拟配置API密钥: {api_key[:5]}...")
-            
-        def embed_content(self, model, content, task_type=None):
-            print(f"模拟嵌入内容: {content[:20]}...")
-            import random
-            # 生成随机向量
-            embedding = [random.uniform(-0.1, 0.1) for _ in range(3072)]
-            return {"embedding": embedding}
-            
-    genai = GenAIFallback()
+    sys.exit(1)  # 直接退出，不使用备用实现
 
 # 加载环境变量
 load_dotenv()
@@ -202,26 +190,17 @@ class EmbeddingService:
                             embeddings[idx] = vector
                             
                         except Exception as e:
-                            print(f"处理文本时出错: {str(e)}")
-                            # 创建一个随机替代向量，使用正确的维度3072
-                            print("生成随机替代嵌入向量...")
-                            import random
-                            # 使用小的随机值而不是全0向量，提高区分度
-                            random_vector = [random.uniform(-0.01, 0.01) for _ in range(3072)]
-                            embeddings[idx] = random_vector
+                            error_msg = f"处理文本时出错: {str(e)}"
+                            print(error_msg)
+                            # 不再生成随机替代向量，而是向上抛出错误
+                            raise ValueError(error_msg)
 
             return embeddings
         except Exception as e:
-            print(f"嵌入生成错误: {str(e)}")
-            # 出错时返回正确维度的随机向量而不是简短替代向量
-            import random
-            fallback_vectors = []
-            for _ in texts:
-                # 创建一个3072维度的随机向量，确保维度和真实嵌入一致
-                fallback_vector = [random.uniform(-0.01, 0.01) for _ in range(3072)]
-                fallback_vectors.append(fallback_vector)
-            print(f"使用3072维随机向量替代，数量: {len(fallback_vectors)}")
-            return fallback_vectors
+            error_msg = f"嵌入生成错误: {str(e)}"
+            print(error_msg)
+            # 不再使用随机向量替代，而是向上抛出错误
+            raise ValueError(error_msg)
 
     async def similarity(self, text1: str, text2: str) -> float:
         """
@@ -310,8 +289,9 @@ class EmbeddingService:
             嵌入向量或None（如果失败）
         """
         if not text:
-            print("错误: 文本为空")
-            return None
+            error_msg = "错误: 文本为空"
+            print(error_msg)
+            raise ValueError(error_msg)
             
         try:
             # 预处理文本
@@ -321,7 +301,16 @@ class EmbeddingService:
             cache_key = self._get_cache_key(processed_text)
             if cache_key in self._vector_cache:
                 print(f"[缓存命中] 文本: {processed_text[:20]}...")
-                return self._vector_cache[cache_key]
+                vector = self._vector_cache[cache_key]
+                
+                # 验证向量维度
+                expected_dim = 3072
+                if len(vector) != expected_dim:
+                    error_msg = f"缓存的向量维度异常: {len(vector)}, 期望: {expected_dim}"
+                    print(error_msg)
+                    raise ValueError(error_msg)
+                    
+                return vector
                 
             # 生成嵌入
             print(f"处理文本: {processed_text[:20]}...")
@@ -333,18 +322,27 @@ class EmbeddingService:
             
             # 解析结果
             if not isinstance(result, dict) or "embedding" not in result:
-                print(f"错误：嵌入结果格式不正确")
-                return None
+                error_msg = "错误：嵌入结果格式不正确"
+                print(error_msg)
+                raise ValueError(error_msg)
                 
             vector = result["embedding"]
+            
+            # 验证向量维度
+            expected_dim = 3072
+            if len(vector) != expected_dim:
+                error_msg = f"嵌入向量维度异常: {len(vector)}, 期望: {expected_dim}"
+                print(error_msg)
+                raise ValueError(error_msg)
             
             # 保存到缓存
             self._cache_vector(cache_key, vector)
             
             return vector
         except Exception as e:
-            print(f"嵌入生成错误: {str(e)}")
-            return None
+            error_msg = f"嵌入生成错误: {str(e)}"
+            print(error_msg)
+            raise ValueError(error_msg)
 
     def calculate_similarity(self, text1: str, text2: str) -> float:
         """
@@ -356,24 +354,18 @@ class EmbeddingService:
             
         Returns:
             相似度分数（0-1之间）
+        
+        Raises:
+            ValueError: 如果计算过程中发生错误
         """
         if not text1 or not text2:
-            return 0.0
+            error_msg = "相似度计算错误：需要两个非空文本"
+            print(error_msg)
+            raise ValueError(error_msg)
             
-        # 生成嵌入
+        # 生成嵌入 - embed_single_text现在会抛出错误而不是返回None
         embedding1 = self.embed_single_text(text1)
         embedding2 = self.embed_single_text(text2)
-        
-        if not embedding1 or not embedding2:
-            # 退回到词汇重叠相似度
-            words1 = set(text1.lower().split())
-            words2 = set(text2.lower().split())
-            if not words1 or not words2:
-                return 0.0
-                
-            intersection = words1.intersection(words2)
-            union = words1.union(words2)
-            return len(intersection) / max(1, len(union))
             
         # 计算余弦相似度
         try:
@@ -382,19 +374,30 @@ class EmbeddingService:
             vec2 = np.array(embedding2).reshape(1, -1)
             sim = cosine_similarity(vec1, vec2)[0][0]
             return float(sim)
-        except Exception:
-            # 回退到基本实现
-            vec1 = np.array(embedding1)
-            vec2 = np.array(embedding2)
-            
-            dot_product = np.dot(vec1, vec2)
-            norm1 = np.linalg.norm(vec1)
-            norm2 = np.linalg.norm(vec2)
-            
-            if norm1 == 0 or norm2 == 0:
-                return 0.0
+        except Exception as e:
+            # 仍然保留这个回退，因为它只是计算方法的变化，而不是使用随机数据
+            try:
+                print(f"使用scikit-learn计算相似度失败: {e}，回退到基本实现")
+                # 回退到基本实现 - 数学上等价，只是实现方式不同
+                vec1 = np.array(embedding1)
+                vec2 = np.array(embedding2)
                 
-            return dot_product / (norm1 * norm2)
+                dot_product = np.dot(vec1, vec2)
+                norm1 = np.linalg.norm(vec1)
+                norm2 = np.linalg.norm(vec2)
+                
+                if norm1 == 0 or norm2 == 0:
+                    error_msg = "嵌入向量范数为零，无法计算相似度"
+                    print(error_msg)
+                    raise ValueError(error_msg)
+                    
+                similarity = dot_product / (norm1 * norm2)
+                print(f"计算相似度成功: {similarity}")
+                return similarity
+            except Exception as inner_error:
+                error_msg = f"相似度计算完全失败: {inner_error}"
+                print(error_msg)
+                raise ValueError(error_msg)
 
 # 创建服务实例
 embedding_service = EmbeddingService()

@@ -30,15 +30,16 @@ export class PythonEmbeddingService {
   /**
    * 获取文本的向量嵌入，调用Python实现
    * @param text 文本
-   * @returns 嵌入向量，失败返回null
+   * @returns 嵌入向量，失败会抛出错误
    */
-  async generateEmbedding(text: string): Promise<number[] | null> {
-    try {
-      if (!text || typeof text !== "string" || text.trim().length === 0) {
-        log("[PythonEmbedding] 无法为空文本生成嵌入", "warn");
-        return null;
-      }
+  async generateEmbedding(text: string): Promise<number[]> {
+    if (!text || typeof text !== "string" || text.trim().length === 0) {
+      const errorMsg = "[PythonEmbedding] 无法为空文本生成嵌入";
+      log(errorMsg, "warn");
+      throw new Error(errorMsg);
+    }
 
+    try {
       // 准备输入数据
       const inputData = {
         text: text.trim(),
@@ -49,15 +50,25 @@ export class PythonEmbeddingService {
       const result = await this.callPythonScript(inputData);
       
       if (result.error || !result.embedding || !Array.isArray(result.embedding)) {
-        log(`[PythonEmbedding] 嵌入生成失败: ${result.error || "无效响应"}`, "error");
-        return null;
+        const errorMsg = `[PythonEmbedding] 嵌入生成失败: ${result.error || "无效响应"}`;
+        log(errorMsg, "error");
+        throw new Error(errorMsg);
+      }
+
+      // 验证向量维度
+      const expectedDimension = 3072;
+      if (result.embedding.length !== expectedDimension) {
+        const errorMsg = `[PythonEmbedding] 嵌入维度异常: 实际${result.embedding.length}维, 期望${expectedDimension}维`;
+        log(errorMsg, "error");
+        throw new Error(errorMsg);
       }
 
       log(`[PythonEmbedding] 成功生成${result.embedding.length}维向量嵌入`, "info");
       return result.embedding;
     } catch (error) {
-      log(`[PythonEmbedding] 生成嵌入时出错: ${error}`, "error");
-      return null;
+      const errorMsg = `[PythonEmbedding] 生成嵌入时出错: ${error}`;
+      log(errorMsg, "error");
+      throw new Error(errorMsg);
     }
   }
 
@@ -66,13 +77,16 @@ export class PythonEmbeddingService {
    * @param text1 第一个文本
    * @param text2 第二个文本
    * @returns 相似度（0到1之间）
+   * @throws 如果计算失败则抛出错误
    */
   async calculateSimilarity(text1: string, text2: string): Promise<number> {
-    try {
-      if (!text1 || !text2) {
-        return 0;
-      }
+    if (!text1 || !text2) {
+      const errorMsg = "[PythonEmbedding] 无法计算空文本的相似度";
+      log(errorMsg, "warn");
+      throw new Error(errorMsg);
+    }
 
+    try {
       // 准备输入数据
       const inputData = {
         text1: text1.trim(),
@@ -84,14 +98,16 @@ export class PythonEmbeddingService {
       const result = await this.callPythonScript(inputData);
       
       if (result.error || typeof result.similarity !== 'number') {
-        log(`[PythonEmbedding] 相似度计算失败: ${result.error || "无效响应"}`, "error");
-        return 0;
+        const errorMsg = `[PythonEmbedding] 相似度计算失败: ${result.error || "无效响应"}`;
+        log(errorMsg, "error");
+        throw new Error(errorMsg);
       }
 
       return result.similarity;
     } catch (error) {
-      log(`[PythonEmbedding] 计算相似度时出错: ${error}`, "error");
-      return 0;
+      const errorMsg = `[PythonEmbedding] 计算相似度时出错: ${error}`;
+      log(errorMsg, "error");
+      throw new Error(errorMsg);
     }
   }
 
