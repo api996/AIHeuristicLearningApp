@@ -1067,26 +1067,93 @@ export function AIChat({ userData }: AIChatProps) {
     fetchMessages();
   };
 
-  // 处理消息中图片上传
+  // 处理消息中图片上传 - 改进版，支持Grok Vision预处理
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       setIsLoading(true);
+      toast({
+        title: "正在处理图片...",
+        description: "使用Grok Vision分析图片内容中，请稍候",
+        duration: 3000,
+      });
+      
+      // 第一步：上传图片
       const base64Image = await readFileAsBase64(file);
-
-      const response = await apiRequest("POST", "/api/upload", { image: base64Image });
-      const data: UploadResponse = await response.json();
-
-      // Add image to messages with model
-      setMessages([...messages, {
+      const uploadResponse = await apiRequest("POST", "/api/upload", { image: base64Image });
+      const uploadData: UploadResponse = await uploadResponse.json();
+      
+      if (!uploadData.url) {
+        throw new Error("图片上传失败，未返回URL");
+      }
+      
+      // 显示上传中的临时用户消息
+      setMessages(prev => [...prev, {
         role: "user",
-        content: `![Uploaded Image](${data.url})`,
-        model: currentModel // 设置模型信息
+        content: `![上传中图片...](${uploadData.url})`,
+        model: currentModel,
+        isProcessing: true // 标记为处理中
       }]);
+      
+      // 第二步：使用Grok Vision预处理图片
+      const preprocessResponse = await apiRequest("POST", "/api/preprocess-image", { 
+        imageUrl: uploadData.url 
+      });
+      const preprocessData = await preprocessResponse.json();
+      
+      // 更新消息，将处理后的图片描述和原始图片一起显示
+      setMessages(prev => {
+        const newMessages = [...prev];
+        // 找到最后一条标记为处理中的消息
+        const lastIndex = newMessages.findIndex(msg => msg.isProcessing);
+        
+        if (lastIndex !== -1) {
+          // 如果成功预处理，则添加描述
+          if (preprocessData.success) {
+            // 组合图片和描述
+            newMessages[lastIndex] = {
+              role: "user",
+              content: `![Uploaded Image](${uploadData.url})\n\n${preprocessData.description}`,
+              model: currentModel
+            };
+          } else {
+            // 预处理失败，仅使用原始图片
+            newMessages[lastIndex] = {
+              role: "user",
+              content: `![Uploaded Image](${uploadData.url})`,
+              model: currentModel
+            };
+            
+            // 显示错误提示
+            toast({
+              title: "图片分析失败",
+              description: "无法使用Grok Vision分析图片，但图片已成功上传",
+              variant: "destructive",
+              duration: 3000,
+            });
+          }
+        }
+        return newMessages;
+      });
+      
+      // 如果预处理成功，显示成功提示
+      if (preprocessData.success) {
+        toast({
+          title: "图片处理完成",
+          description: "已使用Grok Vision分析图片内容",
+          duration: 2000,
+        });
+      }
     } catch (error) {
-      console.error("Failed to upload image:", error);
+      console.error("Failed to upload and process image:", error);
+      toast({
+        title: "图片处理失败",
+        description: error instanceof Error ? error.message : "无法上传或处理图片",
+        variant: "destructive",
+        duration: 5000,
+      });
     } finally {
       setIsLoading(false);
       if (fileInputRef.current) {
