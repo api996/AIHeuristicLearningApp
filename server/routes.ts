@@ -1754,6 +1754,78 @@ asyncio.run(save_memory())
       res.status(500).json({ message: "Failed to upload image" });
     }
   });
+  
+  // 新增图片预处理端点 - 使用Grok Vision分析图片
+  app.post("/api/preprocess-image", express.json({limit: '50mb'}), async (req, res) => {
+    try {
+      const { imageUrl } = req.body;
+      
+      if (!imageUrl) {
+        return res.status(400).json({ 
+          success: false,
+          message: "No image URL provided" 
+        });
+      }
+
+      log(`正在使用Grok Vision预处理图片: ${imageUrl}`);
+      
+      // 检查URL是否为有效的上传图片路径
+      if (!imageUrl.startsWith('/uploads/')) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Invalid image URL" 
+        });
+      }
+      
+      // 检查文件是否存在
+      const filepath = path.join(process.cwd(), imageUrl);
+      if (!fs.existsSync(filepath)) {
+        return res.status(404).json({ 
+          success: false,
+          message: "Image file not found" 
+        });
+      }
+      
+      // 读取图片文件并转换为base64
+      const imageBuffer = fs.readFileSync(filepath);
+      const base64Image = imageBuffer.toString('base64');
+      
+      // 构建Message格式的内容 - 包含图像和简短提示
+      const userMessage = `请分析这张图片并提供详细描述，包括图片中的主要内容、场景、文字和其他重要细节。
+
+![image](data:image/jpeg;base64,${base64Image})`;
+      
+      try {
+        // 调用Grok Vision进行图像分析
+        const response = await chatService.processImageWithGrokVision(userMessage);
+        
+        // 返回处理结果
+        res.json({
+          success: true,
+          originalUrl: imageUrl,
+          description: response.text,
+          model: response.model || "grok-vision-beta",
+          processedAt: new Date().toISOString()
+        });
+      } catch (grokError) {
+        log(`Grok Vision处理图片失败: ${grokError}`);
+        // 返回错误但不阻止客户端继续使用原始图片
+        res.status(200).json({
+          success: false,
+          originalUrl: imageUrl,
+          description: "图片处理失败，但您仍然可以继续发送。",
+          error: grokError instanceof Error ? grokError.message : String(grokError)
+        });
+      }
+    } catch (error) {
+      log(`图片预处理错误: ${error}`);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to preprocess image",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
   // Serve uploaded files
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
