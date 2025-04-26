@@ -129,13 +129,13 @@ export default function AdminDashboard() {
       <div className="border-b border-neutral-800 bg-neutral-900">
         <div className="container mx-auto px-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="admin-tabs">
-            <TabsList className="bg-neutral-800 mt-2">
-              <TabsTrigger value="dashboard">控制面板</TabsTrigger>
-              <TabsTrigger value="security">安全设置</TabsTrigger>
-              <TabsTrigger value="feedback">反馈分析</TabsTrigger>
-              <TabsTrigger value="prompts">提示词模板</TabsTrigger>
-              <TabsTrigger value="moderation">内容审查</TabsTrigger>
-              <TabsTrigger value="student-agent">学生智能体</TabsTrigger>
+            <TabsList className="bg-neutral-800 mt-2 flex-nowrap overflow-x-auto">
+              <TabsTrigger value="dashboard" className="whitespace-nowrap">控制面板</TabsTrigger>
+              <TabsTrigger value="security" className="whitespace-nowrap">安全设置</TabsTrigger>
+              <TabsTrigger value="feedback" className="whitespace-nowrap">反馈分析</TabsTrigger>
+              <TabsTrigger value="prompts" className="whitespace-nowrap">提示词模板</TabsTrigger>
+              <TabsTrigger value="moderation" className="whitespace-nowrap">内容审查</TabsTrigger>
+              <TabsTrigger value="student-agent" className="whitespace-nowrap">学生智能体</TabsTrigger>
             </TabsList>
 
             {/* Dashboard Tab */}
