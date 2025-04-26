@@ -107,10 +107,10 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   return (
-    <div className="min-h-screen bg-black admin-dashboard-container admin-dashboard">
+    <div className="flex flex-col h-screen bg-black admin-dashboard-container admin-dashboard">
       {/* Header */}
       <header className="border-b border-neutral-800 bg-neutral-900">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="w-full px-4 py-4 flex justify-between items-center">
           <h1 className="text-xl font-bold text-white">管理员控制台</h1>
           <div className="flex items-center space-x-4">
             <Button
@@ -125,9 +125,9 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      {/* Tabs Navigation */}
-      <div className="border-b border-neutral-800 bg-neutral-900">
-        <div className="container mx-auto px-4">
+      {/* Tabs Navigation - 使用flex-1和overflow-auto让内容区域自动填充剩余空间并滚动 */}
+      <div className="flex-1 overflow-auto border-b border-neutral-800 bg-neutral-900">
+        <div className="w-full px-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="admin-tabs">
             <TabsList className="bg-neutral-800 mt-2">
               <TabsTrigger value="dashboard">控制面板</TabsTrigger>
@@ -141,7 +141,7 @@ export default function AdminDashboard() {
             {/* Dashboard Tab */}
             <TabsContent value="dashboard" className="admin-dashboard-tabs-content">
               {/* Main Content */}
-              <main className="py-8">
+              <main className="flex-1 py-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Stats Cards */}
                   <Card className="bg-neutral-900 border-neutral-800">
@@ -217,7 +217,7 @@ export default function AdminDashboard() {
                     <CardDescription>查看所有用户的使用情况</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="h-[400px]">
+                    <ScrollArea className="flex-1 h-auto max-h-[60vh]">
                       <div className="space-y-4">
                         {users?.map((user: User) => (
                           <div
@@ -248,8 +248,8 @@ export default function AdminDashboard() {
 
             {/* Prompts Templates Tab */}
             <TabsContent value="prompts" className="admin-dashboard-tabs-content">
-              <div className="py-8">
-                <div className="container mx-auto px-4 mb-6">
+              <div className="flex-1 py-8">
+                <div className="w-full px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
                       <div className="flex items-center justify-between">
@@ -273,8 +273,8 @@ export default function AdminDashboard() {
             {/* Content Moderation Tab */}
             {/* Security Settings Tab */}
             <TabsContent value="security" className="admin-dashboard-tabs-content">
-              <div className="py-8">
-                <div className="container mx-auto px-4 mb-6">
+              <div className="flex-1 py-8">
+                <div className="w-full px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
                       <div className="flex items-center">
@@ -293,8 +293,8 @@ export default function AdminDashboard() {
 
             {/* 反馈分析标签页 */}
             <TabsContent value="feedback" className="admin-dashboard-tabs-content">
-              <div className="py-8">
-                <div className="container mx-auto px-4 mb-6">
+              <div className="flex-1 py-8">
+                <div className="w-full px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
                       <div className="flex items-center">
@@ -312,8 +312,8 @@ export default function AdminDashboard() {
             </TabsContent>
 
             <TabsContent value="moderation" className="admin-dashboard-tabs-content">
-              <div className="py-8">
-                <div className="container mx-auto px-4 mb-6">
+              <div className="flex-1 py-8">
+                <div className="w-full px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
                       <CardTitle className="text-white">内容审查设置</CardTitle>
@@ -329,8 +329,8 @@ export default function AdminDashboard() {
 
             {/* 学生智能体管理选项卡 */}
             <TabsContent value="student-agent" className="admin-dashboard-tabs-content">
-              <div className="py-8">
-                <div className="container mx-auto px-4 mb-6">
+              <div className="flex-1 py-8">
+                <div className="w-full px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
                       <div className="flex items-center">
