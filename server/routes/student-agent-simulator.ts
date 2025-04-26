@@ -4,6 +4,10 @@ import { storage } from '../storage';
 import { studentAgentService } from '../services/student-agent';
 import { MemoryService } from '../services/learning/memory_service';
 import { requireAdmin } from '../middleware/auth';
+import { fetchWithRetry } from '../services/utils';
+
+// 获取Grok API密钥
+const grokApiKey = process.env.GROK_API_KEY;
 
 // 学生智能体模拟器路由
 const router = Router();
