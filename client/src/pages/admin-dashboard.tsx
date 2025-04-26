@@ -108,9 +108,9 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   return (
-    <div className="flex flex-col h-screen bg-black admin-dashboard-container admin-dashboard overflow-auto">
-      {/* Header - 整个容器添加overflow-auto以支持滚动 */}
-      <header className="border-b border-neutral-800 bg-neutral-900">
+    <div className="flex flex-col min-h-screen max-h-screen h-screen w-full bg-black admin-dashboard-container admin-dashboard overflow-y-auto -webkit-overflow-scrolling-touch">
+      {/* Header - 固定在顶部 */}
+      <header className="sticky top-0 z-10 border-b border-neutral-800 bg-neutral-900">
         <div className="w-full px-4 py-4 flex justify-between items-center">
           <h1 className="text-xl font-bold text-white">管理员控制台</h1>
           <div className="flex items-center space-x-4">
@@ -126,8 +126,8 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      {/* Tabs Navigation - 使用flex-1和overflow-auto让内容区域自动填充剩余空间并滚动 */}
-      <div className="flex-1 overflow-auto border-b border-neutral-800 bg-neutral-900">
+      {/* Tabs Navigation - 内容区域强制占满视口高度并显式设置滚动 */}
+      <div className="flex-1 h-[calc(100vh-70px)] overflow-y-auto -webkit-overflow-scrolling-touch border-b border-neutral-800 bg-neutral-900">
         <div className="w-full px-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="admin-tabs">
             <TabsList className="bg-neutral-800 mt-2">
@@ -140,7 +140,7 @@ export default function AdminDashboard() {
             </TabsList>
 
             {/* Dashboard Tab */}
-            <TabsContent value="dashboard" className="admin-dashboard-tabs-content">
+            <TabsContent value="dashboard" className="admin-dashboard-tabs-content h-full overflow-y-auto -webkit-overflow-scrolling-touch">
               {/* Main Content */}
               <main className="flex-1 py-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -248,7 +248,7 @@ export default function AdminDashboard() {
             </TabsContent>
 
             {/* Prompts Templates Tab */}
-            <TabsContent value="prompts" className="admin-dashboard-tabs-content">
+            <TabsContent value="prompts" className="admin-dashboard-tabs-content h-full overflow-y-auto -webkit-overflow-scrolling-touch">
               <div className="flex-1 py-8">
                 <div className="w-full px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
@@ -273,7 +273,7 @@ export default function AdminDashboard() {
 
             {/* Content Moderation Tab */}
             {/* Security Settings Tab */}
-            <TabsContent value="security" className="admin-dashboard-tabs-content">
+            <TabsContent value="security" className="admin-dashboard-tabs-content h-full overflow-y-auto -webkit-overflow-scrolling-touch">
               <div className="flex-1 py-8">
                 <div className="w-full px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
@@ -293,7 +293,7 @@ export default function AdminDashboard() {
             </TabsContent>
 
             {/* 反馈分析标签页 */}
-            <TabsContent value="feedback" className="admin-dashboard-tabs-content">
+            <TabsContent value="feedback" className="admin-dashboard-tabs-content h-full overflow-y-auto -webkit-overflow-scrolling-touch">
               <div className="flex-1 py-8">
                 <div className="w-full px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
@@ -312,7 +312,7 @@ export default function AdminDashboard() {
               </div>
             </TabsContent>
 
-            <TabsContent value="moderation" className="admin-dashboard-tabs-content">
+            <TabsContent value="moderation" className="admin-dashboard-tabs-content h-full overflow-y-auto -webkit-overflow-scrolling-touch">
               <div className="flex-1 py-8">
                 <div className="w-full px-4 mb-6">
                   <Card className="bg-neutral-900 border-neutral-800">
@@ -329,7 +329,7 @@ export default function AdminDashboard() {
             </TabsContent>
 
             {/* 学生智能体管理选项卡 */}
-            <TabsContent value="student-agent" className="admin-dashboard-tabs-content">
+            <TabsContent value="student-agent" className="admin-dashboard-tabs-content h-full overflow-y-auto -webkit-overflow-scrolling-touch">
               <div className="flex-1 py-8">
                 {/* 学生智能体模拟器 - 最顶部放置模拟器组件 */}
                 <div className="w-full px-4 mb-8">
