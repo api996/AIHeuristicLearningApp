@@ -36,6 +36,13 @@ interface StudentAgentPreset {
   motivation_level: string;
   learning_style: string;
   personality_trait: string;
+  kwlqTemplate?: {
+    K: string[];
+    W: string[];
+    L: string[];
+    Q: string[];
+  };
+  systemPrompt?: string;
 }
 
 interface SimulationSession {
@@ -55,8 +62,8 @@ export function StudentAgentSimulator() {
   const { toast } = useToast();
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
-  const [maxMessages, setMaxMessages] = useState(10);
-  const [initialPrompt, setInitialPrompt] = useState("你好，我想学习一些新知识。");
+  const [maxMessages, setMaxMessages] = useState<number>(10);
+  const [initialPrompt, setInitialPrompt] = useState<string>("你好，我想学习一些新知识。");
   const [activeSessions, setActiveSessions] = useState<SimulationSession[]>([]);
   const [activeTab, setActiveTab] = useState('setup');
   const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
@@ -393,8 +400,13 @@ export function StudentAgentSimulator() {
                   type="number" 
                   min="5" 
                   max="50"
-                  value={maxMessages}
-                  onChange={(e) => setMaxMessages(parseInt(e.target.value, 10))}
+                  value={String(maxMessages)}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value, 10);
+                    if (!isNaN(value)) {
+                      setMaxMessages(value);
+                    }
+                  }}
                 />
                 <p className="text-sm text-muted-foreground">
                   设置模拟会话中的最大消息数量 (5-50)
@@ -561,10 +573,10 @@ export function StudentAgentSimulator() {
                                 <div>
                                   <h4 className="font-medium mb-2">KWLQ学习记录</h4>
                                   <div className="bg-muted p-2 rounded text-xs">
-                                    <div><span className="font-medium">已知(K):</span> {preset.kwlqTemplate?.K.join(', ') || '无'}</div>
-                                    <div><span className="font-medium">想学(W):</span> {preset.kwlqTemplate?.W.join(', ') || '无'}</div>
-                                    <div><span className="font-medium">已学(L):</span> {preset.kwlqTemplate?.L.join(', ') || '无'}</div>
-                                    <div><span className="font-medium">疑问(Q):</span> {preset.kwlqTemplate?.Q.join(', ') || '无'}</div>
+                                    <div><span className="font-medium">已知(K):</span> {preset.kwlqTemplate?.K?.join(', ') || '无'}</div>
+                                    <div><span className="font-medium">想学(W):</span> {preset.kwlqTemplate?.W?.join(', ') || '无'}</div>
+                                    <div><span className="font-medium">已学(L):</span> {preset.kwlqTemplate?.L?.join(', ') || '无'}</div>
+                                    <div><span className="font-medium">疑问(Q):</span> {preset.kwlqTemplate?.Q?.join(', ') || '无'}</div>
                                   </div>
                                 </div>
                               </div>
@@ -574,7 +586,11 @@ export function StudentAgentSimulator() {
                               <div>
                                 <h4 className="font-medium mb-2">系统提示词</h4>
                                 <div className="bg-muted p-3 rounded text-xs font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
-                                  {preset.systemPrompt?.substring(0, 500)}...
+                                  {preset.systemPrompt 
+                                    ? preset.systemPrompt.length > 500 
+                                      ? `${preset.systemPrompt.substring(0, 500)}...` 
+                                      : preset.systemPrompt
+                                    : '未设置系统提示词'}
                                 </div>
                               </div>
                               
