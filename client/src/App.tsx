@@ -31,6 +31,8 @@ import "@/components/ui/memory-space-fixes.css";
 import "@/components/ui/knowledge-graph-fixes.css";
 import "@/components/ui/learning-path-fixes.css";
 import "@/components/admin/admin-ipad-fixes.css";
+// 新增iPhone设备专用修复样式
+import "@/components/admin/admin-iphone-fixes.css";
 // 导入Dialog弹窗修复样式
 import "@/components/ui/dialog-fixes.css";
 

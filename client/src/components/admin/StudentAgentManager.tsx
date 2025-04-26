@@ -206,9 +206,9 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
       </p>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="presets">预设管理</TabsTrigger>
-          <TabsTrigger value="sessions">会话历史</TabsTrigger>
+        <TabsList className="w-full flex-nowrap space-x-2">
+          <TabsTrigger value="presets" className="flex-1 whitespace-nowrap">预设管理</TabsTrigger>
+          <TabsTrigger value="sessions" className="flex-1 whitespace-nowrap">会话历史</TabsTrigger>
         </TabsList>
 
         <TabsContent value="presets" className="space-y-6">
