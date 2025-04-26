@@ -29,8 +29,6 @@ import { FeedbackAnalytics } from "@/components/admin/FeedbackAnalytics";
 import StudentAgentManager from "@/components/admin/StudentAgentManager";
 // 导入管理员界面iPad平台特定修复样式
 import "@/components/admin/admin-ipad-fixes.css";
-// 导入移动端适配修复样式
-import "@/components/admin/admin-container-fixes.css";
 
 interface ChatStats {
   total: number;
@@ -131,7 +129,7 @@ export default function AdminDashboard() {
       <div className="border-b border-neutral-800 bg-neutral-900">
         <div className="container mx-auto px-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="admin-tabs">
-            <TabsList className="bg-neutral-800 mt-2 tabs-list">
+            <TabsList className="bg-neutral-800 mt-2">
               <TabsTrigger value="dashboard">控制面板</TabsTrigger>
               <TabsTrigger value="security">安全设置</TabsTrigger>
               <TabsTrigger value="feedback">反馈分析</TabsTrigger>
