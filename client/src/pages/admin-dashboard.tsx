@@ -51,6 +51,8 @@ interface User {
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
+  // 使用useState来保存解析后的用户ID
+  const [userId, setUserId] = useState<number>(1);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -65,6 +67,11 @@ export default function AdminDashboard() {
       return;
     }
 
+    // 设置用户ID供API调用使用
+    if (user.userId) {
+      setUserId(user.userId);
+    }
+
     // 为管理员会话标记特殊属性，避免触发记忆系统
     localStorage.setItem("isAdminSession", "true");
 
@@ -77,27 +84,27 @@ export default function AdminDashboard() {
   }, [setLocation]);
 
   const { data: users } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users", userId],
     queryFn: async () => {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const response = await fetch(`/api/users?userId=${user.userId}`);
+      const response = await fetch(`/api/users?userId=${userId}`);
       if (!response.ok) throw new Error("Failed to fetch users");
       const allUsers = await response.json();
       // 过滤掉管理员用户
       return allUsers.filter((user: User) => user.role !== "admin");
     },
+    enabled: userId > 0, // 只在userId有效时执行查询
   });
 
   // 获取所有聊天统计数据
   const { data: chatStats } = useQuery({
-    queryKey: ["/api/chat-stats"],
+    queryKey: ["/api/chat-stats", userId],
     queryFn: async () => {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
       // 通过一个新的端点获取聊天统计信息
-      const response = await fetch(`/api/chat-stats?userId=${user.userId}`);
+      const response = await fetch(`/api/chat-stats?userId=${userId}`);
       if (!response.ok) throw new Error("Failed to fetch chat statistics");
       return response.json();
     },
+    enabled: userId > 0, // 只在userId有效时执行查询
   });
 
   const handleLogout = () => {
@@ -358,11 +365,7 @@ export default function AdminDashboard() {
                     </CardHeader>
                   </Card>
                   
-                  {localStorage.getItem("user") && (
-                    <StudentAgentManager 
-                      userId={JSON.parse(localStorage.getItem("user") || "{}")?.userId || 1} 
-                    />
-                  )}
+                  <StudentAgentManager userId={userId} />
                 </div>
               </div>
             </TabsContent>
