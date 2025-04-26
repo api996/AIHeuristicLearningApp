@@ -356,6 +356,18 @@ export function StudentAgentSimulator() {
                           variant="outline" 
                           size="sm"
                           disabled={session.status !== 'completed'}
+                          onClick={() => {
+                            if (session.userId) {
+                              // 在新窗口中打开该用户的记忆列表
+                              window.open(`/admin/memories?userId=${session.userId}`, '_blank');
+                            } else {
+                              toast({
+                                title: "无法查看记忆",
+                                description: "无法确定用户ID，请尝试重新启动模拟",
+                                variant: "destructive"
+                              });
+                            }
+                          }}
                         >
                           查看记忆
                         </Button>
@@ -363,7 +375,34 @@ export function StudentAgentSimulator() {
                         <Button 
                           variant={session.status === 'running' ? 'destructive' : 'secondary'} 
                           size="sm"
-                          disabled={session.status !== 'running'}
+                          disabled={session.status !== 'running' && session.status !== 'completed'}
+                          onClick={() => {
+                            if (session.status === 'running') {
+                              // 模拟停止模拟会话
+                              setActiveSessions(prev => 
+                                prev.map(s => s.id === session.id ? {
+                                  ...s,
+                                  status: 'completed',
+                                  endTime: new Date().toISOString(),
+                                  simulationLog: [
+                                    ...(s.simulationLog || []),
+                                    `[${new Date().toLocaleTimeString()}] 管理员手动停止会话`
+                                  ]
+                                } : s)
+                              );
+                              toast({
+                                title: "会话已停止",
+                                description: "学生智能体模拟会话已手动停止"
+                              });
+                            } else {
+                              // 模拟移除会话记录
+                              setActiveSessions(prev => prev.filter(s => s.id !== session.id));
+                              toast({
+                                title: "会话已移除",
+                                description: "学生智能体模拟会话记录已移除"
+                              });
+                            }
+                          }}
                         >
                           {session.status === 'running' ? '停止' : '移除'}
                         </Button>
@@ -379,12 +418,34 @@ export function StudentAgentSimulator() {
       
       <CardFooter className="flex justify-between">
         {activeTab === 'setup' && (
-          <Button 
-            disabled={!selectedPreset || !selectedUser || startSimulationMutation.isPending}
-            onClick={() => startSimulationMutation.mutate()}
-          >
-            {startSimulationMutation.isPending ? '正在启动...' : '开始模拟会话'}
-          </Button>
+          <div className="w-full flex flex-col space-y-2">
+            {(!selectedPreset || !selectedUser) && (
+              <div className="text-sm text-amber-500 mb-2">
+                请选择学生智能体预设和用户账户
+              </div>
+            )}
+            <div className="flex justify-between items-center">
+              <Button 
+                variant="default"
+                size="lg"
+                className="w-full md:w-auto"
+                disabled={!selectedPreset || !selectedUser || startSimulationMutation.isPending}
+                onClick={() => startSimulationMutation.mutate()}
+              >
+                {startSimulationMutation.isPending ? (
+                  <>
+                    <span className="mr-2">正在启动...</span>
+                    <span className="animate-spin">⏳</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">开始模拟会话</span>
+                    <span>▶</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         )}
         
         {activeTab === 'sessions' && (
