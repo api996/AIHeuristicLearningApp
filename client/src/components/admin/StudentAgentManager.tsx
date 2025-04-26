@@ -282,8 +282,8 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
             {/* 创建预设表单 */}
             <Card>
               <CardHeader>
-                <CardTitle>创建新预设</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-lg sm:text-xl">创建新预设</CardTitle>
+                <CardDescription className="text-sm">
                   创建新的学生智能体预设配置
                 </CardDescription>
               </CardHeader>
@@ -295,7 +295,7 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>预设名称</FormLabel>
+                          <FormLabel className="text-sm">预设名称</FormLabel>
                           <FormControl>
                             <Input placeholder="如：高中语文学生" {...field} />
                           </FormControl>
@@ -523,7 +523,7 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
                               {...field} 
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs sm:text-sm">
                             每行输入一个常见的学科误解，系统将把它们转换为列表。
                           </FormDescription>
                           <FormMessage />
