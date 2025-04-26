@@ -110,7 +110,8 @@ router.post('/presets', validateAdmin, async (req: Request, res: Response) => {
     res.status(201).json({ success: true, preset });
   } catch (error) {
     log(`[StudentAgentAPI] 创建预设错误: ${error}`);
-    res.status(500).json({ success: false, message: `创建学生智能体预设失败: ${error.message}` });
+    const errorMessage = error instanceof Error ? error.message : '未知错误';
+    res.status(500).json({ success: false, message: `创建学生智能体预设失败: ${errorMessage}` });
   }
 });
 
