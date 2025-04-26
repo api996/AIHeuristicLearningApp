@@ -127,9 +127,9 @@ export default function AdminDashboard() {
 
       {/* Tabs Navigation */}
       <div className="border-b border-neutral-800 bg-neutral-900">
-        <div className="container mx-auto px-4">
+        <div className="w-full px-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="admin-tabs">
-            <TabsList className="bg-neutral-800 mt-2">
+            <TabsList className="bg-neutral-800 mt-2 overflow-x-auto flex-nowrap">
               <TabsTrigger value="dashboard">控制面板</TabsTrigger>
               <TabsTrigger value="security">安全设置</TabsTrigger>
               <TabsTrigger value="feedback">反馈分析</TabsTrigger>

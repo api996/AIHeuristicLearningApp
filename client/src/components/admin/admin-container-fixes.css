@@ -1,0 +1,80 @@
+/**
+ * 管理员后台界面容器修复样式
+ * 用于移除移动设备上的容器宽度限制
+ */
+
+/* 移除所有管理员页面容器的宽度限制 */
+.admin-dashboard-container .container {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+
+/* 在小屏幕设备上进一步优化布局 */
+@media screen and (max-width: 768px) {
+  /* 标签页布局调整 */
+  .admin-dashboard-container [role="tablist"] {
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important;
+  }
+  
+  /* 标签页内容区域 */
+  .admin-dashboard-container [role="tabpanel"] {
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  
+  /* 网格布局调整为单列 */
+  .admin-dashboard-container [class*="grid-cols-3"],
+  .admin-dashboard-container [class*="grid-cols-2"] {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* 学生智能体容器 */
+  .student-agent-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  
+  /* 表格容器水平滚动 */
+  .admin-dashboard-container table {
+    display: block !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* 内边距调整 */
+  .admin-dashboard-container .card-content {
+    padding: 12px !important;
+  }
+  
+  /* 标题调整 */
+  .admin-dashboard-container h1 {
+    font-size: 1.5rem !important;
+    line-height: 2rem !important;
+  }
+}
+
+/* 超小屏幕设备特别处理 */
+@media screen and (max-width: 375px) {
+  /* 进一步减小内边距 */
+  .admin-dashboard-container .container,
+  .admin-dashboard-container .w-full.px-4 {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+  
+  /* 标签按钮更紧凑 */
+  .admin-dashboard-container [role="tab"] {
+    padding: 0 8px !important;
+    font-size: 12px !important;
+  }
+}
