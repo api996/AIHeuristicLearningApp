@@ -7,6 +7,10 @@ import { build } from 'esbuild';
 import fs from 'fs';
 import path from 'path';
 
+// 确保导入被使用
+console.log(`配置目录: ${path.resolve('.')}`);
+console.log(`确认文件存在: ${fs.existsSync('./server/index.ts') ? '是' : '否'}`);
+
 // 构建配置
 const config = {
   entryPoints: ['server/index.ts'],
