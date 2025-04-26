@@ -1,77 +1,87 @@
 /**
- * 管理员后台界面手机设备专用修复样式
- * 用于解决在iPhone等移动设备上管理员后台界面显示宽度不全的问题
+ * 管理员后台界面移动设备专用修复样式
+ * 解决在iPhone等移动设备上管理员界面宽度问题
  */
 
-/* 使用媒体查询优先处理移动设备，不依赖设备类检测 */
+/* 全局媒体查询处理：包括所有常见容器和滚动区域 */
 @media (max-width: 768px) {
-  /* 管理面板基础容器修复 */
+  /* 最外层容器和滚动容器 */
+  .admin-dashboard-container,
+  .admin-dashboard-scrollable,
+  .admin-dashboard-tabs-content,
   .admin-dashboard {
-    width: 100%;
-    max-width: 100%;
+    width: 100% !important;
+    max-width: 100% !important;
+    /* 允许内容在必要时滚动，但不强制隐藏 */
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
-  
-  /* 确保容器宽度 */
+
+  /* 内部容器 */
+  .admin-dashboard-container .container,
   .admin-dashboard .container {
-    width: 100%;
-    max-width: 100%;
-    padding-left: 1rem;
-    padding-right: 1rem;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
   }
-  
-  /* 标签页滚动容器 */
+
+  /* 修复标签内容区宽度，避免100vw */
+  .admin-dashboard-tabs-content {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* 确保main元素宽度正确 */
+  main.py-8,
+  .admin-dashboard main {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* 恢复多列Grid布局 */
+  .admin-dashboard .grid {
+    display: grid !important;
+    width: 100% !important;
+    gap: 1rem !important;
+  }
+
+  /* 统计卡片使用自适应列布局 */
+  .admin-dashboard .grid.grid-cols-1.md\:grid-cols-3 {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)) !important;
+  }
+
+  /* 导航卡片也使用自适应列布局 */
+  .admin-dashboard .grid.grid-cols-1.md\:grid-cols-2 {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  }
+
+  /* 确保卡片宽度撑满列 */
+  .admin-dashboard .card {
+    width: 100% !important;
+    margin-bottom: 1rem !important;
+  }
+
+  /* 标签列表水平滚动 */
   .admin-dashboard [role="tablist"] {
-    display: flex;
-    flex-direction: row;
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Firefox */
+    display: flex !important;
+    flex-direction: row !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important; /* Firefox */
   }
-  
+
   /* 隐藏标签滚动条 */
   .admin-dashboard [role="tablist"]::-webkit-scrollbar {
-    display: none;
-  }
-  
-  /* 标签内容面板 */
-  .admin-dashboard-tabs-content {
-    width: 100%;
-    max-width: 100%;
-    padding: 0;
-  }
-  
-  /* 主内容区域确保全宽 */
-  .admin-dashboard main {
-    width: 100%;
-    max-width: 100%;
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-  
-  /* 保持卡片容器宽度 */
-  .admin-dashboard .card {
-    width: 100%;
-    max-width: 100%;
+    display: none !important;
   }
 }
 
-/* 保持小屏设备的内容竖排，但确保宽度正确 */
-@media (max-width: 640px) {
-  /* 统计卡片在小屏幕上强制单列显示 */
-  .admin-dashboard .grid.grid-cols-1.md\:grid-cols-3 {
-    display: grid;
+/* 在更小屏幕上强制单列显示 */
+@media (max-width: 480px) {
+  .admin-dashboard .grid {
     grid-template-columns: 1fr !important;
-    width: 100%;
-    gap: 1rem;
-  }
-  
-  /* 导航卡片在小屏幕上保持单列 */
-  .admin-dashboard .grid.grid-cols-1.md\:grid-cols-2 {
-    display: grid;
-    grid-template-columns: 1fr !important;
-    width: 100%;
-    gap: 1rem;
   }
 }
 
@@ -80,19 +90,4 @@
 .mobile-device .admin-dashboard {
   /* 确保在移动设备上的最小高度 */
   min-height: 100vh;
-}
-
-/* 确保移动设备上的标签滚动正常 */
-.iphone-device .admin-tabs,
-.mobile-device .admin-tabs {
-  width: 100%;
-}
-
-/* 针对tab内容区域的特定修复 */
-.iphone-device .admin-dashboard [role="tabpanel"],
-.mobile-device .admin-dashboard [role="tabpanel"] {
-  width: 100%;
-  height: auto;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
