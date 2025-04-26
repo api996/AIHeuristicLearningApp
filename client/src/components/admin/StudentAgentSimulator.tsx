@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 import { 
   Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter 
 } from '@/components/ui/card';
@@ -14,6 +15,10 @@ import { Badge } from '@/components/ui/badge';
 import { apiRequest } from '@/lib/queryClient';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  Dialog, DialogContent, DialogDescription, DialogFooter, 
+  DialogHeader, DialogTitle, DialogTrigger 
+} from '@/components/ui/dialog';
 
 interface User {
   id: number;
@@ -26,11 +31,11 @@ interface StudentAgentPreset {
   name: string;
   description: string;
   subject: string;
-  gradeLevel: string;
-  cognitiveLevel: string;
-  motivationLevel: string;
-  learningStyle: string;
-  personalityTrait: string;
+  grade_level: string;
+  cognitive_level: string;
+  motivation_level: string;
+  learning_style: string;
+  personality_trait: string;
 }
 
 interface SimulationSession {
@@ -54,11 +59,23 @@ export function StudentAgentSimulator() {
   const [initialPrompt, setInitialPrompt] = useState("你好，我想学习一些新知识。");
   const [activeSessions, setActiveSessions] = useState<SimulationSession[]>([]);
   const [activeTab, setActiveTab] = useState('setup');
+  const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [newUserRole, setNewUserRole] = useState('user');
+  const [newAgentName, setNewAgentName] = useState('');
 
   // 获取所有用户（不包括管理员）
   const { data: users = [], isLoading: loadingUsers } = useQuery({
     queryKey: ['/api/users'],
-    select: (data: any) => (data || []).filter((user: User) => user.role !== 'admin'),
+    queryFn: async () => {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const response = await fetch(`/api/users?userId=${user.userId || 1}`);
+      if (!response.ok) {
+        throw new Error('获取用户列表失败');
+      }
+      const data = await response.json();
+      return (data || []).filter((user: User) => user.role !== 'admin');
+    },
   });
 
   // 获取所有学生智能体预设
@@ -197,10 +214,19 @@ export function StudentAgentSimulator() {
                 <Badge variant="secondary" className="ml-2">{activeSessions.length}</Badge>
               }
             </TabsTrigger>
+            <TabsTrigger value="presets">智能体预设</TabsTrigger>
           </TabsList>
           
           <TabsContent value="setup">
             <div className="grid gap-4">
+              <div className="flex justify-end">
+                <Button 
+                  onClick={() => startSimulationMutation.mutate()}
+                  disabled={!selectedPreset || !selectedUser || startSimulationMutation.isPending}
+                >
+                  {startSimulationMutation.isPending ? '启动中...' : '启动模拟会话'}
+                </Button>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="preset">选择学生智能体预设</Label>
                 <Select 
@@ -214,7 +240,7 @@ export function StudentAgentSimulator() {
                   <SelectContent>
                     {presets?.map((preset: StudentAgentPreset) => (
                       <SelectItem key={preset.id} value={preset.id.toString()}>
-                        {preset.name} - {preset.subject} ({preset.gradeLevel})
+                        {preset.name} - {preset.subject} ({preset.grade_level})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -222,7 +248,126 @@ export function StudentAgentSimulator() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="user">选择用户账户</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="user">选择用户账户</Label>
+                  <Dialog open={isCreateUserDialogOpen} onOpenChange={setIsCreateUserDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-xs"
+                        onClick={() => {
+                          if (selectedPreset) {
+                            const preset = presets.find((p: StudentAgentPreset) => p.id === selectedPreset);
+                            if (preset) {
+                              setNewAgentName(preset.name);
+                            }
+                          }
+                        }}
+                      >
+                        为智能体创建账户
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>创建智能体专用账户</DialogTitle>
+                        <DialogDescription>
+                          创建一个新的用户账户用于学生智能体模拟。账户名将基于智能体名称。
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="agentName">智能体名称</Label>
+                          <Input
+                            id="agentName"
+                            placeholder="输入智能体名称"
+                            value={newAgentName}
+                            onChange={(e) => setNewAgentName(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="newUsername">账户用户名</Label>
+                          <Input
+                            id="newUsername"
+                            placeholder="用户名"
+                            value={newUsername || `agent_${newAgentName.toLowerCase().replace(/\s+/g, '_')}`}
+                            onChange={(e) => setNewUsername(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          type="submit"
+                          onClick={async () => {
+                            // 简单验证
+                            if (!newAgentName || !newUsername) {
+                              toast({
+                                title: "无法创建账户",
+                                description: "请输入智能体名称和用户名",
+                                variant: "destructive"
+                              });
+                              return;
+                            }
+                            
+                            try {
+                              // 获取管理员ID
+                              const adminUser = JSON.parse(localStorage.getItem("user") || "{}");
+                              
+                              // 创建新用户
+                              const response = await fetch('/api/users', {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                  username: newUsername || `agent_${newAgentName.toLowerCase().replace(/\s+/g, '_')}`,
+                                  password: 'password123', // 默认密码
+                                  role: 'user',
+                                  adminId: adminUser.userId || 1
+                                })
+                              });
+                              
+                              if (!response.ok) {
+                                throw new Error('创建用户失败');
+                              }
+                              
+                              const data = await response.json();
+                              
+                              toast({
+                                title: "账户创建成功",
+                                description: `已为智能体 ${newAgentName} 创建用户账户`,
+                              });
+                              
+                              // 关闭对话框
+                              setIsCreateUserDialogOpen(false);
+                              
+                              // 刷新用户列表
+                              queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+                              
+                              // 选择新创建的用户
+                              if (data && data.id) {
+                                setSelectedUser(data.id);
+                              }
+                              
+                              // 重置表单
+                              setNewUsername('');
+                              setNewAgentName('');
+                              
+                            } catch (error: any) {
+                              toast({
+                                title: "创建账户失败",
+                                description: error.message || "发生未知错误",
+                                variant: "destructive"
+                              });
+                            }
+                          }}
+                        >
+                          创建账户
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
                 <Select 
                   value={selectedUser?.toString() || ''} 
                   onValueChange={(value) => setSelectedUser(parseInt(value, 10))}
@@ -281,23 +426,182 @@ export function StudentAgentSimulator() {
                         <div>{presets.find((p: StudentAgentPreset) => p.id === selectedPreset)?.subject}</div>
                         
                         <div className="font-medium">年级:</div>
-                        <div>{presets.find((p: StudentAgentPreset) => p.id === selectedPreset)?.gradeLevel}</div>
+                        <div>{presets.find((p: StudentAgentPreset) => p.id === selectedPreset)?.grade_level}</div>
                         
                         <div className="font-medium">认知能力:</div>
-                        <div>{presets.find((p: StudentAgentPreset) => p.id === selectedPreset)?.cognitiveLevel}</div>
+                        <div>{presets.find((p: StudentAgentPreset) => p.id === selectedPreset)?.cognitive_level}</div>
                         
                         <div className="font-medium">学习动机:</div>
-                        <div>{presets.find((p: StudentAgentPreset) => p.id === selectedPreset)?.motivationLevel}</div>
+                        <div>{presets.find((p: StudentAgentPreset) => p.id === selectedPreset)?.motivation_level}</div>
                         
                         <div className="font-medium">学习风格:</div>
-                        <div>{presets.find((p: StudentAgentPreset) => p.id === selectedPreset)?.learningStyle}</div>
+                        <div>{presets.find((p: StudentAgentPreset) => p.id === selectedPreset)?.learning_style}</div>
                         
                         <div className="font-medium">性格特征:</div>
-                        <div>{presets.find((p: StudentAgentPreset) => p.id === selectedPreset)?.personalityTrait}</div>
+                        <div>{presets.find((p: StudentAgentPreset) => p.id === selectedPreset)?.personality_trait}</div>
                       </div>
                     )}
                   </CardContent>
                 </Card>
+              )}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="presets">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">学生智能体预设列表</h3>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    window.open('/admin/student-agent-presets', '_blank');
+                  }}
+                >
+                  创建新预设
+                </Button>
+              </div>
+              
+              {loadingPresets ? (
+                <div className="text-center py-4">
+                  正在加载预设...
+                </div>
+              ) : presets && presets.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {presets.map((preset: StudentAgentPreset) => (
+                    <Card key={preset.id} className="overflow-hidden">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">{preset.name}</CardTitle>
+                        <CardDescription>
+                          {preset.subject} ({preset.grade_level})
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pb-2">
+                        <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                          <div className="font-medium">认知能力:</div>
+                          <div>{preset.cognitive_level}</div>
+                          
+                          <div className="font-medium">学习动机:</div>
+                          <div>{preset.motivation_level}</div>
+                          
+                          <div className="font-medium">学习风格:</div>
+                          <div>{preset.learning_style}</div>
+                          
+                          <div className="font-medium">性格特征:</div>
+                          <div>{preset.personality_trait}</div>
+                        </div>
+                        
+                        <Separator className="my-2" />
+                        
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {preset.description || "无详细描述"}
+                        </p>
+                      </CardContent>
+                      <CardFooter className="flex justify-end gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setSelectedPreset(preset.id);
+                            setActiveTab('setup');
+                            // 如果预设名称中没有特殊字符，则自动生成用户名
+                            if (!/[^\w\s]/.test(preset.name)) {
+                              setNewAgentName(preset.name);
+                              // 提示创建
+                              toast({
+                                title: "预设已选择",
+                                description: `您可以使用"为智能体创建账户"来为此预设创建专用账户。`,
+                              });
+                            }
+                          }}
+                        >
+                          选择
+                        </Button>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                            >
+                              详情
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>{preset.name} - 预设详情</DialogTitle>
+                              <DialogDescription>
+                                {preset.subject} ({preset.grade_level}) - {preset.description}
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <h4 className="font-medium mb-2">基本信息</h4>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="font-medium">学科:</div>
+                                    <div>{preset.subject}</div>
+                                    
+                                    <div className="font-medium">年级:</div>
+                                    <div>{preset.grade_level}</div>
+                                    
+                                    <div className="font-medium">认知能力:</div>
+                                    <div>{preset.cognitive_level}</div>
+                                    
+                                    <div className="font-medium">学习动机:</div>
+                                    <div>{preset.motivation_level}</div>
+                                    
+                                    <div className="font-medium">学习风格:</div>
+                                    <div>{preset.learning_style}</div>
+                                    
+                                    <div className="font-medium">性格特征:</div>
+                                    <div>{preset.personality_trait}</div>
+                                  </div>
+                                </div>
+                                
+                                <div>
+                                  <h4 className="font-medium mb-2">KWLQ学习记录</h4>
+                                  <div className="bg-muted p-2 rounded text-xs">
+                                    <div><span className="font-medium">已知(K):</span> {preset.kwlqTemplate?.K.join(', ') || '无'}</div>
+                                    <div><span className="font-medium">想学(W):</span> {preset.kwlqTemplate?.W.join(', ') || '无'}</div>
+                                    <div><span className="font-medium">已学(L):</span> {preset.kwlqTemplate?.L.join(', ') || '无'}</div>
+                                    <div><span className="font-medium">疑问(Q):</span> {preset.kwlqTemplate?.Q.join(', ') || '无'}</div>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <Separator />
+                              
+                              <div>
+                                <h4 className="font-medium mb-2">系统提示词</h4>
+                                <div className="bg-muted p-3 rounded text-xs font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
+                                  {preset.systemPrompt?.substring(0, 500)}...
+                                </div>
+                              </div>
+                              
+                              <Separator />
+                              
+                              <div className="flex justify-end">
+                                <Button 
+                                  onClick={() => {
+                                    setSelectedPreset(preset.id);
+                                    setActiveTab('setup');
+                                    setNewAgentName(preset.name);
+                                  }}
+                                >
+                                  使用此预设
+                                </Button>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  尚未创建任何预设
+                </div>
               )}
             </div>
           </TabsContent>
