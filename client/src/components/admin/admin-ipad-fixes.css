@@ -36,6 +36,16 @@
   box-sizing: border-box !important;
 }
 
+/* 手机设备卡片宽度修复 */
+@media screen and (max-width: 768px) {
+  .admin-dashboard-container .card {
+    width: 90% !important;
+    max-width: 90% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
+
 /* 确保网格布局正确响应 */
 .admin-dashboard-container .grid {
   width: 100% !important;
@@ -265,9 +275,11 @@
   .student-agent-simulator {
     padding-left: 10px !important;
     padding-right: 10px !important;
-    width: 100% !important;
-    max-width: 100vw !important;
+    width: 90% !important; /* 将容器宽度限制为90% */
+    max-width: 90vw !important; 
     box-sizing: border-box !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
   }
   
   /* 修复手机模式下的标题和容器样式 */
@@ -319,6 +331,16 @@
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
     max-width: 100vw !important;
+    width: 95% !important; /* 强制设置宽度为屏幕的95% */
+    min-width: 95% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  
+  /* 确保表格内容在手机上可见 */
+  .admin-dashboard-container .table-container table {
+    min-width: 500px !important; /* 确保表格有足够的内容宽度，并允许横向滚动 */
+    width: 100% !important;
   }
   
   /* 卡片标题在手机上换行 */
