@@ -64,7 +64,15 @@ export function StudentAgentSimulator() {
   // 获取所有学生智能体预设
   const { data: presets = [], isLoading: loadingPresets } = useQuery({
     queryKey: ['/api/student-agent/presets'],
-    select: (data: any) => data?.presets || [],
+    queryFn: async () => {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const response = await fetch(`/api/student-agent/presets?userId=${user.userId || 1}`);
+      if (!response.ok) {
+        throw new Error('获取预设失败');
+      }
+      const data = await response.json();
+      return data?.presets || [];
+    },
   });
 
   // 开始模拟会话
@@ -74,7 +82,8 @@ export function StudentAgentSimulator() {
         throw new Error('请选择学生智能体预设和用户');
       }
       
-      const response = await fetch('/api/student-agent/simulate', {
+      const adminUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const response = await fetch('/api/student-agent-simulator/simulate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -82,6 +91,7 @@ export function StudentAgentSimulator() {
         body: JSON.stringify({
           presetId: selectedPreset,
           userId: selectedUser,
+          adminUserId: adminUser.userId || 1, // 管理员用户ID，用于权限验证
           maxMessages: maxMessages,
           initialPrompt: initialPrompt
         })
