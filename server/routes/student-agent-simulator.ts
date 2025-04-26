@@ -7,7 +7,10 @@ import { requireAdmin } from '../middleware/auth';
 import { fetchWithRetry } from '../services/utils';
 
 // 获取Grok API密钥
-const grokApiKey = process.env.GROK_API_KEY;
+const grokApiKey = process.env.GROK_API_KEY || process.env.XAI_API_KEY; // 支持两种环境变量名
+
+// 如果没有API密钥，使用模拟响应
+const hasValidApiKey = !!grokApiKey;
 
 // 学生智能体模拟器路由
 const router = Router();
@@ -452,11 +455,11 @@ async function generateModelResponse(
 ): Promise<{text: string, updatedState: any}> {
   let newState = { ...currentState };
   
-  // 如果没有初始化KWLQ状态，创建空数组
-  if (!newState.K) newState.K = [];
-  if (!newState.W) newState.W = [];
-  if (!newState.L) newState.L = [];
-  if (!newState.Q) newState.Q = [];
+  // 确保KWLQ状态存在且是数组
+  if (!newState.K || !Array.isArray(newState.K)) newState.K = [];
+  if (!newState.W || !Array.isArray(newState.W)) newState.W = [];
+  if (!newState.L || !Array.isArray(newState.L)) newState.L = [];
+  if (!newState.Q || !Array.isArray(newState.Q)) newState.Q = [];
   
   // 提取当前所有主题
   const topics = [
@@ -470,144 +473,157 @@ async function generateModelResponse(
   const extractedTopics = topics.length > 0 ? topics : extractTopicsFromPrompt(userInput);
   
   try {
-    // 如果是Grok模型且有API密钥，则使用真实的API
-    if (modelType === 'grok' && grokApiKey) {
-      // 构建学生智能体角色提示
-      const systemPrompt = `你是一位对学习充满热情的中文学生，正在和AI老师交流。
-      你使用KWLQ学习模型来组织你的思考:
-      K (Known/已知) - 你已经掌握的知识
-      W (Want to know/想知道) - 你想了解的内容
-      L (Learned/已学) - 通过对话你新学到的内容
-      Q (Questions/问题) - 你产生的新问题
-      
-      你的已知概念: ${newState.K.join(', ')}
-      你想了解的内容: ${newState.W.join(', ')}
-      你已学到的内容: ${newState.L.join(', ')}
-      你的疑问: ${newState.Q.join(', ')}
-      
-      回应用户的问题时，表现得像一个真实的学生，表达好奇心和学习热情。使用自然、积极的语气，提出有意义的问题来深入理解概念。`;
-      
-      // 构建API请求体
-      const requestBody = {
-        model: "grok-3-fast-beta",
-        temperature: 0.7,
-        top_p: 0.9,
-        max_tokens: 1000,
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
+    // Grok模型处理分支
+    if (modelType === 'grok' && hasValidApiKey) {
+      try {
+        // 构建学生智能体角色提示
+        const systemPrompt = `你是一位对学习充满热情的中文学生，正在和AI老师交流。
+你使用KWLQ学习模型来组织你的思考:
+K (Known/已知) - 你已经掌握的知识
+W (Want to know/想知道) - 你想了解的内容
+L (Learned/已学) - 通过对话你新学到的内容
+Q (Questions/问题) - 你产生的新问题
+
+你的已知概念: ${newState.K.join(', ')}
+你想了解的内容: ${newState.W.join(', ')}
+你已学到的内容: ${newState.L.join(', ')}
+你的疑问: ${newState.Q.join(', ')}
+
+回应用户的问题时，表现得像一个真实的学生，表达好奇心和学习热情。使用自然、积极的语气，提出有意义的问题来深入理解概念。`;
+        
+        // 构建API请求体
+        const requestBody = {
+          model: "grok-3-fast-beta",
+          temperature: 0.7,
+          top_p: 0.9,
+          max_tokens: 1000,
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt
+            },
+            {
+              role: "user",
+              content: userInput
+            }
+          ]
+        };
+        
+        log(`[StudentAgentSimulator] 调用Grok API生成学生回应...`);
+        
+        // 调用Grok API
+        const response = await fetchWithRetry('https://api.x.ai/v1/chat/completions', {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${grokApiKey}`,
+            "Content-Type": "application/json"
           },
-          {
-            role: "user",
-            content: userInput
+          body: JSON.stringify(requestBody),
+          timeout: 15000
+        }, 2, 1000);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          log(`[StudentAgentSimulator] Grok API错误: ${response.status} - ${errorText}`);
+          
+          if (response.status === 401) {
+            log(`[StudentAgentSimulator] API认证失败(401)，切换到模拟响应`);
+            throw new Error("API认证失败，使用备用方案");
+          } else {
+            throw new Error(`Grok API错误: ${response.status} - ${errorText}`);
           }
-        ]
-      };
-      
-      log(`[StudentAgentSimulator] 调用Grok API生成学生回应...`);
-      
-      // 调用Grok API
-      const response = await fetchWithRetry('https://api.x.ai/v1/chat/completions', {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${grokApiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestBody),
-        timeout: 15000
-      }, 2, 1000);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        log(`[StudentAgentSimulator] Grok API错误: ${response.status} - ${errorText}`);
-        throw new Error(`Grok API错误: ${response.status} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      log(`[StudentAgentSimulator] 成功接收Grok API响应`);
-      
-      // 提取响应文本
-      const responseText = data.choices?.[0]?.message?.content || "无法生成回应";
-      
-      // 分析响应中可能提到的主题和问题
-      const mentionedTopics = extractTopicsFromText(responseText);
-      const possibleQuestions = extractQuestionsFromText(responseText);
-      
-      // 更新KWLQ状态
-      for (const topic of mentionedTopics) {
-        // 随机决定将主题加入哪个类别
-        const rand = Math.random();
-        if (rand < 0.2 && !newState.K.includes(topic)) {
-          newState.K.push(topic);
-        } else if (rand < 0.5 && !newState.W.includes(topic)) {
-          newState.W.push(topic);
-        } else if (!newState.L.includes(topic)) {
-          newState.L.push(topic);
         }
-      }
-      
-      // 添加提取的问题
-      for (const question of possibleQuestions) {
-        if (!newState.Q.includes(question)) {
-          newState.Q.push(question);
+        
+        const data = await response.json();
+        log(`[StudentAgentSimulator] 成功接收Grok API响应`);
+        
+        // 提取响应文本
+        const responseText = data.choices?.[0]?.message?.content || "无法生成回应";
+        
+        // 分析响应中可能提到的主题和问题
+        const mentionedTopics = extractTopicsFromText(responseText);
+        const possibleQuestions = extractQuestionsFromText(responseText);
+        
+        // 更新KWLQ状态
+        for (const topic of mentionedTopics) {
+          // 随机决定将主题加入哪个类别
+          const rand = Math.random();
+          if (rand < 0.2 && !newState.K.includes(topic)) {
+            newState.K.push(topic);
+          } else if (rand < 0.5 && !newState.W.includes(topic)) {
+            newState.W.push(topic);
+          } else if (!newState.L.includes(topic)) {
+            newState.L.push(topic);
+          }
         }
+        
+        // 添加提取的问题
+        for (const question of possibleQuestions) {
+          if (!newState.Q.includes(question)) {
+            newState.Q.push(question);
+          }
+        }
+        
+        return {
+          text: responseText,
+          updatedState: newState
+        };
+      } catch (apiError) {
+        const errorMsg = apiError instanceof Error ? apiError.message : String(apiError);
+        log(`[StudentAgentSimulator] Grok API调用失败: ${errorMsg}. 使用模拟响应作为后备方案。`);
+        // 继续到模拟响应代码
       }
-      
-      return {
-        text: responseText,
-        updatedState: newState
-      };
-    } else {
-      // 如果没有API密钥或其他模型，退回到模板响应方式
-      log(`[StudentAgentSimulator] 使用模拟响应 (模型: ${modelType}, API可用: ${!!grokApiKey})`);
-      
-      // 选择一个随机主题
-      const randomTopic = extractedTopics[Math.floor(Math.random() * extractedTopics.length)] || '学习';
-      let responseText = '';
-      
-      switch(modelType) {
-        case 'gemini':
-          responseText = `我很高兴你对${randomTopic}感兴趣！这是一个非常重要的概念。\n\n${randomTopic}涉及多个方面，包括基本原理、应用场景和最佳实践。在学习过程中，可以先从基础概念入手，逐步深入理解复杂的部分。\n\n你想了解${randomTopic}的哪一部分呢？`;
-          
-          if (!newState.K.includes(randomTopic) && Math.random() > 0.5) {
-            newState.K.push(randomTopic);
-          } else if (!newState.L.includes(randomTopic)) {
-            newState.L.push(randomTopic);
-          }
-          break;
-          
-        case 'deepseek':
-          responseText = `关于${randomTopic}，我可以从以下几个角度为你详细解析：\n\n1. 基本定义与概念框架\n2. 历史演变与发展脉络\n3. 核心技术原理\n4. 实际应用案例\n5. 未来发展趋势\n\n${randomTopic}作为一个重要领域，其价值在于连接了理论与实践。你更关注其中的哪个方面？`;
-          
-          if (Math.random() > 0.7 && !newState.W.includes(randomTopic)) {
-            newState.W.push(randomTopic);
-          } else if (!newState.L.includes(randomTopic)) {
-            newState.L.push(randomTopic);
-          }
-          break;
-          
-        case 'grok':
-        default:
-          responseText = `哈！${randomTopic}是个好问题！简单来说，${randomTopic}就是连接知识点的关键纽带。\n\n不过别被表面现象迷惑，${randomTopic}背后有着丰富的知识体系。无论你从哪个角度切入，都能发现新的视角。\n\n想不想来个有趣的思考实验？假设我们把${randomTopic}应用在完全不同的领域...`;
-          
-          if (Math.random() > 0.6 && !newState.Q.includes(`${randomTopic}的边界条件是什么？`)) {
-            newState.Q.push(`${randomTopic}的边界条件是什么？`);
-          }
-          
-          if (!newState.L.includes(randomTopic)) {
-            newState.L.push(randomTopic);
-          }
-      }
-      
-      return { 
-        text: responseText,
-        updatedState: newState
-      };
+    } 
+    
+    // 模拟响应代码 - 处理非Grok模型或API调用失败的情况
+    log(`[StudentAgentSimulator] 使用模拟响应 (模型: ${modelType}, API可用: ${hasValidApiKey})`);
+    
+    // 选择一个随机主题
+    const randomTopic = extractedTopics[Math.floor(Math.random() * extractedTopics.length)] || '学习';
+    let responseText = '';
+    
+    switch(modelType) {
+      case 'gemini':
+        responseText = `我很高兴你对${randomTopic}感兴趣！这是一个非常重要的概念。\n\n${randomTopic}涉及多个方面，包括基本原理、应用场景和最佳实践。在学习过程中，可以先从基础概念入手，逐步深入理解复杂的部分。\n\n你想了解${randomTopic}的哪一部分呢？`;
+        
+        if (!newState.K.includes(randomTopic) && Math.random() > 0.5) {
+          newState.K.push(randomTopic);
+        } else if (!newState.L.includes(randomTopic)) {
+          newState.L.push(randomTopic);
+        }
+        break;
+        
+      case 'deepseek':
+        responseText = `关于${randomTopic}，我可以从以下几个角度为你详细解析：\n\n1. 基本定义与概念框架\n2. 历史演变与发展脉络\n3. 核心技术原理\n4. 实际应用案例\n5. 未来发展趋势\n\n${randomTopic}作为一个重要领域，其价值在于连接了理论与实践。你更关注其中的哪个方面？`;
+        
+        if (Math.random() > 0.7 && !newState.W.includes(randomTopic)) {
+          newState.W.push(randomTopic);
+        } else if (!newState.L.includes(randomTopic)) {
+          newState.L.push(randomTopic);
+        }
+        break;
+        
+      case 'grok':
+      default:
+        responseText = `哈！${randomTopic}是个好问题！简单来说，${randomTopic}就是连接知识点的关键纽带。\n\n不过别被表面现象迷惑，${randomTopic}背后有着丰富的知识体系。无论你从哪个角度切入，都能发现新的视角。\n\n想不想来个有趣的思考实验？假设我们把${randomTopic}应用在完全不同的领域...`;
+        
+        if (Math.random() > 0.6 && !newState.Q.includes(`${randomTopic}的边界条件是什么？`)) {
+          newState.Q.push(`${randomTopic}的边界条件是什么？`);
+        }
+        
+        if (!newState.L.includes(randomTopic)) {
+          newState.L.push(randomTopic);
+        }
     }
+    
+    return { 
+      text: responseText,
+      updatedState: newState
+    };
   } catch (error) {
-    // 发生错误时，记录并退回到模板响应
-    log(`[StudentAgentSimulator] 生成模型响应失败: ${error instanceof Error ? error.message : String(error)}`);
+    // 发生错误时，记录并退回到最简单的模板响应
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    log(`[StudentAgentSimulator] 生成模型响应失败: ${errorMsg}`);
     
     // 选择一个随机主题并生成简单回应
     const randomTopic = extractedTopics[Math.floor(Math.random() * extractedTopics.length)] || '学习';
