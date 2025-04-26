@@ -29,6 +29,7 @@ import { FeedbackAnalytics } from "@/components/admin/FeedbackAnalytics";
 import StudentAgentManager from "@/components/admin/StudentAgentManager";
 // 导入管理员界面iPad平台特定修复样式
 import "@/components/admin/admin-ipad-fixes.css";
+import { StudentAgentSimulator } from "@/components/admin/StudentAgentSimulator";
 
 interface ChatStats {
   total: number;
@@ -107,8 +108,8 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   return (
-    <div className="flex flex-col h-screen bg-black admin-dashboard-container admin-dashboard">
-      {/* Header */}
+    <div className="flex flex-col h-screen bg-black admin-dashboard-container admin-dashboard overflow-auto">
+      {/* Header - 整个容器添加overflow-auto以支持滚动 */}
       <header className="border-b border-neutral-800 bg-neutral-900">
         <div className="w-full px-4 py-4 flex justify-between items-center">
           <h1 className="text-xl font-bold text-white">管理员控制台</h1>
@@ -330,30 +331,43 @@ export default function AdminDashboard() {
             {/* 学生智能体管理选项卡 */}
             <TabsContent value="student-agent" className="admin-dashboard-tabs-content">
               <div className="flex-1 py-8">
-                <div className="w-full px-4 mb-6">
+                {/* 学生智能体模拟器 - 最顶部放置模拟器组件 */}
+                <div className="w-full px-4 mb-8">
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
                       <div className="flex items-center">
                         <GraduationCap className="h-6 w-6 text-purple-500 mr-2" />
-                        <CardTitle className="text-white">学生智能体模拟器</CardTitle>
+                        <CardTitle className="text-white">学生智能体模拟系统</CardTitle>
                       </div>
                       <CardDescription>
                         创建、测试和评估虚拟学生智能体，以验证和改进教学系统的适应性
                       </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-neutral-400">
-                        基于KWLQ教育框架构建的学生智能体可以模拟真实学生的学习过程和问答模式，帮助优化教学AI的表现。
-                        通过创建不同认知水平、动机程度和学习风格的智能体配置，可以全面测试教学系统的能力。
-                      </p>
-                    </CardContent>
                   </Card>
                 </div>
-                {localStorage.getItem("user") && (
-                  <StudentAgentManager 
-                    userId={JSON.parse(localStorage.getItem("user") || "{}")?.userId || 1} 
-                  />
-                )}
+                
+                {/* 学生智能体模拟器组件 */}
+                <div className="w-full px-4 mb-8">
+                  <StudentAgentSimulator />
+                </div>
+                
+                {/* 学生智能体预设管理组件 */}
+                <div className="w-full px-4 mt-8">
+                  <Card className="bg-neutral-900 border-neutral-800 mb-4">
+                    <CardHeader>
+                      <CardTitle className="text-white">学生智能体预设管理</CardTitle>
+                      <CardDescription>
+                        管理不同特征和学习风格的虚拟学生预设档案
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                  
+                  {localStorage.getItem("user") && (
+                    <StudentAgentManager 
+                      userId={JSON.parse(localStorage.getItem("user") || "{}")?.userId || 1} 
+                    />
+                  )}
+                </div>
               </div>
             </TabsContent>
           </Tabs>
