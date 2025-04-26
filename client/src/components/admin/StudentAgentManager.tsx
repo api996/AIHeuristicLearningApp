@@ -199,9 +199,9 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <h1 className="text-3xl font-bold mb-6">学生智能体管理</h1>
-      <p className="text-gray-500 mb-8">
+    <div className="w-full student-agent-container py-6">
+      <h1 className="text-3xl font-bold mb-6 px-4">学生智能体管理</h1>
+      <p className="text-gray-500 mb-8 px-4">
         创建和管理虚拟学生智能体，以模拟真实的学习行为和提问模式。使用这些智能体可以测试和改进导师系统的教学能力和适应性。
       </p>
 
