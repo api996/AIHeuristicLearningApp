@@ -107,33 +107,10 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   return (
-    <div 
-      className="min-h-screen bg-black admin-dashboard-container admin-dashboard w-full" 
-      style={{
-        width: '100vw',
-        maxWidth: '100vw',
-        overflowX: 'hidden',
-        margin: 0,
-        padding: 0
-      }}
-    >
+    <div className="min-h-screen bg-black admin-dashboard-container admin-dashboard">
       {/* Header */}
-      <header 
-        className="border-b border-neutral-800 bg-neutral-900 w-full"
-        style={{
-          width: '100vw',
-          maxWidth: '100vw'
-        }}
-      >
-        <div 
-          className="container mx-auto px-4 py-4 flex justify-between items-center w-full"
-          style={{
-            width: '100vw',
-            maxWidth: '100vw',
-            padding: '1rem',
-            boxSizing: 'border-box'
-          }}
-        >
+      <header className="border-b border-neutral-800 bg-neutral-900">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-xl font-bold text-white">管理员控制台</h1>
           <div className="flex items-center space-x-4">
             <Button
@@ -149,54 +126,23 @@ export default function AdminDashboard() {
       </header>
 
       {/* Tabs Navigation */}
-      <div 
-        className="border-b border-neutral-800 bg-neutral-900 w-full"
-        style={{
-          width: '100vw',
-          maxWidth: '100vw',
-          boxSizing: 'border-box'
-        }}
-      >
-        <div 
-          className="container mx-auto px-4 w-full"
-          style={{
-            width: '100vw',
-            maxWidth: '100vw',
-            padding: '0 1rem',
-            boxSizing: 'border-box'
-          }}>
+      <div className="border-b border-neutral-800 bg-neutral-900">
+        <div className="container mx-auto px-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="admin-tabs">
-            <TabsList 
-              className="bg-neutral-800 mt-2 flex-nowrap overflow-x-auto" 
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                flexWrap: 'nowrap',
-                width: '100%',
-                overflowX: 'auto'
-              }}
-            >
-              <TabsTrigger value="dashboard" className="whitespace-nowrap" style={{whiteSpace: 'nowrap', flexShrink: 0}}>控制面板</TabsTrigger>
-              <TabsTrigger value="security" className="whitespace-nowrap" style={{whiteSpace: 'nowrap', flexShrink: 0}}>安全设置</TabsTrigger>
-              <TabsTrigger value="feedback" className="whitespace-nowrap" style={{whiteSpace: 'nowrap', flexShrink: 0}}>反馈分析</TabsTrigger>
-              <TabsTrigger value="prompts" className="whitespace-nowrap" style={{whiteSpace: 'nowrap', flexShrink: 0}}>提示词模板</TabsTrigger>
-              <TabsTrigger value="moderation" className="whitespace-nowrap" style={{whiteSpace: 'nowrap', flexShrink: 0}}>内容审查</TabsTrigger>
-              <TabsTrigger value="student-agent" className="whitespace-nowrap" style={{whiteSpace: 'nowrap', flexShrink: 0}}>学生智能体</TabsTrigger>
+            <TabsList className="bg-neutral-800 mt-2">
+              <TabsTrigger value="dashboard">控制面板</TabsTrigger>
+              <TabsTrigger value="security">安全设置</TabsTrigger>
+              <TabsTrigger value="feedback">反馈分析</TabsTrigger>
+              <TabsTrigger value="prompts">提示词模板</TabsTrigger>
+              <TabsTrigger value="moderation">内容审查</TabsTrigger>
+              <TabsTrigger value="student-agent">学生智能体</TabsTrigger>
             </TabsList>
 
             {/* Dashboard Tab */}
             <TabsContent value="dashboard" className="admin-dashboard-tabs-content">
               {/* Main Content */}
               <main className="py-8">
-                <div 
-                  className="grid grid-cols-1 md:grid-cols-3 gap-6" 
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                    gap: '1.5rem',
-                    width: '100%'
-                  }}
-                >
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Stats Cards */}
                   <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
