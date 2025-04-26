@@ -37,19 +37,24 @@ export class McpSearchClient {
     }
 
     try {
-      // 计算相对于当前文件的路径 - 使用 .ts 扩展名，因为我们在开发环境中使用 tsx
-      const relativePath = "../server/search-server.ts";
+      // 检测环境
+      const isProduction = process.env.NODE_ENV === 'production';
+      
+      // 计算相对于当前文件的路径，根据环境选择文件扩展名
+      const relativePath = "../server/search-server" + (isProduction ? ".js" : ".ts");
       const scriptPath = path.join(currentDir, relativePath);
       
       log(`当前文件路径: ${currentFilePath}`);
       log(`当前目录: ${currentDir}`);
+      log(`环境: ${isProduction ? '生产' : '开发'}`);
       
       log("初始化 MCP 搜索客户端...");
       log(`MCP 服务器脚本路径: ${scriptPath}`);
 
-      // 创建 stdio 传输层 - 使用 tsx 运行 TypeScript 文件，并传递关键环境变量
+      // 创建 stdio 传输层 - 根据环境选择正确的命令
+      // 生产环境中使用 node，开发环境中使用 tsx
       this.transport = new StdioClientTransport({
-        command: "tsx",
+        command: isProduction ? "node" : "tsx",
         args: [scriptPath],
         env: {
           ...process.env,
