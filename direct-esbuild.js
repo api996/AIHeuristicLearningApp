@@ -113,8 +113,17 @@ async function build() {
     const result = await esbuild.build(buildConfig);
     
     // 复制前端资源
-    fs.copyFileSync('./dist/public/index.html', './dist/public/index.html');
-    log('已复制前端静态资源', 'success');
+    try {
+      // 检查文件是否存在，然后再尝试复制
+      if (fs.existsSync('./public/index.html')) {
+        fs.copyFileSync('./public/index.html', './dist/public/index.html');
+        log('已复制前端静态资源', 'success');
+      } else {
+        log('前端静态资源不存在，跳过复制', 'warn');
+      }
+    } catch (copyError) {
+      log('复制静态资源失败: ' + copyError.message, 'warn');
+    }
     
     // 处理潜在的命名冲突
     const indexPath = path.join(outDir, 'index.js');

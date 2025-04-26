@@ -622,7 +622,7 @@ export class ClusterAnalyzerService {
    * @param memories 记忆数组
    * @returns 格式化的聚类主题结果
    */
-  async generateTopicsForClusters(clusterResult: any, memories: any[]): Promise<ClusterResult> {
+  async generateTopicsForClusterResult(clusterResult: any, memories: any[]): Promise<ClusterResult> {
     try {
       if (!clusterResult || !clusterResult.centroids || clusterResult.centroids.length === 0) {
         return { topics: [] };
