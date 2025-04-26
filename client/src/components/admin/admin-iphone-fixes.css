@@ -1,111 +1,37 @@
 /**
- * 管理员后台界面iPhone专用修复样式
- * 用于解决在iPhone设备上管理员后台界面标签页和布局崩溃问题
+ * 管理员后台界面iPhone专用布局修复
+ * 简化版 - 只针对关键元素进行修复
  */
 
-/* 确保iPhone设备上的标签列表正确显示为水平方向 */
+/* 标签页修复 */
+.iphone-device [role="tablist"],
 .iphone-device .admin-dashboard-container [role="tablist"] {
   display: flex !important;
   flex-direction: row !important;
-  width: 100% !important;
+  flex-wrap: nowrap !important;
   overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  scrollbar-width: none !important; /* Firefox */
-  white-space: nowrap !important;
-  padding: 0.5rem 0 !important;
-  margin-bottom: 1rem !important;
-  border-radius: 0 !important;
-  background-color: hsl(var(--background)) !important;
+  width: 100% !important;
 }
 
-/* 隐藏滚动条 */
-.iphone-device .admin-dashboard-container [role="tablist"]::-webkit-scrollbar {
-  display: none !important;
-}
-
-/* 标签按钮修复 */
+/* 确保标签不会换行 */
+.iphone-device [role="tab"],
 .iphone-device .admin-dashboard-container [role="tab"] {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  height: 40px !important;
-  padding: 0 16px !important;
   white-space: nowrap !important;
   flex-shrink: 0 !important;
-  border-radius: 0 !important;
-  border-bottom: 2px solid transparent !important;
 }
 
-/* 活跃标签修复 */
-.iphone-device .admin-dashboard-container [role="tab"][data-state="active"] {
-  border-bottom: 2px solid hsl(var(--primary)) !important;
-  font-weight: 500 !important;
-}
-
-/* 标签内容区域修复 */
-.iphone-device .admin-dashboard-container [role="tabpanel"] {
-  width: 100% !important;
-  height: auto !important;
-  padding: 1rem 0 !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-}
-
-/* 统计卡片栅格修复 */
-.iphone-device .admin-dashboard-container .grid {
-  display: grid !important;
-  grid-template-columns: repeat(1, 1fr) !important; /* 强制单列布局 */
-  gap: 1rem !important;
-  width: 100% !important;
-}
-
-/* 确保表单控件正确显示 */
-.iphone-device .admin-dashboard-container .form-item {
-  width: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  margin-bottom: 1rem !important;
-}
-
-/* 确保按钮不会被挤压 */
-.iphone-device .admin-dashboard-container button {
-  width: auto !important;
-  min-width: 80px !important;
-  height: auto !important;
-  min-height: 36px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  margin: 0.25rem !important;
-  padding: 0.5rem 1rem !important;
-}
-
-/* 确保学生智能体页面的元素正确显示 */
+/* 确保表单和布局正确显示 */
+.iphone-device .admin-dashboard-container,
 .iphone-device .student-agent-container {
-  width: 100% !important;
   display: flex !important;
   flex-direction: column !important;
-}
-
-/* 修复可能垂直显示的选项卡列表 */
-.iphone-device .admin-tabs [role="tablist"] {
-  flex-direction: row !important;
   width: 100% !important;
-  justify-content: flex-start !important;
 }
 
-/* 修复一些可能不正确换行的设置项 */
-.iphone-device .admin-dashboard-container .flex {
-  flex-wrap: wrap !important;
-}
-
-/* 确保模态框内容正确显示 */
-.iphone-device .modal-content,
-.iphone-device [role="dialog"] {
-  width: 100% !important;
-  max-width: 100% !important;
-  max-height: 80vh !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  padding: 1rem !important;
+/* 修复网格布局在小屏幕上的显示 */
+@media (max-width: 767px) {
+  .iphone-device .grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important; /* 手机上单列布局 */
+  }
 }
