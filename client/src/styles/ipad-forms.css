@@ -1,0 +1,26 @@
+/* iPad特定的表单调整 */
+@media only screen and (min-width: 768px) and (max-width: 1024px) {
+  /* 表单控件样式增强 */
+  input, textarea, select, button {
+    -webkit-appearance: none; /* 移除默认样式 */
+    border-radius: 4px;
+    font-size: 16px; /* 防止缩放 */
+  }
+
+  /* 表单布局优化 */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* 表单组件触摸区域优化 */
+  .form-control {
+    min-height: 44px; /* 触摸友好的最小高度 */
+  }
+
+  /* 修复键盘弹出时的问题 */
+  .keyboard-avoidance {
+    padding-bottom: 100px;
+  }
+}
