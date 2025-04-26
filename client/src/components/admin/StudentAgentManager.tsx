@@ -249,17 +249,16 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
                     尚未创建任何预设
                   </div>
                 ) : (
-                  <div className="table-container">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>名称</TableHead>
-                          <TableHead>学科</TableHead>
-                          <TableHead>年级</TableHead>
-                          <TableHead>状态</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>名称</TableHead>
+                        <TableHead>学科</TableHead>
+                        <TableHead>年级</TableHead>
+                        <TableHead>状态</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {presets.presets.map((preset: StudentAgentPreset) => (
                         <TableRow key={preset.id}>
                           <TableCell className="font-medium">{preset.name}</TableCell>
@@ -276,7 +275,6 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
                       ))}
                     </TableBody>
                   </Table>
-                  </div>
                 )}
               </CardContent>
             </Card>
