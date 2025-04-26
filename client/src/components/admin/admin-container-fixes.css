@@ -1,0 +1,121 @@
+/* 
+ * 管理后台移动端优化
+ * 解决后台界面在移动设备上宽度和溢出问题
+ */
+
+/* 放到最前面，保证覆盖任何框架默认值 */
+html, body, #__next, .admin-dashboard-container {
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: visible !important;
+}
+
+/* 让所有 flex/grid 子项都可以自由伸缩，不被 min-width 限死 */
+.admin-dashboard-container *,
+.admin-dashboard-scrollable *,
+.admin-dashboard-tabs-content * {
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+/* 保证主要内容区域能够正常显示 */
+.admin-content-area,
+.admin-panel-section,
+.admin-dashboard-main {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+}
+
+/* 确保容器不会超出屏幕 */
+.admin-dashboard-container .container {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+
+/* 标签栏在移动端的特殊处理 */
+@media (max-width: 768px) {
+  /* 使标签列表可滚动 */
+  .admin-tabs .tabs-list {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE and Edge */
+    padding-bottom: 4px !important;
+  }
+  
+  /* 隐藏滚动条 */
+  .admin-tabs .tabs-list::-webkit-scrollbar {
+    display: none !important;
+  }
+  
+  /* 确保标签项不会被压缩 */
+  .admin-tabs .tabs-list [role="tab"] {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+
+  /* 标准化标签容器样式 */
+  .admin-dashboard-container [role="tablist"] {
+    overflow-x: auto !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    padding-bottom: 2px !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  
+  .admin-dashboard-container [role="tablist"]::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* 标准化标签按钮样式 */
+  .admin-dashboard-container [role="tab"] {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+/* 表格在移动端适配 */
+.admin-dashboard-container table,
+.admin-dashboard-scrollable table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: auto !important;
+}
+
+/* Card 在移动端的适配 */
+.admin-dashboard-container .card,
+.admin-dashboard-scrollable .card {
+  width: 100% !important;
+  min-width: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* 确保表单控件在移动端宽度合适 */
+.admin-dashboard-container input,
+.admin-dashboard-container select,
+.admin-dashboard-container textarea {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* 调整网格布局在移动端的适配 */
+@media (max-width: 768px) {
+  .admin-dashboard-container .grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .admin-dashboard-container .md\:grid-cols-2,
+  .admin-dashboard-container .md\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+}
