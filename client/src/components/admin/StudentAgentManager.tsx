@@ -206,13 +206,41 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
       </p>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full flex-nowrap space-x-2">
-          <TabsTrigger value="presets" className="flex-1 whitespace-nowrap">预设管理</TabsTrigger>
-          <TabsTrigger value="sessions" className="flex-1 whitespace-nowrap">会话历史</TabsTrigger>
+        <TabsList 
+          className="w-full flex-nowrap space-x-2"
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            flexWrap: 'nowrap',
+            width: '100%',
+            overflow: 'visible'
+          }}
+        >
+          <TabsTrigger 
+            value="presets" 
+            className="flex-1 whitespace-nowrap"
+            style={{whiteSpace: 'nowrap', flexShrink: 0}}
+          >
+            预设管理
+          </TabsTrigger>
+          <TabsTrigger 
+            value="sessions" 
+            className="flex-1 whitespace-nowrap"
+            style={{whiteSpace: 'nowrap', flexShrink: 0}}
+          >
+            会话历史
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="presets" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div 
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: '1.5rem',
+              width: '100%'
+            }}>
             {/* 预设列表 */}
             <Card>
               <CardHeader>
