@@ -1,0 +1,54 @@
+/* 管理控制台基础样式 - 简化版 */
+.admin-dashboard {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-tabs {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-dashboard-tabs-content {
+  padding-bottom: 120px; /* 确保底部有足够空间 */
+}
+
+/* iPad特定修复 */
+@media only screen and (min-width: 768px) and (max-width: 1024px) {
+  html, body {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    height: 100%;
+  }
+  
+  .admin-dashboard {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: auto;
+    min-height: 100%;
+  }
+  
+  .admin-dashboard-tabs-content {
+    height: auto;
+    min-height: 70vh; /* 稍微减少以避免溢出 */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* 移动版顶部导航栏 */
+  .admin-header-container {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: #000;
+  }
+}
