@@ -47,71 +47,25 @@ export const pool = new Pool(isProduction ?
   }
 );
 
-// 连接尝试计数
-let connectionAttempts = 0;
-const MAX_CONNECTION_ATTEMPTS = 5;
-const RECONNECT_DELAY_MS = 5000;
-
 // 监听连接池错误，防止连接问题导致整个应用崩溃
 pool.on('error', (err) => {
   log(`数据库连接池错误，但应用将继续运行: ${err.message}`);
-  
-  // 如果是连接终止或网络错误，尝试重新连接
-  if (err.message.includes('terminating connection') || 
-      err.message.includes('network') || 
-      err.message.includes('connection') ||
-      err.message.includes('timeout')) {
-    
-    // 限制重连次数
-    if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
-      connectionAttempts++;
-      log(`尝试重新连接数据库 (${connectionAttempts}/${MAX_CONNECTION_ATTEMPTS})...`);
-      
-      // 延迟一段时间后重新测试连接
-      setTimeout(() => {
-        testDatabaseConnection()
-          .then(() => {
-            connectionAttempts = 0; // 重置计数器
-            log('数据库重新连接成功');
-          })
-          .catch(e => log(`数据库重新连接失败: ${e.message}`));
-      }, RECONNECT_DELAY_MS);
-    } else {
-      log(`达到最大重连次数 (${MAX_CONNECTION_ATTEMPTS})，不再尝试自动重连`);
-    }
-  }
+  // 不抛出错误，防止整个应用崩溃
 });
 
 // 测试数据库连接是否正常
 async function testDatabaseConnection() {
-  let client = null;
   try {
-    // 设置超时保护，避免永久阻塞
-    const connectionPromise = pool.connect();
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('连接超时')), 10000)
-    );
-    
-    // 竞争：连接或超时，哪个先发生就接受哪个结果
-    client = await Promise.race([connectionPromise, timeoutPromise]) as any;
-    
-    // 执行简单查询验证连接
-    const result = await client.query('SELECT NOW()');
-    log(`数据库连接成功! 当前时间: ${result.rows[0].now}`);
-    return true;
+    const client = await pool.connect();
+    try {
+      const result = await client.query('SELECT NOW()');
+      log(`数据库连接成功! 当前时间: ${result.rows[0].now}`);
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
     log(`数据库连接测试失败: ${error?.message || '未知错误'}`);
-    // 将错误传播到调用方，这样重连逻辑能够知道连接失败
-    throw error;
-  } finally {
-    // 安全释放连接
-    if (client) {
-      try {
-        client.release();
-      } catch (releaseError) {
-        log(`警告: 释放数据库连接时出错: ${(releaseError as Error).message}`);
-      }
-    }
+    // 不抛出错误，让应用继续运行
   }
 }
 

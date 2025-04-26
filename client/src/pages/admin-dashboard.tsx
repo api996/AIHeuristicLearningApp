@@ -141,10 +141,10 @@ export default function AdminDashboard() {
             {/* Dashboard Tab */}
             <TabsContent value="dashboard" className="admin-dashboard-tabs-content">
               {/* Main Content */}
-              <main className="py-8 px-4 w-full max-w-full">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-full">
+              <main className="py-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Stats Cards */}
-                  <Card className="bg-neutral-900 border-neutral-800 w-full">
+                  <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
                       <CardTitle className="text-white">用户统计</CardTitle>
                     </CardHeader>
@@ -159,7 +159,7 @@ export default function AdminDashboard() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-neutral-900 border-neutral-800 w-full">
+                  <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
                       <CardTitle className="text-white">对话统计</CardTitle>
                     </CardHeader>
@@ -174,7 +174,7 @@ export default function AdminDashboard() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-neutral-900 border-neutral-800 w-full">
+                  <Card className="bg-neutral-900 border-neutral-800">
                     <CardHeader>
                       <CardTitle className="text-white">系统状态</CardTitle>
                     </CardHeader>
@@ -191,7 +191,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Quick Navigation Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 w-full max-w-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                   {/* Prompt Editor Card */}
                   <Card className="bg-neutral-900 border-neutral-800 hover:border-blue-500 transition-colors cursor-pointer" onClick={() => setLocation('/admin/prompts')}>
                     <CardHeader>
