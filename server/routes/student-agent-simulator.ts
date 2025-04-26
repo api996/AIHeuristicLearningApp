@@ -614,52 +614,66 @@ async function generateNextQuestion(currentState: any): Promise<string> {
 }
 
 // 从对话创建记忆
+/**
+ * 从模拟对话创建记忆
+ * @param userId 用户ID
+ * @param userQuestion 用户问题
+ * @param assistantResponse 助手回答
+ * @param kwlqState KWLQ学习状态
+ */
 async function createMemoryFromConversation(
   userId: number, 
   userQuestion: string, 
   assistantResponse: string,
-  kwlqState: any
+  kwlqState: Record<string, string[]>
 ): Promise<void> {
   try {
-    // 构建对话内容
-    const conversationContent = `问: ${userQuestion}\n\n答: ${assistantResponse}`;
+    // 构建基础对话内容
+    let content = `问: ${userQuestion}\n\n答: ${assistantResponse}`;
     
-    // 从KWLQ状态提取关键词作为标签
-    let keywords: string[] = [];
-    
-    // 合并所有KWLQ列的内容作为关键词
+    // 添加KWLQ学习状态信息
     if (kwlqState) {
-      const allTopics = [
-        ...(kwlqState.K || []), 
-        ...(kwlqState.W || []), 
-        ...(kwlqState.L || []), 
-        ...(kwlqState.Q || [])
-      ];
+      // 将K部分添加到内容中
+      if (kwlqState.K && Array.isArray(kwlqState.K) && kwlqState.K.length > 0) {
+        content = content + `\n\n已知信息: ${kwlqState.K.join(', ')}`;
+      }
       
-      // 过滤重复和空值
-      keywords = [...new Set(allTopics.filter(Boolean))];
+      // 将W部分添加到内容中
+      if (kwlqState.W && Array.isArray(kwlqState.W) && kwlqState.W.length > 0) {
+        content = content + `\n\n想要了解: ${kwlqState.W.join(', ')}`;
+      }
+      
+      // 将L部分添加到内容中
+      if (kwlqState.L && Array.isArray(kwlqState.L) && kwlqState.L.length > 0) {
+        content = content + `\n\n已学习: ${kwlqState.L.join(', ')}`;
+      }
+      
+      // 将Q部分添加到内容中
+      if (kwlqState.Q && Array.isArray(kwlqState.Q) && kwlqState.Q.length > 0) {
+        content = content + `\n\n疑问: ${kwlqState.Q.join(', ')}`;
+      }
     }
-    
-    // 如果没有关键词，至少添加一个默认关键词
-    if (keywords.length === 0) {
-      keywords = ['学习对话'];
-    }
-    
-    // 生成记忆ID (基于时间戳)
-    const memoryId = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     
     // 创建记忆
-    await memoryService.createMemory(
-      userId,
-      conversationContent,
-      '学生智能体模拟对话' // 记忆类型
-    );
-    
-    log(`[StudentAgentSimulator] 已为用户 ${userId} 创建记忆: ${memoryId}`);
-    
+    try {
+      const memory = await memoryService.createMemory(
+        userId,
+        content,
+        '学生智能体模拟对话' // 记忆类型
+      );
+      
+      if (memory && memory.id) {
+        log(`[StudentAgentSimulator] 已为用户 ${userId} 创建记忆: ${memory.id}`);
+      } else {
+        log(`[StudentAgentSimulator] 记忆创建成功但未返回ID，用户: ${userId}`);
+      }
+    } catch (memoryError) {
+      const errorMsg = memoryError instanceof Error ? memoryError.message : String(memoryError);
+      log(`[StudentAgentSimulator] 记忆创建过程中出错: ${errorMsg}`);
+    }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-    log(`[StudentAgentSimulator] 创建记忆失败: ${errorMessage}`);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    log(`[StudentAgentSimulator] 创建记忆失败: ${errorMsg}`);
   }
 }
 
