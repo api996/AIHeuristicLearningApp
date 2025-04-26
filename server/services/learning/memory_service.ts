@@ -257,7 +257,7 @@ export class MemoryService {
             
             // 将Flask API的结果转换为期望的格式
             // 生成主题标题
-            const result = await clusterAnalyzer.generateTopicsForClusters(clusterResult, filteredMemories);
+            const result = await clusterAnalyzer.generateTopicsForClusterResult(clusterResult, filteredMemories);
             
             if (result && result.topics) {
               log(`[MemoryService] 聚类分析成功: 发现 ${result.topics.length} 个主题聚类`);
