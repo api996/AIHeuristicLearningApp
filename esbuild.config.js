@@ -26,6 +26,17 @@ const config = {
 // 统一的模块导入辅助函数，避免多个createRequire定义
 import { createRequire } from 'module'; 
 const require = createRequire(import.meta.url);
+
+// 确保核心模块正确导入和加载
+import * as fs from 'fs';
+import * as path from 'path';
+import * as url from 'url';
+
+// 设置全局变量，确保后续代码可以访问这些模块
+globalThis.__fs = fs;
+globalThis.__path = path;
+globalThis.__url = url;
+
 // PostgreSQL会话存储初始化代码
 import pgSessionLib from 'connect-pg-simple';
 import sessionLib from 'express-session';
