@@ -109,6 +109,9 @@ const startScript = `#!/usr/bin/env node
 console.log('[INFO] 启动生产环境应用...');
 console.log('[INFO] 时间:', new Date().toISOString());
 
+// 导入必要的模块
+import * as fs from 'fs';
+
 // ESM 导入应用
 import './dist/index.js';
 `;

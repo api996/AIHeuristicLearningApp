@@ -129,11 +129,18 @@ async function build() {
     const indexPath = path.join(outDir, 'index.js');
     let content = fs.readFileSync(indexPath, 'utf8');
     
-    // 简单的标识冲突处理
+    // 简单的标识冲突处理 - 只替换具体的导入函数，不替换命名空间导入
     content = content.replace(
       /import { (createRequire|fileURLToPath|dirname|resolve) } from ["'](?:node:)?(module|url|path)["'];/g,
       '/* 已预加载模块，略过重复导入 */'
     );
+    
+    // 确保不影响 import * as fs 这样的命名空间导入
+    console.log('检查构建文件是否包含 fs 命名空间导入');
+    if (!content.includes('import * as fs from')) {
+      console.log('警告: 构建文件中可能缺少fs模块命名空间导入，手动添加');
+      content = `import * as fs from 'fs';\n${content}`;
+    }
     
     fs.writeFileSync(indexPath, content);
     log('构建完成，已优化模块导入', 'success');
