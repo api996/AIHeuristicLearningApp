@@ -335,8 +335,7 @@ class StudentAgentService {
       
       if (stateUpdate.kwlq) {
         // 比较新旧KWLQ数据，确定更新类型
-        const currentStateObj = session.currentState || {};
-        const oldStateKwlq = (currentStateObj as any).kwlq || { K: [], W: [], L: [], Q: [] };
+        const oldStateKwlq = session.currentState?.kwlq || { K: [], W: [], L: [], Q: [] };
         const oldKwlq: KWLQData = {
           K: Array.isArray(oldStateKwlq.K) ? oldStateKwlq.K : [],
           W: Array.isArray(oldStateKwlq.W) ? oldStateKwlq.W : [],

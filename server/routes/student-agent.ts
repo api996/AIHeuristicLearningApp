@@ -110,8 +110,7 @@ router.post('/presets', validateAdmin, async (req: Request, res: Response) => {
     res.status(201).json({ success: true, preset });
   } catch (error) {
     log(`[StudentAgentAPI] 创建预设错误: ${error}`);
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-    res.status(500).json({ success: false, message: `创建学生智能体预设失败: ${errorMessage}` });
+    res.status(500).json({ success: false, message: `创建学生智能体预设失败: ${error.message}` });
   }
 });
 
@@ -138,8 +137,7 @@ router.patch('/presets/:id', validateAdmin, async (req: Request, res: Response) 
     res.json({ success: true, preset: updatedPreset });
   } catch (error) {
     log(`[StudentAgentAPI] 更新预设错误: ${error}`);
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-    res.status(500).json({ success: false, message: `更新学生智能体预设失败: ${errorMessage}` });
+    res.status(500).json({ success: false, message: `更新学生智能体预设失败: ${error.message}` });
   }
 });
 
@@ -155,8 +153,7 @@ router.delete('/presets/:id', validateAdmin, async (req: Request, res: Response)
     res.json({ success: true, message: "预设已删除" });
   } catch (error) {
     log(`[StudentAgentAPI] 删除预设错误: ${error}`);
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-    res.status(500).json({ success: false, message: `删除学生智能体预设失败: ${errorMessage}` });
+    res.status(500).json({ success: false, message: `删除学生智能体预设失败: ${error.message}` });
   }
 });
 
@@ -197,8 +194,7 @@ router.post('/sessions', async (req: Request, res: Response) => {
     res.status(201).json({ success: true, session });
   } catch (error) {
     log(`[StudentAgentAPI] 创建会话错误: ${error}`);
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-    res.status(500).json({ success: false, message: `创建学生智能体会话失败: ${errorMessage}` });
+    res.status(500).json({ success: false, message: `创建学生智能体会话失败: ${error.message}` });
   }
 });
 
@@ -240,8 +236,7 @@ router.post('/sessions/:id/messages', async (req: Request, res: Response) => {
     });
   } catch (error) {
     log(`[StudentAgentAPI] 发送消息错误: ${error}`);
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-    res.status(500).json({ success: false, message: `发送消息失败: ${errorMessage}` });
+    res.status(500).json({ success: false, message: `发送消息失败: ${error.message}` });
   }
 });
 
@@ -257,8 +252,7 @@ router.post('/sessions/:id/complete', async (req: Request, res: Response) => {
     res.json({ success: true, message: "会话已标记为完成" });
   } catch (error) {
     log(`[StudentAgentAPI] 完成会话错误: ${error}`);
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-    res.status(500).json({ success: false, message: `标记会话完成失败: ${errorMessage}` });
+    res.status(500).json({ success: false, message: `标记会话完成失败: ${error.message}` });
   }
 });
 
@@ -299,8 +293,7 @@ router.post('/sessions/:id/evaluations', validateAdmin, async (req: Request, res
     res.status(201).json({ success: true, evaluation });
   } catch (error) {
     log(`[StudentAgentAPI] 创建评估错误: ${error}`);
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-    res.status(500).json({ success: false, message: `创建会话评估失败: ${errorMessage}` });
+    res.status(500).json({ success: false, message: `创建会话评估失败: ${error.message}` });
   }
 });
 
