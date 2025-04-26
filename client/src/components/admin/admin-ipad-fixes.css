@@ -1,23 +1,7 @@
 /**
  * 管理员后台界面iPad专用修复样式
  * 用于解决在iPad设备上管理员后台界面刷新后标签页和表单元素样式崩溃问题
- * 增加全局min-width和overflow-x覆盖，解决移动端显示内容不完整的问题
  */
-
-/* 放到最前面，保证覆盖任何框架默认值 */
-html, body, #__next, .admin-dashboard-container {
-  width: 100% !important;
-  min-width: 0 !important;
-  overflow-x: visible !important;
-}
-
-/* 让所有 flex/grid 子项都可以自由伸缩，不被 min-width 限死 */
-.admin-dashboard-container *,
-.admin-dashboard-scrollable *,
-.admin-dashboard-tabs-content * {
-  min-width: 0 !important;
-  min-height: 0 !important;
-}
 
 /* 管理员页面基础样式修复 */
 .ipad-device .admin-dashboard-container {
@@ -26,8 +10,7 @@ html, body, #__next, .admin-dashboard-container {
   min-height: 100vh !important;
   display: flex !important;
   flex-direction: column !important;
-  /* 注释掉可能导致内容被裁剪的设置 */
-  /* overflow-x: hidden !important; */
+  overflow-x: hidden !important;
   padding-bottom: 50px !important;
 }
 
@@ -89,11 +72,8 @@ html, body, #__next, .admin-dashboard-container {
 /* 表格修复 */
 .ipad-device .admin-dashboard-container table {
   width: 100% !important;
-  min-width: 0 !important;
   border-collapse: collapse !important;
-  table-layout: auto !important; /* 改为auto允许内容决定列宽 */
-  overflow-x: auto !important;
-  display: block !important; /* 使表格可横向滚动 */
+  table-layout: fixed !important;
 }
 
 /* 确保设置表单正确显示 */
@@ -140,9 +120,7 @@ html, body, #__next, .admin-dashboard-container {
 /* 修复页面滚动 */
 .ipad-device .admin-dashboard-scrollable {
   max-height: 100vh !important;
-  width: 100% !important;
   overflow-y: auto !important;
-  overflow-x: visible !important; /* 允许内容完整显示 */
   -webkit-overflow-scrolling: touch !important;
   padding-bottom: 50px !important;
 }
@@ -158,23 +136,4 @@ html, body, #__next, .admin-dashboard-container {
   flex-direction: column !important;
   width: 100% !important;
   gap: 1rem !important;
-}
-
-/* 针对标签内容进行额外修复 */
-.admin-dashboard-tabs-content,
-.admin-dashboard-container [data-orientation="horizontal"] [role="tabpanel"] {
-  width: 100% !important;
-  min-width: 0 !important;
-  overflow-x: visible !important;
-  padding: 0 !important;
-}
-
-/* 确保所有内容容器的子元素不会溢出 */
-.admin-dashboard-container .content-wrapper,
-.admin-dashboard-container .tab-content,
-.admin-dashboard-container .panel-content {
-  width: 100% !important;
-  min-width: 0 !important;
-  overflow-x: visible !important;
-  padding: 0 !important;
 }
