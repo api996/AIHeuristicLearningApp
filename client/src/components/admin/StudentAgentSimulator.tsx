@@ -74,8 +74,11 @@ export function StudentAgentSimulator() {
         throw new Error('请选择学生智能体预设和用户');
       }
       
-      return apiRequest('/api/student-agent/simulate', {
+      const response = await fetch('/api/student-agent/simulate', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           presetId: selectedPreset,
           userId: selectedUser,
@@ -83,18 +86,24 @@ export function StudentAgentSimulator() {
           initialPrompt: initialPrompt
         })
       });
+      
+      if (!response.ok) {
+        throw new Error('启动模拟失败');
+      }
+      
+      return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: '模拟会话已开始',
-        description: `已为用户 ${data.username} 启动学生智能体模拟会话`,
+        description: `已为用户 ${data.username || '未知'} 启动学生智能体模拟会话`,
       });
       setActiveTab('sessions');
       
       // 添加新会话到活动会话列表
       setActiveSessions(prev => [
         {
-          id: data.sessionId,
+          id: data.sessionId || Date.now(),
           presetId: selectedPreset || 0,
           presetName: presets.find((p: StudentAgentPreset) => p.id === selectedPreset)?.name || '未知预设',
           userId: selectedUser || 0,
@@ -138,7 +147,8 @@ export function StudentAgentSimulator() {
               newLog.push(`[${new Date().toLocaleTimeString()}] 生成了新消息，当前进度 ${newCount}/${maxMessages}`);
             }
             
-            if (isCompleted && session.status !== 'completed') {
+            // isCompleted 确定是否已完成，添加完成日志
+            if (isCompleted) {
               newLog.push(`[${new Date().toLocaleTimeString()}] 会话已完成`);
             }
             
@@ -298,7 +308,7 @@ export function StudentAgentSimulator() {
                         </CardTitle>
                         <Badge variant={
                           session.status === 'running' ? 'default' : 
-                          session.status === 'completed' ? 'success' : 
+                          session.status === 'completed' ? 'secondary' : 
                           session.status === 'failed' ? 'destructive' : 
                           'outline'
                         }>
