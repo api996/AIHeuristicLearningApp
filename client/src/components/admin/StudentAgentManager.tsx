@@ -199,9 +199,9 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
   };
 
   return (
-    <div className="w-full max-w-full sm:container sm:mx-auto px-2 sm:px-4 py-4 sm:py-6">
-      <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">学生智能体管理</h1>
-      <p className="text-gray-500 mb-4 sm:mb-8 text-sm sm:text-base">
+    <div className="container mx-auto px-4 py-6">
+      <h1 className="text-3xl font-bold mb-6">学生智能体管理</h1>
+      <p className="text-gray-500 mb-8">
         创建和管理虚拟学生智能体，以模拟真实的学习行为和提问模式。使用这些智能体可以测试和改进导师系统的教学能力和适应性。
       </p>
 
@@ -211,12 +211,12 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
           <TabsTrigger value="sessions">会话历史</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="presets" className="space-y-4 sm:space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
+        <TabsContent value="presets" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 预设列表 */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex justify-between items-center text-lg sm:text-xl">
+                <CardTitle className="flex justify-between items-center">
                   <span>现有预设</span>
                   <Button 
                     variant="ghost" 
@@ -231,7 +231,7 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
                     )}
                   </Button>
                 </CardTitle>
-                <CardDescription className="text-sm">
+                <CardDescription>
                   已创建的学生智能体预设配置
                 </CardDescription>
               </CardHeader>
@@ -282,8 +282,8 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
             {/* 创建预设表单 */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg sm:text-xl">创建新预设</CardTitle>
-                <CardDescription className="text-sm">
+                <CardTitle>创建新预设</CardTitle>
+                <CardDescription>
                   创建新的学生智能体预设配置
                 </CardDescription>
               </CardHeader>
@@ -295,7 +295,7 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm">预设名称</FormLabel>
+                          <FormLabel>预设名称</FormLabel>
                           <FormControl>
                             <Input placeholder="如：高中语文学生" {...field} />
                           </FormControl>
@@ -318,7 +318,7 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
                       )}
                     />
 
-                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="subject"
@@ -383,7 +383,7 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="cognitiveLevel"
@@ -437,7 +437,7 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="learningStyle"
@@ -523,7 +523,7 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
                               {...field} 
                             />
                           </FormControl>
-                          <FormDescription className="text-xs sm:text-sm">
+                          <FormDescription>
                             每行输入一个常见的学科误解，系统将把它们转换为列表。
                           </FormDescription>
                           <FormMessage />
@@ -555,19 +555,19 @@ const StudentAgentManager: React.FC<{ userId: number }> = ({ userId }) => {
           </div>
         </TabsContent>
 
-        <TabsContent value="sessions" className="space-y-4 sm:space-y-6">
+        <TabsContent value="sessions" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg sm:text-xl">学生智能体会话</CardTitle>
-              <CardDescription className="text-sm">
+              <CardTitle>学生智能体会话</CardTitle>
+              <CardDescription>
                 已创建的学生智能体会话记录
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-6 sm:py-10">
-                <User className="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-gray-400 mb-3 sm:mb-4" />
-                <h3 className="text-base sm:text-lg font-medium">会话功能开发中</h3>
-                <p className="text-sm sm:text-base text-gray-500 mt-2">
+              <div className="text-center py-10">
+                <User className="mx-auto h-10 w-10 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium">会话功能开发中</h3>
+                <p className="text-gray-500 mt-2">
                   学生智能体会话管理功能正在开发中，敬请期待
                 </p>
               </div>
