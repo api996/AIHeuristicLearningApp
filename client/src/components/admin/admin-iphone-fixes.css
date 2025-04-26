@@ -3,6 +3,47 @@
  * 简化版 - 只针对关键元素进行修复
  */
 
+/* 基本修复：确保整个页面宽度正确 */
+.iphone-device {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+/* 修复整个管理界面容器 */
+.iphone-device .admin-dashboard {
+  width: 100% !important;
+  max-width: 100vw !important;
+  min-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+}
+
+/* 修复容器宽度 */
+.iphone-device .container {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* 修复所有容器元素以确保宽度正确 */
+.iphone-device .admin-dashboard > div,
+.iphone-device .admin-dashboard-container > div,
+.iphone-device .admin-tabs,
+.iphone-device [role="tabpanel"],
+.iphone-device .container {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+}
+
 /* 标签页修复 */
 .iphone-device [role="tablist"],
 .iphone-device .admin-dashboard-container [role="tablist"] {
@@ -11,6 +52,8 @@
   flex-wrap: nowrap !important;
   overflow-x: auto !important;
   width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 /* 确保标签不会换行 */
@@ -29,9 +72,36 @@
 }
 
 /* 修复网格布局在小屏幕上的显示 */
-@media (max-width: 767px) {
-  .iphone-device .grid {
-    display: grid !important;
-    grid-template-columns: 1fr !important; /* 手机上单列布局 */
-  }
+.iphone-device .grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important; /* 手机上单列布局 */
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+}
+
+/* 修复边距问题导致的横向挤压 */
+.iphone-device div[class*="mx-"], 
+.iphone-device div[class*="px-"],
+.iphone-device div[class*="container"],
+.iphone-device div[class*="grid-cols-"],
+.iphone-device div[class*="space-"],
+.iphone-device .admin-dashboard-tabs-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* 修复卡片宽度 */
+.iphone-device .card {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
