@@ -110,7 +110,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-black admin-dashboard-container admin-dashboard">
       {/* Header */}
       <header className="border-b border-neutral-800 bg-neutral-900">
-        <div className="w-full px-4 py-4 flex justify-between items-center">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-xl font-bold text-white">管理员控制台</h1>
           <div className="flex items-center space-x-4">
             <Button
@@ -127,9 +127,9 @@ export default function AdminDashboard() {
 
       {/* Tabs Navigation */}
       <div className="border-b border-neutral-800 bg-neutral-900">
-        <div className="w-full px-4">
+        <div className="container mx-auto px-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="admin-tabs">
-            <TabsList className="bg-neutral-800 mt-2 overflow-x-auto flex-nowrap">
+            <TabsList className="bg-neutral-800 mt-2">
               <TabsTrigger value="dashboard">控制面板</TabsTrigger>
               <TabsTrigger value="security">安全设置</TabsTrigger>
               <TabsTrigger value="feedback">反馈分析</TabsTrigger>
