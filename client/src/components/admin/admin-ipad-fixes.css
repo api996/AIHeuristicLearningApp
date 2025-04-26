@@ -12,18 +12,35 @@
   height: 100vh;
   max-width: 100vw;
   overflow-x: hidden;
+  /* 确保内容可以垂直滚动 - iPad兼容性修复 */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
 }
 
-/* 内容区域充满剩余空间并支持滚动 */
+/* 内容区域充满剩余空间并支持滚动 - 强化滚动样式 */
 .admin-dashboard-tabs-content {
   flex: 1;
   width: 100%;
   overflow: auto;
+  overflow-y: scroll; /* 强制显示垂直滚动条 */
+  -webkit-overflow-scrolling: touch; /* 增强iOS滚动体验 */
+  height: 100%; /* 确保有足够的高度 */
+  position: relative; /* 创建新的堆叠上下文 */
 }
 
-/* 标签内容面板充满高度 */
+/* 标签内容面板充满高度并支持滚动 */
 [role="tabpanel"] {
   height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* 特别针对学生智能体标签页的滚动修复 */
+.admin-dashboard-container [data-state="active"][role="tabpanel"] {
+  min-height: 70vh; /* 确保内容有足够高度触发滚动 */
+  padding-bottom: 50px; /* 底部留出足够空间 */
 }
 
 /* ===== 容器与网格布局 ===== */
@@ -82,6 +99,11 @@
 .student-agent-manager {
   width: 100%;
   max-width: 100%;
+  /* 确保滚动功能正常 */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* 保持良好间距 */
+  padding-bottom: 80px;
 }
 
 /* 表单控件撑满容器 */
@@ -102,4 +124,20 @@
 /* 图标修复 */
 .admin-dashboard-container svg {
   flex-shrink: 0;
+}
+
+/* ===== iPad滚动特别修复 ===== */
+/* 防止嵌套容器滚动冲突 */
+.admin-dashboard-container * {
+  /* 确保所有元素都使用正确的盒模型 */
+  box-sizing: border-box;
+}
+
+/* 通用表单容器滚动支持 */
+.admin-dashboard-container .form-container,
+.admin-dashboard-container .scrollable-area {
+  max-height: 70vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 50px;
 }
