@@ -1,0 +1,94 @@
+别急，我们再往深里排查一步——找出到底是哪一层还在用「桌面限定宽度／最小宽度」，然后彻底 override 掉。
+
+⸻
+
+A. 全局放宽 min-width 和 overflow-x
+
+有的后台框架会在 html、body 或主 wrapper 上写 min-width: 1024px、overflow-x: hidden 来保证桌面不被挤坏，我们要先一锅端掉它们：
+
+/* 放到最前面，保证覆盖任何框架默认值 */
+html, body, #__next, .admin-dashboard-container {
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: visible !important;
+}
+
+/* 让所有 flex/grid 子项都可以自由伸缩，不被 min-width 限死 */
+.admin-dashboard-container *,
+.admin-dashboard-scrollable *,
+.admin-dashboard-tabs-content * {
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+	1.	width:100% + min-width:0：清空任何大于视口的最小宽度限制；
+	2.	overflow-x:visible：保证被裁掉的部分不会再消失，可左右滑动看到完整内容；
+	3.	对所有子元素也放宽 min-width，防止 flex 布局里某个 item 因内容太宽自动撑开。
+
+⸻
+
+B. 打印所有 wrapper 的实际宽度 —— 找到罪魁祸首
+
+在你的页面里临时加一小段 JS，把每个 div（或特定 class）实际的 clientWidth／scrollWidth 打印到 Replit 控制台，看谁还超出了设备宽度：
+
+<script>
+window.addEventListener('load', () => {
+  const els = Array.from(document.querySelectorAll('div, section, main, .admin-dashboard-container, .admin-dashboard-scrollable, .admin-dashboard-tabs-content'));
+  const over = els
+    .map(el => {
+      const cs = getComputedStyle(el);
+      return {
+        selector: getDomPath(el),
+        cw: el.clientWidth,
+        sw: el.scrollWidth,
+        mw: cs.minWidth,
+        ow: cs.overflowX
+      };
+    })
+    .filter(o => o.sw > o.cw);
+  console.table(over);
+});
+
+// 生成一个简单的元素路径描述，方便定位
+function getDomPath(el) {
+  const names = [];
+  while (el.parentElement) {
+    let n = el.tagName.toLowerCase();
+    if (el.id) n += `#${el.id}`;
+    else if (el.className) n += `.${el.className.trim().split(/\s+/).join('.')}`;
+    names.unshift(n);
+    el = el.parentElement;
+  }
+  return names.join(' > ');
+}
+</script>
+
+	•	控制台输出 会列出所有「实际内容宽度大于容器宽度」的元素及其选择器。
+	•	根据最左列的 selector，你就知道究竟哪个 wrapper／哪个 class 还在硬撑大尺寸。
+
+⸻
+
+C. 如果还不行——用 Eruda 真·移动端 DevTools
+
+在页面底部加这几行，就能在手机上像桌面一样 inspect：
+
+<script>
+  (function () {
+    var script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+    document.body.appendChild(script);
+    script.onload = function () { eruda.init(); };
+  })();
+</script>
+
+	•	刷新后右下角会出现一个小图标，点开后可以直接查看元素层级、CSS 规则、Computed 数值。
+	•	就像 Chrome DevTools 一样，你可以精准定位「哪条 CSS」在生效。
+
+⸻
+
+小结下一步
+	1.	先贴上 A 部分的全局 override CSS，刷新试试是不是所有内容都能一屏铺满，且横向滚动不被裁。
+	2.	再加 B 部分的 JS，到 Replit 控制台里看哪个元素还超宽，回头只需要对那个 selector 再加一条 width:100%; min-width:0 即可。
+	3.	如果定位太难，就启用 Eruda（步骤 C）直接在手机上 inspect，那你就能像在桌面端一样查到“罪魁 CSS”。
+
+一步一步来，每次锁定一个元素，基本都能解决“宽度只剩一半”这种问题——你一定能搞定！如果哪步的输出不明白，拿结果再给我看看。
