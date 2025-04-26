@@ -28,8 +28,18 @@ const activeSimulations = new Map<number, {
   chatId?: number; // 实际的聊天ID
 }>();
 
+// 模型配置类型定义
+interface ModelConfig {
+  name: string;
+  maxMessagesPerMinute: number;
+  maxMessagesPerHour: number;
+  responseTimeRange: [number, number]; // [min, max] 毫秒
+  readingSpeed: number;
+  typingSpeed: number;
+}
+
 // 可用模型及其对应的配置
-const MODELS = {
+const MODELS: Record<string, ModelConfig> = {
   'gemini': {
     name: 'Gemini 2.5 Pro',
     maxMessagesPerMinute: 15,
@@ -72,7 +82,7 @@ router.post('/simulate', requireAdmin, async (req: Request, res: Response) => {
     }
 
     // 验证用户存在
-    const user = await storage.getUserById(userId);
+    const user = await storage.getUser(userId);
     if (!user) {
       return res.status(404).json({ 
         success: false, 
@@ -81,7 +91,7 @@ router.post('/simulate', requireAdmin, async (req: Request, res: Response) => {
     }
 
     // 验证预设存在
-    const preset = await storage.getStudentAgentPresetById(presetId);
+    const preset = await storage.getStudentAgentPreset(presetId);
     if (!preset) {
       return res.status(404).json({ 
         success: false, 
@@ -93,9 +103,8 @@ router.post('/simulate', requireAdmin, async (req: Request, res: Response) => {
     const session = await storage.createStudentAgentSession(
       userId,
       presetId,
-      preset.systemPrompt,
-      preset.kwlqTemplate,
-      {}
+      preset.subject || "通用学习", // 使用预设的学科作为学习主题
+      `${preset.name}-模拟会话`
     );
 
     // 记录模拟会话
@@ -112,7 +121,7 @@ router.post('/simulate', requireAdmin, async (req: Request, res: Response) => {
       userId,
       status: 'pending',
       messages: [],
-      currentState: session.state || {}, // 防止state为undefined
+      currentState: session.currentState || {}, // 使用currentState属性
       startTime: new Date(),
       model: randomModel,
       waitingForResponse: false,
@@ -641,13 +650,9 @@ async function createMemoryFromConversation(
     
     // 创建记忆
     await memoryService.createMemory(
-      memoryId,
       userId,
       conversationContent,
-      '学生智能体模拟对话', // 摘要
-      keywords,
-      '', // 无附件
-      true // 立即生成向量嵌入
+      '学生智能体模拟对话' // 记忆类型
     );
     
     log(`[StudentAgentSimulator] 已为用户 ${userId} 创建记忆: ${memoryId}`);
