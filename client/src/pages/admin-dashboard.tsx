@@ -109,28 +109,24 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex flex-col min-h-screen max-h-screen h-screen w-full bg-black admin-dashboard-container admin-dashboard overflow-y-auto -webkit-overflow-scrolling-touch">
-      {/* Header - 固定在顶部 */}
-      <header className="sticky top-0 z-10 border-b border-neutral-800 bg-neutral-900">
-        <div className="w-full px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-white">管理员控制台</h1>
-          <div className="flex items-center space-x-4">
+      {/* 整合导航栏和标签列表 - 优化iPad布局 */}
+      <div className="sticky top-0 z-10 bg-neutral-900 border-b border-neutral-800">
+        <div className="w-full px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-xl font-bold text-white">管理员控制台</h1>
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               onClick={handleLogout}
-              className="text-red-500 hover:text-red-400"
+              className="text-red-500 hover:text-red-400 flex items-center"
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-4 w-4 mr-1" />
+              <span>退出</span>
             </Button>
           </div>
-        </div>
-      </header>
-
-      {/* Tabs Navigation - 内容区域强制占满视口高度并显式设置滚动 */}
-      <div className="flex-1 h-[calc(100vh-70px)] overflow-y-auto -webkit-overflow-scrolling-touch border-b border-neutral-800 bg-neutral-900">
-        <div className="w-full px-4">
+          
           <Tabs value={activeTab} onValueChange={setActiveTab} className="admin-tabs">
-            <TabsList className="bg-neutral-800 mt-2">
+            <TabsList className="bg-neutral-800 w-full">
               <TabsTrigger value="dashboard">控制面板</TabsTrigger>
               <TabsTrigger value="security">安全设置</TabsTrigger>
               <TabsTrigger value="feedback">反馈分析</TabsTrigger>
