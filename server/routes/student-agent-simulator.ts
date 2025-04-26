@@ -677,4 +677,5 @@ async function createMemoryFromConversation(
   }
 }
 
-export default router;
+// Export the router with named export
+export { router };
