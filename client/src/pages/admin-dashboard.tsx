@@ -107,10 +107,33 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   return (
-    <div className="min-h-screen bg-black admin-dashboard-container admin-dashboard w-full max-w-full">
+    <div 
+      className="min-h-screen bg-black admin-dashboard-container admin-dashboard w-full" 
+      style={{
+        width: '100vw',
+        maxWidth: '100vw',
+        overflowX: 'hidden',
+        margin: 0,
+        padding: 0
+      }}
+    >
       {/* Header */}
-      <header className="border-b border-neutral-800 bg-neutral-900 w-full">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center w-full">
+      <header 
+        className="border-b border-neutral-800 bg-neutral-900 w-full"
+        style={{
+          width: '100vw',
+          maxWidth: '100vw'
+        }}
+      >
+        <div 
+          className="container mx-auto px-4 py-4 flex justify-between items-center w-full"
+          style={{
+            width: '100vw',
+            maxWidth: '100vw',
+            padding: '1rem',
+            boxSizing: 'border-box'
+          }}
+        >
           <h1 className="text-xl font-bold text-white">管理员控制台</h1>
           <div className="flex items-center space-x-4">
             <Button
@@ -126,8 +149,22 @@ export default function AdminDashboard() {
       </header>
 
       {/* Tabs Navigation */}
-      <div className="border-b border-neutral-800 bg-neutral-900 w-full">
-        <div className="container mx-auto px-4 w-full">
+      <div 
+        className="border-b border-neutral-800 bg-neutral-900 w-full"
+        style={{
+          width: '100vw',
+          maxWidth: '100vw',
+          boxSizing: 'border-box'
+        }}
+      >
+        <div 
+          className="container mx-auto px-4 w-full"
+          style={{
+            width: '100vw',
+            maxWidth: '100vw',
+            padding: '0 1rem',
+            boxSizing: 'border-box'
+          }}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="admin-tabs">
             <TabsList 
               className="bg-neutral-800 mt-2 flex-nowrap overflow-x-auto" 
