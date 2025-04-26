@@ -56,15 +56,15 @@ export function StudentAgentSimulator() {
   const [activeTab, setActiveTab] = useState('setup');
 
   // 获取所有用户（不包括管理员）
-  const { data: users, isLoading: loadingUsers } = useQuery({
+  const { data: users = [], isLoading: loadingUsers } = useQuery({
     queryKey: ['/api/users'],
-    select: (data) => data.filter((user: User) => user.role !== 'admin'),
+    select: (data: any) => (data || []).filter((user: User) => user.role !== 'admin'),
   });
 
   // 获取所有学生智能体预设
-  const { data: presets, isLoading: loadingPresets } = useQuery({
+  const { data: presets = [], isLoading: loadingPresets } = useQuery({
     queryKey: ['/api/student-agent/presets'],
-    select: (data) => data?.presets || [],
+    select: (data: any) => data?.presets || [],
   });
 
   // 开始模拟会话
