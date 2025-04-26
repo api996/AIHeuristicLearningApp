@@ -1,0 +1,174 @@
+/**
+ * 管理员后台界面手机设备专用修复样式
+ * 用于解决在iPhone等移动设备上管理员后台界面显示宽度不全的问题
+ */
+
+/* 移动设备基础样式修复 */
+.iphone-device .admin-dashboard-container,
+.mobile-device .admin-dashboard-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow-x: hidden !important;
+  padding-bottom: 50px !important;
+}
+
+/* 确保标签容器正确显示 */
+.iphone-device .admin-tabs,
+.mobile-device .admin-tabs {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* 修复标签内容区宽度 */
+.iphone-device .admin-dashboard-tabs-content,
+.mobile-device .admin-dashboard-tabs-content {
+  width: 100% !important;
+  max-width: 100vw !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* 标签页修复 */
+.iphone-device .admin-dashboard-container [role="tablist"],
+.mobile-device .admin-dashboard-container [role="tablist"] {
+  display: flex !important;
+  flex-direction: row !important;
+  width: 100% !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important; /* Firefox */
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  margin-bottom: 1rem !important;
+}
+
+/* 隐藏滚动条 */
+.iphone-device .admin-dashboard-container [role="tablist"]::-webkit-scrollbar,
+.mobile-device .admin-dashboard-container [role="tablist"]::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* 标签按钮修复 */
+.iphone-device .admin-dashboard-container [role="tab"],
+.mobile-device .admin-dashboard-container [role="tab"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 40px !important;
+  padding: 0 16px !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  border-radius: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  min-width: 100px !important;
+}
+
+/* 活跃标签修复 */
+.iphone-device .admin-dashboard-container [role="tab"][data-state="active"],
+.mobile-device .admin-dashboard-container [role="tab"][data-state="active"] {
+  border-bottom: 2px solid hsl(var(--primary)) !important;
+  font-weight: 500 !important;
+}
+
+/* 标签内容区域修复 */
+.iphone-device .admin-dashboard-container [role="tabpanel"],
+.mobile-device .admin-dashboard-container [role="tabpanel"] {
+  width: 100% !important;
+  height: auto !important;
+  padding: 1rem 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* 主内容区域修复 */
+.iphone-device .admin-dashboard-container main,
+.mobile-device .admin-dashboard-container main {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* 修正grid布局 */
+.iphone-device .admin-dashboard-container .grid,
+.mobile-device .admin-dashboard-container .grid {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* 修复卡片容器 */
+.iphone-device .admin-dashboard-container .container,
+.mobile-device .admin-dashboard-container .container {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+/* 卡片修复 */
+.iphone-device .admin-dashboard-container .card,
+.mobile-device .admin-dashboard-container .card {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 100px !important;
+  margin-bottom: 1rem !important;
+  overflow: visible !important;
+}
+
+/* 表格修复 */
+.iphone-device .admin-dashboard-container table,
+.mobile-device .admin-dashboard-container table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  table-layout: fixed !important;
+}
+
+/* 确保设置表单正确显示 */
+.iphone-device .admin-dashboard-container form,
+.mobile-device .admin-dashboard-container form {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1rem !important;
+  width: 100% !important;
+}
+
+/* 表单项修复 */
+.iphone-device .admin-dashboard-container .form-item,
+.mobile-device .admin-dashboard-container .form-item {
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* 确保按钮正常显示 */
+.iphone-device .admin-dashboard-container button,
+.mobile-device .admin-dashboard-container button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: auto !important;
+  min-height: 36px !important;
+  padding: 0.5rem 1rem !important;
+}
+
+/* 统计卡片修复 */
+.iphone-device .admin-dashboard-container .grid.grid-cols-1.md\\:grid-cols-3,
+.mobile-device .admin-dashboard-container .grid.grid-cols-1.md\\:grid-cols-3 {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+}
+
+/* 修复页面滚动 */
+.iphone-device .admin-dashboard-scrollable,
+.mobile-device .admin-dashboard-scrollable {
+  max-height: 100vh !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: 50px !important;
+}
