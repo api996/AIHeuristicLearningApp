@@ -1,11 +1,105 @@
 /**
- * 管理员后台界面iPad专用修复样式
- * 用于解决在iPad设备上管理员后台界面刷新后标签页和表单元素样式崩溃问题
+ * 管理员后台界面布局修复样式
+ * 用于解决在各种设备上管理员后台界面布局崩溃和宽度异常问题
  */
+
+/* 全局样式修复 - 适用于所有设备 */
+.admin-dashboard-container {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow-x: hidden !important;
+  padding-bottom: 50px !important;
+  max-width: 100vw !important;
+}
+
+/* 内容容器修复 */
+.admin-dashboard-container .container {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 20px !important;
+  padding-right: 20px !important;
+}
+
+/* 修复标签页内容宽度 */
+.admin-dashboard-tabs-content {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* 卡片默认宽度修复 */
+.admin-dashboard-container .card {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* 确保网格布局正确响应 */
+.admin-dashboard-container .grid {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  gap: 1rem !important;
+}
+
+/* ===== 学生智能体相关组件修复 ===== */
+
+/* 学生智能体模拟器修复 */
+.admin-dashboard-container .student-agent-simulator {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* 确保模拟器卡片和表单正确显示 */
+.admin-dashboard-container .student-agent-simulator .card {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+/* 学生智能体管理器样式修复 */
+.admin-dashboard-container .student-agent-manager {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 20px !important;
+  padding-right: 20px !important;
+  box-sizing: border-box !important;
+}
+
+/* 管理器网格布局修复 */
+.admin-dashboard-container .student-agent-manager .grid {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  gap: 1rem !important;
+}
+
+/* 确保表单组件撑满容器 */
+.admin-dashboard-container .student-agent-manager form,
+.admin-dashboard-container .student-agent-simulator form {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* 确保选择列表正确显示 */
+.admin-dashboard-container [role="combobox"] {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* 修复弹出选择框样式 */
+.admin-dashboard-container [role="listbox"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
 
 /* 管理员页面基础样式修复 */
 .ipad-device .admin-dashboard-container {
   width: 100% !important;
+  max-width: 100vw !important;
   height: auto !important;
   min-height: 100vh !important;
   display: flex !important;

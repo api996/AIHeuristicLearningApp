@@ -169,7 +169,7 @@ export function StudentAgentSimulator() {
   }, [maxMessages]);
 
   return (
-    <Card className="w-full">
+    <Card className="w-full student-agent-simulator">
       <CardHeader>
         <CardTitle>学生智能体模拟器</CardTitle>
         <CardDescription>
