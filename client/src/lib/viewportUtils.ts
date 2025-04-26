@@ -1,13 +1,8 @@
 /**
- * Viewport height utilities to solve iOS/iPad/mobile browser height issues
+ * Viewport height utilities for responsive design
  * 
- * These functions handle the real viewport height issues especially for:
- * - iOS Safari (when address bar hides/shows)
- * - iPad Safari and iPadOS keyboard behaviors
- * - Virtual keyboards on all mobile devices
- * - Orientation changes
- * - Bottom browser toolbars
- * - Black space issues when keyboard appears
+ * These functions handle viewport height issues by setting CSS variables
+ * that can be used throughout the application for responsive layouts.
  */
 
 /**
@@ -26,38 +21,12 @@ export function updateViewportHeight(): void {
   const vh = window.visualViewport.height * 0.01;
   document.documentElement.style.setProperty('--vh', `${vh}px`);
   
-  // 设置更多有用的CSS变量
+  // 设置更多有用的CSS变量供响应式布局使用
   document.documentElement.style.setProperty('--vw', `${window.visualViewport.width * 0.01}px`);
   document.documentElement.style.setProperty('--viewport-height', `${window.visualViewport.height}px`);
   document.documentElement.style.setProperty('--viewport-offset', `${window.visualViewport.offsetTop}px`);
   
-  // 更精确地检测键盘状态 - 多种条件组合检测，特别针对iPad
-  const isIOS = /iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-  const isIPad = /iPad/.test(navigator.userAgent) || 
-                 (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
-  const isTablet = isIPad || (window.innerWidth >= 768 && window.innerWidth <= 1366 && 'ontouchend' in document);
-  const windowHeight = window.innerHeight;
-  const viewportHeight = window.visualViewport.height;
-  
-  // 始终为设备添加对应的类，无论键盘是否弹出
-  if (isIPad) {
-    document.documentElement.classList.add('ipad-device');
-    console.log("检测到iPad设备，应用iPad专用布局优化");
-  } else if (isTablet) {
-    document.documentElement.classList.add('tablet-device');
-    console.log("检测到平板设备，应用平板专用布局优化");
-  } else if (isIOS) {
-    document.documentElement.classList.add('iphone-device');
-    console.log("检测到iPhone设备，应用移动布局优化");
-  } else if ('ontouchend' in document) {
-    document.documentElement.classList.add('mobile-device');
-    console.log("检测到移动设备，应用移动布局优化");
-  } else {
-    document.documentElement.classList.add('desktop-device');
-    console.log("检测到桌面设备，应用桌面布局优化");
-  }
-  
-  // 横竖屏状态检测
+  // 横竖屏状态检测 - 这个功能保留因为它是基于媒体查询的，不是设备检测
   if (window.matchMedia("(orientation: portrait)").matches) {
     document.documentElement.classList.add('portrait');
     document.documentElement.classList.remove('landscape');
@@ -66,89 +35,28 @@ export function updateViewportHeight(): void {
     document.documentElement.classList.remove('portrait');
   }
   
-  // 键盘弹出的检测逻辑 - 增强版：
-  // 1. 视窗高度明显小于窗口高度（键盘占用了空间）
-  // 2. 视窗相对于顶部有偏移（在iOS上，键盘弹出时视窗会上移）
-  // 3. iPad上特殊处理，因为iPad键盘行为与iPhone和Android不同
-  //    iPad特别考虑了软键盘的高度和系统的偏移量
+  // 简化的键盘检测，不基于特定设备
+  const windowHeight = window.innerHeight;
+  const viewportHeight = window.visualViewport.height;
   const heightDifference = windowHeight - viewportHeight;
   
-  // 获取更精确的焦点状态
+  // 获取焦点状态
   const isInputFocused = Boolean(document.activeElement && 
                         (document.activeElement.tagName === 'INPUT' || 
                          document.activeElement.tagName === 'TEXTAREA' ||
                          (document.activeElement as HTMLElement).getAttribute('contenteditable') === 'true'));
   
-  // 计算相对原始窗口高度的百分比变化
-  // 这对于判断键盘状态非常有效
-  const heightChangePercent = (heightDifference / windowHeight) * 100;
+  // 通用键盘检测逻辑，不区分设备类型
+  const isKeyboardVisible = Boolean(isInputFocused && heightDifference > 100);
   
-  // 针对iPad和iPhone的专门优化
-  let isKeyboardVisible = false;
-  
-  if (isIPad) {
-    console.log("检测到iPad设备，应用iPad布局优化");
-    // iPad触发键盘检测的阈值更低，但需要确认有输入框焦点
-    // iPad mini/Air/Pro横屏和竖屏键盘高度差异很大
-    const isPadPortrait = window.matchMedia("(orientation: portrait)").matches;
-    const padThreshold = isPadPortrait ? 15 : 10; // 竖屏和横屏阈值不同
-    
-    if (isInputFocused) {
-      console.log("键盘打开，应用特殊布局");
-    } else {
-      console.log("键盘关闭，恢复正常布局");
-    }
-    
-    // 结合多个信号提高检测准确性
-    isKeyboardVisible = Boolean(isInputFocused && (
-      // 1. 检测明显的高度变化
-      heightChangePercent > padThreshold ||
-      // 2. 检测视口偏移 - iPad特有
-      window.visualViewport.offsetTop > 5 ||
-      // 3. 结合设备方向的额外判断
-      (isPadPortrait && heightDifference > 200) || 
-      (!isPadPortrait && heightDifference > 100)
-    ));
-  } else if (isIOS) {
-    // iPhone检测逻辑
-    isKeyboardVisible = Boolean(isInputFocused && (
-      heightChangePercent > 20 || // iPhone高度变化通常更大
-      window.visualViewport.offsetTop > 10  // iPhone视窗通常会明显上移
-    ));
-  } else {
-    // Android等其他设备
-    isKeyboardVisible = Boolean(isInputFocused && heightChangePercent > 20);
-  }
-  
-  // 动态计算键盘高度以供CSS使用
-  // 这可以让输入框保持在键盘上方的固定位置，填充黑色区域
+  // 设置键盘相关的CSS变量
   if (isKeyboardVisible && heightDifference > 0) {
-    // 针对不同设备计算不同的键盘高度和补偿值
-    let keyboardEstimatedHeight;
-    
-    if (isIPad) {
-      // iPad需要更精确的高度计算和额外的补偿，以解决黑色空间问题
-      keyboardEstimatedHeight = heightDifference + 40; // 更大的补偿值
-      
-      // 设置iPad专用的额外CSS变量
-      document.documentElement.style.setProperty('--ipad-keyboard-offset', `${window.visualViewport.offsetTop}px`);
-    } else if (isIOS) {
-      // iPhone等iOS设备的计算
-      keyboardEstimatedHeight = Math.max(270, heightDifference + 20);
-    } else {
-      // Android和其他设备
-      keyboardEstimatedHeight = heightDifference + 10;
-    }
-    
-    // 设置键盘高度CSS变量
-    document.documentElement.style.setProperty('--keyboard-height', `${keyboardEstimatedHeight}px`);
-    
-    // 设置额外的辅助变量
-    document.documentElement.style.setProperty('--content-bottom-padding', 
-      isIPad ? `${keyboardEstimatedHeight + 16}px` : '80px');
+    // 设置通用键盘高度变量
+    document.documentElement.style.setProperty('--keyboard-height', `${heightDifference}px`);
+    document.documentElement.style.setProperty('--content-bottom-padding', '80px');
   }
     
-  // 将键盘状态信息添加到文档类中，以便CSS可以相应调整
+  // 将键盘状态信息添加到文档类中
   if (isKeyboardVisible) {
     document.documentElement.classList.add('keyboard-open');
     document.documentElement.dataset.keyboardHeight = `${heightDifference}px`;
@@ -208,34 +116,16 @@ export function isNearBottom(element: HTMLElement | null, threshold = 100): bool
 }
 
 /**
- * 判断当前设备是否为iPad
- * @returns 如果是iPad返回true，否则返回false
- */
-export function isIpadDevice(): boolean {
-  // 检测是否为iPad
-  const isIPad = /iPad/.test(navigator.userAgent) || 
-                 (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
-  
-  // 额外检查：如果设备标记了iPad专用CSS类
-  const hasIpadClass = document.documentElement.classList.contains('ipad-device');
-  
-  return isIPad || hasIpadClass;
-}
-
-/**
- * 优化触摸交互的辅助函数，特别适用于iPad等移动设备
+ * 优化触摸交互的辅助函数 (通用版本)
  * @param element 需要优化触摸交互的元素
  */
 export function enhanceTouchInteraction(element: HTMLElement | null): void {
   if (!element) return;
   
-  // 设置触摸相关的样式
+  // 应用通用触摸优化样式
   const touchStyles: Record<string, string> = {
     touchAction: 'manipulation',
     WebkitOverflowScrolling: 'touch',
-    WebkitUserSelect: 'none',
-    userSelect: 'none',
-    WebkitTouchCallout: 'none',
   };
   
   // 应用样式
@@ -243,18 +133,6 @@ export function enhanceTouchInteraction(element: HTMLElement | null): void {
     (element.style as any)[key] = value;
   });
   
-  // 为元素添加特定的类
+  // 为元素添加通用优化类
   element.classList.add('touch-optimized');
-  
-  // 检测是否为iPad或平板设备
-  const isIPad = /iPad/.test(navigator.userAgent) || 
-                 (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
-  const isTablet = isIPad || (window.innerWidth >= 768 && window.innerWidth <= 1366 && 'ontouchend' in document);
-  
-  // 根据设备类型添加额外的类
-  if (isIPad) {
-    element.classList.add('ipad-touch-target');
-  } else if (isTablet) {
-    element.classList.add('tablet-touch-target');
-  }
 }

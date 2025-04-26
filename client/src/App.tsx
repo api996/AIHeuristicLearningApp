@@ -21,16 +21,8 @@ import { ensureD3Loaded } from "./lib/d3-load-fix";
 import "./lib/d3-patch";
 // 导入直接补丁文件，确保_d3Selection全局对象可用
 import "./lib/d3-direct-patch";
-// 导入视口工具，检测设备类型并设置CSS变量
-import { setupViewportHeightListeners, isIpadDevice } from "@/lib/viewportUtils";
-// 导入全局触摸交互优化样式
-import "@/components/ui/touch-interaction.css";
-// 导入iPad和移动设备相关的修复样式
-import "@/components/ui/ipad-fixes.css";
-import "@/components/ui/memory-space-fixes.css";
-import "@/components/ui/knowledge-graph-fixes.css";
-import "@/components/ui/learning-path-fixes.css";
-import "@/components/admin/admin-ipad-fixes.css";
+// 导入视口工具，只使用CSS变量设置功能
+import { setupViewportHeightListeners } from "@/lib/viewportUtils";
 // 导入Dialog弹窗修复样式
 import "@/components/ui/dialog-fixes.css";
 
