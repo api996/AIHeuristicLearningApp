@@ -78,6 +78,14 @@ if (firstOccurrence) {
   }
 }
 
+// 确保文件包含fs模块导入
+console.log('检查构建文件是否包含fs模块导入...');
+if (!content.includes('import * as fs from') && !content.includes('import fs from')) {
+  console.log('警告: 构建文件可能缺少fs模块导入，正在添加...');
+  content = `import * as fs from 'fs';\n${content}`;
+  console.log('已添加fs模块导入');
+}
+
 // 写回文件
 fs.writeFileSync(indexPath, content);
-console.log('✓ 已修复构建文件中的 createRequire 冲突');
+console.log('✓ 已修复构建文件中的 createRequire 冲突和缺失的fs导入');
