@@ -59,13 +59,19 @@ router.post('/search', async (req, res) => {
     
     const { query, useMCP, numResults } = validationResult.data;
     
-    // 确保 MCP 服务已初始化
-    const isInitialized = await initMcpService();
+    // 尝试初始化 MCP 服务
+    let isInitialized = false;
+    try {
+      isInitialized = await initMcpService();
+    } catch (error) {
+      console.error(`[MCP API] 初始化错误: ${error}`);
+      // 继续执行，使用备选方案
+    }
+    
+    // 如果 MCP 初始化失败，记录日志但继续使用替代搜索方法
     if (!isInitialized) {
-      return res.status(500).json({
-        success: false,
-        error: 'MCP 服务未初始化'
-      });
+      console.warn('[MCP API] MCP 服务未成功初始化，将使用替代搜索方法');
+      // 不返回错误，继续使用备选方案
     }
     
     // 执行搜索
