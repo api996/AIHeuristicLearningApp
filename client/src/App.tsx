@@ -58,18 +58,13 @@ function App() {
   // 在应用启动时清除查询缓存，防止未登录状态下的缓存数据
   queryClient.clear();
   
-  // 在应用启动时设置视口监听器，检测设备类型并设置相应的CSS类和变量
+  // 在应用启动时设置视口监听器，仅处理CSS变量，不再检测设备类型
   useEffect(() => {
-    // 初始化设备检测并返回清理函数
+    // 初始化viewport高度监听器，保留这个功能因为它处理CSS变量
     const cleanup = setupViewportHeightListeners();
     
-    // 检测iPad设备并添加类
-    if (isIpadDevice()) {
-      document.documentElement.classList.add('ipad-device');
-      console.log("检测到iPad设备，已应用专用样式优化");
-    }
-    
-    console.log("已启动全局视口监听器，进行设备识别和CSS优化");
+    // 不再检测设备类型或添加特定设备的类，采用通用响应式布局
+    console.log("已启动视口监听器，设置CSS变量");
     
     // 确保D3.js加载
     ensureD3Loaded().then((success: boolean) => {
