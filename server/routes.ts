@@ -24,6 +24,7 @@ import clusteringTestRoutes from './routes/clustering-test';
 import repairMemoryRoutes from './routes/repair-memory';
 import topicGraphRoutes from './routes/topic-graph';
 import studentAgentRoutes from './routes/student-agent';
+import studentAgentSimulatorRoutes from './routes/student-agent-simulator';
 import { initializeBucket } from './services/file-bucket.service';
 import { promptManagerService } from './services/prompt-manager';
 import { Message } from "../shared/schema";
