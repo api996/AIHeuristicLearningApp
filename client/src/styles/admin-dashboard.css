@@ -1,50 +1,34 @@
-/* 管理控制台基础样式 - 简化版 */
+/* 管理控制台特定样式 - 仅为解决iPad滚动问题 */
 .admin-dashboard {
-  height: 100%;
+  position: relative;
+  height: 100vh;
   width: 100%;
   display: flex;
   flex-direction: column;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
+}
+
+.admin-tabs-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .admin-tabs {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .admin-dashboard-tabs-content {
-  padding-bottom: 120px; /* 确保底部有足够空间 */
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* 添加动量滚动 */
+  padding-bottom: 100px; /* 确保底部有足够空间 */
 }
 
-/* iPad特定修复 */
+/* 仅针对iPad的滚动修复 */
 @media only screen and (min-width: 768px) and (max-width: 1024px) {
-  html, body {
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
-    height: 100%;
-  }
-  
-  .admin-dashboard {
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: auto;
-    min-height: 100%;
-  }
-  
-  .admin-dashboard-tabs-content {
-    height: auto;
-    min-height: 70vh; /* 稍微减少以避免溢出 */
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  /* 移动版顶部导航栏 */
   .admin-header-container {
     position: sticky;
     top: 0;

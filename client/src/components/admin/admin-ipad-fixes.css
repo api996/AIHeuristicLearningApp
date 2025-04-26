@@ -23,15 +23,16 @@
   flex: 1;
   width: 100%;
   overflow: auto;
-  overflow-y: scroll; /* 强制显示垂直滚动条 */
+  overflow-y: auto !important; /* 使用auto而非scroll，更符合iOS惯例 */
   -webkit-overflow-scrolling: touch; /* 增强iOS滚动体验 */
-  height: 100%; /* 确保有足够的高度 */
+  height: auto !important; /* 允许内容自然扩展 */
+  max-height: none !important; /* 重要：移除高度限制 */
   position: relative; /* 创建新的堆叠上下文 */
 }
 
-/* 标签内容面板充满高度并支持滚动 */
+/* 标签内容面板支持滚动 */
 [role="tabpanel"] {
-  height: 100%;
+  height: auto !important;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   position: relative;

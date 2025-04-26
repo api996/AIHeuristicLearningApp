@@ -30,7 +30,6 @@ import StudentAgentManager from "@/components/admin/StudentAgentManager";
 // 导入管理员界面iPad平台特定修复样式
 import "@/components/admin/admin-ipad-fixes.css";
 import "../styles/admin-dashboard.css";
-import "../styles/ipad-forms.css";
 import { StudentAgentSimulator } from "@/components/admin/StudentAgentSimulator";
 
 interface ChatStats {
