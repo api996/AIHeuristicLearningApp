@@ -2161,6 +2161,10 @@ asyncio.run(test_memory())
   app.use('/api/memory-test', memoryTestRoutes);
   app.use('/api/test-data', testDataRoutes); // 只用于测试环境，生成测试数据
   
+  // 注册学生智能体路由
+  app.use('/api/student-agent', studentAgentRoutes);
+  app.use('/api/student-agent-simulator', studentAgentSimulatorRoutes);
+  
   // 注册聚类测试路由
   app.use('/api/test', clusteringTestRoutes);
   
@@ -2226,7 +2230,6 @@ asyncio.run(test_memory())
   app.use('/api/mcp', mcpRoutes); // MCP 搜索服务路由
   app.use('/api', conversationTestRoutes); // 对话分析和提示词测试路由
   app.use('/api/topic-graph', topicGraphRoutes); // 主题图谱服务路由
-  app.use('/api/student-agent', studentAgentRoutes); // 学生智能体模拟器路由
 
   // 调试端点：检查当前会话状态
   app.get("/api/debug/session", (req, res) => {
