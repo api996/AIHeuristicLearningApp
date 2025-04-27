@@ -52,7 +52,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
 
 export const chats = pgTable("chats", {
   id: serial("id").primaryKey(),
-  userId: serial("user_id").references(() => users.id),
+  userId: integer("user_id").notNull().references(() => users.id),
   title: text("title").notNull(),
   model: text("model").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -69,7 +69,7 @@ export const chatsRelations = relations(chats, ({ one, many }) => ({
 
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
-  chatId: serial("chat_id").references(() => chats.id),
+  chatId: integer("chat_id").notNull().references(() => chats.id),
   content: text("content").notNull(),
   role: text("role").notNull(),
   model: text("model"),  // 添加模型字段，记录消息来自哪个AI模型
