@@ -9,19 +9,16 @@ import { fetchWithRetry } from '../services/utils';
 // 获取Grok API密钥
 let grokApiKey = process.env.GROK_API_KEY || process.env.XAI_API_KEY; // 支持两种环境变量名
 
-// 检查API密钥格式
+// 检查并清理API密钥格式 
 if (grokApiKey) {
-  // 检查是否需要添加"XAITK-"前缀（xAI的API密钥格式要求）
-  if (!grokApiKey.startsWith('XAITK-')) {
-    // 记录警告
-    log(`[StudentAgentSimulator] 警告: API密钥格式不正确，可能需要以XAITK-开头`);
-    
-    // 如果是错误地包含了"Bearer "前缀，移除它
-    if (grokApiKey.includes('Bearer ')) {
-      grokApiKey = grokApiKey.replace('Bearer ', '');
-      log(`[StudentAgentSimulator] 已移除API密钥中的Bearer前缀`);
-    }
+  // 主服务可以正常使用API密钥，所以我们保持相同格式即可
+  // 只需要确保移除可能错误附加的"Bearer "前缀
+  if (grokApiKey.includes('Bearer ')) {
+    grokApiKey = grokApiKey.replace('Bearer ', '');
+    log(`[StudentAgentSimulator] 已移除API密钥中的Bearer前缀`);
   }
+  
+  log(`[StudentAgentSimulator] API密钥已验证，长度: ${grokApiKey.length}字符`);
 }
 
 // 如果没有API密钥，使用模拟响应
@@ -508,11 +505,9 @@ Q (Questions/问题) - 你产生的新问题
 回应用户的问题时，表现得像一个真实的学生，表达好奇心和学习热情。使用自然、积极的语气，提出有意义的问题来深入理解概念。`;
         
         // 构建API请求体
+        // 使用与主服务完全一致的API请求格式
         const requestBody = {
           model: "grok-3-fast-beta",
-          temperature: 0.7,
-          top_p: 0.9,
-          max_tokens: 1000,
           messages: [
             {
               role: "system",
@@ -522,7 +517,9 @@ Q (Questions/问题) - 你产生的新问题
               role: "user",
               content: userInput
             }
-          ]
+          ],
+          max_tokens: 800,
+          temperature: 0.7
         };
         
         log(`[StudentAgentSimulator] 调用Grok API生成学生回应...`);
