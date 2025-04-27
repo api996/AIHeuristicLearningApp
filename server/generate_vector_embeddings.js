@@ -286,11 +286,114 @@ async function processMemoryBatch(memories) {
 }
 
 /**
+ * 获取单个指定记忆
+ * @param {string} memoryId 记忆ID
+ */
+async function getSingleMemory(memoryId) {
+  console.log(`尝试获取指定记忆ID: ${memoryId}`);
+  
+  const query = `
+    SELECT id, content
+    FROM memories
+    WHERE id = $1
+    AND content IS NOT NULL
+    AND length(content) > 10
+  `;
+  
+  try {
+    const result = await pool.query(query, [memoryId]);
+    
+    if (result.rows.length === 0) {
+      console.log(`未找到指定ID的记忆: ${memoryId}`);
+      return null;
+    }
+    
+    console.log(`成功获取指定记忆ID: ${memoryId}`);
+    return result.rows[0];
+  } catch (err) {
+    console.error(`查询指定记忆出错: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * 解析命令行参数
+ */
+function parseCommandLineArgs() {
+  const args = process.argv.slice(2);
+  const params = {};
+  
+  for (const arg of args) {
+    if (arg.startsWith('--memory-id=')) {
+      params.memoryId = arg.split('=')[1];
+    }
+  }
+  
+  return params;
+}
+
+/**
+ * 处理单个记忆
+ */
+async function processSingleMemory(memoryId) {
+  console.log(`开始处理单个记忆, ID: ${memoryId}`);
+  
+  // 获取记忆内容
+  const memory = await getSingleMemory(memoryId);
+  
+  if (!memory) {
+    console.error(`无法获取指定记忆: ${memoryId}`);
+    return false;
+  }
+  
+  console.log(`获取到记忆 ${memoryId}, 内容长度: ${memory.content.length}`);
+  
+  // 生成向量嵌入
+  const embedding = await generateEmbedding(memory.content);
+  
+  if (!embedding) {
+    console.error(`为记忆 ${memoryId} 生成向量嵌入失败`);
+    return false;
+  }
+  
+  // 保存向量嵌入
+  const success = await saveMemoryEmbedding(memory.id, embedding);
+  
+  if (success) {
+    console.log(`成功为记忆 ${memoryId} 生成并保存向量嵌入`);
+    return true;
+  } else {
+    console.error(`保存记忆 ${memoryId} 的向量嵌入失败`);
+    return false;
+  }
+}
+
+/**
  * 主函数
  */
 async function main() {
   try {
     console.log("=== 开始为记忆生成向量嵌入 ===");
+    
+    // 解析命令行参数
+    const params = parseCommandLineArgs();
+    
+    // 如果指定了单个记忆ID，只处理该记忆
+    if (params.memoryId) {
+      console.log(`单记忆模式: 处理记忆ID ${params.memoryId}`);
+      const success = await processSingleMemory(params.memoryId);
+      
+      if (success) {
+        console.log(`单记忆处理成功: ${params.memoryId}`);
+      } else {
+        console.log(`单记忆处理失败: ${params.memoryId}`);
+        process.exit(1);
+      }
+      
+      // 关闭数据库连接
+      await pool.end();
+      return;
+    }
     
     // 验证Python脚本存在
     const scriptPath = path.join(process.cwd(), 'server', 'services', 'embedding.py');
