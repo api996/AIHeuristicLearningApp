@@ -14,10 +14,14 @@ import path from "path";
 export const vectorEmbeddingManager = {
   // 记录最近一次运行时间
   lastRunTime: 0,
-  // 最小运行间隔(15分钟)
-  minInterval: 15 * 60 * 1000,
+  // 最小运行间隔(60分钟 - 增加以减少API调用)
+  minInterval: 60 * 60 * 1000,
   // 队列锁，防止并发运行
   isRunning: false,
+  // 最后处理的记忆ID计数
+  lastProcessedCount: 0,
+  // 最小新记忆数量阈值，低于此值不进行批处理（除非手动触发）
+  minNewMemoriesThreshold: 10,
   
   /**
    * 运行嵌入生成脚本
@@ -84,26 +88,110 @@ export const vectorEmbeddingManager = {
   },
   
   /**
+   * 检查是否有足够新记忆需要处理
+   * @returns 是否有足够新记忆需要处理
+   */
+  async checkForNewMemories(): Promise<boolean> {
+    try {
+      // 通过执行一个简单的SQL查询来获取未处理的记忆数量
+      const command = `node -e "
+        const { pool } = require('./server/db');
+        async function checkNewMemories() {
+          try {
+            const result = await pool.query(
+              'SELECT COUNT(*) FROM memories LEFT JOIN memory_embeddings ON memories.id = memory_embeddings.memory_id WHERE memory_embeddings.id IS NULL'
+            );
+            console.log(result.rows[0].count);
+          } catch (err) {
+            console.error(err);
+            console.log('0');
+          } finally {
+            await pool.end();
+          }
+        }
+        checkNewMemories();
+      "`;
+      
+      return new Promise<boolean>((resolve) => {
+        exec(command, (error, stdout, stderr) => {
+          if (error) {
+            log(`[向量嵌入] 检查新记忆出错: ${error.message}`, "error");
+            resolve(false);
+            return;
+          }
+          
+          if (stderr) {
+            log(`[向量嵌入] 检查新记忆错误输出: ${stderr}`, "warn");
+          }
+          
+          const count = parseInt(stdout.trim(), 10);
+          const previousCount = this.lastProcessedCount;
+          this.lastProcessedCount = count;
+          
+          // 新记忆数量是否超过阈值
+          const hasEnoughNewMemories = count >= this.minNewMemoriesThreshold;
+          
+          // 记忆数量是否有变化
+          const hasChanged = count !== previousCount;
+          
+          if (hasEnoughNewMemories) {
+            log(`[向量嵌入] 检测到${count}条未处理的记忆，超过阈值(${this.minNewMemoriesThreshold})，将触发处理`);
+            resolve(true);
+          } else if (hasChanged) {
+            log(`[向量嵌入] 检测到${count}条未处理的记忆，未达到处理阈值(${this.minNewMemoriesThreshold})，暂不处理`);
+            resolve(false);
+          } else {
+            log(`[向量嵌入] 未检测到新的未处理记忆，跳过处理`);
+            resolve(false);
+          }
+        });
+      });
+    } catch (err) {
+      log(`[向量嵌入] 检查新记忆异常: ${err}`, "error");
+      return false;
+    }
+  },
+  
+  /**
    * 开始定时任务调度器
    */
   startScheduler: function(): void {
-    // 每15分钟执行一次
-    const interval = 15 * 60 * 1000;
+    // 将间隔从15分钟增加到60分钟，降低API调用频率
+    const interval = 60 * 60 * 1000; // 1小时
     log(`[向量嵌入] 启动定时任务，每${interval/60000}分钟检查一次`);
     
-    setInterval(() => {
-      this.runGenerator("定时触发").catch(err => {
+    setInterval(async () => {
+      try {
+        // 先检查是否有足够的新记忆需要处理
+        const shouldProcess = await this.checkForNewMemories();
+        
+        // 只有当有足够的新记忆时才执行处理
+        if (shouldProcess) {
+          await this.runGenerator("定时触发");
+        } else {
+          log(`[向量嵌入] 定时检查：未达到处理条件，跳过此次执行`);
+        }
+      } catch (err) {
         log(`[向量嵌入] 定时任务异常: ${err}`);
-      });
+      }
     }, interval);
     
-    // 服务器启动后延迟1分钟执行第一次，避免与其他初始化任务冲突
-    setTimeout(() => {
-      log("[向量嵌入] 服务启动后首次执行生成任务...");
-      this.runGenerator("服务启动").catch(err => {
+    // 服务器启动后延迟2分钟执行第一次，避免与其他初始化任务冲突
+    // 同时也避免每次重启就执行处理任务
+    setTimeout(async () => {
+      log("[向量嵌入] 服务启动后首次检查新记忆...");
+      try {
+        // 同样检查是否有足够的新记忆
+        const shouldProcess = await this.checkForNewMemories();
+        if (shouldProcess) {
+          await this.runGenerator("服务启动");
+        } else {
+          log(`[向量嵌入] 服务启动检查：未达到处理条件，跳过执行`);
+        }
+      } catch (err) {
         log(`[向量嵌入] 首次任务异常: ${err}`);
-      });
-    }, 60 * 1000);
+      }
+    }, 120 * 1000); // 2分钟
   },
   
   /**
