@@ -84,18 +84,12 @@ const PgStore = pgSession(session);
 
 // 根据环境选择会话存储
 const isProduction = process.env.NODE_ENV === 'production';
-log(`当前环境: ${isProduction ? '生产' : '开发'}, 使用${isProduction ? 'PostgreSQL' : '内存'}会话存储`);
+log(`当前环境: ${isProduction ? '生产' : '开发'}, 使用内存会话存储`);
 
 // 添加会话支持
 app.use(session({
-  store: isProduction ? 
-    // 生产环境使用PostgreSQL存储
-    new PgStore({
-      pool,
-      tableName: 'session',
-      createTableIfMissing: true
-    }) : 
-    // 开发环境使用内存存储
+  store: 
+    // 强制使用内存存储来避免数据库类型兼容性问题
     new MemoryStore({
       checkPeriod: 86400000 // 清理过期会话，每24小时
     }),
