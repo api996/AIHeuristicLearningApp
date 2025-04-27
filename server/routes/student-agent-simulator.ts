@@ -7,7 +7,22 @@ import { requireAdmin } from '../middleware/auth';
 import { fetchWithRetry } from '../services/utils';
 
 // 获取Grok API密钥
-const grokApiKey = process.env.GROK_API_KEY || process.env.XAI_API_KEY; // 支持两种环境变量名
+let grokApiKey = process.env.GROK_API_KEY || process.env.XAI_API_KEY; // 支持两种环境变量名
+
+// 检查API密钥格式
+if (grokApiKey) {
+  // 检查是否需要添加"XAITK-"前缀（xAI的API密钥格式要求）
+  if (!grokApiKey.startsWith('XAITK-')) {
+    // 记录警告
+    log(`[StudentAgentSimulator] 警告: API密钥格式不正确，可能需要以XAITK-开头`);
+    
+    // 如果是错误地包含了"Bearer "前缀，移除它
+    if (grokApiKey.includes('Bearer ')) {
+      grokApiKey = grokApiKey.replace('Bearer ', '');
+      log(`[StudentAgentSimulator] 已移除API密钥中的Bearer前缀`);
+    }
+  }
+}
 
 // 如果没有API密钥，使用模拟响应
 const hasValidApiKey = !!grokApiKey;
@@ -512,19 +527,31 @@ Q (Questions/问题) - 你产生的新问题
         
         log(`[StudentAgentSimulator] 调用Grok API生成学生回应...`);
         log(`[StudentAgentSimulator] 使用模型: grok-3-fast-beta, 系统提示词长度: ${systemPrompt.length}字符`);
+        log(`[StudentAgentSimulator] API密钥前6个字符: ${grokApiKey?.substring(0, 6) || '未找到'}...`);
         
-        // 调用Grok API
-        const response = await fetchWithRetry('https://api.x.ai/v1/chat/completions', {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${grokApiKey}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(requestBody),
-          timeout: 15000
-        }, 2, 1000);
-        
-        log(`[StudentAgentSimulator] Grok API响应状态: ${response.status}`);
+        try {
+          // 调用Grok API
+          const response = await fetchWithRetry('https://api.x.ai/v1/chat/completions', {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${grokApiKey}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(requestBody),
+            timeout: 15000
+          }, 2, 1000);
+          
+          log(`[StudentAgentSimulator] Grok API响应状态: ${response.status}`);
+          
+          if (response.status === 400) {
+            const errorText = await response.text();
+            log(`[StudentAgentSimulator] 错误细节: ${errorText}`);
+            throw new Error(`API请求失败(400): ${errorText}`);
+          }
+        } catch (fetchError) {
+          log(`[StudentAgentSimulator] API请求异常: ${fetchError.message}`);
+          throw fetchError;
+        }
         
         if (!response.ok) {
           const errorText = await response.text();
