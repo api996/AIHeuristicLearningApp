@@ -24,7 +24,8 @@ import clusteringTestRoutes from './routes/clustering-test';
 import repairMemoryRoutes from './routes/repair-memory';
 import topicGraphRoutes from './routes/topic-graph';
 import studentAgentRoutes from './routes/student-agent';
-import { router as studentAgentSimulatorRoutes } from './routes/student-agent-simulator';
+// 暂时禁用学生代理模拟器
+// import { router as studentAgentSimulatorRoutes } from './routes/student-agent-simulator';
 import { initializeBucket } from './services/file-bucket.service';
 import { promptManagerService } from './services/prompt-manager';
 import { Message } from "../shared/schema";
@@ -2171,7 +2172,8 @@ asyncio.run(test_memory())
   
   // 注册学生智能体路由
   app.use('/api/student-agent', studentAgentRoutes);
-  app.use('/api/student-agent-simulator', studentAgentSimulatorRoutes);
+  // 暂时禁用学生代理模拟器路由
+  // app.use('/api/student-agent-simulator', studentAgentSimulatorRoutes);
   
   // 注册聚类测试路由
   app.use('/api/test', clusteringTestRoutes);
