@@ -3,6 +3,7 @@ import App from "./App";
 import "./index.css";
 
 // 直接在主入口文件导入关键CSS样式，确保它们在构建中被包含
+import "./theme-fallback.css"; // 导入主题备份CSS，解决生产环境中的样式问题
 import "./components/ui/mobile-fixes.css";
 import "./components/ui/ipad-fixes.css";
 import "./components/ui/button-styles.css";
