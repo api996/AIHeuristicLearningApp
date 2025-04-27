@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
-import { setupViewportHeightListeners, scrollToBottom, isNearBottom, enhanceTouchInteraction, isIpadDevice } from "@/lib/viewportUtils";
+import { setupViewportHeightListeners, scrollToBottom, isNearBottom, enhanceTouchInteraction } from "@/lib/viewportUtils";
 import "./ipad-fixes.css"; // 导入iPad专用修复样式
 import "./mobile-fixes.css"; // 导入手机设备专用修复样式
 import "./preferences-dialog-fixes.css"; // 导入偏好设置对话框的iPad滚动修复样式
@@ -49,6 +49,7 @@ type Message = {
   role: "user" | "assistant";     // 消息角色
   content: string;                // 消息内容
   isRegenerating?: boolean;       // 标记消息是否正在重新生成
+  isProcessing?: boolean;         // 标记消息是否正在处理中（如图片上传）
   feedback?: "like" | "dislike";  // 消息反馈
   created_at?: string;            // 创建时间
   is_edited?: boolean;            // 是否已编辑
@@ -84,10 +85,20 @@ export function AIChat({ userData }: AIChatProps) {
   const [input, setInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  // 默认使用Gemini模型，并通过localStorage保持状态
+  // 从系统配置获取默认模型
+  const { data: systemConfig } = useQuery({
+    queryKey: ["/api/system-config"],
+    queryFn: async () => {
+      const response = await fetch("/api/system-config");
+      if (!response.ok) throw new Error('获取系统配置失败');
+      return response.json();
+    },
+  });
+  
+  // 使用系统配置的默认模型，并通过localStorage保持状态
   const [currentModel, setCurrentModel] = useState<Model>(() => {
     const savedModel = localStorage.getItem('currentModel') as Model;
-    return savedModel || "gemini"; // 默认使用Gemini模型
+    return savedModel || "grok"; // 默认使用grok，后续会通过useEffect更新为系统配置的值
   });
   
   // 跨模型上下文共享函数，用于在模型切换时更新聊天模型设置
@@ -906,10 +917,54 @@ export function AIChat({ userData }: AIChatProps) {
     setShowSidebar(!showSidebar);
   };
 
+  // 根据系统配置获取默认模型
+  const getDefaultModelFromConfig = useCallback(() => {
+    if (!systemConfig) return "grok"; // 默认回退值
+    
+    const defaultModelConfig = systemConfig.find((config: any) => config.key === "default_model");
+    if (defaultModelConfig && defaultModelConfig.value) {
+      return defaultModelConfig.value as Model;
+    }
+    
+    return "grok"; // 如果未找到默认回退值
+  }, [systemConfig]);
+  
+  // 当系统配置加载完成后，自动设置默认模型
+  useEffect(() => {
+    if (systemConfig) {
+      const defaultModel = getDefaultModelFromConfig();
+      // 只有当前选择的模型不是默认模型，且不是用户通过localStorage保存的自定义模型时，才进行切换
+      const savedModel = localStorage.getItem('currentModel') as Model;
+      if (!savedModel && defaultModel !== currentModel) {
+        console.log(`从系统配置加载默认模型: ${defaultModel}`);
+        setCurrentModel(defaultModel);
+        localStorage.setItem('currentModel', defaultModel);
+      }
+    }
+  }, [systemConfig, getDefaultModelFromConfig, currentModel]);
+
+  // 创建新对话时重置状态并获取系统默认模型
   const handleNewChat = () => {
     setMessages([]);
     setCurrentChatId(undefined);
     setShowSidebar(false);
+    
+    // 获取系统默认模型并设置为当前模型
+    const defaultModel = getDefaultModelFromConfig();
+    if (defaultModel !== currentModel) {
+      setCurrentModel(defaultModel);
+      // 保存到本地存储中以便下次使用
+      localStorage.setItem('currentModel', defaultModel);
+      
+      toast({
+        title: `已切换到默认模型: ${defaultModel === "deep" ? "深度推理" : 
+               defaultModel === "gemini" ? "Gemini" :
+               defaultModel === "deepseek" ? "Deepseek" : "Grok"}`,
+        description: "系统已为新对话设置默认模型",
+        variant: "default",
+        className: "frosted-toast",
+      });
+    }
   };
 
   // 开始编辑消息
