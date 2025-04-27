@@ -18,20 +18,16 @@ const RECONNECT_DELAY_MS = 5000;
 let connectionAttempts = 0;
 let isConnected = false; // 追踪连接状态
 
-// 配置Neon WebSocket连接 - 使用最新文档的推荐设置和实验性功能
-// 参考 https://github.com/neondatabase/serverless/blob/main/CONFIG.md
+// 配置Neon WebSocket连接 - 使用0.10.4版本兼容的设置
+// 参考 https://github.com/neondatabase/serverless/blob/v0.10.4/CONFIG.md
 neonConfig.webSocketConstructor = ws;
 neonConfig.useSecureWebSocket = false; // 设置为false以避免SSL验证问题
 neonConfig.pipelineTLS = false; // 关闭pipeline TLS以减少连接问题
 neonConfig.forceDisablePgSSL = true; // 强制禁用SSL
-neonConfig.wsProxy = undefined; // 确保不使用代理
 
-// 使用实验性的 HTTP fetch 功能来避免WebSocket死锁
-// 这是 v1.0.0 中的新功能，可能会解决死锁问题
-neonConfig.poolQueryViaFetch = true; // 重要：使用HTTP fetch而不是WebSocket
-
-// 优化WebSocket连接
-neonConfig.coalesceWrites = false; // 禁用写入合并以减少复杂性
+// 旧版本兼容的连接优化
+neonConfig.pipelineConnect = false; // 禁用管道连接以避免死锁
+neonConfig.coalesceWrites = true; // 启用写入合并来提高性能
 
 // 使用环境变量中的数据库URL
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -41,15 +37,15 @@ if (!DATABASE_URL) {
   // 不抛出错误，而是继续使用内存模式
 }
 
-// 创建连接池
-// 使用最低限度的配置来减少潜在问题
+// 创建连接池 - 使用v0.10.4兼容的配置
+// 为Replit环境特别优化，减少死锁可能性
 export const pool = new Pool({
   connectionString: DATABASE_URL,
-  max: 3, // 极低的连接数，避免连接过多
-  idleTimeoutMillis: 30000, // 30秒空闲超时
-  connectionTimeoutMillis: 10000, // 10秒连接超时
-  keepAlive: true, // 保持连接活动
-  maxUses: 100 // 一个连接最多使用100次后释放以防止内存泄漏
+  max: 1, // 最小连接数，减少死锁可能
+  idleTimeoutMillis: 15000, // 15秒空闲超时
+  connectionTimeoutMillis: 8000, // 8秒连接超时
+  keepAlive: false, // 禁用保持连接，减少长连接导致的问题
+  maxUses: 50 // 降低单个连接的最大使用次数
 });
 
 // 监听连接池错误，使用更好的错误恢复机制
@@ -148,11 +144,46 @@ export function getDatabaseConnectionStatus() {
   };
 }
 
-// 异步测试连接，不阻塞应用启动
-testDatabaseConnection().catch(e => {
-  log(`初始数据库连接测试异常: ${e.message}`, "error");
-  log("应用将以降级模式启动，某些数据库功能可能不可用", "warn");
-});
+// 增强的数据库启动逻辑 - 多次尝试连接，然后再降级
+(async () => {
+  // 初始连接尝试
+  try {
+    log("尝试建立数据库初始连接...");
+    await Promise.race([
+      testDatabaseConnection(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("初始连接总超时")), 10000))
+    ]);
+    log("数据库初始连接成功！服务正常启动");
+  } catch (e) {
+    // 初始连接失败，进行备份尝试
+    log(`初始数据库连接异常: ${(e as Error).message}`, "error");
+    
+    // 稍后再尝试一次，但不阻塞应用启动
+    setTimeout(async () => {
+      try {
+        log("进行最后一次数据库连接尝试...");
+        await testDatabaseConnection();
+        log("延迟连接成功！服务恢复正常");
+      } catch (retryError) {
+        log(`延迟连接仍然失败: ${(retryError as Error).message}`, "error");
+        log("应用将以降级模式运行，某些功能可能不可用", "warn");
+        
+        // 定期在后台尝试重连，但不影响应用功能
+        const intervalId = setInterval(async () => {
+          try {
+            await testDatabaseConnection();
+            log("数据库连接已恢复！", "info");
+            clearInterval(intervalId);
+          } catch (e) {
+            // 静默失败，不记录日志，避免日志过多
+          }
+        }, 60000); // 每分钟尝试一次
+      }
+    }, 5000);
+    
+    log("应用已启动，但数据库功能临时不可用", "warn");
+  }
+})();
 
 // 创建Drizzle ORM实例，增加错误处理和重试逻辑
 export const db = drizzle({ 
