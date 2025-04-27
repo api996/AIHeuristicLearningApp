@@ -88,9 +88,12 @@ export const vectorEmbeddingManager = {
    */
   async checkForNewMemories(): Promise<boolean> {
     try {
-      // 通过执行一个简单的SQL查询来获取未处理的记忆数量
-      const command = `node -e "
-        const { pool } = require('./server/db');
+      // 注意：修正相对路径问题，使用当前工作目录，并添加正确的.ts扩展名
+      const dbPath = path.join(process.cwd(), 'server', 'db.ts');
+      
+      // 使用更简单、更直接的方法获取未处理的记忆数量
+      const command = `node --loader ts-node/esm -e "
+        import { pool } from '${dbPath.replace(/\\/g, '\\\\')}';
         async function checkNewMemories() {
           try {
             const result = await pool.query(
