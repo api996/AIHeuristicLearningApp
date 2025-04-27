@@ -483,6 +483,13 @@ setTimeout(() => {
         log("[genai_service] 使用降级服务评估相关性", "warn");
         // 默认中等相关性
         return 0.5;
+      },
+      
+      // 添加缺失的方法
+      generateTopicForMemories: async (texts: string[], metadata?: any): Promise<string | null> => {
+        log("[genai_service] 使用降级服务为记忆生成主题", "warn");
+        // 返回基础主题
+        return "学习记忆";
       }
     };
     
