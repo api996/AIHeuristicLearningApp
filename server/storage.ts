@@ -584,30 +584,12 @@ export class DatabaseStorage implements IStorage {
   async createMessage(chatId: number, content: string, role: string, model?: string): Promise<Message> {
     try {
       const [message] = await db.insert(messages)
-        .values({ chatId, content, role, model, isActive: true })
+        .values({ chatId, content, role, model })
         .returning();
       return message;
     } catch (error) {
       log(`Error creating message: ${error}`);
-      
-      // 降级机制：如果数据库操作失败，返回内存中的消息对象
-      // 这样至少用户界面可以显示消息，即使没有存储到数据库中
-      // 创建符合Message类型的临时对象 - 包含所有必要字段
-      const fallbackMessage: Message = {
-        id: -Math.floor(Math.random() * 1000000), // 负数ID表示临时消息
-        chatId,
-        content,
-        role,
-        model: model || "",
-        createdAt: new Date(),
-        isActive: true,
-        isEdited: false, // 添加isEdited字段
-        feedback: null,
-        feedbackText: null
-      };
-      
-      log(`已创建临时消息对象作为降级方案 ID=${fallbackMessage.id}`, "warn");
-      return fallbackMessage;
+      throw error;
     }
   }
 
