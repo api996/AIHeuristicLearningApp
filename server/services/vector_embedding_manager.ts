@@ -28,18 +28,13 @@ export const vectorEmbeddingManager = {
    * @param reason 触发原因
    * @returns 生成任务是否成功
    */
-  runGenerator: async function(reason = "定时触发"): Promise<boolean> {
+  runGenerator: async function(reason = "按需触发"): Promise<boolean> {
     if (this.isRunning) {
       log(`[向量嵌入] 生成任务已在运行中，跳过此次触发(${reason})`);
       return false;
     }
     
-    const now = Date.now();
-    // 检查是否在最小间隔内(仅对定时触发做限制)
-    if (now - this.lastRunTime < this.minInterval && reason === "定时触发") {
-      log(`[向量嵌入] 上次执行时间距现在不足${this.minInterval/60000}分钟，跳过此次定时触发`);
-      return false;
-    }
+    // 移除了时间间隔检查，现在完全按需触发
     
     try {
       this.isRunning = true;
@@ -154,32 +149,14 @@ export const vectorEmbeddingManager = {
   
   /**
    * 开始定时任务调度器
+   * 注意：我们不再使用定时任务，只在需要时触发
    */
   startScheduler: function(): void {
-    // 将间隔从15分钟增加到60分钟，降低API调用频率
-    const interval = 60 * 60 * 1000; // 1小时
-    log(`[向量嵌入] 启动定时任务，每${interval/60000}分钟检查一次`);
+    log(`[向量嵌入] 不再使用定时任务，改为按需触发模式`);
     
-    setInterval(async () => {
-      try {
-        // 先检查是否有足够的新记忆需要处理
-        const shouldProcess = await this.checkForNewMemories();
-        
-        // 只有当有足够的新记忆时才执行处理
-        if (shouldProcess) {
-          await this.runGenerator("定时触发");
-        } else {
-          log(`[向量嵌入] 定时检查：未达到处理条件，跳过此次执行`);
-        }
-      } catch (err) {
-        log(`[向量嵌入] 定时任务异常: ${err}`);
-      }
-    }, interval);
-    
-    // 服务器启动后延迟2分钟执行第一次，避免与其他初始化任务冲突
-    // 同时也避免每次重启就执行处理任务
+    // 保留服务启动检查
     setTimeout(async () => {
-      log("[向量嵌入] 服务启动后首次检查新记忆...");
+      log("[向量嵌入] 服务启动后检查新记忆...");
       try {
         // 同样检查是否有足够的新记忆
         const shouldProcess = await this.checkForNewMemories();
@@ -191,7 +168,7 @@ export const vectorEmbeddingManager = {
       } catch (err) {
         log(`[向量嵌入] 首次任务异常: ${err}`);
       }
-    }, 120 * 1000); // 2分钟
+    }, 120 * 1000); // 2分钟后检查一次
   },
   
   /**
@@ -209,13 +186,47 @@ export const vectorEmbeddingManager = {
     }
     
     const contentPreview = content ? content.substring(0, 30) + "..." : "内容未提供";
-    log(`[向量嵌入] 新记忆创建，触发向量嵌入生成 - ID: ${memoryId}, 内容: ${contentPreview}`);
+    log(`[向量嵌入] 新记忆创建，立即处理 - ID: ${memoryId}, 内容: ${contentPreview}`);
     
-    // 这里可以选择两种策略:
-    // 1. 直接调用脚本处理所有待处理记忆（包括当前新创建的）
-    // 2. 为这个特定记忆调用一个专门的处理脚本
-    
-    // 为简单起见，我们使用策略1，触发常规生成脚本
-    return this.runGenerator(`新记忆触发(ID:${memoryId})`);
+    // 直接处理这个特定记忆
+    try {
+      // 构建针对特定记忆ID的命令
+      const scriptPath = path.join(process.cwd(), "server", "generate_vector_embeddings.js");
+      const command = `node ${scriptPath} --memory-id=${memoryId}`;
+      
+      log(`[向量嵌入] 执行单记忆处理命令: ${command}`);
+      
+      return new Promise<boolean>((resolve) => {
+        const embedProcess = exec(command, {
+          timeout: 30 * 1000, // 30秒超时，单个记忆处理应该很快
+        });
+        
+        embedProcess.stdout?.on('data', (data) => {
+          log(`[向量嵌入生成] ${data.toString().trim()}`);
+        });
+        
+        embedProcess.stderr?.on('data', (data) => {
+          log(`[向量嵌入生成错误] ${data.toString().trim()}`);
+        });
+        
+        embedProcess.on('close', (code) => {
+          if (code === 0) {
+            log(`[向量嵌入] 单记忆处理完成 - ID: ${memoryId}`);
+            resolve(true);
+          } else {
+            log(`[向量嵌入] 单记忆处理失败，退出码: ${code} - ID: ${memoryId}`);
+            resolve(false);
+          }
+        });
+        
+        embedProcess.on('error', (error) => {
+          log(`[向量嵌入] 单记忆处理错误: ${error.message}`);
+          resolve(false);
+        });
+      });
+    } catch (error) {
+      log(`[向量嵌入] 单记忆处理异常: ${error}`);
+      return false;
+    }
   }
 };

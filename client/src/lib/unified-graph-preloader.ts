@@ -43,6 +43,81 @@ function getCacheKey(userId: number, graphType: 'knowledge' | 'topic'): string {
   return `${graphType}-${userId}`;
 }
 
+// 本地存储持久化缓存键前缀
+const LOCAL_STORAGE_PREFIX = 'graph_cache_';
+
+// 获取本地存储缓存键
+function getLocalStorageKey(userId: number, graphType: 'knowledge' | 'topic'): string {
+  return `${LOCAL_STORAGE_PREFIX}${graphType}_${userId}`;
+}
+
+// 缓存有效期（毫秒）- 24小时
+const CACHE_TTL = 24 * 60 * 60 * 1000;
+
+// 将图谱数据保存到本地存储
+function saveToLocalStorage(key: string, data: GraphData): void {
+  try {
+    const cacheItem = {
+      data,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(key, JSON.stringify(cacheItem));
+    console.log(`图谱数据已保存到本地存储: ${key}, 节点数: ${data.nodes.length}, 连接数: ${data.links.length}`);
+  } catch (error) {
+    console.warn(`保存图谱数据到本地存储失败: ${error}`);
+    // 尝试清理旧缓存释放空间
+    clearOldLocalCache();
+  }
+}
+
+// 从本地存储获取图谱数据
+function getFromLocalStorage(key: string): GraphData | null {
+  try {
+    const cacheItem = localStorage.getItem(key);
+    if (!cacheItem) return null;
+    
+    const { data, timestamp } = JSON.parse(cacheItem);
+    
+    // 检查缓存是否过期
+    if (Date.now() - timestamp > CACHE_TTL) {
+      console.log(`本地缓存已过期: ${key}`);
+      localStorage.removeItem(key);
+      return null;
+    }
+    
+    console.log(`从本地存储加载图谱数据: ${key}, 节点数: ${data.nodes.length}, 连接数: ${data.links.length}`);
+    return data;
+  } catch (error) {
+    console.warn(`从本地存储读取图谱数据失败: ${error}`);
+    return null;
+  }
+}
+
+// 清理超过7天的所有本地缓存
+function clearOldLocalCache(): void {
+  try {
+    const now = Date.now();
+    const OLDER_THAN = 7 * 24 * 60 * 60 * 1000; // 7天
+    
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith(LOCAL_STORAGE_PREFIX)) {
+        try {
+          const cacheItem = JSON.parse(localStorage.getItem(key) || '{}');
+          if (cacheItem.timestamp && (now - cacheItem.timestamp > OLDER_THAN)) {
+            localStorage.removeItem(key);
+            console.log(`已清理过期本地缓存: ${key}`);
+          }
+        } catch (e) {
+          // 如果解析失败，也清理掉这个缓存项
+          localStorage.removeItem(key);
+        }
+      }
+    });
+  } catch (error) {
+    console.warn(`清理旧缓存失败: ${error}`);
+  }
+}
+
 /**
  * 预加载图谱数据
  * @param userId 用户ID
@@ -56,6 +131,7 @@ export async function preloadGraphData(
   forceRefresh: boolean = false
 ): Promise<GraphData> {
   const cacheKey = getCacheKey(userId, graphType);
+  const localStorageKey = getLocalStorageKey(userId, graphType);
   const graphTypeName = graphType === 'knowledge' ? '知识图谱' : '主题图谱';
   
   console.log(`预加载${graphTypeName}数据...`, forceRefresh ? "(强制刷新)" : "");
@@ -68,12 +144,24 @@ export async function preloadGraphData(
     console.log(`强制刷新用户${userId}的${graphTypeName}缓存`);
     cachedGraphData.delete(cacheKey);
     pendingPromises.delete(cacheKey);
+    localStorage.removeItem(localStorageKey);
   } else {
     // 检查内存中是否有缓存
     if (cachedGraphData.has(cacheKey)) {
       const cachedData = cachedGraphData.get(cacheKey)!;
       console.log(`使用内存缓存的${graphTypeName}数据: ${cachedData.nodes.length}个节点`);
       return cachedData;
+    }
+    
+    // 检查本地存储是否有缓存
+    const localData = getFromLocalStorage(localStorageKey);
+    if (localData) {
+      console.log(`从本地存储加载${graphTypeName}数据: ${localData.nodes.length}个节点`);
+      // 将本地存储的数据添加到内存缓存中，避免重复加载
+      cachedGraphData.set(cacheKey, localData);
+      // 设置 fromCache 标记，表示数据来自缓存
+      localData.fromCache = true;
+      return localData;
     }
   }
   
@@ -100,6 +188,9 @@ export async function preloadGraphData(
     cachedGraphData.set(cacheKey, data);
     pendingPromises.delete(cacheKey);
     
+    // 保存到本地存储以实现持久化
+    saveToLocalStorage(localStorageKey, data);
+    
     // 计算加载时间并显示性能指标
     const loadTime = (performance.now() - startTime).toFixed(0);
     console.log(`${graphTypeName}数据预加载成功: ${data.nodes.length}个节点, ${data.links.length}个连接，总耗时: ${loadTime}ms`);
@@ -112,8 +203,17 @@ export async function preloadGraphData(
     
     // 如果失败但存在有效缓存，返回缓存数据
     if (cachedGraphData.has(cacheKey)) {
-      console.log(`请求失败但发现有效缓存，使用缓存数据`);
+      console.log(`请求失败但发现内存缓存，使用缓存数据`);
       return cachedGraphData.get(cacheKey)!;
+    }
+    
+    // 检查本地存储是否有缓存作为备份
+    const localData = getFromLocalStorage(localStorageKey);
+    if (localData) {
+      console.log(`请求失败但发现本地存储缓存，使用本地缓存数据`);
+      // 将本地存储的数据添加到内存缓存中，避免重复加载
+      cachedGraphData.set(cacheKey, localData);
+      return localData;
     }
     
     // 创建一个最小默认图谱
@@ -173,24 +273,60 @@ export function clearGraphCache(userId?: number, graphType?: 'knowledge' | 'topi
     if (graphType !== undefined) {
       // 清除特定用户的特定图谱类型
       const cacheKey = getCacheKey(userId, graphType);
+      const localStorageKey = getLocalStorageKey(userId, graphType);
+      
+      // 清除内存缓存
       cachedGraphData.delete(cacheKey);
       pendingPromises.delete(cacheKey);
+      
+      // 清除本地存储缓存
+      try {
+        localStorage.removeItem(localStorageKey);
+      } catch (e) {
+        console.warn(`清除本地存储缓存出错: ${e}`);
+      }
+      
       console.log(`已清除用户${userId}的${graphType === 'knowledge' ? '知识图谱' : '主题图谱'}缓存`);
     } else {
       // 清除特定用户的所有图谱
       const knowledgeKey = getCacheKey(userId, 'knowledge');
       const topicKey = getCacheKey(userId, 'topic');
+      const localKnowledgeKey = getLocalStorageKey(userId, 'knowledge');
+      const localTopicKey = getLocalStorageKey(userId, 'topic');
+      
+      // 清除内存缓存
       cachedGraphData.delete(knowledgeKey);
       cachedGraphData.delete(topicKey);
       pendingPromises.delete(knowledgeKey);
       pendingPromises.delete(topicKey);
+      
+      // 清除本地存储缓存
+      try {
+        localStorage.removeItem(localKnowledgeKey);
+        localStorage.removeItem(localTopicKey);
+      } catch (e) {
+        console.warn(`清除本地存储缓存出错: ${e}`);
+      }
+      
       console.log(`已清除用户${userId}的所有图谱缓存`);
     }
   } else {
     // 清除所有缓存
     cachedGraphData.clear();
     pendingPromises.clear();
-    console.log("已清除所有图谱缓存");
+    
+    // 清除所有本地存储图谱缓存
+    try {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(LOCAL_STORAGE_PREFIX)) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (e) {
+      console.warn(`清除所有本地存储缓存出错: ${e}`);
+    }
+    
+    console.log("已清除所有图谱缓存（内存和本地存储）");
   }
 }
 
