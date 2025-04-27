@@ -508,6 +508,9 @@ Q (Questions/问题) - 你产生的新问题
         // 使用与主服务完全一致的API请求格式
         const requestBody = {
           model: "grok-3-fast-beta",
+          temperature: 0.7,
+          top_p: 0.9, 
+          max_tokens: 4096,
           messages: [
             {
               role: "system",
@@ -517,9 +520,7 @@ Q (Questions/问题) - 你产生的新问题
               role: "user",
               content: userInput
             }
-          ],
-          max_tokens: 800,
-          temperature: 0.7
+          ]
         };
         
         log(`[StudentAgentSimulator] 调用Grok API生成学生回应...`);
