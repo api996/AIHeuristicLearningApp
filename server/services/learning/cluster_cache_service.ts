@@ -36,12 +36,19 @@ export class ClusterCacheService {
         log(`[ClusterCache] 跳过管理员用户(ID=1)的聚类处理`);
         return {}; // 返回空结果
       }
+
+      // 记录对聚类服务的请求
+      log(`[ClusterCache] 收到用户${userId}的聚类请求，强制刷新=${forceRefresh}`);
       
-      // 如果强制刷新，直接跳过缓存检查
+      // 优先尝试使用缓存，除非强制刷新
+      let shouldUseCache = false;
+      let cachedData = null;
+      
       if (!forceRefresh) {
         try {
           // 尝试从缓存获取
           const cachedResult = await storage.getClusterResultCache(userId);
+          
           if (cachedResult && cachedResult.clusterData) {
             // 检查缓存是否有效
             const clusterData = cachedResult.clusterData;
@@ -62,8 +69,9 @@ export class ClusterCacheService {
                 );
                 
                 if (hasValidTopics) {
+                  shouldUseCache = true;
+                  cachedData = clusterData;
                   log(`[ClusterCache] 用户${userId}的缓存聚类结果包含有效的主题名称`);
-                  return clusterData;
                 } else {
                   log(`[ClusterCache] 用户${userId}的缓存聚类结果不包含有效的主题名称，将重新生成`, "warn");
                 }
@@ -83,27 +91,63 @@ export class ClusterCacheService {
         log(`[ClusterCache] 强制刷新用户${userId}的聚类结果`);
       }
       
-      // 执行聚类并缓存结果
-      const result = await this.performClusteringAndCache(userId);
-      
-      // 检查聚类结果是否有意义
-      if (result && Object.keys(result).length > 0) {
-        // 计算有多少有效主题名称
-        const validTopics = Object.values(result).filter((cluster: any) => 
-          cluster.topic && cluster.topic.length > 0 && !cluster.topic.startsWith('聚类')
-        );
-        
-        const validTopicCount = validTopics.length;
-        const totalTopicCount = Object.keys(result).length;
-        
-        log(`[ClusterCache] 用户${userId}的聚类结果有${validTopicCount}/${totalTopicCount}个有效主题名称`);
-      } else {
-        log(`[ClusterCache] 用户${userId}的聚类结果为空或无效`, "warn");
+      // 如果可以使用缓存，直接返回
+      if (shouldUseCache && cachedData) {
+        return cachedData;
       }
       
-      return result;
-    } catch (error) {
-      log(`[ClusterCache] 获取聚类结果出错: ${error}`, "error");
+      // 如果不能使用缓存，添加执行时间记录
+      const startTime = Date.now();
+      log(`[ClusterCache] 开始执行用户${userId}的聚类处理，时间：${new Date().toISOString()}`);
+      
+      try {
+        // 执行聚类并缓存结果
+        const result = await this.performClusteringAndCache(userId);
+        
+        // 计算执行时间
+        const executionTime = (Date.now() - startTime) / 1000;
+        log(`[ClusterCache] 完成用户${userId}的聚类处理，耗时：${executionTime.toFixed(2)}秒`);
+        
+        // 检查聚类结果是否有意义
+        if (result && Object.keys(result).length > 0) {
+          // 计算有多少有效主题名称
+          const validTopics = Object.values(result).filter((cluster: any) => 
+            cluster.topic && cluster.topic.length > 0 && !cluster.topic.startsWith('聚类')
+          );
+          
+          const validTopicCount = validTopics.length;
+          const totalTopicCount = Object.keys(result).length;
+          
+          log(`[ClusterCache] 用户${userId}的聚类结果有${validTopicCount}/${totalTopicCount}个有效主题名称`);
+          
+          // 成功生成结果，返回
+          return result;
+        } else {
+          log(`[ClusterCache] 用户${userId}的聚类结果为空或无效，检查是否有缓存备用`, "warn");
+          
+          // 如果聚类失败但有缓存数据，尝试使用缓存数据作为备选方案
+          if (cachedData) {
+            log(`[ClusterCache] 聚类失败但发现有缓存数据，使用缓存作为备选方案`, "warn");
+            return cachedData;
+          }
+          
+          // 否则返回空对象
+          return {};
+        }
+      } catch (processingError) {
+        log(`[ClusterCache] 处理用户${userId}的聚类时发生错误: ${processingError}`, "error");
+        
+        // 如果处理过程出错但有缓存，使用缓存
+        if (cachedData) {
+          log(`[ClusterCache] 使用缓存数据作为错误恢复机制`, "warn");
+          return cachedData;
+        }
+        
+        // 处理失败且无缓存，返回空结果
+        return {};
+      }
+    } catch (outerError) {
+      log(`[ClusterCache] 获取聚类结果时发生严重错误: ${outerError}`, "error");
       // 返回空结果而不是抛出异常，避免影响后续流程
       return {};
     }
