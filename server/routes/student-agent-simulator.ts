@@ -529,17 +529,18 @@ Q (Questions/问题) - 你产生的新问题
         log(`[StudentAgentSimulator] 使用模型: grok-3-fast-beta, 系统提示词长度: ${systemPrompt.length}字符`);
         log(`[StudentAgentSimulator] API密钥前6个字符: ${grokApiKey?.substring(0, 6) || '未找到'}...`);
         
+        let response;
         try {
-          // 调用Grok API
-          const response = await fetchWithRetry('https://api.x.ai/v1/chat/completions', {
+          // 调用Grok API - 使用标准fetch替代fetchWithRetry
+          log(`[StudentAgentSimulator] 使用标准fetch调用API，与主服务保持一致`);
+          response = await fetch('https://api.x.ai/v1/chat/completions', {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${grokApiKey}`,
-              "Content-Type": "application/json"
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${grokApiKey}`
             },
-            body: JSON.stringify(requestBody),
-            timeout: 15000
-          }, 2, 1000);
+            body: JSON.stringify(requestBody)
+          });
           
           log(`[StudentAgentSimulator] Grok API响应状态: ${response.status}`);
           
@@ -548,21 +549,22 @@ Q (Questions/问题) - 你产生的新问题
             log(`[StudentAgentSimulator] 错误细节: ${errorText}`);
             throw new Error(`API请求失败(400): ${errorText}`);
           }
-        } catch (fetchError) {
-          log(`[StudentAgentSimulator] API请求异常: ${fetchError.message}`);
-          throw fetchError;
-        }
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          log(`[StudentAgentSimulator] Grok API错误: ${response.status} - ${errorText}`);
           
-          if (response.status === 401) {
-            log(`[StudentAgentSimulator] API认证失败(401)，切换到模拟响应`);
-            throw new Error("API认证失败，使用备用方案");
-          } else {
-            throw new Error(`Grok API错误: ${response.status} - ${errorText}`);
+          if (!response.ok) {
+            const errorText = await response.text();
+            log(`[StudentAgentSimulator] Grok API错误: ${response.status} - ${errorText}`);
+            
+            if (response.status === 401) {
+              log(`[StudentAgentSimulator] API认证失败(401)，切换到模拟响应`);
+              throw new Error("API认证失败，使用备用方案");
+            } else {
+              throw new Error(`Grok API错误: ${response.status} - ${errorText}`);
+            }
           }
+          
+        } catch (error) {
+          log(`[StudentAgentSimulator] API请求异常: ${error instanceof Error ? error.message : String(error)}`);
+          throw error;
         }
         
         const data = await response.json();
