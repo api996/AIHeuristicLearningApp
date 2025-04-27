@@ -1374,7 +1374,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 创建消息
   app.post("/api/messages", async (req, res) => {
     try {
-      const { chatId, content, role, userId, userRole } = req.body;
+      // 从会话中获取用户ID和角色
+      const userId = req.session?.userId;
+      const userRole = req.session?.userRole;
+      const { chatId, content, role } = req.body;
 
       if (!chatId || !content || !role || !userId) {
         return res.status(400).json({ message: "Missing required fields" });
