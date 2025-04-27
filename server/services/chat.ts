@@ -80,8 +80,8 @@ export class ChatService {
     log(`ChatService 初始化，可用API: ${availableKeys.join(", ")}`);
     log(`使用的模型版本: Gemini-2.5-Pro-Exp-03-25, DeepSeek-R1, Grok-3-Fast-Beta`);
     
-    // 默认使用Grok模型，因为它支持多模态输入且没有使用量限制
-    this.currentModel = "grok";
+    // 默认使用Gemini模型，因为它稳定且易于连接
+    this.currentModel = "gemini";
     this.apiKey = difyApiKey || "";
     
     // 添加专用的图像分析模型配置
