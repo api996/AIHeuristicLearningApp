@@ -592,7 +592,7 @@ export class DatabaseStorage implements IStorage {
       
       // 降级机制：如果数据库操作失败，返回内存中的消息对象
       // 这样至少用户界面可以显示消息，即使没有存储到数据库中
-      // 创建符合Message类型的临时对象 - 移除updatedAt字段
+      // 创建符合Message类型的临时对象 - 修正字段名和必要字段
       const fallbackMessage: Message = {
         id: -Math.floor(Math.random() * 1000000), // 负数ID表示临时消息
         chatId,
@@ -600,9 +600,8 @@ export class DatabaseStorage implements IStorage {
         role,
         model: model || "",
         createdAt: new Date(),
-        // updatedAt字段在Message类型中不存在，已移除
         isActive: true,
-        feedbackType: null,
+        feedback: null,
         feedbackText: null
       };
       
