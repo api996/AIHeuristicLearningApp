@@ -34,10 +34,11 @@ async function createTestMemory() {
   try {
     console.log(`创建测试记忆, ID: ${testId}`);
     
+    // 使用有效的用户ID 6 (从之前的数据库查询中)
     // 使用RETURNING获取插入的记录
     const result = await pool.query(
       'INSERT INTO memories (id, user_id, content, type, timestamp, summary) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      [testId, 999, testContent, 'test', new Date().toISOString(), '测试记忆']
+      [testId, 6, testContent, 'test', new Date().toISOString(), '测试记忆']
     );
     
     if (result.rows.length > 0) {
