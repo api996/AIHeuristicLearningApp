@@ -88,14 +88,21 @@ export const vectorEmbeddingManager = {
    */
   async checkForNewMemories(): Promise<boolean> {
     try {
-      // 注意：修正相对路径问题，使用当前工作目录，并添加正确的.ts扩展名
-      const dbPath = path.join(process.cwd(), 'server', 'db.ts');
-      
-      // 使用更简单、更直接的方法获取未处理的记忆数量
-      const command = `node --loader ts-node/esm -e "
-        import { pool } from '${dbPath.replace(/\\/g, '\\\\')}';
+      // 使用直接的SQL查询计算未处理的记忆数量
+      // 这是一个更简单的方法，直接使用node直接调用SQL命令
+      const command = `node -e "
+        const { Pool } = require('@neondatabase/serverless');
+        const ws = require('ws');
+        
+        // 配置数据库连接
+        const pool = new Pool({ 
+          connectionString: process.env.DATABASE_URL,
+          webSocketConstructor: ws
+        });
+        
         async function checkNewMemories() {
           try {
+            // 查询未处理的记忆数量
             const result = await pool.query(
               'SELECT COUNT(*) FROM memories LEFT JOIN memory_embeddings ON memories.id = memory_embeddings.memory_id WHERE memory_embeddings.id IS NULL'
             );
@@ -107,6 +114,7 @@ export const vectorEmbeddingManager = {
             await pool.end();
           }
         }
+        
         checkNewMemories();
       "`;
       
