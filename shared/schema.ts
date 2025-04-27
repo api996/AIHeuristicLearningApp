@@ -196,7 +196,7 @@ export const conversationAnalytics = pgTable("conversation_analytics", {
 // 知识图谱缓存表：存储预计算的知识图谱数据
 export const knowledgeGraphCache = pgTable("knowledge_graph_cache", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: integer("user_id").notNull().references(() => users.id).unique(), // 添加唯一约束，确保每个用户只有一个知识图谱缓存
   nodes: json("nodes").notNull(), // 图谱节点数据
   links: json("links").notNull(), // 图谱连接数据
   version: integer("version").notNull().default(1), // 版本号用于刷新缓存
