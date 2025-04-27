@@ -221,7 +221,7 @@ export const clusterResultCache = pgTable("cluster_result_cache", {
 // 学习轨迹表：存储用户的学习轨迹和分布数据
 export const learningPaths = pgTable("learning_paths", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: integer("user_id").notNull().references(() => users.id).unique(), // 添加唯一约束，确保每个用户只有一条学习轨迹记录
   // 主题数据，包含主题名称和百分比
   topics: json("topics").notNull(), // 格式：[{topic: "主题1", id: "topic_1", percentage: 80}, ...]
   // 学习分布数据
@@ -230,8 +230,6 @@ export const learningPaths = pgTable("learning_paths", {
   suggestions: json("suggestions").notNull(), // 格式：["建议1", "建议2", ...]
   // 学习进度历史记录，用于跟踪进步
   progressHistory: json("progress_history"), // 格式：[{date: "2023-01-01", topics: [{topic: "主题1", percentage: 75}, ...]}]
-  // 用于知识图谱展示的节点和连接数据
-  knowledgeGraph: json("knowledge_graph"), // 格式：{nodes: [...], links: [...]}
   // 版本号，用于缓存控制
   version: integer("version").notNull().default(1),
   createdAt: timestamp("created_at").defaultNow(),
