@@ -439,7 +439,19 @@ export class ClusterCacheService {
       // 记忆ID映射表，用于快速查找记忆内容
       const memoryMap = new Map(memoriesData.map(m => [m.id, m]));
       
-      // 处理每个聚类
+      // 准备批量处理的数据
+      interface ClusterBatchItem {
+        clusterId: string;
+        clusterData: any;
+        clusterMemories: string[];
+        needsTopicGeneration: boolean;
+        keywords: string[];
+      }
+      
+      // 收集需要主题生成的聚类
+      const batchItems: ClusterBatchItem[] = [];
+      
+      // 第一阶段：准备数据，确定哪些聚类需要生成主题
       for (const [clusterId, cluster] of Object.entries(clusterResult)) {
         const clusterData = cluster as any;
         
@@ -449,146 +461,203 @@ export class ClusterCacheService {
           .filter(Boolean)
           .map((memory: any) => memory.summary || memory.content);
         
-        // 如果聚类中有记忆内容，生成主题和摘要
-        if (clusterMemories.length > 0) {
-          // 强制重新生成所有聚类的主题，确保有有意义的主题标签
-          log(`[ClusterCache] 聚类${clusterId}包含${clusterMemories.length}条记忆，正在处理`);
-          log(`[ClusterCache] 聚类${clusterId}的现有主题: "${clusterData.topic || '无'}"`);
+        log(`[ClusterCache] 聚类${clusterId}包含${clusterMemories.length}条记忆，现有主题: "${clusterData.topic || '无'}"`);
+        
+        // 检查是否需要生成主题
+        const hasValidTopic = clusterData.topic && 
+                             clusterData.topic.length > 2 && 
+                             !clusterData.topic.startsWith('聚类') && 
+                             !clusterData.topic.startsWith('主题');
+        
+        // 提取关键词，无论是否需要生成主题
+        const keywords = await this.extractKeywordsFromCluster(
+          clusterMemories.length > 0 ? clusterMemories.slice(0, 3) : []
+        );
+        
+        if (keywords && keywords.length > 0) {
+          log(`[ClusterCache] 为聚类${clusterId}提取了${keywords.length}个关键词: ${keywords.slice(0, 3).join(", ")}...`);
           
-          // 使用GenAI进行智能分析生成聚类主题
-          log(`[ClusterCache] 开始为聚类${clusterId}生成智能主题...`);
-          
-          try {
-            // 直接基于实际记忆内容智能生成主题，不依赖任何标识或占位符
-            // 只有当已经有了明确非空且有意义的主题时才保留
-            if (clusterData.topic && clusterData.topic.length > 2 && 
-                !clusterData.topic.startsWith('聚类') && 
-                !clusterData.topic.startsWith('主题')) {
-              log(`[ClusterCache] 保留聚类${clusterId}的现有主题: "${clusterData.topic}"`);
-            } 
-            else {
-              // 无论是空主题还是通用标识，都使用GenAI进行智能生成
-              // 记忆内容示例
-              if (clusterMemories.length > 0) {
-                const sampleContent = clusterMemories[0].substring(0, 100) + 
-                  (clusterMemories[0].length > 100 ? '...' : '');
-                log(`[ClusterCache] 聚类${clusterId}内容示例: "${sampleContent}"`);
-              }
-              
-              // 从服务获取genAiService对象进行智能主题分析
-              const { genAiService } = await import("../genai/genai_service");
-              
-              if (clusterMemories.length === 0) {
-                log(`[ClusterCache] 警告: 聚类${clusterId}没有记忆内容，无法生成主题`, 'warn');
-                clusterData.topic = `主题${clusterId}`;
-              } else {
-                // 定义聚类信息类型
-                interface ClusterInfo {
-                  cluster_id: string;
-                  memory_count: number;
-                  memory_types: string;
-                  keywords?: string[];
-                  raw_data?: any;
-                }
-                
-                // 准备向GenAI传递的元数据
-                const clusterMetadata = {
-                  cluster_info: {
-                    cluster_id: clusterId,
-                    memory_count: clusterMemories.length,
-                    memory_types: "对话记忆" // 默认类型
-                  } as ClusterInfo
-                };
-                
-                // 尝试提取关键词作为额外元数据
-                const keywords = await this.extractKeywordsFromCluster(clusterMemories.slice(0, 3));
-                if (keywords && keywords.length > 0) {
-                  clusterMetadata.cluster_info.keywords = keywords;
-                  log(`[ClusterCache] 为聚类${clusterId}提取了${keywords.length}个关键词: ${keywords.slice(0, 3).join(", ")}...`);
-                } else {
-                  log(`[ClusterCache] 未能为聚类${clusterId}提取关键词`, "warn");
-                }
-                
-                // 将原始聚类数据传递给元数据，如果存在的话
-                if (clusterData.raw_data) {
-                  clusterMetadata.cluster_info.raw_data = clusterData.raw_data;
-                }
-                
-                // 使用多个记忆内容示例进行主题生成，同时传递元数据
-                const memorySamples = clusterMemories.slice(0, 5); // 最多使用5条记忆
-                log(`[ClusterCache] 向GenAI传递${memorySamples.length}条样本和元数据生成主题`);
-                
-                // 确保genAiService已完全初始化并使用它生成主题
-                let topic = null;
-                try {
-                  // 导入模块并初始化服务
-                  let { initializeGenAIService } = await import("../genai/genai_service");
-                  
-                  // 确保服务已初始化
-                  const genAiService = await initializeGenAIService();
-                  
-                  log(`[ClusterCache] GenAI服务已就绪，正在生成主题`, "info");
-                  // 使用服务生成主题
-                  topic = await genAiService.generateTopicForMemories(memorySamples, clusterMetadata);
-                  
-                  if (topic) {
-                    log(`[ClusterCache] 成功使用GenAI生成主题: "${topic}"`);
-                  } else {
-                    log(`[ClusterCache] GenAI返回空主题`, "warn");
-                  }
-                } catch (aiError) {
-                  log(`[ClusterCache] 使用GenAI服务生成主题时出错: ${aiError}`, "error");
-                  // 出错时继续执行，会在后续条件中处理
-                }
-                
-                if (topic) {
-                  log(`[ClusterCache] 成功为聚类${clusterId}生成智能主题: "${topic}"`);
-                  clusterData.topic = topic;
-                } else {
-                  log(`[ClusterCache] 警告: 无法为聚类${clusterId}生成主题，尝试关键词方法`, 'warn');
-                  
-                  // 尝试从记忆中提取关键词作为主题
-                  const keywords = await this.extractKeywordsFromCluster(clusterMemories);
-                  if (keywords && keywords.length > 0) {
-                    const newTopic = keywords.slice(0, 2).join('与') + '相关内容';
-                    log(`[ClusterCache] 使用关键词生成主题: "${newTopic}"`);
-                    clusterData.topic = newTopic;
-                    clusterData.keywords = keywords;
-                  } else {
-                    log(`[ClusterCache] 无法通过任何方式生成主题，使用默认值`, 'warn');
-                    clusterData.topic = `主题${clusterId}`;
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            log(`[ClusterCache] 生成聚类${clusterId}主题时发生错误: ${error}`, 'error');
-            clusterData.topic = `主题${clusterId}`;
-          }
-          
-          // 生成摘要
-          if (!clusterData.summary && clusterMemories.length > 0) {
-            const summary = await this.generateSummaryForCluster(clusterMemories);
-            if (summary) {
-              clusterData.summary = summary;
-            }
-          }
-          
-          // 提取关键词
-          if (!clusterData.keywords || clusterData.keywords.length === 0) {
-            const keywords = await this.extractKeywordsFromCluster(clusterMemories);
-            if (keywords && keywords.length > 0) {
-              clusterData.keywords = keywords;
-            }
+          // 保存关键词到聚类数据
+          clusterData.keywords = keywords;
+        }
+        
+        // 决定是否需要主题生成
+        const needsTopicGeneration = !hasValidTopic && clusterMemories.length > 0;
+        
+        // 如果不需要生成主题，但是没有有效主题，设置一个基于关键词的主题
+        if (!needsTopicGeneration && !hasValidTopic) {
+          if (keywords && keywords.length > 0) {
+            clusterData.topic = keywords.slice(0, 2).join('与') + '相关内容';
+            log(`[ClusterCache] 使用关键词创建聚类${clusterId}的主题: "${clusterData.topic}"`);
+          } else {
+            clusterData.topic = `聚类 ${clusterId.replace('cluster_', '')}`;
+            log(`[ClusterCache] 为聚类${clusterId}使用默认主题: "${clusterData.topic}"`, 'warn');
           }
         }
+        
+        // 生成摘要（这不需要API调用，可以单独处理）
+        if (!clusterData.summary && clusterMemories.length > 0) {
+          const summary = await this.generateSummaryForCluster(clusterMemories);
+          if (summary) {
+            clusterData.summary = summary;
+          }
+        }
+        
+        // 如果需要生成主题，加入批处理队列
+        if (needsTopicGeneration) {
+          batchItems.push({
+            clusterId,
+            clusterData,
+            clusterMemories: clusterMemories.slice(0, 5), // 最多使用5条记忆
+            needsTopicGeneration,
+            keywords: keywords || []
+          });
+        }
+      }
+      
+      // 如果有需要生成主题的聚类，进行批量处理
+      if (batchItems.length > 0) {
+        log(`[ClusterCache] 发现${batchItems.length}个聚类需要生成主题，准备批量处理`);
+        
+        // 批量生成主题，每次最多处理3个聚类以减少API负载
+        const BATCH_SIZE = 3;
+        for (let i = 0; i < batchItems.length; i += BATCH_SIZE) {
+          // 提取当前批次
+          const currentBatch = batchItems.slice(i, i + BATCH_SIZE);
+          log(`[ClusterCache] 处理批次 ${Math.floor(i/BATCH_SIZE) + 1}，包含${currentBatch.length}个聚类`);
+          
+          // 处理当前批次的每个聚类
+          await this.processBatchTopicGeneration(currentBatch);
+          
+          // 如果还有更多批次，添加延迟以防止API限制
+          if (i + BATCH_SIZE < batchItems.length) {
+            log(`[ClusterCache] 批次间延迟 2000ms 以避免API限制`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
+      } else {
+        log(`[ClusterCache] 所有聚类都已有有效主题，跳过主题生成`);
       }
       
       return clusterResult;
     } catch (error) {
-      log(`[ClusterCache] 增强聚类结果时出错: ${error}`, "warn");
-      // 出错时返回原始聚类结果
+      log(`[ClusterCache] 增强聚类结果时出错: ${error}`, "error");
+      // 即使出错，也要返回原始结果以保证至少有一些数据可用
       return clusterResult;
+    }
+  }
+  
+  /**
+   * 批量处理聚类主题生成
+   * 为一组聚类生成主题，处理错误并应用结果
+   * 
+   * @param batchItems 需要处理的聚类批次
+   */
+  private async processBatchTopicGeneration(
+    batchItems: { 
+      clusterId: string; 
+      clusterData: any; 
+      clusterMemories: string[]; 
+      keywords: string[];
+    }[]
+  ): Promise<void> {
+    try {
+      // 从服务获取genAiService对象进行智能主题分析
+      let { initializeGenAIService } = await import("../genai/genai_service");
+      const genAiService = await initializeGenAIService();
+      
+      // 为每个聚类单独生成主题 - 一次一个以减少API负载
+      // 我们不能合并多个聚类的内容，因为那样会生成一个通用主题而非特定主题
+      for (const item of batchItems) {
+        try {
+          if (item.clusterMemories.length === 0) {
+            item.clusterData.topic = `主题${item.clusterId}`;
+            log(`[ClusterCache] 警告: 聚类${item.clusterId}没有记忆内容，使用默认主题`, 'warn');
+            continue;
+          }
+          
+          // 为当前聚类生成主题
+          log(`[ClusterCache] 正在为聚类${item.clusterId}生成主题...`);
+          
+          // 定义聚类信息类型
+          interface ClusterInfo {
+            cluster_id: string;
+            memory_count: number;
+            memory_types: string;
+            keywords?: string[];
+            raw_data?: any;
+          }
+          
+          // 准备向GenAI传递的元数据
+          const clusterMetadata = {
+            cluster_info: {
+              cluster_id: item.clusterId,
+              memory_count: item.clusterMemories.length,
+              memory_types: "对话记忆", // 默认类型
+              keywords: item.keywords
+            } as ClusterInfo
+          };
+          
+          // 将原始聚类数据传递给元数据，如果存在的话
+          if (item.clusterData.raw_data) {
+            clusterMetadata.cluster_info.raw_data = item.clusterData.raw_data;
+          }
+          
+          try {
+            // 使用服务生成主题
+            const topic = await genAiService.generateTopicForMemories(
+              item.clusterMemories, 
+              clusterMetadata
+            );
+            
+            if (topic) {
+              log(`[ClusterCache] 成功为聚类${item.clusterId}生成智能主题: "${topic}"`);
+              item.clusterData.topic = topic;
+            } else {
+              // 使用关键词作为备选主题
+              this.applyFallbackTopic(item.clusterData, item.clusterId, item.keywords);
+            }
+          } catch (topicError) {
+            log(`[ClusterCache] 生成主题API调用错误: ${topicError}`, "error");
+            // API错误时使用关键词作为备选
+            this.applyFallbackTopic(item.clusterData, item.clusterId, item.keywords);
+          }
+          
+          // 添加短暂延迟，避免API限制
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+        } catch (itemError) {
+          log(`[ClusterCache] 处理聚类${item.clusterId}的主题时出错: ${itemError}`, "error");
+          
+          // 确保聚类有主题，即使出错
+          if (!item.clusterData.topic || item.clusterData.topic.length === 0) {
+            this.applyFallbackTopic(item.clusterData, item.clusterId, item.keywords);
+          }
+        }
+      }
+    } catch (batchError) {
+      log(`[ClusterCache] 批量处理主题生成时出错: ${batchError}`, "error");
+      
+      // 确保所有聚类都有主题，即使批处理失败
+      for (const item of batchItems) {
+        if (!item.clusterData.topic || item.clusterData.topic.length === 0) {
+          this.applyFallbackTopic(item.clusterData, item.clusterId, item.keywords);
+        }
+      }
+    }
+  }
+  
+  /**
+   * 应用备选主题
+   * 当主题生成失败时使用关键词或默认值
+   */
+  private applyFallbackTopic(clusterData: any, clusterId: string, keywords: string[]): void {
+    if (keywords && keywords.length > 0) {
+      clusterData.topic = keywords.slice(0, 2).join('与') + '相关内容';
+      log(`[ClusterCache] 使用关键词创建聚类${clusterId}的备选主题: "${clusterData.topic}"`);
+    } else {
+      clusterData.topic = `聚类 ${clusterId.replace('cluster_', '')}`;
+      log(`[ClusterCache] 为聚类${clusterId}使用默认备选主题: "${clusterData.topic}"`, 'warn');
     }
   }
   
@@ -725,14 +794,23 @@ export class ClusterCacheService {
       }
       
       // 检查结果是否包含有效数据
-      const hasValidTopics = Object.values(clusterResult).some((cluster: any) => 
+      let hasValidTopics = Object.values(clusterResult).some((cluster: any) => 
         cluster.topic && cluster.topic.length > 0 && 
         !cluster.topic.startsWith('聚类') && !cluster.topic.startsWith('集群')
       );
       
+      // 即使没有有效主题，我们也尝试保存结果
+      // 这是一个关键改变，确保初步聚类结果得到保存
       if (!hasValidTopics) {
-        log(`[ClusterCache] 聚类结果没有有效主题，可能是主题生成失败，跳过用户${userId}的缓存操作`, "warn");
-        return;
+        log(`[ClusterCache] 警告：聚类结果没有有效主题，但仍将保存基本聚类结构`, "warn");
+        
+        // 确保每个聚类至少有一个基本主题
+        for (const [clusterId, cluster] of Object.entries(clusterResult)) {
+          const c = cluster as any;
+          if (!c.topic || c.topic.length === 0) {
+            c.topic = `聚类 ${clusterId.replace('cluster_', '')}`;
+          }
+        }
       }
       
       // 计算聚类数量
@@ -745,36 +823,52 @@ export class ClusterCacheService {
         log(`[ClusterCache] - 聚类${clusterId}: 主题="${c.topic || '未知'}", 包含${c.memory_ids?.length || 0}条记忆`);
       }
       
-      // 序列化检查，确保JSON能正确保存
+      // 序列化并进行深度复制以避免引用问题
+      let safeClusterData: any;
       try {
+        // 先尝试完整序列化
         const serialized = JSON.stringify(clusterResult);
-        const deserialized = JSON.parse(serialized);
+        safeClusterData = JSON.parse(serialized);
         log(`[ClusterCache] JSON序列化检查通过，数据大小: ${serialized.length} 字节`);
-        
-        // 检查反序列化后是否保留了原始结构
-        const checkTopics = Object.values(deserialized).some((cluster: any) => 
-          cluster.topic && cluster.topic.length > 0 && 
-          !cluster.topic.startsWith('聚类') && !cluster.topic.startsWith('集群')
-        );
-        
-        if (!checkTopics) {
-          log(`[ClusterCache] 警告：JSON序列化后丢失了topic属性，这可能是数据结构问题`, "warn");
-        }
       } catch (serializeError) {
-        log(`[ClusterCache] JSON序列化检查失败: ${serializeError}`, "error");
-        // 修复或清理问题数据
-        for (const [clusterId, cluster] of Object.entries(clusterResult)) {
-          const c = cluster as any;
-          // 清理潜在的循环引用或无法序列化的属性
-          if (c.centroid && c.centroid.length > 0) {
-            // 保留前10个元素用于调试，避免存储过大数据
-            c.centroid = c.centroid.slice(0, 10);
+        log(`[ClusterCache] 完整JSON序列化失败: ${serializeError}，将创建简化版本`, "error");
+        
+        // 创建一个简化版本，只保留必要的字段
+        safeClusterData = {};
+        try {
+          for (const [clusterId, cluster] of Object.entries(clusterResult)) {
+            const c = cluster as any;
+            
+            // 只保存必要的字段，避免无法序列化的复杂对象
+            safeClusterData[clusterId] = {
+              topic: c.topic || `聚类 ${clusterId.replace('cluster_', '')}`,
+              memory_ids: Array.isArray(c.memory_ids) ? c.memory_ids : [],
+              keywords: Array.isArray(c.keywords) ? c.keywords.slice(0, 10) : [],
+              summary: typeof c.summary === 'string' ? c.summary.substring(0, 1000) : ''
+            };
+            
+            // 如果centroid是数组，保留一部分用于调试
+            if (c.centroid && Array.isArray(c.centroid) && c.centroid.length > 0) {
+              safeClusterData[clusterId].centroid_sample = c.centroid.slice(0, 5);
+            }
           }
+          
+          // 验证简化数据可以序列化
+          JSON.stringify(safeClusterData);
+          log(`[ClusterCache] 已创建可序列化的简化聚类数据`);
+        } catch (fallbackError) {
+          log(`[ClusterCache] 简化数据也无法序列化: ${fallbackError}，使用空对象并附加错误信息`, "error");
+          safeClusterData = { 
+            error: "无法序列化聚类数据",
+            clusterCount,
+            vectorCount,
+            timestamp: new Date().toISOString()
+          };
         }
       }
       
       // 保存到缓存（添加重试逻辑）
-      const maxRetries = 2;
+      const maxRetries = 3; // 增加重试次数
       let retries = 0;
       let saved = false;
       
@@ -782,7 +876,7 @@ export class ClusterCacheService {
         try {
           const result = await storage.saveClusterResultCache(
             userId,
-            clusterResult,
+            safeClusterData, // 使用安全的、可序列化的数据
             clusterCount,
             vectorCount,
             this.cacheExpiryHours
@@ -791,18 +885,21 @@ export class ClusterCacheService {
           log(`[ClusterCache] 成功缓存用户${userId}的聚类结果，ID=${result.id}，包含${clusterCount}个聚类，${vectorCount}个向量，有效期${this.cacheExpiryHours}小时`);
         } catch (saveError) {
           retries++;
+          const delay = retries * 1000; // 逐渐增加延迟
           if (retries <= maxRetries) {
-            log(`[ClusterCache] 缓存聚类结果失败 (尝试 ${retries}/${maxRetries}): ${saveError}`, "warn");
-            await new Promise(resolve => setTimeout(resolve, 500)); // 延迟重试
+            log(`[ClusterCache] 缓存聚类结果失败 (尝试 ${retries}/${maxRetries}): ${saveError}，等待${delay}ms后重试`, "warn");
+            await new Promise(resolve => setTimeout(resolve, delay));
           } else {
-            throw saveError; // 重试用尽，向上抛出错误
+            log(`[ClusterCache] 所有重试均失败，无法保存聚类结果: ${saveError}`, "error");
+            // 不再抛出错误，只是返回失败，让调用方继续运行
+            return;
           }
         }
       }
     } catch (error) {
       log(`[ClusterCache] 缓存聚类结果时出错: ${error}`, "error");
-      // 为了调试目的，将错误向上抛出
-      throw new Error(`保存聚类缓存时出错: ${error}`);
+      // 不再抛出错误，只是记录日志并返回，使整个流程更健壮
+      // 即使缓存失败，用户仍然可以看到当前请求的聚类结果
     }
   }
   
