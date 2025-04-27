@@ -293,6 +293,18 @@ async function extractRelations(
   const rels: Relation[] = [];
   
   try {
+    // 安全检查 - 如果主题为空，返回空关系
+    if (!topics || topics.length === 0) {
+      log(`[TopicGraphBuilder] 警告: 主题列表为空，无法提取关系`);
+      return [];
+    }
+    
+    // 如果只有一个主题，无法创建关系
+    if (topics.length === 1) {
+      log(`[TopicGraphBuilder] 只有一个主题 "${topics[0]}"，无法创建关系`);
+      return [];
+    }
+    
     // 如果主题超过5个，随机选择一些对，避免组合爆炸
     const maxPairs = topics.length <= 5 ? topics.length * (topics.length - 1) / 2 : 10;
     let pairCount = 0;
@@ -788,28 +800,52 @@ function normalizeRelationType(relationType: string): {type: string, value: numb
  */
 export async function buildGraph(centers: ClusterCenter[]): Promise<GraphData> {
   try {
+    // 防御性检查 - 如果聚类中心为空或无效，立即返回空图谱
+    if (!centers || centers.length === 0) {
+      log(`[TopicGraphBuilder] 警告: 聚类中心为空，返回空图谱`);
+      return { nodes: [], links: [] };
+    }
+    
     log(`[TopicGraphBuilder] 开始构建图谱，共有 ${centers.length} 个聚类中心`);
     
     // 1. 提取主题名称
-    const topicPromises = centers.map(c => extractTopicName(c));
-    const topics = await Promise.all(topicPromises);
-    
-    log(`[TopicGraphBuilder] 提取的主题: ${topics.join(', ')}`);
+    let topics: string[] = [];
+    try {
+      const topicPromises = centers.map(c => extractTopicName(c));
+      topics = await Promise.all(topicPromises);
+      log(`[TopicGraphBuilder] 提取的主题: ${topics.join(', ')}`);
+    } catch (error) {
+      // 如果API调用失败或配额限制，使用备用方法
+      log(`[TopicGraphBuilder] 主题提取失败 (可能是API配额限制): ${error}`);
+      log(`[TopicGraphBuilder] 使用备用方法生成主题名称`);
+      
+      // 使用简单的文本处理生成主题名称
+      topics = centers.map((center, index) => {
+        // 从每个聚类的第一个记忆文本中提取前几个词作为标题
+        const sampleText = center.texts[0] || '';
+        const firstFewWords = sampleText.split(/\s+/).slice(0, 3).join(' ');
+        return `主题${index + 1}: ${firstFewWords || '未命名'}`;
+      });
+      
+      log(`[TopicGraphBuilder] 备用主题名称: ${topics.join(', ')}`);
+    }
     
     // 为深度分析准备文本内容映射，增强上下文信息
     const topicTextsMap: Record<string, string[]> = {};
     const topicMetadataMap: Record<string, any> = {};
     
     topics.forEach((topic, index) => {
-      // 每个主题最多取5段文本，增加上下文内容
-      topicTextsMap[topic] = centers[index].texts.slice(0, 5);
-      
-      // 保存每个主题的元数据，包括聚类ID、中心向量等可用信息
-      topicMetadataMap[topic] = {
-        clusterId: centers[index].id,
-        textCount: centers[index].texts.length,
-        // 如果有其他元数据，可以在这里添加
-      };
+      // 增加安全检查，确保索引有效
+      if (index < centers.length) {
+        // 每个主题最多取5段文本，增加上下文内容
+        topicTextsMap[topic] = centers[index].texts.slice(0, 5);
+        
+        // 保存每个主题的元数据，包括聚类ID、中心向量等可用信息
+        topicMetadataMap[topic] = {
+          clusterId: centers[index].id,
+          textCount: centers[index].texts.length
+        };
+      }
     });
     
     log(`[TopicGraphBuilder] 为关系分析准备了 ${Object.keys(topicTextsMap).length} 个主题的上下文数据，每个主题包含最多5段文本`);
