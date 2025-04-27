@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { spawn, exec } from "child_process";
@@ -75,6 +76,9 @@ const app = express();
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
+// 添加cookie解析中间件以支持cookie-based认证
+app.use(cookieParser(process.env.SESSION_SECRET || 'ai-learning-companion-secret-2025'));
+
 // 创建PostgreSQL会话存储
 const PgStore = pgSession(session);
 
@@ -83,16 +87,50 @@ app.use(session({
   store: new PgStore({
     pool,
     tableName: 'session', // 与之前创建的表名匹配
-    createTableIfMissing: true
+    createTableIfMissing: true,
+    // 增加会话清理间隔，减少服务器负担
+    pruneSessionInterval: 24 * 60 * 60 // 每24小时清理一次
   }),
-  secret: process.env.SESSION_SECRET || 'ai-learning-companion-secret',
+  secret: process.env.SESSION_SECRET || 'ai-learning-companion-secret-2025',
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: true, // 需要设置为true以支持未登录用户的会话
   cookie: { 
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24小时
-  }
+    // 在开发环境中禁用secure以确保cookie正常工作
+    secure: false,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 增加到7天，提高会话持久性
+    sameSite: 'lax', // 兼容现代浏览器的cookie策略
+    httpOnly: true, // 防止客户端JavaScript访问cookie
+    path: '/' // 确保所有路径都可以访问cookie
+  },
+  // 添加名称使会话更容易识别，调试时也更方便
+  name: 'xai.sid'
 }));
+
+// 使用全局global.d.ts中声明的会话类型
+
+// 添加会话调试中间件（仅在开发环境）
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    const views = req.session.views as number | undefined;
+    const isNewSession = !views;
+    
+    // 记录会话信息
+    req.session.views = (views || 0) + 1;
+    
+    // 只在API请求时记录会话信息，避免静态资源请求导致的日志刷屏
+    if (req.path.startsWith('/api/')) {
+      // 仅记录用户相关的活动
+      if (req.session.userId) {
+        log(`会话活动: 用户=${req.session.userId}, 会话=${req.sessionID.substring(0, 6)}..., 视图=${req.session.views}`);
+      } else if (isNewSession) {
+        // 只有新会话的首次API请求才记录
+        log(`创建新会话: ${req.sessionID.substring(0, 6)}...`);
+      }
+    }
+    
+    next();
+  });
+}
 
 app.use((req, res, next) => {
   const start = Date.now();
