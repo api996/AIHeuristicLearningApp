@@ -245,6 +245,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 创建新用户
       const user = await storage.createUser({ username, password });
+      
+      // 在会话中保存用户信息
+      req.session.userId = user.id;
+      req.session.userRole = user.role || 'user';
+      
+      // 设置持久化cookie，帮助会话恢复
+      res.cookie('userId', user.id.toString(), {
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
+        httpOnly: true,
+        path: '/',
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production'
+      });
+      
+      // 记录注册成功日志
+      log(`[Register] 用户注册成功: ${username}, ID=${user.id}, 角色=${user.role || 'user'}`);
 
       res.json({ 
         success: true, 
@@ -338,7 +354,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (req.session) {
           req.session.userId = user.id;
           req.session.userRole = user.role;
-          log(`[Login] 已将用户ID ${user.id} 保存到会话中`);
+          
+          // 更新最后活动时间
+          req.session.lastActive = Date.now();
+          
+          // 记录设备信息（可选）
+          req.session.deviceInfo = {
+            userAgent: req.headers['user-agent'] || '未知',
+            ip: req.ip || req.socket.remoteAddress || '未知',
+            device: req.headers['user-agent']?.includes('Mobile') ? 'mobile' : 'desktop'
+          };
+          
+          // 设置持久化cookie，帮助会话恢复
+          res.cookie('userId', user.id.toString(), {
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
+            httpOnly: true,
+            path: '/',
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production'
+          });
+          
+          log(`[Login] 已将用户ID ${user.id} 保存到会话和cookie中`);
         } else {
           log(`[Login] 警告：无法将用户ID保存到会话，session对象不存在`);
         }
@@ -364,6 +400,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false, 
         message: "登录失败，请稍后重试" 
+      });
+    }
+  });
+
+  // 处理退出登录请求
+  app.post("/api/logout", (req, res) => {
+    try {
+      // 记录当前退出的用户ID（如果存在的话）
+      const userId = req.session?.userId;
+      
+      if (userId) {
+        log(`[Logout] 用户 ${userId} 请求退出登录`);
+        
+        // 清除会话中的用户数据
+        req.session.userId = undefined;
+        req.session.userRole = undefined;
+        
+        // 清除设备信息和最后活动时间
+        req.session.deviceInfo = undefined;
+        req.session.lastActive = undefined;
+        
+        // 销毁整个会话
+        req.session.destroy((err) => {
+          if (err) {
+            log(`[Logout] 清除会话失败: ${err}`);
+          } else {
+            log(`[Logout] 会话已成功销毁`);
+          }
+        });
+        
+        // 清除持久化cookie
+        res.clearCookie('userId', {
+          path: '/',
+          sameSite: 'lax',
+          httpOnly: true
+        });
+        
+        log(`[Logout] 用户 ${userId} 退出登录成功`);
+      } else {
+        log('[Logout] 退出登录请求 - 没有活动会话');
+      }
+      
+      // 总是返回成功，即使用户没有登录
+      res.json({
+        success: true,
+        message: '退出登录成功'
+      });
+    } catch (error) {
+      log(`[Logout] 退出登录时发生错误: ${error}`);
+      res.status(500).json({
+        success: false,
+        message: '退出登录失败，请重试'
       });
     }
   });
