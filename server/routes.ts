@@ -817,11 +817,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/chats", async (req, res) => {
     try {
-      const { userId, title, model } = req.body;
+      // 从会话中获取userId，而不是从请求体中获取
+      const userId = req.session?.userId;
+      const { title, model } = req.body;
+      
       if (!userId) {
         return res.status(401).json({ message: "Please login first" });
       }
+      
       const chat = await storage.createChat(userId, title || "新对话", model || "default");
+      log(`[创建聊天] 成功创建聊天: ${chat.id} 用户: ${userId} 标题: ${title || "新对话"}`);
       res.json(chat);
     } catch (error) {
       log(`Error creating chat: ${error}`);
