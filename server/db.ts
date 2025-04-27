@@ -18,16 +18,12 @@ const RECONNECT_DELAY_MS = 5000;
 let connectionAttempts = 0;
 let isConnected = false; // 追踪连接状态
 
-// 配置Neon WebSocket连接 - 使用0.10.4版本兼容的设置
-// 参考 https://github.com/neondatabase/serverless/blob/v0.10.4/CONFIG.md
+// 配置Neon WebSocket连接 - 使用0.9.0版本兼容的设置
+// 参考 https://github.com/neondatabase/serverless/blob/v0.9.0/src/index.ts
 neonConfig.webSocketConstructor = ws;
+// 使用0.9.0版本支持的最少配置
 neonConfig.useSecureWebSocket = false; // 设置为false以避免SSL验证问题
-neonConfig.pipelineTLS = false; // 关闭pipeline TLS以减少连接问题
 neonConfig.forceDisablePgSSL = true; // 强制禁用SSL
-
-// 旧版本兼容的连接优化
-neonConfig.pipelineConnect = false; // 禁用管道连接以避免死锁
-neonConfig.coalesceWrites = true; // 启用写入合并来提高性能
 
 // 使用环境变量中的数据库URL
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -37,15 +33,11 @@ if (!DATABASE_URL) {
   // 不抛出错误，而是继续使用内存模式
 }
 
-// 创建连接池 - 使用v0.10.4兼容的配置
-// 为Replit环境特别优化，减少死锁可能性
+// 创建连接池 - 使用v0.9.0兼容的配置
+// 简化配置，尽量减少可能导致问题的选项
 export const pool = new Pool({
   connectionString: DATABASE_URL,
-  max: 1, // 最小连接数，减少死锁可能
-  idleTimeoutMillis: 15000, // 15秒空闲超时
-  connectionTimeoutMillis: 8000, // 8秒连接超时
-  keepAlive: false, // 禁用保持连接，减少长连接导致的问题
-  maxUses: 50 // 降低单个连接的最大使用次数
+  max: 1 // 最小连接数以避免资源竞争
 });
 
 // 监听连接池错误，使用更好的错误恢复机制
