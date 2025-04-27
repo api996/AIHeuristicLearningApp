@@ -75,21 +75,35 @@ const app = express();
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// 创建PostgreSQL会话存储
+// 引入内存存储用于开发环境
+import memoryStore from 'memorystore';
+const MemoryStore = memoryStore(session);
+
+// 创建PostgreSQL会话存储（但在开发环境中不使用）
 const PgStore = pgSession(session);
 
-// 添加会话支持，始终使用PostgreSQL存储会话数据（生产和开发环境）
+// 根据环境选择会话存储
+const isProduction = process.env.NODE_ENV === 'production';
+log(`当前环境: ${isProduction ? '生产' : '开发'}, 使用${isProduction ? 'PostgreSQL' : '内存'}会话存储`);
+
+// 添加会话支持
 app.use(session({
-  store: new PgStore({
-    pool,
-    tableName: 'session', // 与之前创建的表名匹配
-    createTableIfMissing: true
-  }),
+  store: isProduction ? 
+    // 生产环境使用PostgreSQL存储
+    new PgStore({
+      pool,
+      tableName: 'session',
+      createTableIfMissing: true
+    }) : 
+    // 开发环境使用内存存储
+    new MemoryStore({
+      checkPeriod: 86400000 // 清理过期会话，每24小时
+    }),
   secret: process.env.SESSION_SECRET || 'ai-learning-companion-secret',
   resave: false,
   saveUninitialized: true,
   cookie: { 
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProduction,
     maxAge: 24 * 60 * 60 * 1000 // 24小时
   }
 }));
