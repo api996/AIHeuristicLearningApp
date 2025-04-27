@@ -529,16 +529,17 @@ Q (Questions/问题) - 你产生的新问题
         
         let response;
         try {
-          // 调用Grok API - 使用标准fetch替代fetchWithRetry
-          log(`[StudentAgentSimulator] 使用标准fetch调用API，与主服务保持一致`);
-          response = await fetch('https://api.x.ai/v1/chat/completions', {
+          // 调用Grok API - 使用fetchWithRetry与主服务保持一致
+          log(`[StudentAgentSimulator] 使用fetchWithRetry调用API，与主服务保持一致`);
+          response = await fetchWithRetry('https://api.x.ai/v1/chat/completions', {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${grokApiKey}`
             },
-            body: JSON.stringify(requestBody)
-          });
+            body: JSON.stringify(requestBody),
+            timeout: 60000 // 60秒超时，与主服务保持一致
+          }, 3, 1000); // 3次重试，1秒间隔，与主服务保持一致
           
           log(`[StudentAgentSimulator] Grok API响应状态: ${response.status}`);
           
