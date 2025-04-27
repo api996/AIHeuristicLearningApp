@@ -117,9 +117,10 @@ router.post('/simulate', requireAdmin, async (req: Request, res: Response) => {
     // 记录模拟会话
     const simulationId = session.id;
     
-    // 随机选择一个模型
-    const modelKeys = Object.keys(MODELS);
-    const randomModel = modelKeys[Math.floor(Math.random() * modelKeys.length)];
+    // 始终使用Grok模型，因为它更适合模拟学生行为
+    // const modelKeys = Object.keys(MODELS);
+    // const randomModel = modelKeys[Math.floor(Math.random() * modelKeys.length)];
+    const randomModel = 'grok'; // 强制使用Grok模型
 
     // 添加到活动模拟会话Map
     activeSimulations.set(simulationId, {
@@ -510,6 +511,7 @@ Q (Questions/问题) - 你产生的新问题
         };
         
         log(`[StudentAgentSimulator] 调用Grok API生成学生回应...`);
+        log(`[StudentAgentSimulator] 使用模型: grok-3-fast-beta, 系统提示词长度: ${systemPrompt.length}字符`);
         
         // 调用Grok API
         const response = await fetchWithRetry('https://api.x.ai/v1/chat/completions', {
@@ -521,6 +523,8 @@ Q (Questions/问题) - 你产生的新问题
           body: JSON.stringify(requestBody),
           timeout: 15000
         }, 2, 1000);
+        
+        log(`[StudentAgentSimulator] Grok API响应状态: ${response.status}`);
         
         if (!response.ok) {
           const errorText = await response.text();
@@ -689,7 +693,15 @@ function extractTopicsFromText(text: string): string[] {
   }
   
   // 过滤掉重复和无意义的主题
-  const filteredTopics = [...new Set(potentialTopics)]
+  // 先用普通数组去重，避免Set迭代问题
+  const uniqueTopics: string[] = [];
+  potentialTopics.forEach(topic => {
+    if (!uniqueTopics.includes(topic)) {
+      uniqueTopics.push(topic);
+    }
+  });
+  
+  const filteredTopics = uniqueTopics
     .filter(topic => topic.length > 2) // 过滤掉太短的主题
     .filter(topic => !['这个', '什么', '一些', '进行', '可以', '我们', '就是', '因为'].includes(topic)); // 过滤常见无意义词
   
