@@ -27,6 +27,7 @@ export class McpSearchClient {
   private transport: StdioClientTransport | null = null;
   private initialized = false;
   private serverProcess: ReturnType<typeof spawn> | null = null;
+  private useDevCommand = false; // 是否使用开发命令(tsx)而不是生产命令(node)
 
   /**
    * 初始化 MCP 客户端
@@ -41,15 +42,70 @@ export class McpSearchClient {
       const isProduction = process.env.NODE_ENV === 'production';
       
       // 使用绝对路径，解决路径解析问题
-      // 通过process.cwd()获取项目根目录，然后构建绝对路径
-      const scriptPath = path.join(
-        process.cwd(), 
-        'server', 
-        'services', 
-        'mcp', 
-        'server', 
-        `search-server${isProduction ? '.js' : '.ts'}`
-      );
+      // 针对生产环境，我们需要考虑文件可能被编译到不同位置
+      let scriptPath;
+      if (isProduction) {
+        // 在生产环境中，查找可能的位置
+        const possiblePaths = [
+          // 标准生产构建路径 (dist/server/...)
+          path.join(process.cwd(), 'dist', 'server', 'services', 'mcp', 'server', 'search-server.js'),
+          // 直接编译后的路径
+          path.join(process.cwd(), 'server', 'services', 'mcp', 'server', 'search-server.js'),
+          // 其他可能的路径
+          path.join(process.cwd(), 'out', 'server', 'services', 'mcp', 'server', 'search-server.js'),
+          // 当前运行目录下查找
+          path.join(process.cwd(), 'services', 'mcp', 'server', 'search-server.js'),
+          // 备用选项：与客户端同目录
+          path.join(currentDir, '..', 'server', 'search-server.js')
+        ];
+        
+        // 在日志中记录所有可能的路径
+        log('生产环境: 尝试以下可能的脚本路径:');
+        possiblePaths.forEach((p, i) => log(`路径选项 ${i + 1}: ${p}`));
+        
+        // 导入fs模块检查文件是否存在
+        const fs = await import('fs');
+        
+        // 检查每个路径，使用第一个存在的文件
+        let foundPath = false;
+        for (const p of possiblePaths) {
+          try {
+            if (fs.existsSync(p)) {
+              scriptPath = p;
+              foundPath = true;
+              log(`找到有效的脚本路径: ${p}`);
+              break;
+            }
+          } catch (e) {
+            // 忽略检查错误
+          }
+        }
+        
+        // 如果没有找到任何有效路径，尝试从源代码文件创建
+        if (!foundPath) {
+          log('未找到可用的JavaScript脚本路径，尝试使用源代码文件');
+          // 尝试使用TypeScript文件与node/tsx而非node
+          scriptPath = path.join(process.cwd(), 'server', 'services', 'mcp', 'server', 'search-server.ts');
+          
+          // 检查TypeScript文件是否存在
+          try {
+            if (fs.existsSync(scriptPath)) {
+              log(`将使用TypeScript源文件: ${scriptPath}`);
+              // 如果存在TypeScript文件，标记使用开发模式命令
+              this.useDevCommand = true;
+            } else {
+              log(`警告: 无法找到有效的脚本文件，将使用默认路径: ${possiblePaths[0]}`);
+              scriptPath = possiblePaths[0];
+            }
+          } catch (e) {
+            log(`检查文件存在时出错: ${e}`);
+            scriptPath = possiblePaths[0];
+          }
+        }
+      } else {
+        // 开发环境 - 使用标准路径
+        scriptPath = path.join(process.cwd(), 'server', 'services', 'mcp', 'server', 'search-server.ts');
+      }
       
       log(`当前文件路径: ${currentFilePath}`);
       log(`当前目录: ${currentDir}`);
@@ -59,10 +115,14 @@ export class McpSearchClient {
       log("初始化 MCP 搜索客户端...");
       log(`MCP 服务器脚本绝对路径: ${scriptPath}`);
 
-      // 创建 stdio 传输层 - 根据环境选择正确的命令
-      // 生产环境中使用 node，开发环境中使用 tsx
+      // 创建 stdio 传输层 - 根据环境和文件类型选择正确的命令
+      // 通常生产环境中使用 node，开发环境使用 tsx
+      // 但如果在生产环境中找到的是 .ts 文件，则也使用 tsx
+      const command = (isProduction && !this.useDevCommand) ? "node" : "tsx";
+      log(`将使用命令: ${command} ${scriptPath}`);
+      
       this.transport = new StdioClientTransport({
-        command: isProduction ? "node" : "tsx",
+        command: command,
         args: [scriptPath],
         env: {
           ...process.env,
