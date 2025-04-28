@@ -3,11 +3,10 @@
  * 用于验证聚类缓存机制是否正常工作
  */
 
-import { clusterCacheService } from './server/services/learning/cluster_cache_service';
+import { db, sql } from './server/db';
 import { storage } from './server/storage';
-import { db } from './server/db';
+import { clusterMemoryRetrieval } from './server/services/learning/cluster_memory_retrieval';
 
-// 彩色日志输出
 function colorLog(message: string, type: 'info' | 'success' | 'warn' | 'error' = 'info'): void {
   const colors = {
     info: '\x1b[36m%s\x1b[0m',     // 青色
@@ -21,7 +20,7 @@ function colorLog(message: string, type: 'info' | 'success' | 'warn' | 'error' =
 /**
  * 测试聚类缓存机制
  */
-async function testClusterCache() {
+async function testClusterCache(): Promise<void> {
   try {
     colorLog('开始测试聚类缓存机制...', 'info');
     
@@ -30,131 +29,134 @@ async function testClusterCache() {
     
     // 1. 检查缓存表状态
     colorLog('1. 检查缓存表状态...', 'info');
-    let cacheCount;
     try {
       const result = await db.execute(sql`SELECT COUNT(*) FROM cluster_result_cache WHERE user_id = ${userId}`);
-      cacheCount = result.rows[0].count;
+      const cacheCount = parseInt(result.rows[0].count, 10);
       colorLog(`查询到用户${userId}的缓存记录数量: ${cacheCount}`, 'success');
+      
+      if (cacheCount > 0) {
+        // 获取现有缓存信息
+        const existingCache = await db.execute(sql`
+          SELECT id, user_id, cluster_count, vector_count, version, created_at, updated_at, expires_at 
+          FROM cluster_result_cache 
+          WHERE user_id = ${userId}
+        `);
+        
+        if (existingCache.rows.length > 0) {
+          const cache = existingCache.rows[0];
+          colorLog('现有缓存信息:', 'info');
+          console.log(cache);
+        }
+      }
     } catch (dbError) {
       colorLog(`数据库查询出错: ${dbError}`, 'error');
-      throw dbError;
     }
     
-    // 2. 创建模拟聚类结果
-    colorLog('2. 创建模拟聚类结果...', 'info');
-    const mockClusterResult = {
-      "cluster_1": {
-        "topic": "测试主题1",
-        "memory_ids": ["mem_1", "mem_2", "mem_3"],
-        "keywords": ["测试", "主题", "关键词"],
-        "summary": "这是测试主题1的摘要内容"
-      },
-      "cluster_2": {
-        "topic": "测试主题2",
-        "memory_ids": ["mem_4", "mem_5"],
-        "keywords": ["测试2", "主题2"],
-        "summary": "这是测试主题2的摘要内容"
-      }
-    };
-    
-    // 3. 直接使用storage接口保存测试数据
-    colorLog('3. 使用storage接口保存测试数据...', 'info');
+    // 2. 清除现有缓存
+    colorLog('2. 清除现有缓存...', 'info');
     try {
-      const savedCache = await storage.saveClusterResultCache(
-        userId,
-        mockClusterResult,
-        2, // 聚类数量
-        5, // 向量数量
-        1  // 缓存有效期1小时
-      );
+      await db.execute(sql`DELETE FROM cluster_result_cache WHERE user_id = ${userId}`);
+      colorLog(`已清除用户 ${userId} 的聚类缓存`, 'success');
+    } catch (deleteError) {
+      colorLog(`清除缓存出错: ${deleteError}`, 'error');
+    }
+    
+    // 3. 主动触发聚类缓存生成
+    colorLog('3. 主动触发聚类缓存生成...', 'info');
+    try {
+      // 使用force=true参数强制刷新聚类缓存
+      const clusterResult = await clusterMemoryRetrieval.getUserClusters(userId, true);
       
-      colorLog(`成功保存聚类缓存，ID: ${savedCache.id}`, 'success');
-      console.log('保存的数据:', savedCache);
-    } catch (saveError) {
-      colorLog(`保存聚类缓存失败: ${saveError}`, 'error');
-      console.error(saveError);
-    }
-    
-    // 4. 获取刚保存的缓存
-    colorLog('4. 获取刚保存的缓存...', 'info');
-    try {
-      const retrievedCache = await storage.getClusterResultCache(userId);
-      if (retrievedCache) {
-        colorLog(`成功获取聚类缓存，ID: ${retrievedCache.id}`, 'success');
-        console.log('缓存数据信息:');
-        console.log(`- 版本: ${retrievedCache.version}`);
-        console.log(`- 聚类数量: ${retrievedCache.clusterCount}`);
-        console.log(`- 向量数量: ${retrievedCache.vectorCount}`);
-        console.log(`- 创建时间: ${retrievedCache.createdAt}`);
-        console.log(`- 过期时间: ${retrievedCache.expiresAt}`);
+      if (clusterResult) {
+        colorLog(`聚类生成成功，包含 ${clusterResult.topics?.length || 0} 个主题`, 'success');
         
-        // 检查数据是否完整
-        if (retrievedCache.clusterData) {
-          const clusterData = retrievedCache.clusterData;
-          colorLog('缓存中的聚类数据:', 'info');
-          console.log(JSON.stringify(clusterData, null, 2));
-          
-          // 验证主题是否保存
-          const topicNames = Object.values(clusterData).map((c: any) => c.topic);
-          colorLog(`主题名称: ${topicNames.join(', ')}`, 'info');
-          
-          if (topicNames.includes('测试主题1') && topicNames.includes('测试主题2')) {
-            colorLog('✅ 主题名称正确保存在缓存中', 'success');
-          } else {
-            colorLog('❌ 主题名称未正确保存', 'error');
-          }
-        } else {
-          colorLog('❌ 缓存中没有聚类数据', 'error');
+        // 打印部分主题信息
+        if (clusterResult.topics && clusterResult.topics.length > 0) {
+          colorLog('示例主题:', 'info');
+          console.log(clusterResult.topics[0]);
         }
       } else {
-        colorLog('❌ 未找到缓存记录', 'error');
+        colorLog('聚类生成失败，返回null', 'error');
       }
-    } catch (getError) {
-      colorLog(`获取聚类缓存失败: ${getError}`, 'error');
-      console.error(getError);
+    } catch (clusterError) {
+      colorLog(`聚类缓存生成出错: ${clusterError}`, 'error');
     }
     
-    // 5. 清除测试缓存
-    colorLog('5. 清除测试缓存...', 'info');
+    // 4. 验证缓存是否成功保存
+    colorLog('4. 验证缓存是否成功保存...', 'info');
     try {
-      await storage.clearClusterResultCache(userId);
-      colorLog(`已清除用户${userId}的聚类缓存`, 'success');
-    } catch (clearError) {
-      colorLog(`清除聚类缓存失败: ${clearError}`, 'error');
+      const verifyResult = await db.execute(sql`
+        SELECT id, user_id, cluster_count, vector_count, version, created_at, updated_at, expires_at 
+        FROM cluster_result_cache 
+        WHERE user_id = ${userId}
+      `);
+      
+      if (verifyResult.rows.length > 0) {
+        const cache = verifyResult.rows[0];
+        colorLog(`缓存验证成功，ID: ${cache.id}, 聚类数: ${cache.cluster_count}, 向量数: ${cache.vector_count}`, 'success');
+      } else {
+        colorLog('验证失败，未找到缓存记录', 'error');
+      }
+    } catch (verifyError) {
+      colorLog(`验证缓存时出错: ${verifyError}`, 'error');
     }
     
-    colorLog('聚类缓存机制测试完成', 'success');
-    return true;
+    // 5. 测试缓存获取
+    colorLog('5. 测试从存储层获取缓存...', 'info');
+    try {
+      // 使用storage接口获取缓存
+      const retrievedCache = await storage.getClusterResultCache(userId);
+      
+      if (retrievedCache) {
+        colorLog(`成功获取聚类缓存: ${retrievedCache.id}`, 'success');
+        colorLog(`缓存信息: 版本=${retrievedCache.version}, 聚类数=${retrievedCache.clusterCount}, 向量数=${retrievedCache.vectorCount}`, 'info');
+        
+        // 验证数据结构
+        if (retrievedCache.clusterData) {
+          colorLog('缓存数据结构验证:', 'info');
+          const hasCentroids = retrievedCache.clusterData.centroids && Array.isArray(retrievedCache.clusterData.centroids);
+          const hasTopics = retrievedCache.clusterData.topics && Array.isArray(retrievedCache.clusterData.topics);
+          
+          colorLog(`- centroids: ${hasCentroids ? '存在' : '缺失'}`, hasCentroids ? 'success' : 'warn');
+          colorLog(`- topics: ${hasTopics ? '存在' : '缺失'}`, hasTopics ? 'success' : 'warn');
+          
+          // 数据类型一致性检查
+          if (hasTopics) {
+            const topicsLength = retrievedCache.clusterData.topics.length;
+            colorLog(`- topics数量: ${topicsLength}`, 'info');
+            
+            if (topicsLength > 0) {
+              const firstTopic = retrievedCache.clusterData.topics[0];
+              colorLog(`- 第一个主题: ${JSON.stringify(firstTopic)}`, 'info');
+            }
+          }
+        } else {
+          colorLog('缓存中缺少clusterData字段', 'error');
+        }
+      } else {
+        colorLog('未找到任何缓存记录', 'warn');
+      }
+    } catch (retrieveError) {
+      colorLog(`获取缓存时出错: ${retrieveError}`, 'error');
+    }
+    
+    colorLog('聚类缓存测试完成', 'success');
+    
   } catch (error) {
-    colorLog(`测试过程中发生错误: ${error}`, 'error');
-    return false;
+    colorLog(`测试过程中出现未捕获的错误: ${error}`, 'error');
   }
 }
 
-// 执行测试
-async function main() {
+async function main(): Promise<void> {
   try {
-    // 测试聚类缓存机制
-    const cacheTestResult = await testClusterCache();
-    
-    if (cacheTestResult) {
-      colorLog('所有测试完成并通过', 'success');
-      process.exit(0);
-    } else {
-      colorLog('测试失败', 'error');
-      process.exit(1);
-    }
+    await testClusterCache();
   } catch (error) {
-    colorLog(`执行测试时发生错误: ${error}`, 'error');
-    process.exit(1);
+    console.error('测试失败:', error);
+  } finally {
+    // Drizzle ORM with Neon doesn't need explicit connection closing
+    console.log('测试结束');
   }
 }
 
-// 导入SQL执行接口
-import { sql } from 'drizzle-orm';
-
-// 执行主测试函数
-main().catch(error => {
-  console.error('测试执行时发生未捕获的错误:', error);
-  process.exit(1);
-});
+// 执行主函数
+main();

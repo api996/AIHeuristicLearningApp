@@ -2397,6 +2397,34 @@ export class DatabaseStorage implements IStorage {
       // 确保数据可以被正确序列化
       let safeClusterData: any;
       try {
+        // 处理数组格式转为对象格式
+        if (Array.isArray(clusterData)) {
+          log(`[storage] 检测到数组格式的聚类数据，转换为对象格式`);
+          const tempObj: any = {};
+          clusterData.forEach((item, index) => {
+            tempObj[`cluster_${index}`] = item;
+          });
+          clusterData = tempObj;
+        }
+        
+        // 检查是否包含非对象结构，如版本号、时间戳
+        const nonObjectEntries = Object.entries(clusterData).filter(([_, value]) => 
+          typeof value !== 'object' || value === null
+        );
+        
+        if (nonObjectEntries.length > 0) {
+          log(`[storage] 检测到${nonObjectEntries.length}个非对象字段，修复数据格式`);
+          // 修复非对象字段
+          nonObjectEntries.forEach(([key, value]) => {
+            clusterData[key] = {
+              topic: `${key}: ${value}`,
+              memory_ids: [],
+              keywords: [key],
+              summary: `${value}`
+            };
+          });
+        }
+        
         // 验证数据可以被正确序列化
         const serialized = JSON.stringify(clusterData);
         safeClusterData = JSON.parse(serialized);
@@ -2406,7 +2434,7 @@ export class DatabaseStorage implements IStorage {
         
         // 检查关键字段是否保留
         const hasTopics = Object.values(safeClusterData).some((cluster: any) => 
-          cluster.topic && cluster.topic.length > 0
+          cluster && typeof cluster === 'object' && cluster.topic && cluster.topic.length > 0
         );
         
         if (!hasTopics) {
@@ -2414,6 +2442,17 @@ export class DatabaseStorage implements IStorage {
           
           // 手动确保每个聚类有topic字段
           for (const [clusterId, cluster] of Object.entries(safeClusterData)) {
+            if (!cluster || typeof cluster !== 'object') {
+              safeClusterData[clusterId] = {
+                topic: `聚类 ${clusterId}`,
+                memory_ids: [],
+                keywords: [],
+                summary: ''
+              };
+              log(`[storage] 修复聚类 ${clusterId}：替换为标准对象结构`);
+              continue;
+            }
+            
             const c = cluster as any;
             if (!c.topic && c.label) {
               log(`[storage] 修复聚类 ${clusterId} 数据：从label复制到topic`);
@@ -2430,24 +2469,25 @@ export class DatabaseStorage implements IStorage {
       } catch (serializeError) {
         log(`[storage] 聚类数据序列化失败: ${serializeError}，使用简化版本`, "error");
         
-        // 创建一个简化版本的对象，确保它可以被序列化
+        // 创建一个安全的简化版本
         safeClusterData = {};
-        try {
-          for (const [clusterId, cluster] of Object.entries(clusterData)) {
-            const c = cluster as any;
-            safeClusterData[clusterId] = {
-              topic: c.topic || c.label || `聚类 ${clusterId}`,
-              memory_ids: Array.isArray(c.memory_ids) ? c.memory_ids : [],
-              keywords: Array.isArray(c.keywords) ? c.keywords.slice(0, 10) : [],
-              summary: typeof c.summary === 'string' ? c.summary : ''
-            };
-          }
-          // 验证简化数据可以序列化
-          JSON.stringify(safeClusterData);
-        } catch (fallbackError) {
-          log(`[storage] 简化聚类数据也序列化失败: ${fallbackError}，使用空对象`, "error");
-          safeClusterData = { error: "数据无法序列化，请重新生成聚类" };
+        
+        // 创建标准化的主题对象
+        for (let i = 0; i < Math.max(1, clusterCount); i++) {
+          safeClusterData[`cluster_${i}`] = {
+            topic: `聚类 ${i+1}`,
+            memory_ids: [],
+            keywords: [],
+            summary: ''
+          };
         }
+        
+        // 添加元数据
+        safeClusterData.metadata = {
+          generated_at: new Date().toISOString(),
+          cluster_count: clusterCount,
+          source: "simplified_fallback"
+        };
       }
       
       // 先检查该用户是否已有缓存
