@@ -217,9 +217,51 @@ export class ClusterAnalyzerService {
         return "空内容";
       }
       
-      // 尝试使用GenAI服务生成主题
+      // 尝试使用GenAI服务生成主题 - 添加向量数据和聚类元数据
       try {
-        const topic = await genAiService.generateTopicForMemories(contentSamples);
+        // 收集记忆的向量嵌入数据
+        const memoryIds = memories.map(memory => memory.id);
+        const embeddingsData = await this.getEmbeddingsForMemories(memoryIds);
+        
+        // 计算聚类中心（简单平均所有向量）
+        let clusterCenter = null;
+        if (embeddingsData.length > 0) {
+          const firstVector = embeddingsData[0];
+          if (firstVector && Array.isArray(firstVector)) {
+            // 初始化为第一个向量的深拷贝
+            clusterCenter = [...firstVector];
+            
+            // 累加其他向量
+            for (let i = 1; i < embeddingsData.length; i++) {
+              const vector = embeddingsData[i];
+              if (vector && vector.length === clusterCenter.length) {
+                for (let j = 0; j < clusterCenter.length; j++) {
+                  clusterCenter[j] += vector[j];
+                }
+              }
+            }
+            
+            // 求平均
+            for (let j = 0; j < clusterCenter.length; j++) {
+              clusterCenter[j] /= embeddingsData.length;
+            }
+          }
+        }
+        
+        // 准备聚类元数据
+        const clusterMetadata = {
+          cluster_info: {
+            memory_count: memories.length,
+            vector_dimension: clusterCenter ? clusterCenter.length : null,
+            center: clusterCenter, // 传递完整向量数据，便于更准确的分析
+            memory_types: this.getMemoryTypes(memories),
+            keywords: await this.getCommonKeywords(memories, 10),
+            raw_data: true // 标记这是原始聚类数据，不是测试数据
+          }
+        };
+        
+        // 调用GenAI服务生成主题，传递内容样本和聚类元数据
+        const topic = await genAiService.generateTopicForMemories(contentSamples, clusterMetadata);
         if (topic) {
           log(`[cluster_analyzer] AI成功生成主题: ${topic}`);
           return topic;
@@ -375,6 +417,123 @@ export class ClusterAnalyzerService {
     } catch (error) {
       log(`[cluster_analyzer] 获取记忆#${memoryId}的关键词失败: ${error}`, "warn");
       return [];
+    }
+  }
+  
+  /**
+   * 获取一组记忆的共同关键词
+   * @param memories 记忆数组
+   * @param maxKeywords 最大关键词数量
+   * @returns 共同关键词数组
+   */
+  private async getCommonKeywords(memories: Memory[], maxKeywords: number = 5): Promise<string[]> {
+    try {
+      // 收集所有记忆的关键词
+      const keywordCounts = new Map<string, number>();
+      
+      for (const memory of memories) {
+        try {
+          const keywords = await this.getKeywordsForMemory(memory.id);
+          
+          if (keywords && keywords.length > 0) {
+            for (const keyword of keywords) {
+              const count = keywordCounts.get(keyword) || 0;
+              keywordCounts.set(keyword, count + 1);
+            }
+          }
+        } catch (e) {
+          // 忽略单个记忆的关键词获取失败
+        }
+      }
+      
+      // 按频率排序关键词
+      const sortedKeywords = Array.from(keywordCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, maxKeywords)
+        .map(entry => entry[0]);
+      
+      return sortedKeywords;
+    } catch (error) {
+      log(`[cluster_analyzer] 获取共同关键词失败: ${error}`, "warn");
+      return [];
+    }
+  }
+  
+  /**
+   * 获取记忆向量嵌入数据
+   * @param memoryIds 记忆ID数组
+   * @returns 向量数组
+   */
+  private async getEmbeddingsForMemories(memoryIds: string[]): Promise<number[][]> {
+    try {
+      if (!memoryIds || memoryIds.length === 0) {
+        return [];
+      }
+      
+      // 从storage导入，确保避免循环引用
+      const { storage } = await import('../../storage');
+      
+      // 批量获取向量嵌入
+      const embeddings = await Promise.all(
+        memoryIds.map(async (id) => {
+          try {
+            const embedding = await storage.getEmbeddingByMemoryId(id);
+            if (embedding && embedding.vectorData) {
+              return embedding.vectorData;
+            }
+            return null;
+          } catch (e) {
+            log(`[cluster_analyzer] 获取记忆#${id}的向量嵌入失败`, "warn");
+            return null;
+          }
+        })
+      );
+      
+      // 过滤掉null值
+      return embeddings.filter(e => e !== null) as number[][];
+    } catch (error) {
+      log(`[cluster_analyzer] 批量获取向量嵌入失败: ${error}`, "warn");
+      return [];
+    }
+  }
+  
+  /**
+   * 获取记忆类型统计信息
+   * @param memories 记忆数组
+   * @returns 记忆类型描述
+   */
+  private getMemoryTypes(memories: Memory[]): string {
+    try {
+      // 统计各类型记忆数量
+      const typeCounts = new Map<string, number>();
+      
+      for (const memory of memories) {
+        const type = memory.type || "unknown";
+        const count = typeCounts.get(type) || 0;
+        typeCounts.set(type, count + 1);
+      }
+      
+      // 按数量排序
+      const sortedTypes = Array.from(typeCounts.entries())
+        .sort((a, b) => b[1] - a[1]);
+      
+      // 如果只有一种类型，直接返回
+      if (sortedTypes.length === 1) {
+        return `${sortedTypes[0][0]}类型记忆`;
+      }
+      
+      // 如果有多种类型，返回最多的两种
+      const topTypes = sortedTypes.slice(0, 2);
+      const typeText = topTypes.map(t => `${t[0]}(${t[1]}个)`).join('和');
+      
+      if (sortedTypes.length > 2) {
+        return `主要包含${typeText}等`;
+      } else {
+        return `包含${typeText}`;
+      }
+    } catch (error) {
+      log(`[cluster_analyzer] 获取记忆类型统计失败: ${error}`, "warn");
+      return "混合类型记忆";
     }
   }
   
