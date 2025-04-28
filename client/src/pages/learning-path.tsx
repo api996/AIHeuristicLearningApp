@@ -242,11 +242,11 @@ export default function LearningPath() {
                 <CardDescription>您在各领域的学习深度</CardDescription>
               </CardHeader>
               <CardContent className="card-content">
-                {learningPath?.progress && learningPath.progress.length > 0 ? (
+                {learningPath?.distribution && learningPath.distribution.length > 0 ? (
                   <div className="space-y-4">
-                    {learningPath.progress.map((item: any, index: number) => {
+                    {learningPath.distribution.map((item: any, index: number) => {
                       // 根据进度值确定颜色
-                      const value = item.percentage || item.score || 0;
+                      const value = item.percentage || 0;
                       let color;
                       if (value >= 75) color = "text-green-400 bg-green-900/30";
                       else if (value >= 50) color = "text-blue-400 bg-blue-900/30";
@@ -259,17 +259,20 @@ export default function LearningPath() {
                           className="p-3 border rounded-md hover:bg-neutral-800/30 transition-colors"
                         >
                           <div className="flex justify-between items-center mb-2">
-                            <span className="font-medium">{item.topic || item.category}</span>
+                            <span className="font-medium">{item.topic || "未知主题"}</span>
                             <div className={`px-2.5 py-1 text-xs rounded-full ${color}`}>
                               {value}%
                             </div>
                           </div>
-                          {item.change !== undefined && (
+                          <div className="w-full bg-gray-800 rounded-full h-2.5">
+                            <div 
+                              className="bg-blue-600 h-2.5 rounded-full" 
+                              style={{ width: `${value}%` }}
+                            ></div>
+                          </div>
+                          {item.count && (
                             <div className="text-xs text-neutral-400 mt-1">
-                              较上次{item.change > 0 ? 
-                                <span className="text-green-400">提升 {Math.abs(item.change)}%</span> : 
-                                <span className="text-red-400">下降 {Math.abs(item.change)}%</span>
-                              }
+                              记忆数量: {item.count}
                             </div>
                           )}
                         </div>
