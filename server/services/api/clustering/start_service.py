@@ -47,10 +47,19 @@ def start_clustering_service():
                 
             # 确保我们使用的Python可以导入所需的依赖
             try:
+                # 动态导入依赖并获取版本号
+                import importlib.metadata
+                
+                # 使用推荐的importlib.metadata.version获取版本，避免弃用警告
+                numpy_version = importlib.metadata.version("numpy")
+                sklearn_version = importlib.metadata.version("scikit-learn")
+                flask_version = importlib.metadata.version("flask")
+                logger.info(f"已确认所需依赖存在: numpy={numpy_version}, sklearn={sklearn_version}, flask={flask_version}")
+                
+                # 实际导入模块以确认可用
                 import numpy
                 import sklearn
                 import flask
-                logger.info(f"已确认所需依赖存在: numpy={numpy.__version__}, sklearn={sklearn.__version__}, flask={flask.__version__}")
             except ImportError as e:
                 logger.error(f"缺少必要的Python依赖: {e}")
                 logger.info("正在尝试自动安装缺失的依赖...")
