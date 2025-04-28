@@ -2533,6 +2533,31 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
+  async clearTopicLabels(userId: number): Promise<void> {
+    try {
+      log(`清除用户 ${userId} 的主题标签`);
+      
+      // 获取该用户的所有记忆ID
+      const userMemories = await this.getMemoriesByUserId(userId);
+      if (!userMemories || userMemories.length === 0) {
+        log(`用户 ${userId} 没有记忆记录，无需清除主题标签`);
+        return;
+      }
+      
+      // 提取记忆ID
+      const memoryIds = userMemories.map(memory => memory.id);
+      
+      // 从memoryKeywords表中删除所有与这些记忆相关的主题标签
+      await db.delete(memoryKeywords)
+        .where(inArray(memoryKeywords.memoryId, memoryIds));
+      
+      log(`已成功清除用户 ${userId} 的主题标签`);
+    } catch (error) {
+      log(`清除用户 ${userId} 的主题标签时出错: ${error}`);
+      throw error;
+    }
+  }
 }
 
 // Export a single instance of the storage

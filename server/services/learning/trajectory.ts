@@ -990,3 +990,158 @@ function generateSuggestionsFromClusters(clusters: Cluster[], memories: Memory[]
   
   return suggestions;
 }
+
+/**
+ * 生成学习轨迹建议
+ * @param topics 主题数据
+ * @returns 学习建议列表
+ */
+async function generateLearningPathSuggestions(topics: any[]): Promise<string[]> {
+  if (!topics || topics.length === 0) {
+    return [
+      "开始探索您感兴趣的学习主题",
+      "尝试向AI提问不同领域的问题",
+      "通过持续对话加深特定主题的理解"
+    ];
+  }
+  
+  // 按百分比排序主题
+  const sortedTopics = [...topics].sort(
+    (a, b) => (b.percentage || 0) - (a.percentage || 0)
+  );
+  
+  const suggestions: string[] = [];
+  
+  // 基于最大主题的建议
+  if (sortedTopics.length > 0) {
+    const topTopic = sortedTopics[0];
+    suggestions.push(`深入探索"${topTopic.topic}"主题以加强您的知识基础`);
+  }
+  
+  // 小主题的建议
+  if (sortedTopics.length > 2) {
+    const smallTopic = sortedTopics[sortedTopics.length - 1];
+    suggestions.push(`拓展"${smallTopic.topic}"方面的知识，这是您较少涉及的领域`);
+  }
+  
+  // 通用建议
+  suggestions.push("尝试将不同主题的知识联系起来，建立更完整的知识网络");
+  suggestions.push("回顾之前学习过的内容，巩固已有知识");
+  
+  return suggestions;
+}
+
+/**
+ * 生成简化的知识图谱
+ * @param topics 主题数据
+ * @param userId 用户ID
+ * @returns 知识图谱数据
+ */
+async function generateSimplifiedKnowledgeGraph(topics: any[], userId: number): Promise<any> {
+  // 如果主题太少，返回空图谱
+  if (!topics || topics.length <= 1) {
+    return {
+      nodes: [],
+      links: []
+    };
+  }
+  
+  // 创建节点
+  const nodes = topics.map((topic, index) => ({
+    id: topic.id || `topic_${index}`,
+    name: topic.topic || "未命名主题",
+    value: topic.percentage || 1,
+    group: index % 5 // 简单分组
+  }));
+  
+  // 创建连接 - 简化处理，所有主题都与第一个主题相连
+  const links = topics.slice(1).map((topic, index) => ({
+    source: topics[0].id || `topic_0`,
+    target: topic.id || `topic_${index + 1}`,
+    value: 1,
+    type: "related"
+  }));
+  
+  // 添加一些额外的连接，使图谱更丰富
+  if (topics.length > 2) {
+    for (let i = 1; i < topics.length - 1; i++) {
+      links.push({
+        source: topics[i].id || `topic_${i}`,
+        target: topics[i + 1].id || `topic_${i + 1}`,
+        value: 0.7,
+        type: "related"
+      });
+    }
+  }
+  
+  // 返回图谱数据
+  return {
+    nodes,
+    links
+  };
+}
+
+/**
+ * 从现有的聚类结果生成学习轨迹
+ * 这个特殊函数用于在外部生成聚类后，直接将其应用到学习轨迹中
+ */
+export async function generateLearningPathFromClusters(userId: number, clusterResult: any): Promise<LearningPathResult> {
+  try {
+    log(`[trajectory] 正在从现有聚类为用户 ${userId} 生成学习轨迹`);
+    
+    // 确认数据格式
+    if (!clusterResult || !clusterResult.topics || !Array.isArray(clusterResult.topics)) {
+      throw new Error("无效的聚类数据格式");
+    }
+    
+    // 准备主题分布数据
+    const topics = clusterResult.topics.map((topic: any) => ({
+      id: topic.id || `topic_${Math.random().toString(36).slice(2, 7)}`,
+      topic: topic.topic || "未命名主题",
+      percentage: topic.percentage || 0,
+      count: topic.count || 0,
+      memories: topic.memories || []
+    }));
+    
+    // 转换为分布格式
+    const distribution = topics.map((topic: any) => ({
+      id: topic.id,
+      name: topic.topic,
+      percentage: topic.percentage
+    }));
+    
+    // 生成学习建议
+    const suggestions = await generateLearningPathSuggestions(topics);
+    
+    // 生成知识图谱 - 可选，如果性能有问题可以考虑暂时关闭
+    let knowledgeGraph = null;
+    try {
+      // 基于主题生成简化的知识图谱
+      knowledgeGraph = await generateSimplifiedKnowledgeGraph(topics, userId);
+    } catch (graphError) {
+      log(`[trajectory] 生成知识图谱时出错: ${graphError}`);
+    }
+    
+    // 构建最终结果
+    const result: LearningPathResult = {
+      topics,
+      distribution,
+      suggestions,
+      knowledge_graph: knowledgeGraph
+    };
+    
+    // 保存到数据库
+    await storage.saveLearningPath(
+      userId,
+      topics,
+      distribution,
+      suggestions,
+      knowledgeGraph
+    );
+    
+    return result;
+  } catch (error) {
+    log(`[trajectory] 从聚类生成学习轨迹错误: ${error}`);
+    throw error;
+  }
+}
