@@ -107,15 +107,23 @@ export interface ProgressData {
  * 学习路径分析结果接口
  */
 export interface LearningPathResult {
-  nodes: TrajectoryNode[];   // 知识图谱节点
-  links: TrajectoryLink[];   // 知识图谱连接
-  progress: ProgressData[];  // 学习进度数据
+  knowledge_graph?: {        // 知识图谱数据 
+    nodes: TrajectoryNode[];  // 知识图谱节点
+    links: TrajectoryLink[];  // 知识图谱连接
+  } | null;
+  distribution: Array<{       // 主题分布形式
+    id: string;
+    name: string;
+    percentage: number;
+  }>;
   suggestions: string[];     // 学习建议
-  topics: Array<{            // 主题分布
+  topics: Array<{            // 主题分布详细信息
     topic: string;
     id: string;
     count: number;
     percentage: number;
+    memories?: any[];        // 相关的记忆对象
   }>;
+  progress?: ProgressData[]; // 学习进度数据（旧字段，保留兼容性）
   version?: number;          // 版本号，用于防止客户端缓存
 }
