@@ -102,10 +102,12 @@ export default function KnowledgeGraphView({ userId, className = '' }: Knowledge
     loadGraphData(true);
   };
   
-  // 在组件加载时预加载数据
+  // 在组件加载时只从缓存中获取数据，不触发任何后端处理
   useEffect(() => {
     if (userId) {
-      loadGraphData();
+      // 只加载缓存数据，明确设置forceRefresh为false
+      // 这样不会触发后端处理，只会使用现有缓存
+      loadGraphData(false);
     }
   }, [userId]);
 

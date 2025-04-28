@@ -56,7 +56,7 @@ export default function KnowledgeGraphPage() {
     }
   }, []);
   
-  // 加载知识图谱数据 - 简化版
+  // 加载知识图谱数据 - 优化版，仅加载缓存数据，不触发后端处理
   useEffect(() => {
     if (!userId) return;
     
@@ -67,12 +67,13 @@ export default function KnowledgeGraphPage() {
         setIsLoading(true);
         setError(null); // 重置错误状态
         
-        // 测试统一图谱加载器 - 使用"topic"类型参数，应该被重定向到知识图谱API
-        console.log("【测试】有意使用'topic'类型请求，验证统一路由重定向");
-        const data = await preloadGraphData(userId as number, 'topic');
+        // 从缓存加载数据，明确指定forceRefresh为false，不触发服务端重新计算
+        // 这将优先使用本地存储的缓存，然后是内存缓存，仅在两者都不存在时才请求API
+        console.log("从本地缓存加载知识图谱数据，不触发后端服务");
+        const data = await preloadGraphData(userId as number, 'knowledge', false);
         
         if (isMounted && data && Array.isArray(data.nodes)) {
-          console.log(`【测试结果】成功通过统一路由器接收到知识图谱数据: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+          console.log(`成功加载知识图谱数据: ${data.nodes.length}个节点, ${data.links.length}个连接, 从缓存=${data.fromCache ? '是' : '否'}`);
           setGraphData(data);
         } else if (isMounted) {
           console.warn('知识图谱数据可能存在问题:', data);
