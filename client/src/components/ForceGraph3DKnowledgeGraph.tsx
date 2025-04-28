@@ -228,14 +228,14 @@ const ForceGraph3DKnowledgeGraph: React.FC<ForceGraph3DKnowledgeGraphProps> = ({
         cooldownTicks: 50,       // 减少物理模拟计算量
         cooldownTime: 3000,      // 缩短布局稳定时间
         warmupTicks: 10,         // 减少预热时间
-        linkDirectionalParticles: 0, // 禁用粒子效果以提高性能
+        // 已在组件标签中通过linkDirectionalParticlesAccessor定义，不在此重复定义
       };
     } else {
       return {
         cooldownTicks: 100,
         cooldownTime: 15000,
         warmupTicks: 50,
-        linkDirectionalParticles: 2, // 在桌面上启用粒子效果
+        // 已在组件标签中通过linkDirectionalParticlesAccessor定义，不在此重复定义
       };
     }
   }, [isMobile]);
@@ -314,41 +314,47 @@ const ForceGraph3DKnowledgeGraph: React.FC<ForceGraph3DKnowledgeGraphProps> = ({
     return label;
   }, []);
   
+  // 合并配置，确保性能设置不会覆盖粒子效果
+  const finalConfig = {
+    // 基础设置
+    width,
+    height,
+    graphData,
+    
+    // 节点相关配置
+    nodeThreeObject: nodeThreeObject,
+    nodeThreeObjectExtend: false,
+    nodeVal: "val",
+    nodeColor: "color",
+    nodeOpacity: 0.9,
+    
+    // 链接相关配置
+    linkColor: "color",
+    linkWidth: "width",
+    linkOpacity: 0.7,
+    linkLabel: linkLabelAccessor,
+    
+    // 粒子效果
+    linkDirectionalParticles: linkDirectionalParticlesAccessor,
+    linkDirectionalParticleWidth: linkDirectionalParticleWidthAccessor,
+    linkDirectionalParticleSpeed: linkDirectionalParticleSpeedAccessor,
+    
+    // 背景和交互
+    backgroundColor: "#111827",
+    onNodeClick: handleNodeClick,
+    onBackgroundClick: handleBackgroundClick,
+    controlType: "orbit",
+    
+    // 性能设置 (通过扩展合并)
+    ...getMobileConfig()
+  };
+
   return (
     <div className="knowledge-graph-3d-container relative">
       {graphData.nodes.length > 0 && (
         <ForceGraph3D
           ref={graphRef}
-          width={width}
-          height={height}
-          graphData={graphData}
-          
-          // 节点相关配置
-          nodeThreeObject={nodeThreeObject}
-          nodeThreeObjectExtend={false}
-          nodeVal="val"
-          nodeColor="color"
-          nodeOpacity={0.9}
-          
-          // 链接相关配置
-          linkColor="color"
-          linkWidth="width"
-          linkOpacity={0.7}
-          linkLabel={linkLabelAccessor}
-          
-          // 粒子效果
-          linkDirectionalParticles={linkDirectionalParticlesAccessor}
-          linkDirectionalParticleWidth={linkDirectionalParticleWidthAccessor}
-          linkDirectionalParticleSpeed={linkDirectionalParticleSpeedAccessor}
-          
-          // 背景和交互
-          backgroundColor="#111827"
-          onNodeClick={handleNodeClick}
-          onBackgroundClick={handleBackgroundClick}
-          controlType="orbit"
-          
-          // 性能设置
-          {...getMobileConfig()}
+          {...finalConfig}
         />
       )}
     </div>
