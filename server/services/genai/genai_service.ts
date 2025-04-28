@@ -222,8 +222,8 @@ class GeminiService implements GenAIService {
       const sampleTexts = texts.slice(0, 5).map(text => text.substring(0, 2000));
       const combinedText = sampleTexts.join("\n---\n").substring(0, 10000);
       
-      // 使用Gemini 1.5 Flash模型生成主题（更快速的模型版本）
-      const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      // 使用Gemini 2.5 Pro模型生成主题（最新版本）
+      const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-pro-exp-03-25" });
       
       // 检查输入是否只包含极简内容（如单个数字或字符）
       const isMinimalInput = texts.every(text => text.trim().length <= 1 || /^\d+$/.test(text.trim()));
