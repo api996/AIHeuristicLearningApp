@@ -217,6 +217,21 @@ class GeminiService implements GenAIService {
         return "一般讨论";
       }
       
+      // 如果有聚类元数据，记录更详细的信息，便于调试
+      if (metadata && metadata.cluster_info) {
+        const { memory_count, vector_dimension, center, memory_types, keywords } = metadata.cluster_info;
+        const centerInfo = center ? `样本维度[${center.slice(0, 5).map((v: number) => v.toFixed(4)).join(', ')}...]` : '无';
+        log(`[genai_service] 聚类元数据: ${memory_count}条记忆, 维度=${vector_dimension}, 向量中心=${centerInfo}`);
+        
+        if (keywords && keywords.length > 0) {
+          log(`[genai_service] 聚类关键词: ${keywords.join(', ')}`);
+        }
+        
+        if (memory_types) {
+          log(`[genai_service] 记忆类型: ${memory_types}`);
+        }
+      }
+      
       // 合并并截断文本，防止过长
       // 使用最多5个文本样本，并限制每个样本长度以避免超过令牌限制
       const sampleTexts = texts.slice(0, 5).map(text => text.substring(0, 2000));
@@ -298,8 +313,20 @@ class GeminiService implements GenAIService {
       log(`[genai_service] 原始AI生成的主题: "${topic}"`);
       
       // 进一步处理，确保主题简洁
-      let cleanTopic = topic.replace(/["'"【】《》]/g, ""); // 移除引号和括号
-      cleanTopic = cleanTopic.split(/[\n\r\t]/)[0]; // 只取第一行
+      // 移除引号和括号
+      let cleanTopic = topic.replace(/["'"【】《》]/g, "");
+      // 只取第一行
+      cleanTopic = cleanTopic.split(/[\n\r\t]/)[0];
+      // 移除常见的标签前缀，如"标签："、"**标签："等
+      cleanTopic = cleanTopic.replace(/^(\**)?\s*标签[：:]\s*(\**)?/i, "");
+      // 移除主题标签前缀
+      cleanTopic = cleanTopic.replace(/^(\**)?\s*主题标签[：:]\s*(\**)?/i, "");
+      // 移除标题前缀
+      cleanTopic = cleanTopic.replace(/^(\**)?\s*标题[：:]\s*(\**)?/i, "");
+      // 移除理由和说明部分（如果有）
+      cleanTopic = cleanTopic.split(/(\*\*)?理由[：:]/i)[0].trim();
+      // 移除结尾的星号
+      cleanTopic = cleanTopic.replace(/\**$/g, "").trim();
       
       // 如果生成内容太短或为空，使用备用主题
       if (!cleanTopic || cleanTopic.length < 2) {
@@ -590,8 +617,20 @@ class GrokService implements GenAIService {
       log(`[genai_service] 原始AI生成的主题: "${topic}"`);
       
       // 进一步处理，确保主题简洁
-      let cleanTopic = topic.replace(/["'"【】《》]/g, ""); // 移除引号和括号
-      cleanTopic = cleanTopic.split(/[\n\r\t]/)[0]; // 只取第一行
+      // 移除引号和括号
+      let cleanTopic = topic.replace(/["'"【】《》]/g, "");
+      // 只取第一行
+      cleanTopic = cleanTopic.split(/[\n\r\t]/)[0]; 
+      // 移除常见的标签前缀，如"标签："、"**标签："等
+      cleanTopic = cleanTopic.replace(/^(\**)?\s*标签[：:]\s*(\**)?/i, "");
+      // 移除主题标签前缀
+      cleanTopic = cleanTopic.replace(/^(\**)?\s*主题标签[：:]\s*(\**)?/i, "");
+      // 移除标题前缀
+      cleanTopic = cleanTopic.replace(/^(\**)?\s*标题[：:]\s*(\**)?/i, "");
+      // 移除理由和说明部分（如果有）
+      cleanTopic = cleanTopic.split(/(\*\*)?理由[：:]/i)[0].trim();
+      // 移除结尾的星号
+      cleanTopic = cleanTopic.replace(/\**$/g, "").trim();
       
       // 如果生成内容太短或为空，使用备用主题
       if (!cleanTopic || cleanTopic.length < 2) {
