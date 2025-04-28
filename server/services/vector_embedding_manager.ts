@@ -91,13 +91,17 @@ export const vectorEmbeddingManager = {
       // 使用直接的SQL查询计算未处理的记忆数量
       // 这是一个更简单的方法，直接使用node直接调用SQL命令
       const command = `node -e "
-        const { Pool } = require('@neondatabase/serverless');
-        const ws = require('ws');
+        const { Pool, neonConfig } = require('@neondatabase/serverless');
+        const { WebSocket } = require('ws');
+        
+        // 正确配置WebSocket构造函数
+        neonConfig.webSocketConstructor = WebSocket;
+        neonConfig.useSecureWebSocket = true; 
+        neonConfig.forceDisablePgSSL = true;
         
         // 配置数据库连接
         const pool = new Pool({ 
-          connectionString: process.env.DATABASE_URL,
-          webSocketConstructor: ws
+          connectionString: process.env.DATABASE_URL
         });
         
         async function checkNewMemories() {
