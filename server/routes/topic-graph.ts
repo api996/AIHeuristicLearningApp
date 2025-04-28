@@ -14,6 +14,9 @@ router.get('/diagnose-api', (req, res) => {
   try {
     log(`[TopicGraph] 运行主题图谱诊断API`);
     
+    // 设置内容类型头确保正确编码中文字符
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    
     return res.json({
       success: true,
       status: "direct",
