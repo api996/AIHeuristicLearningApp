@@ -6,7 +6,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Create a simple logger that doesn't depend on vite.ts
-const log = (message: string, source = "genai_service") => {
+const log = (message: string, type = "info", source = "genai_service") => {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -14,7 +14,10 @@ const log = (message: string, source = "genai_service") => {
     hour12: true,
   });
 
-  console.log(`${formattedTime} [${source}] ${message}`);
+  const logFunction = type === "error" ? console.error : 
+                     type === "warn" ? console.warn : 
+                     console.log;
+  logFunction(`${formattedTime} [${source}] ${message}`);
 };
 
 /**
@@ -212,10 +215,6 @@ class GeminiService implements GenAIService {
     try {
       // 记录输入数据以便调试
       log(`[genai_service] 开始生成主题，接收到${texts.length}条文本样本${metadata ? '和元数据' : ''}`);
-      if (texts.length === 0) {
-        log("[genai_service] 警告: 收到空文本数组，无法生成主题", "warn");
-        return "一般讨论";
-      }
       
       // 如果有聚类元数据，记录更详细的信息，便于调试
       if (metadata && metadata.cluster_info) {
@@ -230,6 +229,11 @@ class GeminiService implements GenAIService {
         if (memory_types) {
           log(`[genai_service] 记忆类型: ${memory_types}`);
         }
+      }
+      
+      if (texts.length === 0) {
+        log("[genai_service] 警告: 收到空文本数组，无法生成主题", "warn");
+        return "一般讨论";
       }
       
       // 合并并截断文本，防止过长
@@ -636,7 +640,7 @@ class GrokService implements GenAIService {
       // 移除引号和括号
       let cleanTopic = topic.replace(/["'"【】《》]/g, "");
       // 只取第一行
-      cleanTopic = cleanTopic.split(/[\n\r\t]/)[0]; 
+      cleanTopic = cleanTopic.split(/[\n\r\t]/)[0];
       // 移除常见的标签前缀，如"标签："、"**标签："等
       cleanTopic = cleanTopic.replace(/^(\**)?\s*标签[：:]\s*(\**)?/i, "");
       // 移除主题标签前缀
@@ -672,51 +676,22 @@ class GrokService implements GenAIService {
  */
 class FallbackService implements GenAIService {
   async generateEmbedding(text: string): Promise<number[]> {
-    // 不再使用随机向量后备，而是抛出异常，确保问题可见
-    const errorMsg = "[genai_service] 嵌入服务不可用，且不再提供后备实现";
-    log(errorMsg, "error");
-    throw new Error(errorMsg);
+    throw new Error("GenAI API未初始化，无法生成向量嵌入");
   }
 
   async generateSummary(text: string): Promise<string | null> {
-    // 使用文本的前50个字符作为摘要
-    const truncatedText = text.substring(0, 50).trim();
-    log("[genai_service] 使用文本截断作为后备摘要", "warn");
-    return truncatedText.length > 0 ? truncatedText + "..." : "无内容摘要";
+    log("[genai_service] 所有GenAI API均未初始化，无法生成摘要", "warn");
+    return null;
   }
 
   async extractKeywords(text: string): Promise<string[] | null> {
-    // 简单提取一些常见词作为关键词
-    log("[genai_service] 使用简单分词作为后备关键词提取", "warn");
-    const commonWords = new Set<string>(["的", "是", "在", "了", "和", "有", "与", "又", "也", "the", "is", "a", "an", "of", "to", "in", "for"]);
-    
-    // 简单分词，取非常见的词作为关键词
-    const words = text.split(/[\s,，.。:：;；!！?？、]+/).filter(w => 
-      w.length >= 2 && w.length <= 10 && !commonWords.has(w.toLowerCase())
-    );
-    
-    // 去重并限制数量
-    const uniqueWords = Array.from(new Set(words)).slice(0, 8);
-    return uniqueWords.length > 0 ? uniqueWords : ["未知主题"];
+    log("[genai_service] 所有GenAI API均未初始化，无法提取关键词", "warn");
+    return null;
   }
 
   async generateTopicForMemories(texts: string[], metadata?: any): Promise<string | null> {
-    // 尝试从文本中提取第一个关键词作为主题
-    log("[genai_service] 使用简单关键词作为后备主题生成", "warn");
-    
-    // 如果有元数据中包含关键词，优先使用元数据关键词
-    if (metadata && metadata.cluster_info && 
-        metadata.cluster_info.keywords && 
-        metadata.cluster_info.keywords.length > 0) {
-      // 使用元数据中提供的关键词
-      const metaKeywords = metadata.cluster_info.keywords;
-      log(`[genai_service] 使用元数据中的关键词作为主题: ${metaKeywords[0]}`);
-      return metaKeywords[0];
-    }
-    
-    // 否则使用文本内容提取关键词
-    const keywords = await this.extractKeywords(texts.join(" "));
-    return keywords && keywords.length > 0 ? keywords[0] : "记忆集合";
+    log("[genai_service] 所有GenAI API均未初始化，无法生成主题", "warn");
+    return "通用笔记";
   }
 }
 
@@ -725,114 +700,60 @@ class FallbackService implements GenAIService {
  * 优先使用Grok API，如果不可用则回退到Gemini
  * 返回Promise以避免TypeScript错误
  */
-const createGenAIService = async (): Promise<GenAIService> => {
-  // 优先使用Grok服务
-  if (grokApiKey && grokApiKey.trim() !== "") {
-    log("[genai_service] 检测到Grok API密钥，尝试使用Grok服务", "info");
-    const grokService = new GrokService();
-    
-    try {
-      // 测试Grok API是否可用
-      const testTexts = ["测试文本，用于验证Grok API是否可用"];
-      const testTopic = await grokService.generateTopicForMemories(testTexts);
-      
-      if (testTopic && testTopic !== "用户问") {
-        log(`[genai_service] 成功: Grok API已初始化，使用模型grok-3-fast-beta生成的测试主题: "${testTopic}"`, "info");
-        log(`[genai_service] 注意: 已针对向量聚类场景优化提示词，移除了不适合的极简输入检测`, "info");
-        return grokService;
-      } else {
-        log(`[genai_service] 警告: Grok API虽然返回了响应，但结果不符合预期: "${testTopic}"`, "warn");
-        log(`[genai_service] 自动回退: 将尝试使用Gemini API作为替代`, "warn");
-        // 如果Grok失败，尝试Gemini
-      }
-    } catch (error) {
-      log(`[genai_service] 错误: Grok API调用失败: ${error}`, "error");
-      log(`[genai_service] 自动回退: 将尝试使用Gemini API作为替代`, "warn");
-      // 如果Grok失败，尝试Gemini
-    }
-  }
-  
-  // 如果Grok不可用或失败，尝试使用Gemini
-  if (geminiApiKey && geminiApiKey.trim() !== "") {
-    log("[genai_service] 尝试使用Gemini服务", "info");
-    const geminiService = new GeminiService();
-    
-    try {
-      // 测试Gemini API是否可用
-      const testTexts = ["测试文本，用于验证Gemini API是否可用"];
-      const testTopic = await geminiService.generateTopicForMemories(testTexts);
-      
-      if (testTopic && testTopic !== "用户问") {
-        log(`[genai_service] GenAI 服务已初始化，使用Gemini API，主题生成测试成功: "${testTopic}"`, "info");
-        return geminiService;
-      } else {
-        throw new Error(`[genai_service] Gemini API测试返回无效主题或错误结果: "${testTopic}"，请检查API密钥是否有效`);
-      }
-    } catch (error) {
-      log(`[genai_service] Gemini API初始化失败: ${error}`, "error");
-      throw error; // 向上抛出错误，不使用后备服务
-    }
-  }
-  
-  // 如果两个API都不可用，抛出错误
-  throw new Error("[genai_service] 未设置任何可用的API密钥，请配置GROK_API_KEY或GEMINI_API_KEY环境变量");
-};
-
-// 导出服务实例
 export let genAiService: GenAIService;
 
-// 暂时使用一个简单的Promise占位，等待初始化完成
-let serviceInitPromise: Promise<void>;
-
-// 创建初始化函数，方便外部代码使用
 export const initializeGenAIService = async (): Promise<GenAIService> => {
-  if (genAiService) {
-    // 已初始化，直接返回
-    return genAiService;
-  }
-
   try {
-    log(`[genai_service] 正在初始化GenAI服务...`, "info");
-    const service = await createGenAIService();
-    genAiService = service;
-    return service;
+    log("[genai_service] 正在初始化GenAI服务...", "info");
+
+    // 优先使用Grok API
+    if (grokApiKey) {
+      log("[genai_service] 检测到Grok API密钥，尝试使用Grok服务", "info");
+      
+      const grokService = new GrokService();
+      
+      // 通过生成测试主题验证API可用性
+      try {
+        const testTopic = await grokService.generateTopicForMemories(["测试文本，用于验证Grok API是否可用"]);
+        log(`[genai_service] 成功: Grok API已初始化，使用模型grok-3-fast-beta生成的测试主题: "${testTopic}"`, "info");
+        log(`[genai_service] 注意: 已针对向量聚类场景优化提示词，移除了不适合的极简输入检测`, "info");
+        genAiService = grokService;
+        return grokService;
+      } catch (grokError) {
+        log(`[genai_service] 警告: Grok API测试失败: ${grokError}，尝试备用API`, "warn");
+      }
+    }
+
+    // 如果Grok不可用，尝试使用Gemini API
+    if (geminiApiKey) {
+      log("[genai_service] 检测到Gemini API密钥，尝试使用Gemini服务", "info");
+      
+      const geminiService = new GeminiService();
+      
+      // 通过生成测试主题验证API可用性
+      try {
+        const testTopic = await geminiService.generateTopicForMemories(["测试文本，用于验证Gemini API是否可用"]);
+        log(`[genai_service] 成功: Gemini API已初始化，生成的测试主题: "${testTopic}"`, "info");
+        genAiService = geminiService;
+        return geminiService;
+      } catch (geminiError) {
+        log(`[genai_service] 警告: Gemini API测试失败: ${geminiError}`, "warn");
+      }
+    }
+
+    // 如果所有API都不可用，使用后备服务
+    log("[genai_service] 警告: 所有GenAI API都未初始化或测试失败，使用后备服务", "warn");
+    const fallbackService = new FallbackService();
+    genAiService = fallbackService;
+    return fallbackService;
+    
   } catch (error) {
-    // 不再静默地使用后备服务，而是向上抛出错误，使问题可见
-    const errorMsg = `[genai_service] 初始化失败: ${error}, 请检查API密钥和环境设置`;
-    log(errorMsg, "error");
-    throw new Error(errorMsg);
+    log(`[genai_service] 严重错误: 初始化GenAI服务失败: ${error}`, "error");
+    const fallbackService = new FallbackService();
+    genAiService = fallbackService;
+    return fallbackService;
   }
 };
 
-// 立即执行初始化
-(async () => {
-  serviceInitPromise = new Promise(async (resolve) => {
-    try {
-      // 使用初始化函数
-      genAiService = await initializeGenAIService();
-      resolve();
-    } catch (error) {
-      log(`[genai_service] 初始化错误处理: ${error}`, "error");
-      // 即使出错也要解决Promise，避免阻塞
-      resolve();
-      // 服务初始化失败是严重错误，应打印明确的错误信息
-      console.error(`
-====================================
-严重错误: GenAI服务初始化失败
-请确保GROK_API_KEY或GEMINI_API_KEY已正确设置
-至少需要一个可用的AI API密钥才能使用记忆向量嵌入功能
-====================================
-      `);
-    }
-  });
-})();
-
-// 为防止初始导出的genAiService为undefined，提供一个错误提示方法
-setTimeout(() => {
-  if (!genAiService) {
-    const errorMsg = "[genai_service] 严重错误：GenAI服务初始化失败，向量嵌入功能无法使用，请检查GROK_API_KEY或GEMINI_API_KEY配置";
-    log(errorMsg, "error");
-    // 由于我们现在不再使用后备服务，这里抛出一个更为明确的错误
-    throw new Error(errorMsg);
-  }
-}, 5000);
+// 自动初始化服务
+initializeGenAIService().catch(e => console.error("Failed to initialize GenAI service", e));
