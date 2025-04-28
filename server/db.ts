@@ -40,10 +40,12 @@ export const pool = new Pool(isProduction ?
   // 开发环境可以使用更多配置
   {
     connectionString: DATABASE_URL,
-    max: 10, // 降低最大连接数，避免超出PostgreSQL限制
-    idleTimeoutMillis: 30000, // 连接最大空闲时间
-    connectionTimeoutMillis: 5000, // 增加连接超时时间
-    allowExitOnIdle: false // 禁止空闲时退出
+    max: 5, // 进一步降低最大连接数，避免超出限制
+    idleTimeoutMillis: 20000, // 降低连接最大空闲时间
+    connectionTimeoutMillis: 10000, // 增加连接超时时间
+    allowExitOnIdle: false, // 禁止空闲时退出
+    keepAlive: true, // 保持连接活跃
+    keepAliveInitialDelayMillis: 10000 // 保持连接的初始延迟时间
   }
 );
 
@@ -53,14 +55,15 @@ const MAX_CONNECTION_ATTEMPTS = 5;
 const RECONNECT_DELAY_MS = 5000;
 
 // 监听连接池错误，防止连接问题导致整个应用崩溃
-pool.on('error', (err) => {
-  log(`数据库连接池错误，但应用将继续运行: ${err.message}`);
+pool.on('error', (err: unknown) => {
+  const error = err as ErrorWithMessage;
+  log(`数据库连接池错误，但应用将继续运行: ${error.message}`);
   
   // 如果是连接终止或网络错误，尝试重新连接
-  if (err.message.includes('terminating connection') || 
-      err.message.includes('network') || 
-      err.message.includes('connection') ||
-      err.message.includes('timeout')) {
+  if (error.message.includes('terminating connection') || 
+      error.message.includes('network') || 
+      error.message.includes('connection') ||
+      error.message.includes('timeout')) {
     
     // 限制重连次数
     if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {

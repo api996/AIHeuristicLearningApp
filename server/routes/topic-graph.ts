@@ -45,7 +45,7 @@ router.get('/:userId', async (req, res) => {
     
     log(`[TopicGraph] 获取用户 ${userId} 的主题图谱，刷新模式: ${refresh}`);
     
-    // 缓存控制
+    // 缓存控制和内容类型
     if (refresh) {
       // 刷新时禁用缓存
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -55,6 +55,8 @@ router.get('/:userId', async (req, res) => {
       // 不刷新时，允许短期浏览器缓存（1分钟）
       res.setHeader('Cache-Control', 'max-age=60');
     }
+    // 设置内容类型以确保正确编码中文字符
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     
     // 直接调用buildUserKnowledgeGraph函数
     const graphData = await buildUserKnowledgeGraph(userId, refresh);
@@ -83,10 +85,11 @@ router.post('/:userId/refresh', async (req, res) => {
     
     log(`[TopicGraph] 强制刷新用户 ${userId} 的主题图谱`);
     
-    // 设置缓存控制头
+    // 设置缓存控制和内容类型头
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     
     // 直接调用buildUserKnowledgeGraph函数，强制刷新 
     const graphData = await buildUserKnowledgeGraph(userId, true);
@@ -114,6 +117,10 @@ router.get('/test', async (req, res) => {
     }
     
     log(`[TopicGraph] 运行主题图谱测试`);
+    
+    // 设置内容类型头确保正确编码
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    
     const testResult = await testTopicGraphBuilder();
     
     return res.json({
