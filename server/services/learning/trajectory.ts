@@ -1178,6 +1178,41 @@ export async function generateLearningPathFromClusters(userId: number, clusterRe
       memories: topic.memories || []
     }));
     
+    // 规范化主题百分比，确保总和为100%
+    // 如果只有一个主题或主题百分比总和为0，需要特别处理
+    const totalPercentage = topics.reduce((sum, topic) => sum + (topic.percentage || 0), 0);
+    
+    if (totalPercentage <= 0 || topics.length === 1) {
+      // 如果总和为0或只有一个主题，均匀分配百分比
+      const defaultPercentage = topics.length > 0 ? 100 / topics.length : 100;
+      topics.forEach(topic => {
+        topic.percentage = defaultPercentage;
+      });
+      log(`[trajectory] 主题百分比已重置为均匀分布，每个主题${defaultPercentage.toFixed(2)}%`);
+    } else if (Math.abs(totalPercentage - 100) > 0.01) {
+      // 如果总和不接近100%，则进行规范化
+      const scaleFactor = 100 / totalPercentage;
+      topics.forEach(topic => {
+        topic.percentage = (topic.percentage || 0) * scaleFactor;
+      });
+      log(`[trajectory] 主题百分比已规范化，调整因子: ${scaleFactor.toFixed(2)}`);
+    }
+    
+    // 确保至少有2个主题以上的数据
+    if (topics.length === 1) {
+      // 如果只有一个主题，添加一个"其他"主题作为补充
+      topics.push({
+        id: `topic_other_${Math.random().toString(36).slice(2, 7)}`,
+        topic: "其他相关主题",
+        percentage: 30, // 给主要主题70%，其他主题30%
+        count: 1,
+        memories: []
+      });
+      // 调整原主题百分比
+      topics[0].percentage = 70;
+      log(`[trajectory] 添加了一个"其他"主题以改善视觉效果，主题总数: ${topics.length}`);
+    }
+    
     // 转换为分布格式
     const distribution = topics.map((topic: any) => ({
       id: topic.id,

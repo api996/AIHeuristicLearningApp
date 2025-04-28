@@ -277,6 +277,31 @@ router.get('/simulate', requireAdmin, (_req: Request, res: Response) => {
   }
 });
 
+// 获取学生智能体模拟器状态 - 这个端点不需要管理员权限
+router.get('/status', (req: Request, res: Response) => {
+  try {
+    // 确保响应为JSON格式
+    res.setHeader('Content-Type', 'application/json');
+    
+    return res.status(200).json({
+      success: true,
+      status: {
+        available: true,
+        hasValidApiKey,
+        activeSimulations: activeSimulations.size,
+        models: Object.keys(MODELS),
+        apiKeyConfigured: hasValidApiKey
+      }
+    });
+  } catch (error) {
+    console.error("[StudentAgentSimulator] 状态API错误:", error);
+    return res.status(500).json({
+      success: false,
+      error: "状态查询时发生错误"
+    });
+  }
+});
+
 // 启动模拟会话
 async function startSimulation(simulationId: number, initialPrompt: string, maxMessages: number) {
   try {
