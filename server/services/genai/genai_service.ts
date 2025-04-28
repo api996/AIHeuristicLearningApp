@@ -225,15 +225,44 @@ class GeminiService implements GenAIService {
       // 使用Gemini 1.5 Flash模型生成主题（更快速的模型版本）
       const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
+      // 检查输入是否只包含极简内容（如单个数字或字符）
+      const isMinimalInput = texts.every(text => text.trim().length <= 1 || /^\d+$/.test(text.trim()));
+      
+      // 构建系统提示词，针对极简输入进行特殊处理
+      const systemPrompt = isMinimalInput
+        ? "你是AI学习系统中的聚类主题生成专家。你的任务是为用户学习记忆的聚类组生成一个描述性主题标签。当聚类中的内容非常简短或只包含数字时，这通常表示是系统测试数据或样例输入，不要将数字或单个字符作为主题，应返回'系统测试'或'对话初始化'等通用标签。"
+        : "你是AI学习系统中的聚类主题生成专家。你的任务是为用户学习记忆的聚类组生成一个能概括所有记忆共同主题的简明扼要标签。这个标签将用于可视化学习轨迹和知识图谱，帮助用户理解自己的学习方向。";
+      
       // 构建提示词
-      let prompt = `你是一个主题标签专家。请分析这些文本，创建一个简短且有描述性的主题标签（最多6个词或20个字符）。
-标签应表达内容的核心概念或关键主题，清晰明了，易于理解，同时要有足够描述性，使人一眼就能理解内容大意。
+      let prompt = `当前任务：为聚类数据生成主题标签
+
+你正在处理一个AI学习系统的聚类分析结果。系统已经将相似的学习记忆分组到一个聚类中，现在需要为这个聚类生成一个描述性主题标签（最多6个词或20个字符）。
+
+主题标签的要求：
+1. 简洁明了：标签应简短易记
+2. 描述性：能概括聚类中所有记忆的共同主题
+3. 学科导向：适合用于教育学习系统
+4. 正式性：避免太口语化或网络用语
+5. 准确性：准确反映文本内容的核心概念
+
+示例主题：
+- "机器学习基础概念"
+- "中国古代文学赏析"
+- "量子计算入门"
+- "数据结构与算法"
+- "人工智能伦理讨论"
+
 直接输出主题名称，不要使用引号，不要添加解释。`;
+
+      // 针对极简输入添加特殊指导
+      if (isMinimalInput) {
+        prompt += `\n\n注意：当前聚类中的内容极为简短或仅包含数字/单个字符。这通常表示是系统测试数据或初始化数据，不要生成与数字或单个字符相关的主题，应返回"系统测试"、"聊天初始化"或"对话系统测试"等标准化测试类主题标签。`;
+      }
 
       // 如果有元数据，添加上下文信息
       if (metadata && metadata.cluster_info) {
         // 添加聚类相关的元数据
-        prompt += `\n\n这些文本属于一个聚类组，聚类中包含${metadata.cluster_info.memory_count || '多'}条相关记忆。`;
+        prompt += `\n\n这些文本属于一个学习记忆聚类组，聚类中包含${metadata.cluster_info.memory_count || '多'}条相关记忆。`;
         
         // 如果有关键词信息，添加到提示中
         if (metadata.cluster_info.keywords && metadata.cluster_info.keywords.length > 0) {
@@ -386,7 +415,7 @@ class GrokService implements GenAIService {
         throw new Error(`Grok API返回错误: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       const summary = data.choices?.[0]?.message?.content?.trim() || '';
       
       // 确保摘要不超过数据库字段长度限制
@@ -438,14 +467,14 @@ class GrokService implements GenAIService {
         throw new Error(`Grok API返回错误: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       const keywordsText = data.choices?.[0]?.message?.content?.trim() || '';
       
       // 解析关键词（假设返回的是逗号分隔的关键词）
       const keywords = keywordsText
         .split(/[,，、]/)  // 支持中英文分隔符
-        .map(kw => kw.trim())
-        .filter(kw => kw.length > 0 && kw.length < 50); // 过滤空值和过长的关键词
+        .map((kw: string) => kw.trim())
+        .filter((kw: string) => kw.length > 0 && kw.length < 50); // 过滤空值和过长的关键词
       
       return keywords.length > 0 ? keywords : null;
     } catch (error) {
@@ -468,20 +497,48 @@ class GrokService implements GenAIService {
         return "一般讨论";
       }
       
+      // 检查输入是否只包含极简内容（如单个数字或字符）
+      const isMinimalInput = texts.every(text => text.trim().length <= 1 || /^\d+$/.test(text.trim()));
+      
       // 合并并截断文本，防止过长
       // 使用最多5个文本样本，并限制每个样本长度以避免超过令牌限制
       const sampleTexts = texts.slice(0, 5).map(text => text.substring(0, 2000));
       const combinedText = sampleTexts.join("\n---\n").substring(0, 10000);
       
-      // 构建提示词
-      let prompt = `你是一个主题标签专家。请分析这些文本，创建一个简短且有描述性的主题标签（最多6个词或20个字符）。
-标签应表达内容的核心概念或关键主题，清晰明了，易于理解，同时要有足够描述性，使人一眼就能理解内容大意。
+      // 构建系统提示词，针对极简输入进行特殊处理
+      const systemPrompt = isMinimalInput
+        ? "你是一个AI学习系统中的聚类主题生成组件。你的任务是为用户学习记忆的聚类组生成一个描述性主题标签。当聚类中的内容非常简短或只包含数字时，这通常表示是系统测试数据或样例输入，不要将数字或单个字符作为主题，应返回'系统测试'或'对话初始化'等通用标签。"
+        : "你是一个AI学习系统中的聚类主题生成组件。你的任务是为用户学习记忆的聚类组生成一个能概括所有记忆共同主题的简明扼要标签。这个标签将用于可视化学习轨迹和知识图谱，帮助用户理解自己的学习方向。";
+      
+      // 构建用户提示词
+      let prompt = `当前任务：为聚类数据生成主题标签
+
+你正在处理一个AI学习系统的聚类分析结果。系统已经将相似的学习记忆分组到一个聚类中，现在需要为这个聚类生成一个描述性主题标签（最多6个词或20个字符）。
+
+主题标签的要求：
+1. 简洁明了：标签应简短易记
+2. 描述性：能概括聚类中所有记忆的共同主题
+3. 学科导向：适合用于教育学习系统
+4. 正式性：避免太口语化或网络用语
+
+示例主题：
+- "机器学习基础概念"
+- "中国古代文学赏析"
+- "量子计算入门"
+- "数据结构与算法"
+- "人工智能伦理讨论"
+
 直接输出主题名称，不要使用引号，不要添加解释。`;
+
+      // 针对极简输入添加特殊指导
+      if (isMinimalInput) {
+        prompt += `\n\n注意：当前聚类中的内容极为简短或仅包含数字/单个字符。这通常表示是系统测试数据或初始化数据，不要生成与数字或单个字符相关的主题，应返回"系统测试"、"聊天初始化"或"对话系统测试"等标准化测试类主题标签。`;
+      }
 
       // 如果有元数据，添加上下文信息
       if (metadata && metadata.cluster_info) {
         // 添加聚类相关的元数据
-        prompt += `\n\n这些文本属于一个聚类组，聚类中包含${metadata.cluster_info.memory_count || '多'}条相关记忆。`;
+        prompt += `\n\n这些文本属于一个学习记忆聚类组，聚类中包含${metadata.cluster_info.memory_count || '多'}条相关记忆。`;
         
         // 如果有关键词信息，添加到提示中
         if (metadata.cluster_info.keywords && metadata.cluster_info.keywords.length > 0) {
@@ -508,7 +565,7 @@ class GrokService implements GenAIService {
         messages: [
           {
             role: "system",
-            content: "你是一个专业的主题标签生成助手，能够从文本中提取核心主题并生成简明扼要的标签。"
+            content: systemPrompt
           },
           {
             role: "user",
@@ -533,7 +590,7 @@ class GrokService implements GenAIService {
         throw new Error(`Grok API返回错误: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       
       // 清理结果
       let topic = data.choices?.[0]?.message?.content?.trim() || '';
