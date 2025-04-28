@@ -125,44 +125,110 @@ export async function analyzeLearningPath(userId: number, forceRefresh: boolean 
     
     // 如果没有找到现有数据，或者需要强制刷新，则生成新数据
     try {
-      // 生成新的学习轨迹
-      log(`[trajectory] 生成用户 ${userId} 的新学习轨迹数据`);
-      const result = await generateLearningPathFromMemories(userId);
+      // 引入知识图谱构建器
+      const { buildUserKnowledgeGraph } = await import('./topic_graph_builder');
       
-      // 将新生成的轨迹数据保存到数据库
-      try {
-        if (result && result.topics && result.topics.length > 0) {
-          // 准备图谱数据
-          const knowledgeGraph = {
-            nodes: result.nodes || [],
-            links: result.links || []
-          };
-          
-          // 保存到数据库
-          await storage.saveLearningPath(
-            userId,
-            result.topics,
-            result.topics, // 使用topics作为分布数据
-            result.suggestions,
-            knowledgeGraph
-          );
-          
-          log(`[trajectory] 已将用户 ${userId} 的学习轨迹数据保存到数据库，包含 ${result.topics.length} 个主题`);
-        } else {
-          log(`[trajectory] 用户 ${userId} 的学习轨迹数据不完整，不保存到数据库`);
+      // 从知识图谱构建器获取相同的聚类数据
+      log(`[trajectory] 通过知识图谱构建器获取用户 ${userId} 的聚类数据`);
+      const graphData = await buildUserKnowledgeGraph(userId, forceRefresh);
+      
+      if (graphData && graphData.nodes && graphData.nodes.length > 0) {
+        log(`[trajectory] 从知识图谱构建器获取到 ${graphData.nodes.length} 个聚类节点`);
+        
+        // 构建一个适合学习轨迹的聚类结果
+        const clusterResult = {
+          topics: graphData.nodes.map((node: any) => ({
+            id: node.id,
+            topic: node.label || node.name || '未命名主题',
+            percentage: node.value || (node.size ? node.size / 50 : 0.1), // 尺寸转换为百分比
+            count: node.count || 1,
+            memories: node.memories || []
+          }))
+        };
+        
+        // 使用共享的聚类数据生成学习轨迹
+        log(`[trajectory] 使用共享聚类数据生成学习轨迹`);
+        const result = await generateLearningPathFromClusters(userId, clusterResult);
+        
+        // 添加图谱数据
+        result.nodes = graphData.nodes;
+        result.links = graphData.links;
+        
+        // 将新生成的轨迹数据保存到数据库
+        try {
+          if (result && result.topics && result.topics.length > 0) {
+            // 准备图谱数据
+            const knowledgeGraph = {
+              nodes: graphData.nodes || [],
+              links: graphData.links || []
+            };
+            
+            // 保存到数据库
+            await storage.saveLearningPath(
+              userId,
+              result.topics,
+              result.topics, // 使用topics作为分布数据
+              result.suggestions,
+              knowledgeGraph
+            );
+            
+            log(`[trajectory] 已将用户 ${userId} 的学习轨迹数据保存到数据库，包含 ${result.topics.length} 个主题`);
+          } else {
+            log(`[trajectory] 用户 ${userId} 的学习轨迹数据不完整，不保存到数据库`);
+          }
+        } catch (saveError) {
+          log(`[trajectory] 保存学习轨迹数据到数据库时出错: ${saveError}`);
+          // 保存失败不影响返回结果
         }
-      } catch (saveError) {
-        log(`[trajectory] 保存学习轨迹数据到数据库时出错: ${saveError}`);
-        // 保存失败不影响返回结果
+        
+        // 添加分布数据（向后兼容）
+        if (result.topics && result.topics.length > 0) {
+          // @ts-ignore - 添加额外字段以保持后向兼容性
+          result.distribution = result.topics;
+        }
+        
+        log(`[trajectory] 使用知识图谱数据生成的学习轨迹共有 ${result.topics.length} 个主题`);
+        return result;
+      } else {
+        log(`[trajectory] 知识图谱构建器未返回有效数据，将使用备用方法`);
+        // 备用方法：使用原始的从记忆生成学习轨迹的方法
+        const result = await generateLearningPathFromMemories(userId);
+        
+        // 将新生成的轨迹数据保存到数据库
+        try {
+          if (result && result.topics && result.topics.length > 0) {
+            // 准备图谱数据
+            const knowledgeGraph = {
+              nodes: result.nodes || [],
+              links: result.links || []
+            };
+            
+            // 保存到数据库
+            await storage.saveLearningPath(
+              userId,
+              result.topics,
+              result.topics, // 使用topics作为分布数据
+              result.suggestions,
+              knowledgeGraph
+            );
+            
+            log(`[trajectory] 已将用户 ${userId} 的学习轨迹数据保存到数据库，包含 ${result.topics.length} 个主题`);
+          } else {
+            log(`[trajectory] 用户 ${userId} 的学习轨迹数据不完整，不保存到数据库`);
+          }
+        } catch (saveError) {
+          log(`[trajectory] 保存学习轨迹数据到数据库时出错: ${saveError}`);
+          // 保存失败不影响返回结果
+        }
+        
+        // 添加分布数据（向后兼容）
+        if (result.topics && result.topics.length > 0) {
+          // @ts-ignore - 添加额外字段以保持后向兼容性
+          result.distribution = result.topics;
+        }
+        
+        return result;
       }
-      
-      // 添加分布数据（向后兼容）
-      if (result.topics && result.topics.length > 0) {
-        // @ts-ignore - 添加额外字段以保持后向兼容性
-        result.distribution = result.topics;
-      }
-      
-      return result;
     } catch (error) {
       log(`[trajectory] 生成学习轨迹失败: ${error}`);
       // 使用备用方法生成学习轨迹
