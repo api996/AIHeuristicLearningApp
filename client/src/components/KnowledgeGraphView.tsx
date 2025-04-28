@@ -9,8 +9,7 @@ import {
   preloadGraphData, 
   GraphData 
 } from '../lib/unified-graph-preloader';
-import TextNodeKnowledgeGraph from './TextNodeKnowledgeGraph';
-import ForceGraphKnowledgeGraph from './ForceGraphKnowledgeGraph';
+import TextNodeForceGraph from './TextNodeForceGraph';
 import {
   Popover,
   PopoverContent,
@@ -66,21 +65,16 @@ interface KnowledgeGraphViewProps {
 // 主组件 - 统一后的知识图谱视图组件
 export default function KnowledgeGraphView({ userId, className = '' }: KnowledgeGraphViewProps) {
   // 状态管理
-  const [graphType, setGraphType] = useState<string>("text");
+  const [graphType, setGraphType] = useState<string>("3d"); // 默认使用3D模式
   const [graph, setGraph] = useState<GraphData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 图表类型选择器选项
+  // 图表类型选择器选项 - 简化为单一3D模式
   const graphTypeOptions = [
     { 
-      value: "text", 
-      label: "文本节点", 
-      icon: <Brain className="h-4 w-4" /> 
-    },
-    { 
-      value: "force", 
-      label: "力导向图", 
+      value: "3d", 
+      label: "3D知识图谱", 
       icon: <Rocket className="h-4 w-4" /> 
     }
   ];
@@ -150,21 +144,15 @@ export default function KnowledgeGraphView({ userId, className = '' }: Knowledge
       return renderEmpty("暂无知识图谱数据，请尝试添加更多记忆");
     }
 
-    if (graphType === "text") {
-      return (
-        <TextNodeKnowledgeGraph 
-          nodes={graph.nodes} 
-          links={graph.links}
-        />
-      );
-    } else {
-      return (
-        <ForceGraphKnowledgeGraph 
-          nodes={graph.nodes} 
-          links={graph.links}
-        />
-      );
-    }
+    // 统一使用3D图谱渲染
+    return (
+      <TextNodeForceGraph 
+        nodes={graph.nodes} 
+        links={graph.links}
+        width={800}
+        height={600}
+      />
+    );
   };
 
   return (
