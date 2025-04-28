@@ -51,8 +51,8 @@ function getLocalStorageKey(userId: number, graphType: 'knowledge' | 'topic'): s
   return `${LOCAL_STORAGE_PREFIX}${graphType}_${userId}`;
 }
 
-// 缓存有效期（毫秒）- 24小时
-const CACHE_TTL = 24 * 60 * 60 * 1000;
+// 缓存有效期（毫秒）- 7天，延长缓存有效期以减少后端计算
+const CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 
 // 将图谱数据保存到本地存储
 function saveToLocalStorage(key: string, data: GraphData): void {
@@ -93,11 +93,11 @@ function getFromLocalStorage(key: string): GraphData | null {
   }
 }
 
-// 清理超过7天的所有本地缓存
+// 清理超过30天的所有本地缓存 - 大幅延长缓存生命周期，减少后端计算负担
 function clearOldLocalCache(): void {
   try {
     const now = Date.now();
-    const OLDER_THAN = 7 * 24 * 60 * 60 * 1000; // 7天
+    const OLDER_THAN = 30 * 24 * 60 * 60 * 1000; // 30天，大幅延长清理周期
     
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith(LOCAL_STORAGE_PREFIX)) {
@@ -105,7 +105,7 @@ function clearOldLocalCache(): void {
           const cacheItem = JSON.parse(localStorage.getItem(key) || '{}');
           if (cacheItem.timestamp && (now - cacheItem.timestamp > OLDER_THAN)) {
             localStorage.removeItem(key);
-            console.log(`已清理过期本地缓存: ${key}`);
+            console.log(`已清理非常旧的本地缓存: ${key}`);
           }
         } catch (e) {
           // 如果解析失败，也清理掉这个缓存项
