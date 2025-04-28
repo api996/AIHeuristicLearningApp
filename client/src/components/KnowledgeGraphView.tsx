@@ -9,7 +9,7 @@ import {
   preloadGraphData, 
   GraphData 
 } from '../lib/unified-graph-preloader';
-import TextNodeForceGraph from './TextNodeForceGraph';
+import EnhancedTextNodeForceGraph from './EnhancedTextNodeForceGraph';
 import {
   Popover,
   PopoverContent,
@@ -144,9 +144,9 @@ export default function KnowledgeGraphView({ userId, className = '' }: Knowledge
       return renderEmpty("暂无知识图谱数据，请尝试添加更多记忆");
     }
 
-    // 统一使用3D图谱渲染
+    // 统一使用增强版3D图谱渲染
     return (
-      <TextNodeForceGraph 
+      <EnhancedTextNodeForceGraph 
         nodes={graph.nodes} 
         links={graph.links}
         width={800}
