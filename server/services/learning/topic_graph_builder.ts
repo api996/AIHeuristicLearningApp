@@ -1037,33 +1037,78 @@ export async function buildUserKnowledgeGraph(userId: number, forceRefresh: bool
     log(`[TopicGraphBuilder] ====== 为用户 ${userId} 从记忆服务获取聚类数据 ======`);
     
     // 通过学习分析服务获取数据，而不是通过HTTP API
-    const learningPathData = await analyzeLearningPath(userId);
+    const learningPathData = await analyzeLearningPath(userId, forceRefresh);
     log(`[TopicGraphBuilder] 获取到用户 ${userId} 的学习路径数据，包含 ${learningPathData.nodes?.length || 0} 个节点和 ${learningPathData.links?.length || 0} 个连接`);
     
-    // 记录部分节点示例
-    if (learningPathData.nodes?.length > 0) {
-      const nodeExamples = learningPathData.nodes.slice(0, 3);
-      log(`[TopicGraphBuilder] 节点示例: ${JSON.stringify(nodeExamples)}`);
+    // 处理学习路径数据为空的情况，但数据库中有有效数据的情况
+    if ((!learningPathData.nodes || learningPathData.nodes.length === 0) && forceRefresh) {
+      // 检查是否有缓存数据可以使用
+      const cachedGraph = await db.select()
+        .from(knowledgeGraphCache)
+        .where(eq(knowledgeGraphCache.userId, userId))
+        .orderBy(desc(knowledgeGraphCache.version))
+        .limit(1);
+      
+      if (cachedGraph.length > 0 && cachedGraph[0].nodes && cachedGraph[0].links) {
+        log(`[TopicGraphBuilder] 刷新时未获取到新的聚类数据，保留现有缓存数据`);
+        // 返回缓存数据但不更新版本
+        return {
+          nodes: cachedGraph[0].nodes as any[],
+          links: cachedGraph[0].links as any[]
+        };
+      }
     }
     
-    // 2. 提取聚类主题数据
-    // 检查每个节点的类别和类型
-    learningPathData.nodes.forEach((node: any, index: number) => {
-      log(`[TopicGraphBuilder] 节点 ${index}: id=${node.id}, category=${node.category}, type=${node.type || 'undefined'}`);
-    });
+    // 从学习路径结果获取主题信息
+    // 检查topics字段中是否有聚类主题数据
+    const topicsFromPath = learningPathData.topics || [];
     
-    // 从学习路径中提取主题节点，识别所有可能的聚类类型
-    const clusterNodes = learningPathData.nodes.filter((node: any) => 
-      node.category === 'cluster' || 
-      node.category === '记忆主题' || 
-      node.category === 'memory_topic' ||
-      node.label?.includes('聚类') ||
-      node.label?.includes('主题')
-    );
+    // 创建图谱节点
+    const clusterNodes = [];
     
-    log(`[TopicGraphBuilder] 原始节点数据: ${JSON.stringify(learningPathData.nodes)}`); // 调试用
+    // 首先尝试使用新的图谱格式
+    if (learningPathData.nodes && learningPathData.nodes.length > 0) {
+      // 记录部分节点示例
+      const nodeExamples = learningPathData.nodes.slice(0, 3);
+      log(`[TopicGraphBuilder] 节点示例: ${JSON.stringify(nodeExamples)}`);
+      
+      // 检查每个节点的类别和类型
+      learningPathData.nodes.forEach((node: any, index: number) => {
+        log(`[TopicGraphBuilder] 节点 ${index}: id=${node.id}, category=${node.category}, type=${node.type || 'undefined'}`);
+      });
+      
+      // 从学习路径中提取主题节点，识别所有可能的聚类类型
+      const filteredNodes = learningPathData.nodes.filter((node: any) => 
+        node.category === 'cluster' || 
+        node.category === '记忆主题' || 
+        node.category === 'memory_topic' ||
+        node.label?.includes('聚类') ||
+        node.label?.includes('主题')
+      );
+      
+      clusterNodes.push(...filteredNodes);
+      
+      log(`[TopicGraphBuilder] 原始节点数据: ${JSON.stringify(learningPathData.nodes)}`); // 调试用
+    } 
+    // 否则，尝试从topics数组构建图谱节点
+    else if (topicsFromPath.length > 0) {
+      log(`[TopicGraphBuilder] 从学习路径topics字段构建图谱节点，发现 ${topicsFromPath.length} 个主题`);
+      
+      // 将topics转换为图谱节点格式
+      topicsFromPath.forEach((topic: any) => {
+        if (topic && topic.id) {
+          clusterNodes.push({
+            id: topic.id,
+            label: topic.name || topic.label,
+            category: '记忆主题',
+            clusterId: topic.id,
+            size: 10 + Math.random() * 20 // 生成10-30之间的随机大小
+          });
+        }
+      });
+    }
     
-    log(`[TopicGraphBuilder] 过滤出 ${clusterNodes.length} 个聚类节点`);
+    log(`[TopicGraphBuilder] 最终获取到 ${clusterNodes.length} 个聚类节点`);
     if (clusterNodes.length > 0) {
       log(`[TopicGraphBuilder] 聚类节点示例: ${JSON.stringify(clusterNodes[0])}`);
     }
