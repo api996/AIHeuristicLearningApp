@@ -6,6 +6,9 @@ import express from 'express';
 import { log } from '../vite';
 import { buildUserKnowledgeGraph, testTopicGraphBuilder } from '../services/learning/topic_graph_builder';
 import { utils } from '../utils';
+import { db } from "../db";
+import { knowledgeGraphCache, memories } from "@shared/schema";
+import { eq, gt, and, desc, sql } from "drizzle-orm";
 
 const router = express.Router();
 
@@ -95,9 +98,8 @@ router.post('/:userId/refresh', async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     
     // 1. 先检查是否有缓存数据，及是否有足够的新数据需要刷新
-    const { db } = await import('../../db');
-    const { memories, knowledgeGraphCache } = await import('@shared/schema');
-    const { eq, gt, and, desc } = await import('drizzle-orm');
+    // 使用已经导入的db和schema
+    // 不需要重新导入
     
     // 获取当前缓存
     const cachedGraph = await db.select()
@@ -117,12 +119,15 @@ router.post('/:userId/refresh', async (req, res) => {
       const MEMORY_THRESHOLD = 5; // 超过5条新记忆才做完整刷新
       const lastCacheTime = cachedGraph[0].updatedAt || cachedGraph[0].createdAt;
       
+      // 将日期转为字符串进行比较，避免类型问题
+      const lastCacheTimeStr = lastCacheTime.toISOString();
+      
       const newMemories = await db.select({ count: sql`count(*)` })
         .from(memories)
         .where(
           and(
             eq(memories.userId, userId),
-            gt(memories.createdAt, lastCacheTime)
+            sql`${memories.createdAt}::timestamp > ${lastCacheTimeStr}::timestamp`
           )
         );
       

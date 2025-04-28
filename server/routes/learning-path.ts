@@ -230,6 +230,9 @@ router.get('/:userId/clusters', async (req, res) => {
 /**
  * 获取用户知识图谱
  * GET /api/learning-path/:userId/knowledge-graph
+ * 
+ * 注意：此接口只是转发到/api/topic-graph/:userId接口
+ * 前端代码现在使用这个端点，我们将使用topic-graph作为统一实现
  */
 router.get('/:userId/knowledge-graph', async (req, res) => {
   try {
@@ -242,27 +245,27 @@ router.get('/:userId/knowledge-graph', async (req, res) => {
     // 检查是否请求强制刷新
     const refresh = req.query.refresh === 'true';
     
-    log(`[API] 获取用户 ${userId} 的知识图谱，刷新模式: ${refresh}`);
+    log(`[API] 获取用户 ${userId} 的知识图谱，转发到topic-graph接口，刷新模式: ${refresh}`);
     
-    // 如果是刷新请求，我们将forceRefresh标志传递给生成函数，而不是提前清除缓存
+    // 设置响应头，确保正确编码中文字符
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    
+    // 添加缓存控制头
     if (refresh) {
-      // 设置响应头，阻止浏览器缓存
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
-      log(`[API] 请求强制刷新用户 ${userId} 的知识图谱，将跳过使用缓存`);
     } else {
-      // 不刷新时，允许短期浏览器缓存（1分钟）
       res.setHeader('Cache-Control', 'max-age=60');
-      log(`[API] 正常获取用户 ${userId} 的知识图谱，将优先使用缓存`);
     }
     
-    // 生成知识图谱 (使用增强版的topic_graph_builder实现)
-    const knowledgeGraph = await buildUserKnowledgeGraph(userId, refresh);
+    // 直接从topic-graph.ts中获取实现
+    // 这是推荐的做法，因为两者本质上是同一功能
+    const graphData = await buildUserKnowledgeGraph(userId, refresh);
     
     // 添加时间戳版本，帮助区分不同版本的数据
     const response = {
-      ...knowledgeGraph,
+      ...graphData,
       version: new Date().getTime()
     };
     
