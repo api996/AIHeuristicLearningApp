@@ -16,6 +16,8 @@ import MemoryGraph from "@/pages/MemoryGraph";
 import PromptEditor from "@/pages/prompt-editor";
 import NotFound from "@/pages/not-found";
 import GraphTest from "@/pages/graph-test";
+// 导入主题上下文提供者
+import { ThemeProvider } from "./contexts/ThemeContext";
 // 导入主题加载器，确保主题在生产环境中正确加载
 import ThemeLoader from "./lib/theme-loader";
 // 导入D3加载修复工具，确保D3.js正确加载
@@ -77,10 +79,13 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* 添加主题加载器，确保主题变量正确设置 */}
-      <ThemeLoader />
-      <Router />
-      <Toaster />
+      {/* 添加主题提供者，确保跨页面状态一致性 */}
+      <ThemeProvider>
+        {/* 添加主题加载器，确保主题变量正确设置 */}
+        <ThemeLoader />
+        <Router />
+        <Toaster />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

@@ -4,6 +4,8 @@ import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
 import { setupViewportHeightListeners, scrollToBottom, isNearBottom, enhanceTouchInteraction } from "@/lib/viewportUtils";
 import { isIpadDevice } from "@/lib/deviceUtils";
+import { useTheme } from "@/contexts/ThemeContext"; // 导入全局主题上下文
+import type { Theme, FontSize } from "@/contexts/ThemeContext"; // 导入主题相关类型
 import "./ipad-fixes.css"; // 导入iPad专用修复样式
 import "./mobile-fixes.css"; // 导入手机设备专用修复样式
 import "./preferences-dialog-fixes.css"; // 导入偏好设置对话框的iPad滚动修复样式
@@ -201,9 +203,9 @@ export function AIChat({ userData }: AIChatProps) {
   const [showLearningPathDialog, setShowLearningPathDialog] = useState(false);
   const [showPreferencesDialog, setShowPreferencesDialog] = useState(false);
 
-  // 偏好设置状态
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("light"); // 默认设置为浅色主题以展示苹果风格效果
-  const [fontSize, setFontSize] = useState<"small" | "medium" | "large">("medium");
+  // 使用全局主题上下文
+  const { theme, setTheme, fontSize, setFontSize } = useTheme();
+  // 其他主题相关本地状态
   const [customThemeColor, setCustomThemeColor] = useState<string>("#0deae4"); // 默认青色
   const [tempThemeColor, setTempThemeColor] = useState<string>("#0deae4"); // 临时存储编辑中的颜色
 
@@ -1037,48 +1039,16 @@ export function AIChat({ userData }: AIChatProps) {
 
 
 
-  // 应用主题设置到DOM
-  const applyTheme = (newTheme: "light" | "dark" | "system") => {
-    // 移除所有主题类
-    document.documentElement.classList.remove('light', 'dark');
-
-    // 应用新主题
-    if (newTheme === "system") {
-      // 根据系统偏好设置主题
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.add('light');
-      }
-    } else {
-      // 直接应用指定主题
-      document.documentElement.classList.add(newTheme);
-    }
-
-    // 保存设置到本地存储
-    localStorage.setItem('theme', newTheme);
+  // 应用主题设置 - 现在使用全局主题上下文
+  const applyTheme = (newTheme: 'light' | 'dark' | 'system') => {
+    // 使用全局上下文的setTheme方法
+    setTheme(newTheme);
   };
 
-  // 应用字体大小设置
-  const applyFontSize = (size: "small" | "medium" | "large") => {
-    // 移除所有字体大小类
-    document.documentElement.classList.remove('text-sm', 'text-md', 'text-lg');
-
-    // 应用新字体大小
-    switch (size) {
-      case "small":
-        document.documentElement.classList.add('text-sm');
-        break;
-      case "medium":
-        document.documentElement.classList.add('text-md');
-        break;
-      case "large":
-        document.documentElement.classList.add('text-lg');
-        break;
-    }
-
-    // 保存设置到本地存储
-    localStorage.setItem('font-size', size);
+  // 应用字体大小设置 - 现在使用全局主题上下文
+  const applyFontSize = (size: 'small' | 'medium' | 'large') => {
+    // 使用全局上下文的setFontSize方法
+    setFontSize(size);
   };
 
   // Update handleSelectChat to properly load messages
@@ -1401,23 +1371,11 @@ export function AIChat({ userData }: AIChatProps) {
     }
 
     // 2. 加载用户设置
-    // 2.1 初始化主题
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | "system" | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      applyTheme(savedTheme);
-    } else {
-      // 默认使用浅色主题
-      setTheme("light");
-      applyTheme("light");
-    }
-
-    // 2.2 初始化字体大小
-    const savedFontSize = localStorage.getItem("font-size") as "small" | "medium" | "large" | null;
-    if (savedFontSize) {
-      setFontSize(savedFontSize);
-      applyFontSize(savedFontSize);
-    }
+    // 注意：现在使用全局ThemeContext管理主题和字体大小
+    // ThemeContext将在组件挂载时自动从localStorage读取并应用这些设置
+    // 无需在每个组件中单独处理这些逻辑
+    
+    // 如果需要其他组件特定的设置，可以在这里处理
 
     // 2.3 加载自定义主题颜色
     const savedThemeColor = localStorage.getItem("custom-theme-color") ?? "#0deae4";
@@ -2499,10 +2457,7 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant={theme === "light" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    setTheme("light");
-                    applyTheme("light");
-                  }}
+                  onClick={() => setTheme("light")}
                   className={`flex-1 ${theme === "light" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   浅色
@@ -2510,10 +2465,7 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant={theme === "dark" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    setTheme("dark");
-                    applyTheme("dark");
-                  }}
+                  onClick={() => setTheme("dark")}
                   className={`flex-1 ${theme === "dark" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   深色
@@ -2521,10 +2473,7 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant={theme === "system" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    setTheme("system");
-                    applyTheme("system");
-                  }}
+                  onClick={() => setTheme("system")}
                   className={`flex-1 ${theme === "system" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   跟随系统
@@ -2538,10 +2487,7 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant={fontSize === "small" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    setFontSize("small");
-                    applyFontSize("small");
-                  }}
+                  onClick={() => setFontSize("small")}
                   className={`flex-1 ${fontSize === "small" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   小
@@ -2549,10 +2495,7 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant={fontSize === "medium" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    setFontSize("medium");
-                    applyFontSize("medium");
-                  }}
+                  onClick={() => setFontSize("medium")}
                   className={`flex-1 ${fontSize === "medium" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   中
@@ -2560,10 +2503,7 @@ export function AIChat({ userData }: AIChatProps) {
                 <Button
                   variant={fontSize === "large" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    setFontSize("large");
-                    applyFontSize("large");
-                  }}
+                  onClick={() => setFontSize("large")}
                   className={`flex-1 ${fontSize === "large" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   大
@@ -2763,13 +2703,8 @@ export function AIChat({ userData }: AIChatProps) {
               type="button" 
               onClick={async () => {
                 try {
-                  // 保存所有偏好设置
-                  localStorage.setItem('theme', theme);
-                  localStorage.setItem('font-size', fontSize);
-
-                  // 应用设置
-                  applyTheme(theme);
-                  applyFontSize(fontSize);
+                  // 不再需要手动保存主题和字体大小设置，因为已经从ThemeContext自动处理
+                  // 全局主题上下文会自动将设置保存到localStorage并应用到DOM中
                   
                   // 如果选择了新的背景图片，则上传
                   if (selectedBackgroundFile) {
