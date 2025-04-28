@@ -141,7 +141,8 @@ export class ConversationAnalyticsLightService {
     this.apiKey = process.env.GEMINI_API_KEY || "";
     // 使用更快速的gemini-2.0-flash模型，适合后台分析，更高的频率限制
     this.endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
-    log("轻量级对话阶段分析服务初始化完成");
+    // 默认优先使用Grok API，它没有频率限制
+    log("轻量级对话阶段分析服务初始化完成，优先使用Grok API");
   }
 
   /**
@@ -284,8 +285,8 @@ export class ConversationAnalyticsLightService {
   }
 
   /**
-   * 调用Gemini-2.0-flash进行对话分析
-   * 使用更轻量级的模型以提高速度，减少超时
+   * 调用AI模型进行对话分析
+   * 优先使用Grok API，如果不可用则回退到Gemini
    * @param conversationText 对话文本
    * @returns 对话阶段分析结果
    */
@@ -297,9 +298,21 @@ export class ConversationAnalyticsLightService {
       return cachedResult;
     }
     
-    // 如果没有API密钥，使用关键词分析（零API调用）
+    // 优先尝试使用Grok API (没有请求限制)
+    const grokApiKey = process.env.GROK_API_KEY || process.env.XAI_API_KEY;
+    if (grokApiKey) {
+      try {
+        enhancedLog("尝试使用Grok API进行对话分析", LogLevel.INFO);
+        return await this.callGrokForAnalysis(conversationText, grokApiKey);
+      } catch (error) {
+        enhancedLog(`Grok API调用失败，回退到Gemini: ${error}`, LogLevel.WARN);
+        // 如果Grok失败，继续尝试Gemini
+      }
+    }
+    
+    // 如果没有Gemini API密钥，使用关键词分析（零API调用）
     if (!this.apiKey) {
-      enhancedLog("没有Gemini API密钥，使用关键词分析替代", LogLevel.WARN);
+      enhancedLog("没有可用的AI API密钥，使用关键词分析替代", LogLevel.WARN);
       return this.backoffToKeywordAnalysis(conversationText);
     }
 
@@ -545,6 +558,174 @@ ${conversationText}
       summary: summaries[highestPhase],
       confidence: 0.6 // 关键词匹配的置信度较低
     };
+  }
+  
+  /**
+   * 使用Grok API进行对话分析
+   * @param conversationText 对话文本
+   * @param apiKey Grok API密钥
+   * @returns 对话阶段分析结果
+   */
+  private async callGrokForAnalysis(conversationText: string, apiKey: string): Promise<PhaseAnalysisResult | null> {
+    // 追踪API请求
+    const requestId = ApiTracer.startRequest();
+    enhancedLog(`开始Grok对话阶段分析请求 #${requestId}`, LogLevel.DEBUG);
+    
+    try {
+      // 构建Grok API所需的提示词
+      const prompt = `
+分析以下对话，确定当前对话所处的阶段并提供简短摘要。简洁回答，不要解释。
+
+对话阶段分类:
+- K (知识获取): 用户主要在寻求基本信息和知识
+- W (疑惑表达): 用户表达困惑或对概念的难以理解
+- L (学习深化): 用户正在更深入地学习或应用知识
+- Q (质疑挑战): 用户在批判性思考或质疑信息
+
+对话:
+${conversationText}
+
+以JSON格式回答，包含以下字段:
+- currentPhase: 对话当前阶段 (K, W, L, 或 Q)
+- summary: 简短摘要 (20字以内)
+- confidence: 置信度 (0.0到1.0之间的数字)`;
+
+      // 创建Grok API请求体
+      const requestBody = {
+        model: "grok-3-fast-beta", // 使用fast变体以获得更低的延迟
+        messages: [
+          {
+            role: "system",
+            content: "你是一个专业的对话分析助手，善于精确分析对话阶段并提供简短准确的摘要。"
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 256,
+        response_format: { type: "json_object" } // 请求JSON格式响应
+      };
+
+      // 发送请求，设置较短的超时时间
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000); // 5秒超时
+      
+      try {
+        const startTime = Date.now();
+        const response = await fetch('https://api.x.ai/v1/chat/completions', {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+          },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal
+        });
+        const endTime = Date.now();
+        const responseTime = endTime - startTime;
+
+        clearTimeout(timeout); // 清除超时
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          enhancedLog(
+            `Grok API错误 #${requestId}: ${response.status} - ${errorText}`, 
+            LogLevel.ERROR, 
+            { statusCode: response.status, responseTime }
+          );
+          ApiTracer.logError(false);
+          throw new Error(`Grok API错误: ${response.status}`);
+        }
+
+        // 解析响应
+        const data = await response.json();
+        const jsonText = data.choices?.[0]?.message?.content || "";
+        
+        if (!jsonText) {
+          enhancedLog(
+            `Grok API返回空响应 #${requestId}`,
+            LogLevel.ERROR,
+            { responseTime }
+          );
+          ApiTracer.logError(false);
+          throw new Error("Grok API返回空响应");
+        }
+        
+        try {
+          // 解析响应中的JSON
+          const parseResult = JSON.parse(jsonText);
+          
+          // 验证必要字段
+          if (!parseResult.currentPhase || !["K", "W", "L", "Q"].includes(parseResult.currentPhase)) {
+            enhancedLog(
+              `无效的对话阶段值 #${requestId}: ${parseResult.currentPhase}`,
+              LogLevel.ERROR,
+              { parseResult, responseTime }
+            );
+            ApiTracer.logError(false);
+            throw new Error(`无效的对话阶段值: ${parseResult.currentPhase}`);
+          }
+          
+          // 标记API请求成功
+          ApiTracer.logSuccess();
+          
+          // 构建结果
+          const result: PhaseAnalysisResult = {
+            currentPhase: parseResult.currentPhase as ConversationPhase,
+            summary: parseResult.summary || "对话分析",
+            confidence: parseResult.confidence || 0.7
+          };
+          
+          // 缓存结果
+          this.cacheResult(conversationText, result);
+          
+          enhancedLog(
+            `Grok对话阶段分析成功 #${requestId}: ${result.currentPhase} (${responseTime}ms)`,
+            LogLevel.INFO,
+            { responseTime, confidence: result.confidence }
+          );
+          
+          return result;
+        } catch (parseError) {
+          enhancedLog(
+            `解析Grok响应JSON失败 #${requestId}: ${parseError}`,
+            LogLevel.ERROR,
+            { 
+              error: parseError,
+              responseText: jsonText.substring(0, 200) + (jsonText.length > 200 ? '...' : ''),
+              responseTime 
+            }
+          );
+          ApiTracer.logError(false);
+          throw new Error(`解析Grok响应JSON失败: ${parseError}`);
+        }
+      } catch (error) {
+        clearTimeout(timeout); // 确保清除超时
+        const fetchError = error as Error;
+        const isTimeout = fetchError.name === 'AbortError';
+        
+        enhancedLog(
+          isTimeout 
+            ? `Grok API请求超时 #${requestId}` 
+            : `Grok API请求失败 #${requestId}: ${fetchError.message}`,
+          LogLevel.ERROR,
+          { error: fetchError.message, stack: fetchError.stack, isTimeout }
+        );
+        
+        ApiTracer.logError(isTimeout);
+        throw fetchError;
+      }
+    } catch (error) {
+      enhancedLog(
+        `Grok对话阶段分析失败 #${requestId}: ${error}`,
+        LogLevel.ERROR,
+        { error }
+      );
+      ApiTracer.logError(false);
+      throw error;
+    }
   }
 }
 
