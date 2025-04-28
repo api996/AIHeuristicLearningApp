@@ -270,10 +270,39 @@ export class ClusterMemoryRetrievalService {
         return null;
       }
       
-      log(`[trajectory] 成功计算聚类数据: ${clusterResult.centroids.length} 个聚类`);
+      log(`[trajectory] 成功计算聚类数据: ${clusterResult.centroids ? clusterResult.centroids.length : 0} 个聚类`);
       
-      // 缓存结果
-      this.saveToLocalCache(clusterResultCacheKey, clusterResult);
+      // 数据验证和转换
+      if (clusterResult && clusterResult.centroids && clusterResult.centroids.length > 0) {
+        // 确保topics字段存在并包含必要的数据
+        if (!clusterResult.topics || !Array.isArray(clusterResult.topics) || clusterResult.topics.length === 0) {
+          log(`[ClusterMemoryRetrieval] 聚类结果缺少topics字段，从centroids生成`, "warn");
+          
+          // 从centroids创建topics
+          clusterResult.topics = clusterResult.centroids.map((centroid, index) => {
+            return {
+              id: centroid.id || `topic_${index}`,
+              topic: centroid.label || `主题 ${index+1}`,
+              percentage: centroid.weight || 0.1,
+              count: centroid.memoryIds?.length || 0,
+              memories: centroid.memoryIds || []
+            };
+          });
+          
+          log(`[ClusterMemoryRetrieval] 从centroids自动生成了 ${clusterResult.topics.length} 个topics`);
+        }
+      } else {
+        log(`[ClusterMemoryRetrieval] 警告：聚类结果没有有效的centroids数据`, "warn");
+      }
+      
+      // 缓存结果 - 使用try-catch确保即使缓存失败也不会影响主流程
+      try {
+        await this.saveToLocalCache(clusterResultCacheKey, clusterResult);
+        log(`[ClusterMemoryRetrieval] 成功将聚类结果缓存到数据库，用户ID=${userId}`);
+      } catch (cacheError) {
+        log(`[ClusterMemoryRetrieval] 缓存聚类结果时出错: ${cacheError}`, "error");
+        // 错误不会中断主流程
+      }
       
       return clusterResult;
     } catch (error) {
@@ -289,17 +318,113 @@ export class ClusterMemoryRetrievalService {
     if (!userId) return;
     
     try {
-      // 获取聚类数量和向量数量
-      const clusterCount = data?.centroids?.length || 0;
-      const vectorCount = data?.vectors?.length || data?.points?.length || 0;
+      // 检查数据结构，确保数据包含必要的字段
+      if (!data) {
+        log(`[ClusterMemoryRetrieval] 警告：尝试缓存null/undefined数据`, "warn");
+        return;
+      }
       
-      // 如果聚类数据有效，保存到数据库, 有效期24小时
+      // 准备一个规范化的数据结构，以确保存储兼容性
+      let normalizedData: any = {
+        version: 1,
+        timestamp: new Date().toISOString()
+      };
+      
+      // 复制centroids数据，如果存在
+      if (Array.isArray(data.centroids)) {
+        normalizedData.centroids = data.centroids.map((centroid: any, index: number) => {
+          // 确保每个centroid都有必要的字段
+          return {
+            id: centroid.id || `centroid_${index}`,
+            label: centroid.label || `聚类 ${index+1}`,
+            weight: centroid.weight || 0.1,
+            memoryIds: Array.isArray(centroid.memoryIds) ? centroid.memoryIds : [],
+            keywords: Array.isArray(centroid.keywords) ? centroid.keywords : []
+          };
+        });
+      } else {
+        normalizedData.centroids = [];
+      }
+      
+      // 确保topics数据存在，必要时从centroids生成
+      if (Array.isArray(data.topics) && data.topics.length > 0) {
+        normalizedData.topics = data.topics.map((topic: any, index: number) => {
+          return {
+            id: topic.id || `topic_${index}`,
+            topic: topic.topic || topic.name || `主题 ${index+1}`,
+            percentage: topic.percentage || topic.weight || 0.1,
+            count: topic.count || (Array.isArray(topic.memories) ? topic.memories.length : 0) || 1,
+            keywords: Array.isArray(topic.keywords) ? topic.keywords : [],
+            memories: Array.isArray(topic.memories) ? topic.memories :
+                     Array.isArray(topic.memoryIds) ? topic.memoryIds : []
+          };
+        });
+      } else if (Array.isArray(normalizedData.centroids) && normalizedData.centroids.length > 0) {
+        // 从centroids生成topics
+        log(`[ClusterMemoryRetrieval] 修复数据结构：从centroids生成topics`, "warn");
+        normalizedData.topics = normalizedData.centroids.map((centroid: any, index: number) => {
+          return {
+            id: `topic_${index}`,
+            topic: centroid.label || `主题 ${index+1}`,
+            percentage: centroid.weight || 0.1,
+            count: Array.isArray(centroid.memoryIds) ? centroid.memoryIds.length : 1,
+            keywords: Array.isArray(centroid.keywords) ? centroid.keywords : [],
+            memories: Array.isArray(centroid.memoryIds) ? centroid.memoryIds : []
+          };
+        });
+        log(`[ClusterMemoryRetrieval] 已从centroids创建 ${normalizedData.topics.length} 个topics`);
+      } else {
+        normalizedData.topics = [];
+        log(`[ClusterMemoryRetrieval] 警告：无法创建topics，数据可能不完整`, "warn");
+      }
+      
+      // 复制其他有用的字段
+      if (Array.isArray(data.vectors)) {
+        normalizedData.vectors = data.vectors;
+      } else if (Array.isArray(data.points)) {
+        normalizedData.vectors = data.points;
+      }
+      
+      // 获取聚类数量和向量数量
+      const clusterCount = normalizedData.topics.length;
+      const vectorCount = Array.isArray(normalizedData.vectors) ? normalizedData.vectors.length : 0;
+      
+      // 进行数据完整性验证和修复
+      if (clusterCount === 0) {
+        log(`[ClusterMemoryRetrieval] 警告：聚类数量为0，跳过缓存`, "warn");
+        return;
+      }
+      
+      log(`[ClusterMemoryRetrieval] 正在保存用户 ${userId} 的聚类数据，聚类数：${clusterCount}，向量数：${vectorCount}`);
+      
+      // 验证数据是否可序列化
+      try {
+        JSON.stringify(normalizedData);
+      } catch (serializeError) {
+        log(`[ClusterMemoryRetrieval] 警告：数据无法序列化: ${serializeError}，使用简化数据`, "error");
+        // 创建超简化版本
+        normalizedData = {
+          version: 1,
+          timestamp: new Date().toISOString(),
+          centroids: [],
+          topics: normalizedData.topics.map((t: any) => ({
+            id: t.id,
+            topic: t.topic,
+            percentage: t.percentage,
+            count: t.count,
+            keywords: [],
+            memories: []
+          }))
+        };
+      }
+      
+      // 如果聚类数据有效，保存到数据库, 有效期7天 (之前是24小时)
       await storage.saveClusterResultCache(
         userId,
-        data,
+        normalizedData,
         clusterCount,
         vectorCount,
-        24 // 24小时过期
+        168 // 7天过期 (7*24=168小时)
       );
       
       log(`[ClusterMemoryRetrieval] 成功将聚类结果缓存到数据库，用户ID=${userId}，聚类数=${clusterCount}`);
