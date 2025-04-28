@@ -1,7 +1,7 @@
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { sql } from 'drizzle-orm';
-import ws from "ws";
+import { WebSocket } from 'ws';  // 使用具名导入，以确保获得正确的构造函数
 import * as schema from "@shared/schema";
 import { log } from "./vite";
 
@@ -14,24 +14,18 @@ interface ErrorWithMessage {
 // 在生产环境中，我们需要特别处理
 const isProduction = process.env.NODE_ENV === 'production';
 
-// 配置Neon WebSocket连接
-// 确保ws模块正确实例化作为WebSocket构造函数
-if (ws && typeof ws === 'function') {
-  neonConfig.webSocketConstructor = ws;
-  console.log("WebSocket constructor configured successfully");
-} else {
-  console.error("WebSocket constructor unavailable, this will cause connection failures");
-  // 尝试使用备用WebSocket实现
-  try {
-    // 在Node.js环境中，尝试直接使用全局WebSocket (如果可用)
-    if (typeof WebSocket !== 'undefined') {
-      neonConfig.webSocketConstructor = WebSocket;
-      console.log("Using global WebSocket constructor as fallback");
-    }
-  } catch (e) {
-    console.error("Failed to set up fallback WebSocket:", e);
-  }
-}
+// 直接配置Neon WebSocket连接，不使用条件判断
+// 明确指定WebSocket构造函数
+neonConfig.webSocketConstructor = WebSocket;
+log("WebSocket构造函数已配置: " + (neonConfig.webSocketConstructor ? "成功" : "失败"));
+
+// SSL配置：启用WebSocket安全连接，但禁用Postgres级别的SSL
+// 这是因为Neon已经在WebSocket层提供了加密
+neonConfig.useSecureWebSocket = true; 
+neonConfig.forceDisablePgSSL = true;  // 必须设为true，否则会出现"server does not support SSL connections"错误
+
+// neonConfig没有fetchOptions属性，删除不必要的配置
+// 我们已经通过正确设置WebSocket构造函数和SSL配置解决了连接问题
 
 // 不使用可能导致问题的配置
 // 在生产模式下，我们使用默认值
