@@ -193,50 +193,11 @@ export default function KnowledgeGraphView({ userId, className = '' }: Knowledge
       </div>
       
       <div className="mt-4 p-3 bg-muted rounded-md text-sm">
-        <p className="flex items-center mb-2">
+        <p className="flex items-center">
           <Brain className="h-4 w-4 mr-1 text-blue-500" />
           <span className="font-semibold">知识图谱：</span>
           <span className="ml-1">智能分析您的学习记忆数据，展示各知识点之间的关系，构建个性化知识连接网络。</span>
         </p>
-        
-        {/* 关系类型图例 */}
-        <div className="mt-3 border-t pt-2 border-gray-200 dark:border-gray-700">
-          <p className="text-xs font-semibold mb-2">连接关系类型:</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#DC2626] rounded-sm mr-1.5"></span>
-              <span className="text-xs">前置知识</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#4F46E5] rounded-sm mr-1.5"></span>
-              <span className="text-xs">包含关系</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#9333EA] rounded-sm mr-1.5"></span>
-              <span className="text-xs">引用关系</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#0EA5E9] rounded-sm mr-1.5"></span>
-              <span className="text-xs">应用关系</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#10B981] rounded-sm mr-1.5"></span>
-              <span className="text-xs">相似概念</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#F59E0B] rounded-sm mr-1.5"></span>
-              <span className="text-xs">互补知识</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#6D28D9] rounded-sm mr-1.5"></span>
-              <span className="text-xs">相关概念</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#D1D5DB] rounded-sm mr-1.5"></span>
-              <span className="text-xs">无关联</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

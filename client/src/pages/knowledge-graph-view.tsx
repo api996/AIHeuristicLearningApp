@@ -200,57 +200,21 @@ export default function KnowledgeGraphPage() {
         )}
       </div>
       
-      {/* 图例 - 包含节点类型和连接类型 */}
-      <div className="absolute bottom-4 left-4 z-10 bg-gray-900/80 p-3 rounded-lg max-w-xs">
-        <p className="text-sm font-medium mb-2 text-white">图例</p>
-        
-        {/* 节点类型图例 */}
-        <div className="mb-3">
-          <p className="text-xs text-gray-300 mb-1">节点类型:</p>
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-              <span className="text-xs text-gray-300">主题</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-green-500"></span>
-              <span className="text-xs text-gray-300">关键词</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-              <span className="text-xs text-gray-300">记忆</span>
-            </div>
+      {/* 图例 */}
+      <div className="absolute bottom-4 left-4 z-10 bg-gray-900/60 p-3 rounded-lg">
+        <p className="text-sm font-medium mb-2">图例</p>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+            <span className="text-xs text-gray-300">主题</span>
           </div>
-        </div>
-        
-        {/* 连接类型图例 */}
-        <div>
-          <p className="text-xs text-gray-300 mb-1">连接类型:</p>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#DC2626] rounded-sm mr-1.5"></span>
-              <span className="text-xs text-gray-300">前置知识</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#4F46E5] rounded-sm mr-1.5"></span>
-              <span className="text-xs text-gray-300">包含关系</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#0EA5E9] rounded-sm mr-1.5"></span>
-              <span className="text-xs text-gray-300">应用关系</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#10B981] rounded-sm mr-1.5"></span>
-              <span className="text-xs text-gray-300">相似概念</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#F59E0B] rounded-sm mr-1.5"></span>
-              <span className="text-xs text-gray-300">互补知识</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-1 bg-[#6D28D9] rounded-sm mr-1.5"></span>
-              <span className="text-xs text-gray-300">相关概念</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-green-500"></span>
+            <span className="text-xs text-gray-300">关键词</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+            <span className="text-xs text-gray-300">记忆</span>
           </div>
         </div>
       </div>
