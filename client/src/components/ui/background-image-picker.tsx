@@ -12,7 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 
 // 预设的背景图片选项
 const presetBackgrounds = [
-  { id: "landscape", url: "/backgrounds/landscape-background.jpg", name: "默认背景" },
+  { id: "default", url: "/backgrounds/default-background.jpg", name: "默认背景" },
+  { id: "landscape", url: "/backgrounds/landscape-background.jpg", name: "风景背景" },
   { id: "mobile", url: "/backgrounds/mobile-background.jpg", name: "移动背景" },
   { id: "portrait", url: "/backgrounds/portrait-background.jpg", name: "纵向背景" },
 ];
