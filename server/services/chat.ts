@@ -1660,6 +1660,59 @@ ${searchResults}`;
   }
   
   // 处理图片分析 - 使用Grok Vision API
+  /**
+   * 上传文件到Grok API并获取文件ID
+   * 使用Grok的专用files.create API上传图片以便在聊天中使用
+   * @param imageBuffer 图片的Buffer数据
+   * @param mimeType 图片的MIME类型
+   * @returns 上传后的file_id
+   */
+  async uploadFileToGrok(imageBuffer: Buffer, mimeType: string): Promise<string> {
+    // 检查Grok API密钥是否配置
+    const grokApiKey = process.env.GROK_API_KEY;
+    
+    if (!grokApiKey) {
+      log(`No Grok API key found for file upload`);
+      throw new Error("未配置Grok API密钥，无法上传文件");
+    }
+    
+    try {
+      // 将图片buffer转换为base64
+      const base64Data = imageBuffer.toString('base64');
+      
+      // 调用Grok files.create API创建文件
+      log(`调用Grok files.create API上传图片，大小: ${(base64Data.length / 1024).toFixed(2)}KB`);
+      
+      const response = await fetchWithRetry(`https://api.x.ai/v1/files`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${grokApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          file: base64Data,
+          purpose: "vision",  // 关键参数：指定purpose为vision
+          mime_type: mimeType
+        }),
+        timeout: 30000, // 30秒超时
+      }, 3, 1000);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        log(`Grok文件上传错误: ${response.status} - ${errorText}`);
+        throw new Error(`Grok文件上传错误: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      log(`成功上传文件到Grok API，获取文件ID: ${data.id}`);
+      
+      return data.id; // 返回文件ID
+    } catch (error) {
+      log(`上传文件到Grok失败: ${error}`);
+      throw error;
+    }
+  }
+
   async processImageWithGrokVision(message: string): Promise<{ text: string; model: string }> {
     // 检查Grok API密钥是否配置
     const grokApiKey = process.env.GROK_API_KEY;
@@ -1674,7 +1727,106 @@ ${searchResults}`;
     }
     
     try {
-      // 转换请求格式为Grok Vision API格式
+      // 检查消息是否包含图像链接
+      if (message.includes('![') && message.includes(')')) {
+        log(`检测到图片消息：${message}`);
+        
+        // 解析图片URL
+        const imageUrlMatch = message.match(/!\[(.*?)\]\(([^)]+)\)/);
+        if (imageUrlMatch && imageUrlMatch[2]) {
+          const imageUrl = imageUrlMatch[2];
+          log(`提取到图片URL: ${imageUrl}`);
+          
+          if (imageUrl.startsWith('/uploads/')) {
+            // 获取本地文件
+            const imagePath = path.join(process.cwd(), imageUrl);
+            log(`图片本地路径: ${imagePath}`);
+            
+            if (fs.existsSync(imagePath)) {
+              const imageBuffer = fs.readFileSync(imagePath);
+              
+              // 获取MIME类型
+              let mimeType = "image/jpeg"; // 默认MIME类型
+              const ext = path.extname(imagePath).toLowerCase();
+              if (ext === '.png') {
+                mimeType = "image/png";
+              } else if (ext === '.gif') {
+                mimeType = "image/gif";
+              } else if (ext === '.webp') {
+                mimeType = "image/webp";
+              } else if (ext === '.svg') {
+                mimeType = "image/svg+xml";
+              }
+              
+              // 上传文件到Grok获取文件ID
+              const fileId = await this.uploadFileToGrok(imageBuffer, mimeType);
+              
+              // 使用文件ID构建图像消息内容
+              const visionMessage = {
+                type: "image_file",
+                image_file: {
+                  file_id: fileId
+                }
+              };
+              
+              // 构建带有图像的请求
+              const requestBody = {
+                model: "grok-vision-beta",
+                messages: [
+                  {
+                    role: "system",
+                    content: "你是一个专业的图像分析助手。请详细描述图像内容，包括主要对象、场景、文字、色彩和布局等关键元素。"
+                  },
+                  {
+                    role: "user",
+                    content: [
+                      {
+                        type: "text",
+                        text: "请分析这张图片的内容："
+                      },
+                      visionMessage
+                    ]
+                  }
+                ],
+                max_tokens: 1500
+              };
+              
+              log(`调用Grok Vision API进行图像分析，使用文件ID: ${fileId}`);
+              
+              // 发送请求到Grok Vision API
+              const response = await fetchWithRetry(`https://api.x.ai/v1/chat/completions`, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${grokApiKey}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(requestBody),
+                timeout: 30000, // 30秒超时
+              }, 3, 1000);
+              
+              if (!response.ok) {
+                const errorText = await response.text();
+                log(`Grok Vision API错误: ${response.status} - ${errorText}`);
+                throw new Error(`Grok Vision API错误: ${response.status} - ${errorText}`);
+              }
+              
+              const data = await response.json();
+              log(`成功接收Grok Vision API响应`);
+              
+              return {
+                text: data.choices[0].message.content,
+                model: "grok-vision-beta"
+              };
+            } else {
+              throw new Error(`图片文件不存在: ${imagePath}`);
+            }
+          } else {
+            throw new Error(`不支持的图片URL格式: ${imageUrl}`);
+          }
+        }
+      }
+
+      // 如果不含图片或图片处理失败，使用普通文本请求处理
       const requestBody = {
         model: "grok-vision-beta",
         messages: [
@@ -1690,7 +1842,7 @@ ${searchResults}`;
         max_tokens: 1500
       };
       
-      log(`调用Grok Vision API进行图像分析`);
+      log(`调用Grok Vision API进行文本处理`);
       
       // 使用自定义的fetchWithRetry函数处理请求
       const response = await fetchWithRetry(`https://api.x.ai/v1/chat/completions`, {
