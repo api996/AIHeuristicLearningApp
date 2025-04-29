@@ -20,8 +20,11 @@ import { Switch } from "@/components/ui/switch";
 import { BackgroundImagePicker } from "./background-image-picker";
 
 export function SettingsPanel() {
-  const { theme, fontSize, setTheme, setFontSize } = useTheme();
+  const { theme, fontSize, setTheme, setFontSize, setBackgroundStyle } = useTheme();
   const [activeTab, setActiveTab] = useState("general");
+  
+  // 获取当前背景样式
+  const currentStyle = document.documentElement.dataset.backgroundStyle || 'transparent';
 
   return (
     <Dialog>
