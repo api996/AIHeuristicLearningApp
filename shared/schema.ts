@@ -38,7 +38,11 @@ export const userSettings = pgTable("user_settings", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id).unique(),
   backgroundFile: text("background_file"), // 引用userFiles中的fileId
-  theme: text("theme", { enum: ["light", "dark"] }).default("light"),
+  theme: text("theme", { enum: ["light", "dark", "system"] }).default("system"),
+  // 添加样式相关设置
+  primaryColor: text("primary_color").default("#0deae4"), // 主色调
+  backgroundStyle: text("background_style", { enum: ["blur", "solid", "transparent"] }).default("blur"), // 背景模式
+  uiRadius: integer("ui_radius").default(8), // 圆角程度(像素)
   fontSize: text("font_size", { enum: ["small", "medium", "large"] }).default("medium"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

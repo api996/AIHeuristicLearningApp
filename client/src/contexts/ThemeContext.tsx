@@ -141,7 +141,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
     try {
       const response = await axios.get(`/api/user-settings/${userId}`);
-      const { theme, font_size, background_file } = response.data;
+      const { theme, font_size, background_file, primary_color, background_style, ui_radius } = response.data;
+      
+      // 打印所有用户设置，方便调试
+      console.log('[主题设置] 从数据库加载的完整设置:', response.data);
       
       // 如果有设置，则使用数据库的设置
       if (theme) {
@@ -163,11 +166,16 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         applyFontSize(savedSize || 'medium');
       }
       
-      // 加载背景图片设置
-      if (background_file) {
-        try {
-          // 获取文件信息
-          const orientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+      // 加载背景图片设置 - 增强版
+      try {
+        // 获取设备方向
+        const orientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+        console.log(`[主题设置] 当前设备方向: ${orientation}, 用户ID: ${userId}`);
+        
+        // 先尝试使用数据库中的背景文件ID
+        if (background_file) {
+          // 直接请求文件路径
+          console.log(`[主题设置] 尝试加载用户背景图片, 文件ID: ${background_file}`);
           const bgResponse = await axios.get(`/api/files/background?userId=${userId}&orientation=${orientation}`);
           
           if (bgResponse.data && bgResponse.data.url) {
@@ -176,13 +184,118 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
               url: bgResponse.data.url
             });
             console.log('[背景图片] 从数据库加载成功:', bgResponse.data.url);
+          } else {
+            console.warn('[背景图片] 服务器返回了空的URL');
+            // 使用默认背景
+            const defaultBgUrl = orientation === 'portrait' 
+              ? '/backgrounds/portrait-background.jpg' 
+              : '/backgrounds/default-background.jpg';
+              
+            setBackgroundImageState({
+              fileId: orientation === 'portrait' ? 'default-portrait-bg' : 'default-landscape-bg',
+              url: defaultBgUrl
+            });
+            console.log(`[背景图片] 已加载默认${orientation === 'portrait' ? '竖屏' : '横屏'}背景: ${defaultBgUrl}`);
           }
-        } catch (bgError) {
-          console.error('加载背景图片失败:', bgError);
+        } else {
+          // 如果数据库中没有背景设置，加载默认背景
+          console.log('[主题设置] 用户没有设置背景图片，加载默认背景');
+          // 使用默认背景
+          const defaultBgUrl = orientation === 'portrait' 
+            ? '/backgrounds/portrait-background.jpg' 
+            : '/backgrounds/default-background.jpg';
+            
+          setBackgroundImageState({
+            fileId: orientation === 'portrait' ? 'default-portrait-bg' : 'default-landscape-bg',
+            url: defaultBgUrl
+          });
+          console.log(`[背景图片] 已加载默认${orientation === 'portrait' ? '竖屏' : '横屏'}背景: ${defaultBgUrl}`);
         }
+      } catch (bgError) {
+        console.error('加载背景图片失败:', bgError);
+        // 失败时使用默认背景
+        const isPortrait = window.innerHeight > window.innerWidth;
+        const defaultBgUrl = isPortrait 
+          ? '/backgrounds/portrait-background.jpg' 
+          : '/backgrounds/default-background.jpg';
+          
+        setBackgroundImageState({
+          fileId: isPortrait ? 'default-portrait-bg' : 'default-landscape-bg',
+          url: defaultBgUrl
+        });
+        console.log(`[背景图片] (错误恢复) 已加载默认${isPortrait ? '竖屏' : '横屏'}背景`);
       }
 
-      console.log('从数据库加载用户设置成功', { theme, font_size, background_file });
+      // 应用颜色主题和界面样式设置
+      if (primary_color || ui_radius || background_style) {
+        // 应用界面样式到DOM
+        const rootElement = document.documentElement;
+        if (primary_color) {
+          rootElement.style.setProperty('--primary-color-hex', primary_color);
+          if (primary_color.startsWith('#')) {
+            // 还需要转换为HSL格式以兼容应用的相关样式
+            try {
+              const colorToHsl = (hex: string): string => {
+                hex = hex.replace(/^#/, '');
+                
+                let r, g, b;
+                if (hex.length === 3) {
+                  r = parseInt(hex.charAt(0) + hex.charAt(0), 16) / 255;
+                  g = parseInt(hex.charAt(1) + hex.charAt(1), 16) / 255;
+                  b = parseInt(hex.charAt(2) + hex.charAt(2), 16) / 255;
+                } else {
+                  r = parseInt(hex.substring(0, 2), 16) / 255;
+                  g = parseInt(hex.substring(2, 4), 16) / 255;
+                  b = parseInt(hex.substring(4, 6), 16) / 255;
+                }
+                
+                // 计算HSL值
+                const max = Math.max(r, g, b);
+                const min = Math.min(r, g, b);
+                let h = 0, s = 0, l = (max + min) / 2;
+                
+                if (max !== min) {
+                  const d = max - min;
+                  s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                  
+                  switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                  }
+                  
+                  h /= 6;
+                }
+                
+                h = Math.round(h * 360);
+                s = Math.round(s * 100);
+                l = Math.round(l * 100);
+                
+                return `${h} ${s}% ${l}%`;
+              };
+              
+              const primaryHsl = colorToHsl(primary_color);
+              rootElement.style.setProperty('--primary', primaryHsl);
+              console.log(`[主题颜色] 设置主色调: ${primary_color} (HSL: ${primaryHsl})`);
+            } catch (colorError) {
+              console.error('转换颜色格式时出错:', colorError);
+            }
+          }
+        }
+        
+        if (ui_radius !== undefined) {
+          rootElement.style.setProperty('--ui-radius', `${ui_radius}px`);
+          rootElement.style.setProperty('--radius', `${ui_radius / 16}rem`);
+          console.log(`[界面样式] 设置圆角: ${ui_radius}px`);
+        }
+        
+        if (background_style) {
+          rootElement.dataset.backgroundStyle = background_style;
+          console.log(`[界面样式] 设置背景样式: ${background_style}`);
+        }
+      }
+      
+      console.log('从数据库加载用户设置成功', { theme, font_size, background_file, primary_color, ui_radius, background_style });
     } catch (error) {
       console.error('加载用户设置时出错:', error);
       
@@ -201,7 +314,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const saveSettingsToDatabase = async (settings: { 
     theme?: Theme, 
     font_size?: FontSize,
-    background_file?: string | null 
+    background_file?: string | null,
+    primary_color?: string,
+    background_style?: string,
+    ui_radius?: number
   }) => {
     if (!userId) return;
 
@@ -296,11 +412,101 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   };
   
+  // 加载默认背景图片
+  const loadDefaultBackground = (orientation?: string) => {
+    try {
+      const isPortrait = orientation === 'portrait' || window.innerHeight > window.innerWidth;
+      const defaultBgUrl = isPortrait 
+        ? '/backgrounds/portrait-background.jpg' 
+        : '/backgrounds/default-background.jpg';
+      
+      // 不要使用文件ID，而是使用固定的默认ID
+      setBackgroundImageState({
+        fileId: isPortrait ? 'default-portrait-bg' : 'default-landscape-bg',
+        url: defaultBgUrl
+      });
+      
+      console.log(`[背景图片] 已加载默认${isPortrait ? '竖屏' : '横屏'}背景: ${defaultBgUrl}`);
+    } catch (error) {
+      console.error('加载默认背景失败:', error);
+    }
+  };
+
   // 清除背景图片
   const clearBackgroundImage = () => {
     setBackgroundImageState(null);
     // 保存到数据库
     saveSettingsToDatabase({ background_file: null });
+    // 清除后加载默认背景
+    loadDefaultBackground();
+  };
+  
+  // 增加颜色主题设置方法
+  const setPrimaryColor = (color: string) => {
+    // 验证颜色格式
+    if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color)) {
+      // 直接调用保存方法
+      saveSettingsToDatabase({ primary_color: color });
+      
+      // 更新界面颜色
+      const rootElement = document.documentElement;
+      rootElement.style.setProperty('--primary-color-hex', color);
+      
+      // 转换为HSL
+      try {
+        const hex = color.replace(/^#/, '');
+        let r, g, b;
+        if (hex.length === 3) {
+          r = parseInt(hex.charAt(0) + hex.charAt(0), 16) / 255;
+          g = parseInt(hex.charAt(1) + hex.charAt(1), 16) / 255;
+          b = parseInt(hex.charAt(2) + hex.charAt(2), 16) / 255;
+        } else {
+          r = parseInt(hex.substring(0, 2), 16) / 255;
+          g = parseInt(hex.substring(2, 4), 16) / 255;
+          b = parseInt(hex.substring(4, 6), 16) / 255;
+        }
+        
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h = 0, s = 0, l = (max + min) / 2;
+        
+        if (max !== min) {
+          const d = max - min;
+          s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+          
+          switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+          }
+          
+          h /= 6;
+        }
+        
+        h = Math.round(h * 360);
+        s = Math.round(s * 100);
+        l = Math.round(l * 100);
+        
+        const primaryHsl = `${h} ${s}% ${l}%`;
+        rootElement.style.setProperty('--primary', primaryHsl);
+        console.log(`[主题颜色] 设置为: ${color} (HSL: ${primaryHsl})`);
+      } catch (colorError) {
+        console.error('转换颜色格式时出错:', colorError);
+      }
+    } else {
+      console.error('无效的颜色格式:', color);
+    }
+  };
+  
+  const setBackgroundStyle = (style: 'blur' | 'solid' | 'transparent') => {
+    saveSettingsToDatabase({ background_style: style });
+    document.documentElement.dataset.backgroundStyle = style;
+  };
+  
+  const setUiRadius = (radius: number) => {
+    saveSettingsToDatabase({ ui_radius: radius });
+    document.documentElement.style.setProperty('--ui-radius', `${radius}px`);
+    document.documentElement.style.setProperty('--radius', `${radius / 16}rem`);
   };
   
   // 上下文值
@@ -313,6 +519,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     setBackgroundImage,
     clearBackgroundImage,
     uploadBackgroundImage,
+    setPrimaryColor,
+    setBackgroundStyle,
+    setUiRadius,
     isLoading,
   };
 
