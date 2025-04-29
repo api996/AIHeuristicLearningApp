@@ -9,7 +9,7 @@ import {
   type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding,
   type PromptTemplate, type SearchResult, type ConversationAnalytic,
   type SystemConfig, type KnowledgeGraphCache, type ClusterResultCache, type LearningPath,
-  type InsertLearningPath,
+  type InsertLearningPath, type UserSetting,
   // 添加学生智能体相关导入
   studentAgentPresets, studentAgentSessions, studentAgentMessages, studentAgentEvaluations,
   type StudentAgentPreset, type StudentAgentSession, type StudentAgentMessage, type StudentAgentEvaluation,
@@ -32,6 +32,18 @@ export interface IStorage {
   updateUserPassword(userId: number, newPassword: string): Promise<void>;
   updateUserRole(userId: number, role: "admin" | "user"): Promise<void>;
   deleteUser(userId: number): Promise<void>;
+  
+  // User Settings methods
+  getUserSettings(userId: number): Promise<UserSetting | undefined>;
+  saveUserSettings(userId: number, settings: {
+    theme?: string;
+    font_size?: string;
+    background_file?: string;
+  }): Promise<UserSetting>;
+  
+  // User Files methods
+  checkUserFileExists(userId: number, fileId: string): Promise<boolean>;
+  getUserFiles(userId: number, fileType?: string): Promise<UserFile[]>;
   
   // System config methods
   getSystemConfig(key: string): Promise<SystemConfig | undefined>;
@@ -349,6 +361,68 @@ export class DatabaseStorage implements IStorage {
       log(`用户 ${userId} 及其所有关联数据已成功删除`);
     } catch (error) {
       log(`删除用户错误: ${error}`);
+      throw error;
+    }
+  }
+  
+  // User Settings methods
+  async getUserSettings(userId: number): Promise<UserSetting | undefined> {
+    try {
+      log(`[用户设置] 获取用户 ${userId} 的设置`);
+      const [settings] = await db.select()
+        .from(userSettings)
+        .where(eq(userSettings.userId, userId));
+      return settings;
+    } catch (error) {
+      log(`[用户设置] 获取设置出错: ${error}`, 'error');
+      throw error;
+    }
+  }
+
+  async saveUserSettings(userId: number, settings: {
+    theme?: string;
+    font_size?: string;
+    background_file?: string;
+  }): Promise<UserSetting> {
+    try {
+      log(`[用户设置] 保存用户 ${userId} 的设置: ${JSON.stringify(settings)}`);
+      
+      // 获取当前设置
+      const currentSettings = await this.getUserSettings(userId);
+      
+      if (currentSettings) {
+        // 更新现有设置
+        log(`[用户设置] 更新现有设置，ID=${currentSettings.id}`);
+        
+        const updateValues: any = {};
+        if (settings.theme !== undefined) updateValues.theme = settings.theme;
+        if (settings.font_size !== undefined) updateValues.fontSize = settings.font_size;
+        if (settings.background_file !== undefined) updateValues.backgroundFile = settings.background_file;
+        updateValues.updatedAt = new Date();
+        
+        const [updated] = await db.update(userSettings)
+          .set(updateValues)
+          .where(eq(userSettings.id, currentSettings.id))
+          .returning();
+        
+        return updated;
+      } else {
+        // 创建新设置
+        log(`[用户设置] 用户 ${userId} 的设置不存在，创建新设置`);
+        
+        const insertValues: any = { userId };
+        if (settings.theme !== undefined) insertValues.theme = settings.theme;
+        if (settings.font_size !== undefined) insertValues.fontSize = settings.font_size;
+        if (settings.background_file !== undefined) insertValues.backgroundFile = settings.background_file;
+        
+        const [created] = await db.insert(userSettings)
+          .values(insertValues)
+          .returning();
+        
+        return created;
+      }
+    } catch (error) {
+      log(`[用户设置] 保存设置出错: ${error}`, 'error');
       throw error;
     }
   }

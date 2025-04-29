@@ -26,6 +26,7 @@ import topicGraphRoutes from './routes/topic-graph';
 import studentAgentRoutes from './routes/student-agent';
 // 暂时禁用学生代理模拟器
 import { router as studentAgentSimulatorRoutes } from './routes/student-agent-simulator';
+import userSettingsRoutes from './routes/user-settings';
 import { initializeBucket } from './services/file-bucket.service';
 import { promptManagerService } from './services/prompt-manager';
 import { Message } from "../shared/schema";
@@ -2257,6 +2258,7 @@ asyncio.run(test_memory())
   app.use('/api/system-config', systemConfigRoutes);
   app.use('/api/memory-test', memoryTestRoutes);
   app.use('/api/test-data', testDataRoutes); // 只用于测试环境，生成测试数据
+  app.use('/api/user-settings', userSettingsRoutes);
   
   // 注册学生智能体路由
   app.use('/api/student-agent', studentAgentRoutes);
