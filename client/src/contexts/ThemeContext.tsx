@@ -119,28 +119,46 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       if (isDarkMode) {
         document.documentElement.classList.add('dark');
         console.log('[主题操作] 系统主题：检测到深色模式偏好');
+        
+        // 强制应用深色模式变量
+        document.documentElement.style.setProperty('--background', '0 0% 0% / 0');  // 完全透明背景
+        document.documentElement.style.setProperty('--foreground', '177 100% 79%');
+        document.documentElement.style.setProperty('--card', '178 100% 4%');
+        document.documentElement.style.setProperty('--card-foreground', '177 100% 79%');
       } else {
         document.documentElement.classList.add('light');
         console.log('[主题操作] 系统主题：检测到浅色模式偏好');
+        
+        // 强制应用浅色模式变量
+        document.documentElement.style.setProperty('--background', '0 0% 100% / 0');  // 完全透明背景
+        document.documentElement.style.setProperty('--foreground', '178 100% 4%');
+        document.documentElement.style.setProperty('--card', '176 100% 92%');
+        document.documentElement.style.setProperty('--card-foreground', '178 100% 4%');
       }
     } else {
       // 直接应用指定主题
       document.documentElement.classList.add(newTheme);
       console.log(`[主题操作] 已应用用户选择的主题: ${newTheme}`);
       
-      // 强制应用主题颜色样式
+      // 强制应用主题颜色样式 - 确保CSS属性完全生效
       if (newTheme === 'dark') {
         // 设置深色模式的变量 - 背景变量设为完全透明，让背景图片显示
         document.documentElement.style.setProperty('--background', '0 0% 0% / 0');  // 完全透明背景
         document.documentElement.style.setProperty('--foreground', '177 100% 79%');
         document.documentElement.style.setProperty('--card', '178 100% 4%');
         document.documentElement.style.setProperty('--card-foreground', '177 100% 79%');
+        
+        // 强制应用深色主题类
+        document.documentElement.className = document.documentElement.className.replace(/light/g, '').trim() + ' dark';
       } else {
         // 设置浅色模式的变量
         document.documentElement.style.setProperty('--background', '0 0% 100% / 0');  // 完全透明背景
         document.documentElement.style.setProperty('--foreground', '178 100% 4%');
         document.documentElement.style.setProperty('--card', '176 100% 92%');
         document.documentElement.style.setProperty('--card-foreground', '178 100% 4%');
+        
+        // 强制应用浅色主题类
+        document.documentElement.className = document.documentElement.className.replace(/dark/g, '').trim() + ' light';
       }
     }
 
