@@ -1886,17 +1886,12 @@ asyncio.run(save_memory())
         });
       }
       
-      // 读取图片文件并转换为base64
-      const imageBuffer = fs.readFileSync(filepath);
-      const base64Image = imageBuffer.toString('base64');
-      
-      // 构建Message格式的内容 - 包含图像和简短提示
-      const userMessage = `请分析这张图片并提供详细描述，包括图片中的主要内容、场景、文字和其他重要细节。
-
-![image](data:image/jpeg;base64,${base64Image})`;
+      // 构建带有图片URL的Message格式内容 - 使用Markdown格式引用本地图片URL
+      // 新的处理方式：不再转换为base64，而是使用文件ID方式
+      const userMessage = `![Uploaded Image](${imageUrl})`;
       
       try {
-        // 调用Grok Vision进行图像分析
+        // 调用修改后的Grok Vision处理函数，它会内部使用文件上传API
         const response = await chatService.processImageWithGrokVision(userMessage);
         
         // 返回处理结果
