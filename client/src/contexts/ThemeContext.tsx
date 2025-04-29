@@ -130,14 +130,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       
       // 强制应用主题颜色样式
       if (newTheme === 'dark') {
-        // 设置深色模式的变量 - 修改为更合理的值，避免纯黑背景
-        document.documentElement.style.setProperty('--background', '179 50% 5%');  // 不再使用纯黑色
+        // 设置深色模式的变量 - 背景变量设为完全透明，让背景图片显示
+        document.documentElement.style.setProperty('--background', '0 0% 0% / 0');  // 完全透明背景
         document.documentElement.style.setProperty('--foreground', '177 100% 79%');
         document.documentElement.style.setProperty('--card', '178 100% 4%');
         document.documentElement.style.setProperty('--card-foreground', '177 100% 79%');
       } else {
         // 设置浅色模式的变量
-        document.documentElement.style.setProperty('--background', '177 55% 61%');
+        document.documentElement.style.setProperty('--background', '0 0% 100% / 0');  // 完全透明背景
         document.documentElement.style.setProperty('--foreground', '178 100% 4%');
         document.documentElement.style.setProperty('--card', '176 100% 92%');
         document.documentElement.style.setProperty('--card-foreground', '178 100% 4%');
