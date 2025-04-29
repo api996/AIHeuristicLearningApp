@@ -85,11 +85,11 @@ export class ChatService {
     this.apiKey = difyApiKey || "";
     
     // 添加专用的图像分析模型配置
-    this.visionModel = "grok-vision-beta";
+    this.visionModel = "grok-2-vision-1212";
     
     this.modelConfigs = {
-      // 专用图像分析模型 - 使用Grok vision模型
-      "grok-vision-beta": {
+      // 专用图像分析模型 - 使用Grok-2视觉模型
+      "grok-2-vision-1212": {
         endpoint: `https://api.x.ai/v1/chat/completions`,
         headers: {
           "Authorization": `Bearer ${grokApiKey}`,
@@ -101,7 +101,7 @@ export class ChatService {
         transformRequest: async (message: string) => {
           // 仅用于图像分析，返回简单配置
           const requestBody: any = {
-            model: "grok-vision-beta",
+            model: "grok-2-vision-1212",
             messages: [
               {
                 role: "system",
@@ -119,48 +119,48 @@ export class ChatService {
         getResponse: async (message: string) => {
           // 如果没有API密钥，返回模拟响应
           if (!grokApiKey) {
-            log(`No Grok Vision API key found, returning simulated response`);
+            log(`No Grok-2 Vision API key found, returning simulated response`);
             return {
-              text: `[Grok Vision模型-模拟] 这是一个模拟的图像分析响应，因为尚未配置有效的Grok API密钥。当API密钥配置后，此处将显示真实的图像分析结果。`,
-              model: "grok-vision-beta"
+              text: `[Grok-2-Vision模型-模拟] 这是一个模拟的图像分析响应，因为尚未配置有效的Grok API密钥。当API密钥配置后，此处将显示真实的图像分析结果。`,
+              model: "grok-2-vision-1212"
             };
           }
           
           try {
             // 构建转换后的请求
-            const transformedMessage = await this.modelConfigs["grok-vision-beta"].transformRequest!(message);
+            const transformedMessage = await this.modelConfigs["grok-2-vision-1212"].transformRequest!(message);
             
-            log(`调用Grok Vision API进行图像分析`);
+            log(`调用Grok-2 Vision API进行图像分析`);
             
-            const response = await fetchWithRetry(this.modelConfigs["grok-vision-beta"].endpoint!, {
+            const response = await fetchWithRetry(this.modelConfigs["grok-2-vision-1212"].endpoint!, {
               method: "POST",
-              headers: this.modelConfigs["grok-vision-beta"].headers!,
+              headers: this.modelConfigs["grok-2-vision-1212"].headers!,
               body: JSON.stringify(transformedMessage),
               timeout: 30000, // 30秒超时
             }, 3, 1000);
 
             if (!response.ok) {
               const errorText = await response.text();
-              log(`Grok Vision API错误: ${response.status} - ${errorText}`);
-              throw new Error(`Grok Vision API错误: ${response.status} - ${errorText}`);
+              log(`Grok-2 Vision API错误: ${response.status} - ${errorText}`);
+              throw new Error(`Grok-2 Vision API错误: ${response.status} - ${errorText}`);
             }
 
             const data: any = await response.json();
-            log(`成功接收Grok Vision API响应`);
+            log(`成功接收Grok-2 Vision API响应`);
             
             // 提取响应文本
             const responseText = data.choices?.[0]?.message?.content || "无法解析图像";
             
             return {
               text: responseText,
-              model: "grok-vision-beta"
+              model: "grok-2-vision-1212"
             };
           } catch (error) {
-            log(`调用Grok Vision API出错: ${error}`);
+            log(`调用Grok-2 Vision API出错: ${error}`);
             
             return {
               text: `图像分析失败: ${error instanceof Error ? error.message : String(error)}`,
-              model: "grok-vision-beta"
+              model: "grok-2-vision-1212"
             };
           }
         }
@@ -1499,13 +1499,13 @@ ${searchResults}`;
       let processedMessage = message;
       let imageProcessingNotice = "";
       
-      // 如果消息包含图片，使用Grok Vision模型进行预处理
+      // 如果消息包含图片，使用Grok-2 Vision模型进行预处理
       if (containsImage) {
         try {
-          log(`检测到图片内容，使用Grok Vision模型进行预处理...`);
+          log(`检测到图片内容，使用Grok-2 Vision模型进行预处理...`);
           
-          // 调用Grok Vision模型分析图片
-          const grokVisionConfig = this.modelConfigs["grok-vision-beta"];
+          // 调用Grok-2 Vision模型分析图片
+          const grokVisionConfig = this.modelConfigs["grok-2-vision-1212"];
           const imageAnalysisResponse = await grokVisionConfig.getResponse!(message);
           
           // 将图片分析结果添加到消息中
@@ -1521,7 +1521,7 @@ ${searchResults}`;
           processedMessage = `[图片分析结果]:\n${imageAnalysis}\n\n[用户原始消息]:\n${processedMessage}`;
           
           // 添加处理通知
-          imageProcessingNotice = "⚠️ 图片已由Grok Vision模型预处理并转换为文本描述";
+          imageProcessingNotice = "⚠️ 图片已由Grok-2 Vision模型预处理并转换为文本描述";
           log(`图片已成功分析并转换为文本描述`);
         } catch (error) {
           log(`图片预处理失败: ${error}`);
@@ -1719,10 +1719,10 @@ ${searchResults}`;
     
     // 如果没有API密钥，返回模拟响应
     if (!grokApiKey) {
-      log(`No Grok Vision API key found, returning simulated response`);
+      log(`No Grok-2 Vision API key found, returning simulated response`);
       return {
-        text: `[Grok Vision模型-模拟] 这是一个模拟的图像分析响应，因为尚未配置有效的Grok API密钥。当API密钥配置后，此处将显示真实的图像分析结果。`,
-        model: "grok-vision-beta"
+        text: `[Grok-2-Vision模型-模拟] 这是一个模拟的图像分析响应，因为尚未配置有效的Grok API密钥。当API密钥配置后，此处将显示真实的图像分析结果。`,
+        model: "grok-2-vision-1212"
       };
     }
     
@@ -1771,7 +1771,7 @@ ${searchResults}`;
               
               // 构建带有图像的请求
               const requestBody = {
-                model: "grok-vision-beta",
+                model: "grok-2-vision-1212",
                 messages: [
                   {
                     role: "system",
@@ -1791,9 +1791,9 @@ ${searchResults}`;
                 max_tokens: 1500
               };
               
-              log(`调用Grok Vision API进行图像分析，使用文件ID: ${fileId}`);
+              log(`调用Grok-2 Vision API进行图像分析，使用文件ID: ${fileId}`);
               
-              // 发送请求到Grok Vision API
+              // 发送请求到Grok-2 Vision API
               const response = await fetchWithRetry(`https://api.x.ai/v1/chat/completions`, {
                 method: "POST",
                 headers: {
@@ -1806,16 +1806,16 @@ ${searchResults}`;
               
               if (!response.ok) {
                 const errorText = await response.text();
-                log(`Grok Vision API错误: ${response.status} - ${errorText}`);
-                throw new Error(`Grok Vision API错误: ${response.status} - ${errorText}`);
+                log(`Grok-2 Vision API错误: ${response.status} - ${errorText}`);
+                throw new Error(`Grok-2 Vision API错误: ${response.status} - ${errorText}`);
               }
               
               const data = await response.json();
-              log(`成功接收Grok Vision API响应`);
+              log(`成功接收Grok-2 Vision API响应`);
               
               return {
                 text: data.choices[0].message.content,
-                model: "grok-vision-beta"
+                model: "grok-2-vision-1212"
               };
             } else {
               throw new Error(`图片文件不存在: ${imagePath}`);
@@ -1828,7 +1828,7 @@ ${searchResults}`;
 
       // 如果不含图片或图片处理失败，使用普通文本请求处理
       const requestBody = {
-        model: "grok-vision-beta",
+        model: "grok-2-vision-1212",
         messages: [
           {
             role: "system",
@@ -1842,7 +1842,7 @@ ${searchResults}`;
         max_tokens: 1500
       };
       
-      log(`调用Grok Vision API进行文本处理`);
+      log(`调用Grok-2 Vision API进行文本处理`);
       
       // 使用自定义的fetchWithRetry函数处理请求
       const response = await fetchWithRetry(`https://api.x.ai/v1/chat/completions`, {
@@ -1857,29 +1857,29 @@ ${searchResults}`;
 
       if (!response.ok) {
         const errorText = await response.text();
-        log(`Grok Vision API错误: ${response.status} - ${errorText}`);
-        throw new Error(`Grok Vision API错误: ${response.status} - ${errorText}`);
+        log(`Grok-2 Vision API错误: ${response.status} - ${errorText}`);
+        throw new Error(`Grok-2 Vision API错误: ${response.status} - ${errorText}`);
       }
 
       const data: any = await response.json();
-      log(`成功接收Grok Vision API响应`);
+      log(`成功接收Grok-2 Vision API响应`);
       
       // 提取响应文本
       const responseText = data.choices?.[0]?.message?.content || "无法解析图像";
       
-      // 添加说明，标明这是由Grok Vision处理的结果
-      const formattedResponse = `⚠️ 图片已由Grok Vision模型预处理并转换为文本描述：\n\n${responseText}`;
+      // 添加说明，标明这是由Grok-2 Vision处理的结果
+      const formattedResponse = `⚠️ 图片已由Grok-2 Vision模型预处理并转换为文本描述：\n\n${responseText}`;
       
       return {
         text: formattedResponse,
-        model: "grok-vision-beta"
+        model: "grok-2-vision-1212"
       };
     } catch (error) {
-      log(`调用Grok Vision API出错: ${error}`);
+      log(`调用Grok-2 Vision API出错: ${error}`);
       
       return {
         text: `图像分析失败: ${error instanceof Error ? error.message : String(error)}`,
-        model: "grok-vision-beta"
+        model: "grok-2-vision-1212"
       };
     }
   }
