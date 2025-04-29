@@ -568,7 +568,7 @@ export default function KnowledgeGraphDetail() {
 
   return (
     <div 
-      className="container mx-auto py-4 px-2 md:px-6 knowledge-graph-detail-page"
+      className="container mx-auto py-4 px-2 md:px-6 knowledge-graph-detail-page bg-gradient-to-b from-gray-900 to-gray-950 text-white rounded-lg"
       style={{
         height: 'calc(100vh - 40px)', // 减去一些边距
         overflowY: 'scroll', // 使用scroll而不是auto强制显示滚动条 

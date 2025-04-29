@@ -30,6 +30,19 @@ export const ThemeLoader = () => {
       // 使用主题检测和修复功能
       const appliedFallback = ensureThemeLoaded();
       
+      // 检查当前路径，如果是知识图谱页面，强制使用深色模式
+      const currentPath = window.location.pathname;
+      const isKnowledgeGraphPage = 
+        currentPath.includes('knowledge-graph') || 
+        currentPath.includes('graph-view') ||
+        currentPath.includes('topic-visualization');
+        
+      if (isKnowledgeGraphPage) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+        console.log('知识图谱页面：强制使用深色主题');
+      }
+      
       if (appliedFallback) {
         console.log('主题加载器：已应用回退主题样式');
         // 在应用回退样式后再次应用增强
@@ -52,7 +65,23 @@ export const ThemeLoader = () => {
     const handleRouteChange = () => {
       // 路由变化时重新应用样式
       setTimeout(() => {
+        // 使用主题检测和修复功能
         const appliedFallback = ensureThemeLoaded();
+        
+        // 检查当前路径，如果是知识图谱页面，强制使用深色模式
+        const currentPath = window.location.pathname;
+        const isKnowledgeGraphPage = 
+          currentPath.includes('knowledge-graph') || 
+          currentPath.includes('graph-view') ||
+          currentPath.includes('topic-visualization');
+          
+        if (isKnowledgeGraphPage) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.classList.remove('light');
+          console.log('知识图谱页面：强制使用深色主题');
+        }
+        
+        // 应用主题样式增强
         enhanceThemeStyles();
         console.log('路由变化，重新应用主题样式');
       }, 100);
