@@ -1,7 +1,7 @@
 /**
  * 主题上下文
  * 全局主题状态管理，确保跨页面保持主题设置一致性
- * 支持数据库持久化用户偏好设置
+ * 支持数据库持久化用户偏好设置和背景图片
  */
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
@@ -13,12 +13,21 @@ export type FontSize = 'small' | 'medium' | 'large';
 // 主题类型
 export type Theme = 'light' | 'dark' | 'system';
 
+// 背景图片类型
+export interface BackgroundImage {
+  fileId: string;
+  url: string;
+}
+
 // 主题上下文类型
 interface ThemeContextType {
   fontSize: FontSize;
   theme: Theme;
+  backgroundImage: BackgroundImage | null;
   setFontSize: (size: FontSize) => void;
   setTheme: (theme: Theme) => void;
+  setBackgroundImage: (image: BackgroundImage | null) => void;
+  uploadBackgroundImage: (file: File) => Promise<BackgroundImage>;
   isLoading: boolean;
 }
 
@@ -68,6 +77,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // 初始化状态，默认为中等字体和系统主题
   const [fontSize, setFontSizeState] = useState<FontSize>('medium');
   const [theme, setThemeState] = useState<Theme>('system');
+  const [backgroundImage, setBackgroundImageState] = useState<BackgroundImage | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const userId = getCurrentUserId();
 
@@ -130,7 +140,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
     try {
       const response = await axios.get(`/api/user-settings/${userId}`);
-      const { theme, font_size } = response.data;
+      const { theme, font_size, background_file } = response.data;
       
       // 如果有设置，则使用数据库的设置
       if (theme) {
@@ -151,8 +161,27 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         setFontSizeState(savedSize || 'medium');
         applyFontSize(savedSize || 'medium');
       }
+      
+      // 加载背景图片设置
+      if (background_file) {
+        try {
+          // 获取文件信息
+          const orientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+          const bgResponse = await axios.get(`/api/files/background?userId=${userId}&orientation=${orientation}`);
+          
+          if (bgResponse.data && bgResponse.data.url) {
+            setBackgroundImageState({
+              fileId: background_file,
+              url: bgResponse.data.url
+            });
+            console.log('[背景图片] 从数据库加载成功:', bgResponse.data.url);
+          }
+        } catch (bgError) {
+          console.error('加载背景图片失败:', bgError);
+        }
+      }
 
-      console.log('从数据库加载用户设置成功', { theme, font_size });
+      console.log('从数据库加载用户设置成功', { theme, font_size, background_file });
     } catch (error) {
       console.error('加载用户设置时出错:', error);
       
@@ -168,7 +197,11 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   // 保存设置到数据库
-  const saveSettingsToDatabase = async (settings: { theme?: Theme, font_size?: FontSize }) => {
+  const saveSettingsToDatabase = async (settings: { 
+    theme?: Theme, 
+    font_size?: FontSize,
+    background_file?: string | null 
+  }) => {
     if (!userId) return;
 
     try {
@@ -221,12 +254,56 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   }, [isLoading, theme]);
 
+  // 上传背景图片
+  const uploadBackgroundImage = async (file: File): Promise<BackgroundImage> => {
+    if (!userId) throw new Error('需要用户ID才能上传背景图片');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('userId', userId.toString());
+    formData.append('fileType', 'background');
+    
+    try {
+      const response = await axios.post('/api/files/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      const { fileId, url } = response.data;
+      const newBackgroundImage: BackgroundImage = { fileId, url };
+      
+      // 保存到数据库
+      await saveSettingsToDatabase({ background_file: fileId });
+      
+      return newBackgroundImage;
+    } catch (error) {
+      console.error('上传背景图片出错:', error);
+      throw error;
+    }
+  };
+  
+  // 设置背景图片
+  const setBackgroundImage = (image: BackgroundImage | null) => {
+    setBackgroundImageState(image);
+    
+    // 保存到数据库
+    if (image) {
+      saveSettingsToDatabase({ background_file: image.fileId });
+    } else {
+      saveSettingsToDatabase({ background_file: null });
+    }
+  };
+  
   // 上下文值
   const contextValue = {
     fontSize,
     theme,
+    backgroundImage,
     setFontSize,
     setTheme,
+    setBackgroundImage,
+    uploadBackgroundImage,
     isLoading,
   };
 
