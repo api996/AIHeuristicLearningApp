@@ -54,17 +54,40 @@ export const ThemeLoader = () => {
       setTimeout(() => {
         const appliedFallback = ensureThemeLoaded();
         enhanceThemeStyles();
+        console.log('路由变化，重新应用主题样式');
       }, 100);
     };
     
-    // 使用history API监听路由变化
+    // 创建一个监听器来监听所有锚标签和按钮点击，可能导致路由变化
+    const handlePossibleRouteChange = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const isNavigationElement = 
+        target.tagName === 'A' || 
+        target.tagName === 'BUTTON' || 
+        target.closest('a') || 
+        target.closest('button') ||
+        target.hasAttribute('href') ||
+        target.getAttribute('role') === 'link';
+        
+      if (isNavigationElement) {
+        setTimeout(() => {
+          const appliedFallback = ensureThemeLoaded();
+          enhanceThemeStyles();
+          console.log('可能的路由变化，重新应用主题样式');
+        }, 200);
+      }
+    };
+    
+    // 使用多种方式监听路由变化
     window.addEventListener('popstate', handleRouteChange);
+    document.addEventListener('click', handlePossibleRouteChange);
     
     // 清理函数
     return () => {
       clearTimeout(themeCheckDelay);
       clearInterval(themeCheckInterval);
       window.removeEventListener('popstate', handleRouteChange);
+      document.removeEventListener('click', handlePossibleRouteChange);
     };
   }, []);
   
@@ -83,6 +106,33 @@ export const ThemeLoader = () => {
         const primaryColor = theme.primary.startsWith('#') ? hexToHSL(theme.primary) : '174 59% 49%';
         root.style.setProperty('--primary', primaryColor);
         root.style.setProperty('--primary-foreground', '0 0% 100%');
+        
+        // 建立不同颜色主题的变体
+        // 主色调的浅色版本
+        const [h, s, l] = primaryColor.split(' ');
+        const hue = parseInt(h);
+        
+        // 生成主色调的淡色版本
+        const lightPrimary = `${hue} ${s} 85%`;
+        root.style.setProperty('--primary-light', lightPrimary);
+        
+        // 生成主色调的深色版本
+        const darkPrimary = `${hue} ${s} 30%`;
+        root.style.setProperty('--primary-dark', darkPrimary);
+        
+        // 设置强调色
+        const accentHue = (hue + 180) % 360; // 互补色
+        root.style.setProperty('--accent', `${accentHue} 80% 60%`);
+        root.style.setProperty('--accent-foreground', '0 0% 100%');
+        
+        // 设置参考颜色 - 用于界面中的中性元素
+        const neutralHue = (hue + 90) % 360; // 互补色
+        root.style.setProperty('--neutral', `${neutralHue} 10% 50%`);
+        root.style.setProperty('--neutral-light', `${neutralHue} 10% 90%`);
+        root.style.setProperty('--neutral-dark', `${neutralHue} 10% 20%`);
+        
+        // 添加到文档的data属性，便于调试
+        document.documentElement.dataset.primaryColor = primaryColor;
       }
       
       // 设置圆角
