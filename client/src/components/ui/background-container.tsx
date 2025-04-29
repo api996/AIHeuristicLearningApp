@@ -43,19 +43,19 @@ export function BackgroundContainer({ children }: BackgroundContainerProps) {
   // 调试信息
   console.log(`背景容器: 使用背景图片 ${backgroundUrl}, 主题状态: ${backgroundImage ? '自定义' : '默认'}`);
   
-  // 获取背景样式
-  const backgroundStyle = document.documentElement.dataset.backgroundStyle || 'blur';
+  // 获取背景样式 - 默认为transparent，让背景图片清晰可见
+  const backgroundStyle = document.documentElement.dataset.backgroundStyle || 'transparent';
   
   // 根据不同的样式模式设置对应的CSS
   const getOverlayStyle = () => {
     switch (backgroundStyle) {
       case 'solid':
         return 'bg-background/90'; // 隐藏背景图片较多
-      case 'transparent':
-        return 'bg-background/30'; // 半透明模式
       case 'blur':
+        return 'backdrop-blur-sm bg-background/75'; // 模糊背景
+      case 'transparent':
       default:
-        return 'backdrop-blur-sm bg-background/75'; // 默认模糊背景
+        return 'bg-background/20'; // 最透明模式，背景图片清晰可见
     }
   };
   
