@@ -53,8 +53,9 @@ export function BackgroundContainer({ children }: BackgroundContainerProps) {
       className="min-h-screen w-full bg-cover bg-center bg-no-repeat transition-all duration-300"
       style={{
         backgroundImage: `url(${getBackgroundUrl()})`,
-        backgroundColor: "var(--background)",
-        backgroundBlendMode: "overlay",
+        // 不使用主题背景色，避免黑色覆盖背景图片
+        // backgroundColor: "var(--background)",
+        // backgroundBlendMode: "overlay",
         backgroundAttachment: "fixed",
       }}
       data-theme-style={backgroundStyle}
