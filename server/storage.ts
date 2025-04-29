@@ -39,6 +39,9 @@ export interface IStorage {
     theme?: string;
     font_size?: string;
     background_file?: string;
+    primary_color?: string;      // 主题色调
+    background_style?: string;  // 背景样式
+    ui_radius?: number;         // 圆角样式
   }): Promise<UserSetting>;
   
   // User Files methods
@@ -424,6 +427,9 @@ export class DatabaseStorage implements IStorage {
     theme?: string;
     font_size?: string;
     background_file?: string;
+    primary_color?: string;
+    background_style?: string;
+    ui_radius?: number;
   }): Promise<UserSetting> {
     try {
       log(`[用户设置] 保存用户 ${userId} 的设置: ${JSON.stringify(settings)}`);
@@ -439,6 +445,9 @@ export class DatabaseStorage implements IStorage {
         if (settings.theme !== undefined) updateValues.theme = settings.theme;
         if (settings.font_size !== undefined) updateValues.fontSize = settings.font_size;
         if (settings.background_file !== undefined) updateValues.backgroundFile = settings.background_file;
+        if (settings.primary_color !== undefined) updateValues.primaryColor = settings.primary_color;
+        if (settings.background_style !== undefined) updateValues.backgroundStyle = settings.background_style;
+        if (settings.ui_radius !== undefined) updateValues.uiRadius = settings.ui_radius;
         updateValues.updatedAt = new Date();
         
         const [updated] = await db.update(userSettings)
@@ -455,6 +464,9 @@ export class DatabaseStorage implements IStorage {
         if (settings.theme !== undefined) insertValues.theme = settings.theme;
         if (settings.font_size !== undefined) insertValues.fontSize = settings.font_size;
         if (settings.background_file !== undefined) insertValues.backgroundFile = settings.background_file;
+        if (settings.primary_color !== undefined) insertValues.primaryColor = settings.primary_color;
+        if (settings.background_style !== undefined) insertValues.backgroundStyle = settings.background_style;
+        if (settings.ui_radius !== undefined) insertValues.uiRadius = settings.ui_radius;
         
         const [created] = await db.insert(userSettings)
           .values(insertValues)

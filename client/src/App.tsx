@@ -16,6 +16,7 @@ import MemoryGraph from "@/pages/MemoryGraph";
 import PromptEditor from "@/pages/prompt-editor";
 import NotFound from "@/pages/not-found";
 import GraphTest from "@/pages/graph-test";
+import TestPreferencesPage from "@/pages/test-preferences";
 // 导入统一的主题工具（支持新旧版本切换）
 import { ThemeProvider, BackgroundContainer } from "./utils/theme-migration";
 // 导入主题加载器，确保主题在生产环境中正确加载
@@ -46,6 +47,7 @@ function Router() {
       <Route path="/knowledge-graph-detail" component={KnowledgeGraphDetail} />
       <Route path="/knowledge-graph-view/:userId" component={KnowledgeGraphView} />
       <Route path="/graph-test" component={GraphTest} />
+      <Route path="/preferences-test" component={TestPreferencesPage} />
       <Route path="/" component={Home} />
       <Route component={NotFound} />
     </Switch>

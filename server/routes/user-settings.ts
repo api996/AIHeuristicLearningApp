@@ -39,7 +39,10 @@ router.get('/:userId', async (req: Request, res: Response) => {
       return res.json({
         theme: 'system',
         font_size: 'medium',
-        background_file: null
+        background_file: null,
+        primary_color: '#0deae4',  // 默认青色
+        background_style: 'blur',  // 默认模糊背景
+        ui_radius: 8               // 默认圆角度
       });
     }
   } catch (error) {
@@ -65,7 +68,7 @@ router.post('/:userId', async (req: Request, res: Response) => {
     //   return res.status(403).json({ error: '无权修改此用户设置' });
     // }
     
-    const { theme, font_size, background_file } = req.body;
+    const { theme, font_size, background_file, primary_color, background_style, ui_radius } = req.body;
     
     // 验证设置内容
     if (theme && !['light', 'dark', 'system'].includes(theme)) {
@@ -74,6 +77,21 @@ router.post('/:userId', async (req: Request, res: Response) => {
     
     if (font_size && !['small', 'medium', 'large'].includes(font_size)) {
       return res.status(400).json({ error: '无效的字体大小设置' });
+    }
+    
+    // 验证颜色格式
+    if (primary_color && !/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(primary_color)) {
+      return res.status(400).json({ error: '无效的主题颜色格式' });
+    }
+    
+    // 验证背景样式
+    if (background_style && !['blur', 'solid', 'transparent'].includes(background_style)) {
+      return res.status(400).json({ error: '无效的背景样式设置' });
+    }
+    
+    // 验证圆角数值
+    if (ui_radius !== undefined && (isNaN(Number(ui_radius)) || Number(ui_radius) < 0 || Number(ui_radius) > 20)) {
+      return res.status(400).json({ error: '无效的圆角设置，应为0-20之间的数字' });
     }
     
     // 验证背景图片文件ID (如果提供)
@@ -86,13 +104,24 @@ router.post('/:userId', async (req: Request, res: Response) => {
       }
     }
     
-    log(`[用户设置] 保存用户ID=${userId}的设置: theme=${theme}, font_size=${font_size}, background_file=${background_file || 'null'}`);
+    // 更全面的日志记录，包含所有设置项
+    log(`[用户设置] 保存用户ID=${userId}的设置: 
+      theme=${theme || 'unchanged'}, 
+      font_size=${font_size || 'unchanged'}, 
+      background_file=${background_file || 'unchanged'}, 
+      primary_color=${primary_color || 'unchanged'}, 
+      background_style=${background_style || 'unchanged'}, 
+      ui_radius=${ui_radius !== undefined ? ui_radius : 'unchanged'}
+    `);
     
-    // 保存到数据库
+    // 保存到数据库 - 添加新字段
     const settings = await storage.saveUserSettings(userId, {
       theme,
       font_size,
-      background_file
+      background_file,
+      primary_color,
+      background_style,
+      ui_radius: ui_radius !== undefined ? Number(ui_radius) : undefined
     });
     
     return res.json(settings);
