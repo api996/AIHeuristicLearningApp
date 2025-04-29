@@ -109,17 +109,39 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     // 移除所有主题类
     document.documentElement.classList.remove('light', 'dark');
 
+    // 记录操作，便于调试
+    console.log(`[主题操作] 应用主题: ${newTheme}`);
+    
     // 应用新主题
     if (newTheme === "system") {
       // 根据系统偏好设置主题
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (isDarkMode) {
         document.documentElement.classList.add('dark');
+        console.log('[主题操作] 系统主题：检测到深色模式偏好');
       } else {
         document.documentElement.classList.add('light');
+        console.log('[主题操作] 系统主题：检测到浅色模式偏好');
       }
     } else {
       // 直接应用指定主题
       document.documentElement.classList.add(newTheme);
+      console.log(`[主题操作] 已应用用户选择的主题: ${newTheme}`);
+      
+      // 强制应用主题颜色样式
+      if (newTheme === 'dark') {
+        // 设置深色模式的变量
+        document.documentElement.style.setProperty('--background', '179 100% 0%');
+        document.documentElement.style.setProperty('--foreground', '177 100% 79%');
+        document.documentElement.style.setProperty('--card', '178 100% 4%');
+        document.documentElement.style.setProperty('--card-foreground', '177 100% 79%');
+      } else {
+        // 设置浅色模式的变量
+        document.documentElement.style.setProperty('--background', '177 55% 61%');
+        document.documentElement.style.setProperty('--foreground', '178 100% 4%');
+        document.documentElement.style.setProperty('--card', '176 100% 92%');
+        document.documentElement.style.setProperty('--card-foreground', '178 100% 4%');
+      }
     }
 
     // 保存设置到本地存储

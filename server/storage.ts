@@ -377,16 +377,29 @@ export class DatabaseStorage implements IStorage {
         .where(eq(userSettings.userId, userId));
       
       if (settings) {
-        // 转换字段名，确保API兼容性
-        const transformed: any = {
+        // 转换字段名，确保API兼容性 - 数据库用camelCase，API用snake_case
+        const snakeCaseSettings: any = {
           ...settings,
+          id: settings.id,
+          userId: settings.userId,
+          theme: settings.theme,
           font_size: settings.fontSize,
           background_file: settings.backgroundFile,
           primary_color: settings.primaryColor,
           background_style: settings.backgroundStyle,
-          ui_radius: settings.uiRadius
+          ui_radius: settings.uiRadius,
+          createdAt: settings.createdAt,
+          updatedAt: settings.updatedAt
         };
-        return transformed;
+        
+        // 删除多余的camelCase字段
+        delete snakeCaseSettings.fontSize;
+        delete snakeCaseSettings.backgroundFile;
+        delete snakeCaseSettings.primaryColor;
+        delete snakeCaseSettings.backgroundStyle;
+        delete snakeCaseSettings.uiRadius;
+        
+        return snakeCaseSettings;
       }
       
       return settings;
@@ -448,13 +461,23 @@ export class DatabaseStorage implements IStorage {
     try {
       log(`[用户设置] 保存用户 ${userId} 的设置: ${JSON.stringify(settings)}`);
       
-      // 获取当前设置
-      const currentSettings = await this.getUserSettings(userId);
+      // 获取当前设置 - 使用原始数据库查询，避免数据转换问题
+      let currentSettings;
+      try {
+        const [dbSettings] = await db.select()
+          .from(userSettings)
+          .where(eq(userSettings.userId, userId));
+        currentSettings = dbSettings;
+      } catch (err) {
+        log(`[用户设置] 查询当前设置失败: ${err}`);
+        currentSettings = null;
+      }
       
       if (currentSettings) {
         // 更新现有设置
         log(`[用户设置] 更新现有设置，ID=${currentSettings.id}`);
         
+        // 将API中的snake_case转换为数据库中的camelCase
         const updateValues: any = {};
         if (settings.theme !== undefined) updateValues.theme = settings.theme;
         if (settings.font_size !== undefined) updateValues.fontSize = settings.font_size;
@@ -464,25 +487,42 @@ export class DatabaseStorage implements IStorage {
         if (settings.ui_radius !== undefined) updateValues.uiRadius = settings.ui_radius;
         updateValues.updatedAt = new Date();
         
+        log(`[用户设置] 执行数据库更新: ${JSON.stringify(updateValues)}`);
+        
         const [updated] = await db.update(userSettings)
           .set(updateValues)
           .where(eq(userSettings.id, currentSettings.id))
           .returning();
         
-        // 转换字段名称以保持API一致性
-        const transformed: any = {
+        // 将数据库中的camelCase转换为API中的snake_case
+        const snakeCaseResult: any = {
           ...updated,
+          id: updated.id,
+          userId: updated.userId,
+          theme: updated.theme,
           font_size: updated.fontSize,
           background_file: updated.backgroundFile,
           primary_color: updated.primaryColor,
           background_style: updated.backgroundStyle,
-          ui_radius: updated.uiRadius
+          ui_radius: updated.uiRadius,
+          createdAt: updated.createdAt,
+          updatedAt: updated.updatedAt
         };
-        return transformed;
+        
+        // 删除多余的camelCase字段
+        delete snakeCaseResult.fontSize;
+        delete snakeCaseResult.backgroundFile;
+        delete snakeCaseResult.primaryColor;
+        delete snakeCaseResult.backgroundStyle;
+        delete snakeCaseResult.uiRadius;
+        
+        log(`[用户设置] 返回API响应: ${JSON.stringify(snakeCaseResult)}`);
+        return snakeCaseResult;
       } else {
         // 创建新设置
         log(`[用户设置] 用户 ${userId} 的设置不存在，创建新设置`);
         
+        // 将API中的snake_case转换为数据库中的camelCase
         const insertValues: any = { userId };
         if (settings.theme !== undefined) insertValues.theme = settings.theme;
         if (settings.font_size !== undefined) insertValues.fontSize = settings.font_size;
@@ -491,20 +531,36 @@ export class DatabaseStorage implements IStorage {
         if (settings.background_style !== undefined) insertValues.backgroundStyle = settings.background_style;
         if (settings.ui_radius !== undefined) insertValues.uiRadius = settings.ui_radius;
         
+        log(`[用户设置] 执行数据库插入: ${JSON.stringify(insertValues)}`);
+        
         const [created] = await db.insert(userSettings)
           .values(insertValues)
           .returning();
         
-        // 转换字段名称以保持API一致性
-        const transformed: any = {
+        // 将数据库中的camelCase转换为API中的snake_case
+        const snakeCaseResult: any = {
           ...created,
+          id: created.id,
+          userId: created.userId,
+          theme: created.theme,
           font_size: created.fontSize,
           background_file: created.backgroundFile,
           primary_color: created.primaryColor,
           background_style: created.backgroundStyle,
-          ui_radius: created.uiRadius
+          ui_radius: created.uiRadius,
+          createdAt: created.createdAt,
+          updatedAt: created.updatedAt
         };
-        return transformed;
+        
+        // 删除多余的camelCase字段
+        delete snakeCaseResult.fontSize;
+        delete snakeCaseResult.backgroundFile;
+        delete snakeCaseResult.primaryColor;
+        delete snakeCaseResult.backgroundStyle;
+        delete snakeCaseResult.uiRadius;
+        
+        log(`[用户设置] 返回API响应: ${JSON.stringify(snakeCaseResult)}`);
+        return snakeCaseResult;
       }
     } catch (error) {
       log(`[用户设置] 保存设置出错: ${error}`, 'error');
