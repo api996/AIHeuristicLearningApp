@@ -1,43 +1,28 @@
 /**
- * 主题系统迁移工具
- * 帮助应用从旧版主题系统平滑迁移到新版统一主题服务
+ * 简化版主题系统
+ * 仅保留基本主题功能，移除高级设置以简化维护
  */
 
 import React from 'react';
 import { ThemeProvider as OldThemeProvider } from '@/contexts/ThemeContext'; 
-import { ThemeProvider as NewThemeProvider } from '@/contexts/NewThemeContext';
 import { BackgroundContainer as OldBackgroundContainer } from '@/components/ui/background-container';
-import { BackgroundContainer as NewBackgroundContainer } from '@/components/ui/new-background-container';
 
-// 配置标记 - 可以通过环境变量或特性开关控制
-// 当前设置为使用旧版主题系统，减少风险同时继续实施其他统一改进
-// 完成所有更改后可以改为true使用新系统
-export const USE_NEW_THEME_SYSTEM = false;
+// 我们已经彻底移除了新主题系统相关代码
+// 只使用旧版本主题系统的基本功能（明暗主题和字体大小）
 
 /**
- * 支持切换的主题提供者
+ * 简化版主题提供者
  */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // 根据配置选择使用哪个主题提供者
-  return USE_NEW_THEME_SYSTEM ? (
-    <NewThemeProvider>{children}</NewThemeProvider>
-  ) : (
-    <OldThemeProvider>{children}</OldThemeProvider>
-  );
+  return <OldThemeProvider>{children}</OldThemeProvider>;
 }
 
 /**
- * 支持切换的背景容器
+ * 简化版背景容器
  */
 export function BackgroundContainer({ children }: { children: React.ReactNode }) {
-  // 根据配置选择使用哪个背景容器
-  return USE_NEW_THEME_SYSTEM ? (
-    <NewBackgroundContainer>{children}</NewBackgroundContainer>
-  ) : (
-    <OldBackgroundContainer>{children}</OldBackgroundContainer>
-  );
+  return <OldBackgroundContainer>{children}</OldBackgroundContainer>;
 }
 
 // 统一的useTheme钩子
-// 注意: 直接导出对应上下文的useTheme函数
 export { useTheme } from '@/contexts/ThemeContext';

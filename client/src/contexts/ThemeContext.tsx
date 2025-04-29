@@ -122,6 +122,19 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       document.documentElement.classList.add(newTheme);
     }
 
+    // 添加一个数据属性来标记自定义主题
+    // 这将防止ThemeLoader组件覆盖用户的选择
+    document.documentElement.setAttribute('data-theme', newTheme);
+    
+    // 如果是深色主题，还要设置深色模式的CSS变量
+    if (newTheme === 'dark' || (newTheme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      // 设置深色模式的CSS变量
+      document.documentElement.style.setProperty('--background', '179 100% 0%');
+      document.documentElement.style.setProperty('--foreground', '177 100% 79%');
+      document.documentElement.style.setProperty('--card', '178 100% 4%');
+      document.documentElement.style.setProperty('--card-foreground', '177 100% 79%');
+    }
+
     // 保存设置到本地存储
     localStorage.setItem('theme', newTheme);
   };
@@ -271,8 +284,20 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   const setTheme = (newTheme: Theme) => {
+    console.log(`[主题设置] 正在切换主题到 ${newTheme}`);
     setThemeState(newTheme);
     applyTheme(newTheme);
+    
+    // 添加一个延迟应用，确保深色模式条件被正确应用
+    setTimeout(() => {
+      if (newTheme === 'dark' || (newTheme === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        console.log('[主题设置] 再次确认深色模式变量设置');
+        document.documentElement.style.setProperty('--background', '179 100% 0%');
+        document.documentElement.style.setProperty('--foreground', '177 100% 79%');
+        document.documentElement.style.setProperty('--card', '178 100% 4%');
+        document.documentElement.style.setProperty('--card-foreground', '177 100% 79%');
+      }
+    }, 50);
     
     // 保存到数据库
     saveSettingsToDatabase({ theme: newTheme });
