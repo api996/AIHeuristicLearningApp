@@ -20,6 +20,8 @@ import GraphTest from "@/pages/graph-test";
 import { ThemeProvider } from "./contexts/ThemeContext";
 // 导入主题加载器，确保主题在生产环境中正确加载
 import ThemeLoader from "./lib/theme-loader";
+// 导入背景容器组件
+import { BackgroundContainer } from "./components/ui/background-container";
 // 导入D3加载修复工具，确保D3.js正确加载
 import { ensureD3Loaded } from "./lib/d3-load-fix";
 // 导入传统D3补丁文件，作为兼容性后备
@@ -83,8 +85,11 @@ function App() {
       <ThemeProvider>
         {/* 添加主题加载器，确保主题变量正确设置 */}
         <ThemeLoader />
-        <Router />
-        <Toaster />
+        {/* 添加背景容器，实现自定义背景图片 */}
+        <BackgroundContainer>
+          <Router />
+          <Toaster />
+        </BackgroundContainer>
       </ThemeProvider>
     </QueryClientProvider>
   );

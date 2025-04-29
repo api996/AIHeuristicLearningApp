@@ -27,6 +27,7 @@ interface ThemeContextType {
   setFontSize: (size: FontSize) => void;
   setTheme: (theme: Theme) => void;
   setBackgroundImage: (image: BackgroundImage | null) => void;
+  clearBackgroundImage: () => void;
   uploadBackgroundImage: (file: File) => Promise<BackgroundImage>;
   isLoading: boolean;
 }
@@ -295,6 +296,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   };
   
+  // 清除背景图片
+  const clearBackgroundImage = () => {
+    setBackgroundImageState(null);
+    // 保存到数据库
+    saveSettingsToDatabase({ background_file: null });
+  };
+  
   // 上下文值
   const contextValue = {
     fontSize,
@@ -303,6 +311,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     setFontSize,
     setTheme,
     setBackgroundImage,
+    clearBackgroundImage,
     uploadBackgroundImage,
     isLoading,
   };

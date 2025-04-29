@@ -2,241 +2,173 @@
  * 背景图片选择器
  * 允许用户上传自定义背景图片或从预设图片中选择
  */
+import React, { useState, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Upload, X, ImageIcon } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useToast } from "@/hooks/use-toast";
 
-import React, { useState } from 'react';
-import { useTheme, BackgroundImage } from '../../contexts/ThemeContext';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './card';
-import { Button } from './button';
-import { Input } from './input';
-import { Label } from './label';
-import { Image, Upload, Check, X, RotateCcw } from 'lucide-react';
+// 预设的背景图片选项
+const presetBackgrounds = [
+  { id: "default", url: "/backgrounds/default-background.jpg", name: "默认背景" },
+  { id: "landscape", url: "/backgrounds/landscape-background.jpg", name: "风景背景" },
+  { id: "mobile", url: "/backgrounds/mobile-background.jpg", name: "移动背景" },
+  { id: "portrait", url: "/backgrounds/portrait-background.jpg", name: "纵向背景" },
+];
 
 interface BackgroundImagePickerProps {
   onClose?: () => void;
 }
 
 export function BackgroundImagePicker({ onClose }: BackgroundImagePickerProps) {
-  const { backgroundImage, setBackgroundImage, uploadBackgroundImage } = useTheme();
+  const { backgroundImage, setBackgroundImage, clearBackgroundImage, uploadBackgroundImage } = useTheme();
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-  // 预设背景图片
-  const presetBackgrounds = [
-    { id: 'default-light', url: '/backgrounds/light-background.jpg', name: '浅色空间' },
-    { id: 'default-dark', url: '/backgrounds/dark-background.jpg', name: '深色空间' },
-    { id: 'default-nature', url: '/backgrounds/nature-background.jpg', name: '自然风光' },
-    { id: 'default-abstract', url: '/backgrounds/abstract-background.jpg', name: '抽象图案' },
-    // 添加系统预设图片
-  ];
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   // 处理文件选择
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 验证文件类型和大小
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!validTypes.includes(file.type)) {
-      setError('仅支持 JPG, PNG, WEBP 和 GIF 格式的图片');
+    // 验证文件类型
+    if (!file.type.includes('image')) {
+      toast({
+        title: "文件类型错误",
+        description: "请选择图片文件（JPG、PNG等）",
+        variant: "destructive",
+      });
       return;
     }
 
+    // 验证文件大小
     if (file.size > 5 * 1024 * 1024) { // 5MB
-      setError('文件大小不能超过 5MB');
+      toast({
+        title: "文件过大",
+        description: "背景图片不能超过5MB",
+        variant: "destructive",
+      });
       return;
     }
-
-    setError(null);
-    setSelectedImage(file);
-
-    // 创建预览 URL
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl(objectUrl);
-
-    // 清理
-    return () => URL.revokeObjectURL(objectUrl);
-  };
-
-  // 上传图片
-  const handleUpload = async () => {
-    if (!selectedImage) return;
-
-    setIsUploading(true);
-    setUploadProgress(0);
 
     try {
-      // 模拟上传进度
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          const newProgress = prev + 10;
-          return newProgress >= 90 ? 90 : newProgress;
-        });
-      }, 200);
-
-      // 上传文件
-      const newBackgroundImage = await uploadBackgroundImage(selectedImage);
-      
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-      
-      // 设置新背景
-      setBackgroundImage(newBackgroundImage);
-      
-      // 关闭选择器
-      setTimeout(() => {
-        if (onClose) onClose();
-      }, 1000);
-    } catch (err) {
-      setError('上传失败: ' + (err instanceof Error ? err.message : '未知错误'));
-      setUploadProgress(0);
+      setIsUploading(true);
+      await uploadBackgroundImage(file);
+      toast({
+        title: "上传成功",
+        description: "背景图片已更新",
+      });
+      if (onClose) onClose();
+    } catch (error) {
+      console.error("Background upload error:", error);
+      toast({
+        title: "上传失败",
+        description: "请稍后重试",
+        variant: "destructive",
+      });
     } finally {
       setIsUploading(false);
+      // 清除文件输入，以便再次选择同一文件时触发变化事件
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   // 选择预设背景
-  const selectPresetBackground = (preset: {id: string, url: string}) => {
-    // 预设图片使用特殊的 ID 格式，比如 'default-light'
-    setBackgroundImage({
-      fileId: preset.id,
-      url: preset.url
+  const selectPresetBackground = (url: string) => {
+    // 创建一个符合BackgroundImage格式的对象
+    const bgImage = {
+      fileId: url.split('/').pop() || 'preset-background',
+      url: url
+    };
+    setBackgroundImage(bgImage);
+    toast({
+      title: "背景已更改",
+      description: "已应用预设背景图片",
     });
-    
     if (onClose) onClose();
   };
 
-  // 删除背景
-  const removeBackground = () => {
-    setBackgroundImage(null);
-    if (onClose) onClose();
+  // 清除背景
+  const handleClearBackground = () => {
+    clearBackgroundImage();
+    toast({
+      title: "背景已移除",
+      description: "恢复为默认背景",
+    });
+  };
+
+  // 触发文件选择对话框
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto bg-card shadow-lg">
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <Image className="mr-2" size={20} />
-          背景图片设置
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent>
-        {/* 当前背景信息 */}
-        {backgroundImage && (
-          <div className="mb-4 p-2 bg-muted rounded-md">
-            <p className="text-sm mb-2">当前背景图片:</p>
-            <div className="relative h-20 bg-cover bg-center rounded overflow-hidden">
-              <img 
-                src={backgroundImage.url} 
-                alt="当前背景" 
-                className="w-full h-full object-cover" 
-              />
-              <Button 
-                variant="destructive" 
-                size="icon" 
-                className="absolute top-1 right-1" 
-                onClick={removeBackground}
-              >
-                <X size={16} />
-              </Button>
-            </div>
-          </div>
-        )}
-        
-        {/* 上传新背景 */}
-        <div className="space-y-3 mb-4">
-          <Label htmlFor="background-image">上传新背景</Label>
-          <Input 
-            id="background-image" 
-            type="file" 
-            accept="image/jpeg,image/png,image/webp,image/gif" 
-            onChange={handleFileChange} 
-            disabled={isUploading}
+    <div className="space-y-6">
+      <div>
+        <Label className="mb-2 block font-medium">自定义背景</Label>
+        <div className="flex flex-col space-y-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            className="hidden"
           />
+          <Button 
+            variant="outline" 
+            onClick={triggerFileInput}
+            disabled={isUploading}
+            className="w-full"
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {isUploading ? "正在上传..." : "上传图片"}
+          </Button>
           
-          {error && (
-            <div className="text-destructive text-sm mt-1">{error}</div>
-          )}
-          
-          {previewUrl && (
-            <div className="mt-2">
-              <p className="text-sm mb-1">预览:</p>
-              <div className="relative h-40 bg-cover bg-center rounded overflow-hidden">
-                <img 
-                  src={previewUrl} 
-                  alt="预览" 
-                  className="w-full h-full object-cover" 
-                />
-              </div>
-              
-              {isUploading ? (
-                <div className="mt-2">
-                  <div className="w-full bg-muted rounded-full h-2 mt-2">
-                    <div 
-                      className="bg-primary h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 text-center">
-                    正在上传... {uploadProgress}%
-                  </p>
-                </div>
-              ) : (
-                <Button 
-                  className="w-full mt-2" 
-                  onClick={handleUpload} 
-                  disabled={!selectedImage}
-                >
-                  <Upload className="mr-2" size={16} />
-                  上传图片
-                </Button>
-              )}
-            </div>
+          {backgroundImage && (
+            <Button 
+              variant="ghost" 
+              onClick={handleClearBackground}
+              className="w-full mt-2"
+            >
+              <X className="mr-2 h-4 w-4" />
+              移除背景
+            </Button>
           )}
         </div>
-        
-        {/* 预设背景选项 */}
-        <div className="space-y-3">
-          <Label>选择预设背景</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {presetBackgrounds.map(bg => (
-              <div 
-                key={bg.id} 
-                className="relative cursor-pointer rounded overflow-hidden group"
-                onClick={() => selectPresetBackground(bg)}
-              >
-                <img 
-                  src={bg.url} 
-                  alt={bg.name} 
-                  className="w-full h-20 object-cover"
+      </div>
+
+      <div>
+        <Label className="mb-2 block font-medium">预设背景</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {presetBackgrounds.map((bg) => (
+            <Card 
+              key={bg.id} 
+              className={`overflow-hidden cursor-pointer transition-all hover:ring-2 hover:ring-primary ${backgroundImage && backgroundImage.url === bg.url ? 'ring-2 ring-primary' : ''}`}
+              onClick={() => selectPresetBackground(bg.url)}
+            >
+              <CardContent className="p-0 relative aspect-video">
+                <div 
+                  className="w-full h-full" 
+                  style={{
+                    backgroundImage: `url(${bg.url})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center"
+                  }}
                 />
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <p className="text-white text-xs">{bg.name}</p>
+                <div className="absolute bottom-0 left-0 right-0 bg-background/80 p-1 text-xs text-center">
+                  {bg.name}
                 </div>
-                {/* 如果是当前选中的背景，显示标记 */}
-                {backgroundImage?.fileId === bg.id && (
-                  <div className="absolute top-1 right-1 bg-primary rounded-full p-1">
-                    <Check size={12} className="text-primary-foreground" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </CardContent>
-      
-      <CardFooter className="flex justify-between border-t pt-4">
-        <Button variant="outline" onClick={removeBackground}>
-          <RotateCcw className="mr-2" size={16} />
-          恢复默认
-        </Button>
-        <Button variant="outline" onClick={onClose}>
-          关闭
-        </Button>
-      </CardFooter>
-    </Card>
+      </div>
+
+      <div className="text-xs text-muted-foreground">
+        <p className="mb-2">提示：文件大小不应超过5MB，支持JPG、PNG等常见图片格式</p>
+      </div>
+    </div>
   );
 }

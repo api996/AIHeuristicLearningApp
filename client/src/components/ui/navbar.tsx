@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Home, BookOpen, Library, Network, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { SettingsPanel } from "@/components/ui/settings-panel";
 
 export const Navbar: React.FC = () => {
   const { userId, role, logout } = useAuth();
@@ -59,6 +60,9 @@ export const Navbar: React.FC = () => {
             <div className="hidden md:flex"></div>
           </div>
           <div className="flex items-center gap-2">
+            {/* 设置面板 */}
+            <SettingsPanel />
+            
             {userId ? (
               <Button
                 variant="ghost"
