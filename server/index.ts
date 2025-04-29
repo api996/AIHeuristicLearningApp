@@ -249,9 +249,9 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    // 使用环境变量PORT（适用于部署）或默认端口5001（适用于开发）
-    // 注意：修改为5001端口，因为5000端口可能被其他服务占用
-    const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 5001;
+    // 使用环境变量PORT（适用于部署）或默认端口5000（适用于开发）
+    // 注意：使用5000端口以与Replit工作流匹配
+    const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
 
     server.listen({
       port: port,

@@ -35,13 +35,22 @@ class MCPWebSearchService {
     if (this.geminiApiKey) {
       try {
         this.genAI = new GoogleGenerativeAI(this.geminiApiKey);
-        console.log("[MCP-SEARCH] Gemini API 初始化成功");
+        // 在生产环境中避免使用标准输出，防止管道错误
+        if (process.env.NODE_ENV !== 'production') {
+          console.log("[MCP-SEARCH] Gemini API 初始化成功");
+        }
       } catch (error) {
-        console.error("[MCP-SEARCH] Gemini API 初始化失败:", error);
+        // 安全地记录错误，避免在生产环境中可能导致的管道错误
+        if (process.env.NODE_ENV !== 'production') {
+          console.error("[MCP-SEARCH] Gemini API 初始化失败:", error);
+        }
         this.genAI = null;
       }
     } else {
-      console.warn("[MCP-SEARCH] Gemini API 密钥未设置");
+      // 同样在生产环境中避免标准输出
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn("[MCP-SEARCH] Gemini API 密钥未设置");
+      }
     }
   }
   
@@ -114,11 +123,16 @@ class MCPWebSearchService {
    * @returns 搜索结果片段
    */
   async search(query: string) {
-    console.log(`[MCP-SEARCH] 执行基础搜索: ${query}`);
+    // 在非生产环境中输出日志
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[MCP-SEARCH] 执行基础搜索: ${query}`);
+    }
     
     // 如果API密钥未设置，返回默认结果
     if (!this.apiKey) {
-      console.warn("[MCP-SEARCH] 搜索API密钥未设置，使用默认结果");
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn("[MCP-SEARCH] 搜索API密钥未设置，使用默认结果");
+      }
       return [
         {
           title: `关于"${query}"的搜索结果`,
@@ -190,7 +204,9 @@ class MCPWebSearchService {
         }
       }
       
-      console.log(`[MCP-SEARCH] 搜索完成，获取到 ${snippets.length} 条结果`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[MCP-SEARCH] 搜索完成，获取到 ${snippets.length} 条结果`);
+      }
       return snippets;
       
     } catch (error) {
@@ -213,16 +229,22 @@ class MCPWebSearchService {
    */
   async searchWithMCP(query: string) {
     try {
-      console.log(`[MCP-SEARCH] 执行MCP搜索: ${query}`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[MCP-SEARCH] 执行MCP搜索: ${query}`);
+      }
       
       if (!query || query.trim().length === 0) {
-        console.log(`[MCP-SEARCH] 搜索查询为空，无法执行`);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[MCP-SEARCH] 搜索查询为空，无法执行`);
+        }
         return null;
       }
       
       // 检查Gemini API是否可用
       if (!this.genAI) {
-        console.log(`[MCP-SEARCH] MCP搜索需要Gemini API，但API未初始化`);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[MCP-SEARCH] MCP搜索需要Gemini API，但API未初始化`);
+        }
         return null;
       }
       
@@ -230,7 +252,9 @@ class MCPWebSearchService {
       const snippets = await this.search(query);
       
       if (!snippets || snippets.length === 0) {
-        console.log(`[MCP-SEARCH] MCP搜索未找到结果: ${query}`);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[MCP-SEARCH] MCP搜索未找到结果: ${query}`);
+        }
         return null;
       }
       
