@@ -9,7 +9,7 @@ import {
   type InsertMemory, type InsertMemoryKeyword, type InsertMemoryEmbedding,
   type PromptTemplate, type SearchResult, type ConversationAnalytic,
   type SystemConfig, type KnowledgeGraphCache, type ClusterResultCache, type LearningPath,
-  type InsertLearningPath, type UserSetting,
+  type InsertLearningPath, type UserSetting, type UserFile,
   // 添加学生智能体相关导入
   studentAgentPresets, studentAgentSessions, studentAgentMessages, studentAgentEvaluations,
   type StudentAgentPreset, type StudentAgentSession, type StudentAgentMessage, type StudentAgentEvaluation,
@@ -376,6 +376,47 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       log(`[用户设置] 获取设置出错: ${error}`, 'error');
       throw error;
+    }
+  }
+  
+  // User Files methods
+  async checkUserFileExists(userId: number, fileId: string): Promise<boolean> {
+    try {
+      log(`[用户文件] 检查文件ID=${fileId}是否属于用户ID=${userId}`);
+      
+      const query = { where: and(eq(userFiles.userId, userId), eq(userFiles.fileId, fileId)) };
+      const file = await db.query.userFiles.findFirst(query);
+      
+      const exists = !!file;
+      log(`[用户文件] 文件ID=${fileId}${exists ? '存在' : '不存在'}`);
+      return exists;
+    } catch (error) {
+      log(`[用户文件] 检查文件存在性出错: ${error}`, 'error');
+      // 发生错误时返回false，而不是抛出异常
+      return false;
+    }
+  }
+  
+  async getUserFiles(userId: number, fileType?: string): Promise<UserFile[]> {
+    try {
+      log(`[用户文件] 获取用户ID=${userId}的文件，类型=${fileType || '全部'}`);
+      
+      const query = { where: eq(userFiles.userId, userId) };
+      const result = await db.query.userFiles.findMany(query);
+      
+      let files;
+      if (fileType) {
+        // 使用JavaScript filter而不SQL过滤
+        files = result.filter(file => file.fileType === fileType);
+      } else {
+        files = result;
+      }
+      
+      log(`[用户文件] 找到${files.length}个文件`);
+      return files;
+    } catch (error) {
+      log(`[用户文件] 获取文件列表出错: ${error}`, 'error');
+      return [];
     }
   }
 
