@@ -314,10 +314,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const saveSettingsToDatabase = async (settings: { 
     theme?: Theme, 
     font_size?: FontSize,
-    background_file?: string | null,
-    primary_color?: string,
-    background_style?: string,
-    ui_radius?: number
+    background_file?: string | null
   }) => {
     if (!userId) return;
 
@@ -519,9 +516,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     setBackgroundImage,
     clearBackgroundImage,
     uploadBackgroundImage,
-    setPrimaryColor,
-    setBackgroundStyle,
-    setUiRadius,
     isLoading,
   };
 
