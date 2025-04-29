@@ -8,6 +8,7 @@ import "./components/ui/mobile-fixes.css";
 import "./components/ui/ipad-fixes.css";
 import "./components/ui/button-styles.css";
 import "./components/ui/icon-fixes.css"; // 导入图标大小修复
+import "./components/ui/force-dark-theme.css"; // 强制知识图谱相关页面使用深色主题
 
 // 导入D3加载修复和补丁文件
 import { ensureD3Loaded } from "./lib/d3-load-fix";
