@@ -375,20 +375,6 @@ export class DatabaseStorage implements IStorage {
       const [settings] = await db.select()
         .from(userSettings)
         .where(eq(userSettings.userId, userId));
-      
-      if (settings) {
-        // 转换字段名，确保API兼容性
-        const transformed: any = {
-          ...settings,
-          font_size: settings.fontSize,
-          background_file: settings.backgroundFile,
-          primary_color: settings.primaryColor,
-          background_style: settings.backgroundStyle,
-          ui_radius: settings.uiRadius
-        };
-        return transformed;
-      }
-      
       return settings;
     } catch (error) {
       log(`[用户设置] 获取设置出错: ${error}`, 'error');
@@ -469,16 +455,7 @@ export class DatabaseStorage implements IStorage {
           .where(eq(userSettings.id, currentSettings.id))
           .returning();
         
-        // 转换字段名称以保持API一致性
-        const transformed: any = {
-          ...updated,
-          font_size: updated.fontSize,
-          background_file: updated.backgroundFile,
-          primary_color: updated.primaryColor,
-          background_style: updated.backgroundStyle,
-          ui_radius: updated.uiRadius
-        };
-        return transformed;
+        return updated;
       } else {
         // 创建新设置
         log(`[用户设置] 用户 ${userId} 的设置不存在，创建新设置`);
@@ -495,16 +472,7 @@ export class DatabaseStorage implements IStorage {
           .values(insertValues)
           .returning();
         
-        // 转换字段名称以保持API一致性
-        const transformed: any = {
-          ...created,
-          font_size: created.fontSize,
-          background_file: created.backgroundFile,
-          primary_color: created.primaryColor,
-          background_style: created.backgroundStyle,
-          ui_radius: created.uiRadius
-        };
-        return transformed;
+        return created;
       }
     } catch (error) {
       log(`[用户设置] 保存设置出错: ${error}`, 'error');
