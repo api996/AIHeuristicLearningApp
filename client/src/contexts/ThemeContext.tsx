@@ -104,48 +104,26 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     localStorage.setItem('font-size', size);
   };
 
-  // 应用主题设置到DOM - 简化版本，更可靠的主题切换
+  // 应用主题设置到DOM
   const applyTheme = (newTheme: Theme) => {
-    // 先清除所有现有的主题类
-    const rootEl = document.documentElement;
-    rootEl.classList.remove('light', 'dark');
+    // 移除所有主题类
+    document.documentElement.classList.remove('light', 'dark');
 
-    // 记录操作，便于调试
-    console.log(`[主题操作] 应用主题: ${newTheme}`);
-    
-    let effectiveTheme = newTheme;
-    
     // 应用新主题
     if (newTheme === "system") {
       // 根据系统偏好设置主题
-      const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      effectiveTheme = isDarkMode ? 'dark' : 'light';
-      console.log(`[主题操作] 系统主题：检测到${isDarkMode ? '深色' : '浅色'}模式偏好`);
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.add('light');
+      }
     } else {
-      console.log(`[主题操作] 已应用用户选择的主题: ${newTheme}`);
-    }
-    
-    // 直接添加主题类 - 简化处理避免冲突
-    rootEl.classList.add(effectiveTheme);
-    
-    // 强制应用主题颜色样式 - 确保CSS属性完全生效
-    if (effectiveTheme === 'dark') {
-      // 设置深色模式的变量 - 背景变量设为完全透明，让背景图片显示
-      rootEl.style.setProperty('--background', '0 0% 0% / 0');  // 完全透明背景
-      rootEl.style.setProperty('--foreground', '177 100% 79%');
-      rootEl.style.setProperty('--card', '178 100% 4%');
-      rootEl.style.setProperty('--card-foreground', '177 100% 79%');
-    } else {
-      // 设置浅色模式的变量
-      rootEl.style.setProperty('--background', '0 0% 100% / 0');  // 完全透明背景
-      rootEl.style.setProperty('--foreground', '178 100% 4%');
-      rootEl.style.setProperty('--card', '176 100% 92%');
-      rootEl.style.setProperty('--card-foreground', '178 100% 4%');
+      // 直接应用指定主题
+      document.documentElement.classList.add(newTheme);
     }
 
     // 保存设置到本地存储
     localStorage.setItem('theme', newTheme);
-    console.log(`[主题操作] 主题已应用: ${effectiveTheme}, 类列表: ${rootEl.classList.toString()}`);
   };
 
   // 从数据库加载设置
@@ -211,7 +189,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
             // 使用默认背景
             const defaultBgUrl = orientation === 'portrait' 
               ? '/backgrounds/portrait-background.jpg' 
-              : '/backgrounds/landscape-background.jpg';
+              : '/backgrounds/default-background.jpg';
               
             setBackgroundImageState({
               fileId: orientation === 'portrait' ? 'default-portrait-bg' : 'default-landscape-bg',
@@ -225,7 +203,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
           // 使用默认背景
           const defaultBgUrl = orientation === 'portrait' 
             ? '/backgrounds/portrait-background.jpg' 
-            : '/backgrounds/landscape-background.jpg';
+            : '/backgrounds/default-background.jpg';
             
           setBackgroundImageState({
             fileId: orientation === 'portrait' ? 'default-portrait-bg' : 'default-landscape-bg',
@@ -239,7 +217,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         const isPortrait = window.innerHeight > window.innerWidth;
         const defaultBgUrl = isPortrait 
           ? '/backgrounds/portrait-background.jpg' 
-          : '/backgrounds/landscape-background.jpg';
+          : '/backgrounds/default-background.jpg';
           
         setBackgroundImageState({
           fileId: isPortrait ? 'default-portrait-bg' : 'default-landscape-bg',
@@ -440,7 +418,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       const isPortrait = orientation === 'portrait' || window.innerHeight > window.innerWidth;
       const defaultBgUrl = isPortrait 
         ? '/backgrounds/portrait-background.jpg' 
-        : '/backgrounds/landscape-background.jpg';
+        : '/backgrounds/default-background.jpg';
       
       // 不要使用文件ID，而是使用固定的默认ID
       setBackgroundImageState({

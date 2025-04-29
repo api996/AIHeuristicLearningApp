@@ -9,7 +9,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
-import { userFiles, userSettings } from '../../shared/schema';
+import { userFiles } from '../../shared/schema';
 import sharp from 'sharp';
 import etag from 'etag';
 
@@ -357,66 +357,18 @@ export function getDefaultBackgroundUrl(isPortrait: boolean = false): string {
  */
 export async function getUserBackground(userId: number, isPortrait: boolean = false): Promise<string> {
   try {
-    // 从用户设置中获取背景文件ID
-    const userSettings = await db.query.userSettings.findFirst({
-      where: (settings) => eq(settings.userId, userId)
+    // 直接从数据库查询最新的背景图片
+    const result = await db.query.userFiles.findMany({
+      where: (userFiles) => {
+        return eq(userFiles.userId, userId) && eq(userFiles.fileType, 'background');
+      },
+      orderBy: (userFiles, { desc }) => [desc(userFiles.createdAt)],
+      limit: 1
     });
     
-    // 用户设置中有指定的背景图片ID
-    if (userSettings && userSettings.backgroundFile) {
-      // 先尝试通过fileId精确匹配
-      let result = await db.query.userFiles.findFirst({
-        where: (userFiles) => {
-          return eq(userFiles.userId, userId) && 
-                 eq(userFiles.fileType, 'background') &&
-                 eq(userFiles.fileId, userSettings.backgroundFile);
-        }
-      });
-
-      // 如果没找到精确匹配，通过原始文件名匹配（兼容旧数据）
-      if (!result) {
-        result = await db.query.userFiles.findFirst({
-          where: (userFiles) => {
-            return eq(userFiles.userId, userId) && 
-                   eq(userFiles.fileType, 'background') &&
-                   eq(userFiles.originalName, userSettings.backgroundFile);
-          }
-        });
-      }
-      
-      // 如果还是没找到，查询最近的背景图片
-      if (!result) {
-        const results = await db.query.userFiles.findMany({
-          where: (userFiles) => {
-            return eq(userFiles.userId, userId) && eq(userFiles.fileType, 'background');
-          },
-          orderBy: (userFiles, { desc }) => [desc(userFiles.createdAt)],
-          limit: 1
-        });
-        
-        if (results && results.length > 0) {
-          result = results[0];
-        }
-      }
-      
-      if (result) {
-        console.log(`用户 ${userId} 的背景图片: ${result.fileId}, URL: ${result.publicUrl}`);
-        return result.publicUrl;
-      }
-    } else {
-      // 直接从数据库查询最新的背景图片（如果没有在用户设置中指定）
-      const results = await db.query.userFiles.findMany({
-        where: (userFiles) => {
-          return eq(userFiles.userId, userId) && eq(userFiles.fileType, 'background');
-        },
-        orderBy: (userFiles, { desc }) => [desc(userFiles.createdAt)],
-        limit: 1
-      });
-      
-      if (results && results.length > 0) {
-        console.log(`用户 ${userId} 的最新背景图片: ${results[0].fileId}, 创建时间: ${results[0].createdAt}`);
-        return results[0].publicUrl;
-      }
+    if (result && result.length > 0) {
+      console.log(`用户 ${userId} 的最新背景图片: ${result[0].fileId}, 创建时间: ${result[0].createdAt}`);
+      return result[0].publicUrl;
     }
   } catch (error) {
     console.error(`获取用户 ${userId} 背景图片时出错:`, error);

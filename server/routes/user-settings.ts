@@ -95,29 +95,12 @@ router.post('/:userId', async (req: Request, res: Response) => {
     }
     
     // 验证背景图片文件ID (如果提供)
-    if (background_file && background_file !== 'null') {
-      // 查询用户文件记录
-      try {
-        // 先尝试直接检查文件ID是否存在
-        let fileExists = await storage.checkUserFileExists(userId, background_file);
-        
-        // 如果文件ID不存在，尝试作为标准图片名检查
-        if (!fileExists && (background_file === 'portrait-background.jpg' || background_file === 'landscape-background.jpg' || 
-                        background_file === 'mobile-background.jpg' || background_file === 'default-background.jpg')) {
-          log(`[用户设置] 使用默认背景图片: ${background_file}`);
-          // 默认背景图片总是有效的
-          fileExists = true;
-        }
-        
-        if (!fileExists) {
-          log(`[用户设置] 警告: 文件ID=${background_file}不存在或不属于用户ID=${userId}`);
-          // 列出用户的背景图片供调试
-          const userFiles = await storage.getUserFiles(userId, 'background');
-          log(`[用户设置] 用户可用背景图片: ${JSON.stringify(userFiles.map(f => ({ id: f.id, fileId: f.fileId, name: f.originalName })))}`); 
-        }
-      } catch (error) {
-        log(`[用户设置] 检查背景图片出错: ${error}`, 'warn');
-        // 继续处理其他设置
+    if (background_file) {
+      // 检查文件是否存在且属于该用户
+      const fileExists = await storage.checkUserFileExists(userId, background_file);
+      if (!fileExists) {
+        log(`[用户设置] 警告: 文件ID=${background_file}不存在或不属于用户ID=${userId}`);
+        // 我们不返回错误，而是记录警告并继续处理其他设置
       }
     }
     
