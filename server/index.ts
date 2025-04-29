@@ -111,17 +111,17 @@ app.use(session({
 // 添加会话调试中间件（仅在开发环境）
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
-    const views = (req.session as any).views as number | undefined;
+    const views = req.session.views as number | undefined;
     const isNewSession = !views;
     
     // 记录会话信息
-    (req.session as any).views = (views || 0) + 1;
+    req.session.views = (views || 0) + 1;
     
     // 只在API请求时记录会话信息，避免静态资源请求导致的日志刷屏
     if (req.path.startsWith('/api/')) {
       // 仅记录用户相关的活动
       if (req.session.userId) {
-        log(`会话活动: 用户=${req.session.userId}, 会话=${req.sessionID.substring(0, 6)}..., 视图=${(req.session as any).views}`);
+        log(`会话活动: 用户=${req.session.userId}, 会话=${req.sessionID.substring(0, 6)}..., 视图=${req.session.views}`);
       } else if (isNewSession) {
         // 只有新会话的首次API请求才记录
         log(`创建新会话: ${req.sessionID.substring(0, 6)}...`);
