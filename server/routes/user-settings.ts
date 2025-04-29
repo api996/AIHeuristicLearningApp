@@ -39,10 +39,7 @@ router.get('/:userId', async (req: Request, res: Response) => {
       return res.json({
         theme: 'system',
         font_size: 'medium',
-        background_file: null,
-        primary_color: '#0deae4',  // 默认青色
-        background_style: 'blur',  // 默认模糊背景
-        ui_radius: 8               // 默认圆角度
+        background_file: null
       });
     }
   } catch (error) {
