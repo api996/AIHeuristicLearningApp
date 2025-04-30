@@ -1029,7 +1029,8 @@ ${searchResults}`;
           // 尝试最简单的请求结构，减少可能的错误
           const requestPayload: any = {
             query: userQuestion,     // 用户原始问题
-            response_mode: "blocking"
+            response_mode: "blocking",
+            inputs: {}               // 即使为空也必须包含inputs字段
           };
           
           // 如果有会话ID，添加到请求中
@@ -1040,7 +1041,15 @@ ${searchResults}`;
           // 添加基本的用户标识
           requestPayload.user = userId ? `user-${userId}` : "user";
           
-          // 不添加任何可选的inputs数据，测试最小化请求
+          // 如果有上下文记忆，添加到inputs中
+          if (contextMemories) {
+            requestPayload.inputs.context_memories = contextMemories;
+          }
+          
+          // 如果有搜索结果，添加到inputs中
+          if (searchResults) {
+            requestPayload.inputs.search_results = searchResults;
+          }
           
           // 注意：由于Dify是有状态API，我们不需要传递完整的历史消息
           // Dify会自动基于conversation_id维护对话上下文
