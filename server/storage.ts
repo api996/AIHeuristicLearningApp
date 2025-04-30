@@ -1797,102 +1797,183 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Invalid user ID");
       }
       
-      log(`[storage-debug] 保存用户 ${userId} 的学习轨迹数据，${topics.length} 个主题，${suggestions.length} 个建议`);
-      console.log(`[DEBUG] 保存学习轨迹: 用户ID=${userId}, 主题数=${topics.length}, 建议数=${suggestions.length}`);
+      log(`[storage-debug] 保存用户 ${userId} 的学习轨迹数据，${topics?.length || 0} 个主题，${suggestions?.length || 0} 个建议`);
+      console.log(`[DEBUG] 保存学习轨迹: 用户ID=${userId}, 主题数=${topics?.length || 0}, 建议数=${suggestions?.length || 0}`);
+      
+      // 数据安全处理 - 确保有有效的数组数据
+      const safeTopics = Array.isArray(topics) ? topics.map((t: any) => ({
+        id: (t.id && typeof t.id === 'string') ? t.id : `topic_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+        topic: (t.topic && typeof t.topic === 'string') ? t.topic : '未知主题',
+        percentage: (t.percentage && typeof t.percentage === 'number') ? t.percentage : 0.1
+      })) : [];
+      
+      const safeDistribution = Array.isArray(distribution) ? distribution.map((d: any) => ({
+        id: (d.id && typeof d.id === 'string') ? d.id : `dist_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+        topic: (d.topic && typeof d.topic === 'string') ? d.topic : '未知主题',
+        percentage: (d.percentage && typeof d.percentage === 'number') ? d.percentage : 0.1
+      })) : safeTopics;
+      
+      const safeSuggestions = Array.isArray(suggestions) ? 
+        suggestions.filter((s: any) => typeof s === 'string').slice(0, 10) : 
+        ['继续探索您感兴趣的主题', '尝试将学到的知识应用到实际中'];
+      
+      const safeKnowledgeGraph = knowledgeGraph ? {
+        nodes: Array.isArray(knowledgeGraph.nodes) ? knowledgeGraph.nodes.map((n: any) => ({
+          id: n.id || `node_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+          label: typeof n.label === 'string' ? n.label : '未命名节点',
+          size: typeof n.size === 'number' ? n.size : 20,
+          category: typeof n.category === 'string' ? n.category : 'default'
+        })) : [],
+        links: Array.isArray(knowledgeGraph.links) ? knowledgeGraph.links.map((l: any) => ({
+          source: l.source || '',
+          target: l.target || '',
+          value: typeof l.value === 'number' ? l.value : 1
+        })) : []
+      } : { nodes: [], links: [] };
       
       // 检查用户是否已有学习轨迹
       const existingPath = await this.getLearningPath(userId);
       
-      if (existingPath) {
-        // 如果存在，更新现有记录
-        log(`更新用户 ${userId} 的现有学习轨迹记录`);
-        
-        // 准备更新数据
-        const updateData: any = {
-          topics: topics,
-          distribution: distribution,
-          suggestions: suggestions,
-          updatedAt: new Date(),
-          version: existingPath.version + 1
-        };
-        
-        // 设置过期时间（默认168小时/1周）
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + expiryHours);
-        updateData.expiresAt = expiresAt;
-        
-        // 只有当提供了这些可选字段时才更新它们
-        if (knowledgeGraph) updateData.knowledgeGraph = knowledgeGraph;
-        if (isOptimized !== undefined) updateData.isOptimized = isOptimized;
-        
-        // 处理历史记录
-        if (progressHistory) {
-          // 如果提供了新的历史记录，则替换旧记录
-          updateData.progressHistory = progressHistory;
-        } else if (existingPath.progressHistory) {
-          // 如果没有提供新记录但有旧记录，保留旧记录并添加当前状态
-          const currentProgressEntry = {
-            date: new Date().toISOString().split('T')[0], // 当前日期，格式为YYYY-MM-DD
-            topics: distribution
+      try {
+        if (existingPath) {
+          // 如果存在，更新现有记录
+          log(`更新用户 ${userId} 的现有学习轨迹记录`);
+          
+          // 准备更新数据
+          const updateData: any = {
+            topics: safeTopics,
+            distribution: safeDistribution,
+            suggestions: safeSuggestions,
+            knowledgeGraph: safeKnowledgeGraph,
+            updatedAt: new Date(),
+            version: existingPath.version + 1
           };
           
-          // 获取现有历史记录，确保它是数组
-          const existingHistory = Array.isArray(existingPath.progressHistory) 
-            ? existingPath.progressHistory 
-            : [];
+          // 设置过期时间（默认168小时/1周）
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + expiryHours);
+          updateData.expiresAt = expiresAt;
+          
+          // 设置优化标志
+          if (isOptimized !== undefined) updateData.isOptimized = isOptimized;
+          
+          // 处理历史记录
+          if (progressHistory && Array.isArray(progressHistory)) {
+            // 如果提供了新的历史记录，则替换旧记录
+            updateData.progressHistory = progressHistory;
+          } else if (existingPath.progressHistory) {
+            // 如果没有提供新记录但有旧记录，保留旧记录并添加当前状态
+            const currentProgressEntry = {
+              date: new Date().toISOString().split('T')[0], // 当前日期，格式为YYYY-MM-DD
+              topics: safeDistribution
+            };
             
-          // 添加新的记录并保存
-          updateData.progressHistory = [...existingHistory, currentProgressEntry];
-        }
-        
-        // 执行更新操作
-        const [updatedPath] = await db.update(learningPaths)
-          .set(updateData)
-          .where(eq(learningPaths.userId, userId))
-          .returning();
+            // 获取现有历史记录，确保它是数组
+            const existingHistory = Array.isArray(existingPath.progressHistory) 
+              ? existingPath.progressHistory 
+              : [];
+              
+            // 添加新的记录并保存
+            updateData.progressHistory = [...existingHistory, currentProgressEntry];
+          } else {
+            // 如果没有历史记录，创建新的
+            updateData.progressHistory = [{
+              date: new Date().toISOString().split('T')[0],
+              topics: safeDistribution
+            }];
+          }
           
-        log(`用户 ${userId} 的学习轨迹已更新，版本: ${updatedPath.version}`);
-        return updatedPath;
-      } else {
-        // 如果不存在，创建新记录
-        log(`为用户 ${userId} 创建首次学习轨迹记录`);
-        
-        // 准备创建数据
-        const newData: any = {
-          userId,
-          topics,
-          distribution,
-          suggestions,
-          version: 1,
-          isOptimized: isOptimized || false
-        };
-        
-        // 设置过期时间（默认168小时/1周）
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + expiryHours);
-        newData.expiresAt = expiresAt;
-        
-        // 只在提供时设置可选字段
-        if (knowledgeGraph) newData.knowledgeGraph = knowledgeGraph;
-        
-        // 初始化历史记录
-        if (progressHistory) {
-          newData.progressHistory = progressHistory;
+          // 执行更新操作，使用预处理过的安全数据
+          const [updatedPath] = await db.update(learningPaths)
+            .set(updateData)
+            .where(eq(learningPaths.userId, userId))
+            .returning();
+            
+          log(`用户 ${userId} 的学习轨迹已更新，版本: ${updatedPath.version}`);
+          return updatedPath;
         } else {
-          // 创建初始历史记录
-          newData.progressHistory = [{
-            date: new Date().toISOString().split('T')[0],
-            topics: distribution
-          }];
+          // 如果不存在，创建新记录
+          log(`为用户 ${userId} 创建首次学习轨迹记录`);
+          
+          // 准备创建数据，使用预处理过的安全数据
+          const newData: any = {
+            userId,
+            topics: safeTopics,
+            distribution: safeDistribution,
+            suggestions: safeSuggestions,
+            knowledgeGraph: safeKnowledgeGraph,
+            version: 1,
+            isOptimized: isOptimized || false
+          };
+          
+          // 设置过期时间（默认168小时/1周）
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + expiryHours);
+          newData.expiresAt = expiresAt;
+          
+          // 初始化历史记录
+          if (progressHistory && Array.isArray(progressHistory)) {
+            newData.progressHistory = progressHistory;
+          } else {
+            // 创建初始历史记录
+            newData.progressHistory = [{
+              date: new Date().toISOString().split('T')[0],
+              topics: safeDistribution
+            }];
+          }
+          
+          // 创建记录
+          const [newPath] = await db.insert(learningPaths)
+            .values(newData)
+            .returning();
+            
+          log(`为用户 ${userId} 创建了新的学习轨迹记录，ID: ${newPath.id}`);
+          return newPath;
+        }
+      } catch (dbError: any) {
+        // 处理特定的数据库错误
+        log(`[storage-error] 数据库操作失败: ${dbError.message}`);
+        console.error('[DB-ERROR] 详细错误:', dbError);
+        
+        // 检查是否为唯一约束错误（同一用户重复记录）
+        if (dbError.code === '23505' || (dbError.message && dbError.message.includes('unique'))) {
+          log(`[storage-error] 检测到唯一约束冲突，尝试删除现有记录后重新创建`);
+          
+          try {
+            // 先删除可能冲突的记录
+            await db.delete(learningPaths)
+              .where(eq(learningPaths.userId, userId));
+              
+            log(`[storage-recovery] 成功删除冲突记录，正在重新创建`);
+            
+            // 重新创建记录
+            const [recreatedPath] = await db.insert(learningPaths)
+              .values({
+                userId,
+                topics: safeTopics,
+                distribution: safeDistribution,
+                suggestions: safeSuggestions,
+                knowledgeGraph: safeKnowledgeGraph,
+                version: 1,
+                isOptimized: isOptimized || false,
+                expiresAt: new Date(Date.now() + expiryHours * 60 * 60 * 1000),
+                progressHistory: [{
+                  date: new Date().toISOString().split('T')[0],
+                  topics: safeDistribution
+                }]
+              })
+              .returning();
+              
+            log(`[storage-recovery] 成功重新创建学习轨迹记录，ID: ${recreatedPath.id}`);
+            return recreatedPath;
+          } catch (recoveryError: any) {
+            log(`[storage-recovery] 恢复操作失败: ${recoveryError.message}`);
+            throw new Error(`学习轨迹恢复失败: ${recoveryError.message}`);
+          }
         }
         
-        // 创建记录
-        const [newPath] = await db.insert(learningPaths)
-          .values(newData)
-          .returning();
-          
-        log(`为用户 ${userId} 创建了新的学习轨迹记录`);
-        return newPath;
+        // 重新抛出错误以便上层处理
+        throw dbError;
       }
     } catch (error: any) {
       console.error('[DB-ERROR] 保存学习轨迹错误:', error);
@@ -1904,48 +1985,6 @@ export class DatabaseStorage implements IStorage {
       // 检查错误类型，提供更详细的日志
       if (error?.code) {
         log(`[storage-error] 数据库错误代码: ${error.code}`);
-      }
-      
-      // 检查是否为JSON序列化错误
-      if (errorMessage && errorMessage.includes && errorMessage.includes('JSON')) {
-        log(`[storage-error] 可能是JSON序列化错误，检查数据类型`);
-        log(`[storage-error] topics类型: ${typeof topics}, distribution类型: ${typeof distribution}`);
-        log(`[storage-error] suggestions类型: ${typeof suggestions}, knowledgeGraph类型: ${typeof knowledgeGraph}`);
-        
-        // 尝试使用简化版本的数据重新保存
-        try {
-          // 准备简化数据
-          const simplifiedData = {
-            userId,
-            topics: Array.isArray(topics) ? topics.map((t: any) => ({
-              topic: typeof t.topic === 'string' ? t.topic : '未知主题',
-              percentage: typeof t.percentage === 'number' ? t.percentage : 0.1,
-              id: typeof t.id === 'string' ? t.id : `topic_${Date.now()}`
-            })) : [],
-            distribution: Array.isArray(distribution) ? distribution : [],
-            suggestions: Array.isArray(suggestions) ? suggestions : [],
-            version: 1,
-            isOptimized: isOptimized || false,
-            expiresAt: new Date(Date.now() + expiryHours * 60 * 60 * 1000),
-            knowledgeGraph: { nodes: [], links: [] },
-            progressHistory: [{
-              date: new Date().toISOString().split('T')[0],
-              topics: []
-            }]
-          };
-          
-          log(`[storage-recovery] 尝试使用简化数据重新保存学习轨迹`);
-          
-          // 执行插入操作
-          const [recoveredPath] = await db.insert(learningPaths)
-            .values(simplifiedData)
-            .returning();
-            
-          log(`[storage-recovery] 成功使用简化数据保存学习轨迹，ID: ${recoveredPath.id}`);
-          return recoveredPath;
-        } catch (recoveryError: any) {
-          log(`[storage-recovery] 使用简化数据保存失败: ${recoveryError?.message || '未知错误'}`);
-        }
       }
       
       // 重新抛出经过处理的错误对象，以避免undefined或非标准错误导致应用崩溃
