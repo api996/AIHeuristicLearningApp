@@ -129,11 +129,18 @@ export async function analyzeLearningPath(userId: number, forceRefresh: boolean 
       const { memoryService } = await import('./memory_service');
       
       // 直接从缓存源获取聚类数据
-      log(`[trajectory] 直接从聚类缓存获取用户 ${userId} 的聚类数据`);
-      const clusterResult = await memoryService.getUserClusters(userId, forceRefresh);
+      log(`[trajectory] 直接从聚类缓存获取用户 ${userId} 的聚类数据 - 强制刷新=${forceRefresh}`);
       
+      // 获取聚类数据，始终使用强制刷新以确保得到最新数据
+      const clusterResult = await memoryService.getUserClusters(userId, true);
+      
+      // 如果有聚类数据，则先清除旧的学习轨迹数据
       if (clusterResult && clusterResult.topics && clusterResult.topics.length > 0) {
         log(`[trajectory] 从聚类缓存获取到 ${clusterResult.topics.length} 个主题聚类`);
+        
+        // 在生成新数据前清除旧数据
+        await storage.clearLearningPath(userId);
+        log(`[trajectory] 已清除用户 ${userId} 的现有学习轨迹数据`);
         
         // 使用聚类数据生成学习轨迹
         log(`[trajectory] 使用聚类数据生成学习轨迹`);
@@ -143,10 +150,16 @@ export async function analyzeLearningPath(userId: number, forceRefresh: boolean 
         const savedPath = await storage.getLearningPath(userId);
         if (savedPath) {
           log(`[trajectory] 验证学习轨迹保存成功，ID=${savedPath.id}，包含${savedPath.topics ? savedPath.topics.length : 0}个主题`);
+          log(`[trajectory] 保存的主题: ${savedPath.topics ? savedPath.topics.map((t: any) => t.topic).join(', ') : '无主题数据'}`);
         } else {
-          log(`[trajectory] 警告：学习轨迹可能未成功保存至数据库，将尝试直接保存`);
-          // 额外保险：使用直接保存方法再尝试一次
-          await directSaveLearningPath(userId, result.topics, result.distribution, result.suggestions, result.knowledge_graph);
+          log(`[trajectory] 警告：学习轨迹未成功保存至数据库，将通过直接保存方式尝试救活`);
+          // 救活措施：直接保存到数据库
+          const directResult = await directSaveLearningPath(userId, result.topics, result.distribution, result.suggestions, result.knowledge_graph);
+          if (directResult) {
+            log(`[trajectory] 直接保存方式成功，已存储学习轨迹数据 ID=${directResult.id}`);
+          } else {
+            log(`[trajectory] 直接保存方式也失败，无法存储学习轨迹数据`, "error");
+          }
         }
         
         // 更新节点和连接
@@ -1280,9 +1293,21 @@ export async function directSaveLearningPath(
     log(`[trajectory-direct] 开始直接保存学习轨迹数据，用户ID=${userId}`);
     
     // 验证必要参数
-    if (!userId || userId <= 0 || !topics || !Array.isArray(topics) || topics.length === 0) {
-      console.error(`[DB-SAVE-ERROR] 参数无效: userId=${userId}, topics=${topics?.length || 0}`);
+    if (!userId || userId <= 0) {
+      console.error(`[DB-SAVE-ERROR] 用户ID无效: userId=${userId}`);
       return null;
+    }
+    
+    if (!topics || !Array.isArray(topics)) {
+      console.error(`[DB-SAVE-ERROR] 主题数据无效: topics=${topics}`);
+      // 创建默认主题
+      topics = [{
+        id: `topic_${Date.now()}`,
+        topic: '默认主题',
+        percentage: 100,
+        count: 1
+      }];
+      console.log(`[DB-SAVE-RECOVERY] 已创建默认主题数据`);
     }
 
     // 安全处理数据
@@ -1319,7 +1344,28 @@ export async function directSaveLearningPath(
       // 直接使用drizzle执行数据库操作
       const { db } = await import('../../db');
       const { learningPaths } = await import('@shared/schema');
-      const { eq } = await import('drizzle-orm');
+      const { eq, sql } = await import('drizzle-orm');
+      
+      console.log(`[DB-DIAG] 数据库状态检查，尝试查询当前运行状态`);
+      try {
+        // 试试数据库是否正常工作
+        const dbTest = await db.execute(sql`SELECT NOW() as time`);
+        console.log(`[DB-DIAG-OK] 数据库连接正常，当前时间: ${dbTest?.[0]?.time || '未知'}`);
+        
+        // 显示learningPaths表结构
+        try {
+          const tableInfo = await db.execute(sql`
+            SELECT column_name, data_type 
+            FROM information_schema.columns
+            WHERE table_name = 'learning_paths';
+          `);
+          console.log(`[DB-SCHEMA] learning_paths表字段信息:`, tableInfo);
+        } catch (schemaError) {
+          console.error(`[DB-SCHEMA-ERROR] 获取表结构失败:`, schemaError);
+        }
+      } catch (diagError) {
+        console.error(`[DB-DIAG-ERROR] 数据库连接测试失败:`, diagError);
+      }
       
       console.log(`[DB-SAVE-MODULE] 成功加载数据库模块，db类型=${typeof db}, learningPaths类型=${typeof learningPaths}`);
       
@@ -1363,8 +1409,32 @@ export async function directSaveLearningPath(
         
         try {
           // 执行插入
+          console.log(`[DB-SAVE-QUERY] 执行插入操作: userId=${userId}, 主题数=${safeTopics.length}`);
+          
+          // 将对象转换为正常的JSON格式
+          // 很重要：使用schema.ts中的确切字段名称
+          const jsonValues = {
+            user_id: values.userId,  // 使用下划线命名
+            topics: values.topics,   
+            distribution: values.distribution,
+            suggestions: values.suggestions,
+            progress_history: values.progressHistory, // 使用下划线命名
+            knowledge_graph: values.knowledgeGraph, // 使用下划线命名
+            version: values.version,
+            is_optimized: values.isOptimized, // 使用下划线命名
+            created_at: new Date(), // 使用下划线命名
+            updated_at: values.updatedAt, // 使用下划线命名
+            expires_at: values.expiresAt // 使用下划线命名
+          };
+          
+          // 输出最终字段名称，便于调试
+          console.log(`[DB-SAVE-FIELD-DEBUG] 使用的字段名称：${Object.keys(jsonValues).join(', ')}`);
+          console.log(`[DB-SAVE-TABLE-DEBUG] 表名：'learning_paths', 主键字段: 'id'`);
+          
+          console.log(`[DB-SAVE-VALUES] 处理后的插入数据: ${Object.keys(jsonValues).join(', ')}`);
+            
           const insertResult = await db.insert(learningPaths)
-            .values(values)
+            .values(jsonValues)
             .returning();
           
           const newPath = insertResult && insertResult.length > 0 ? insertResult[0] : null;
@@ -1374,7 +1444,55 @@ export async function directSaveLearningPath(
         } catch (queryError) {
           console.error(`[DB-SAVE-QUERY-ERROR] 执行插入查询时出错: ${queryError instanceof Error ? queryError.message : queryError}`);
           log(`[trajectory-direct] 插入查询错误: ${queryError instanceof Error ? queryError.message : queryError}`);
-          throw queryError;
+          
+          // 进一步详细的错误记录
+          if (queryError instanceof Error) {
+            console.error(`[DB-SAVE-QUERY-ERROR-DETAILS] 错误类型: ${queryError.constructor.name}`);
+            console.error(`[DB-SAVE-QUERY-ERROR-STACK] 错误调用堆栈: ${queryError.stack}`);
+            
+            // 如果是 PostgreSQL 错误，可能有更多详细信息
+            const pgError = queryError as any;
+            if (pgError.code) {
+              console.error(`[DB-SAVE-PG-ERROR] PostgreSQL 错误代码: ${pgError.code}`);
+              console.error(`[DB-SAVE-PG-ERROR] PostgreSQL 错误详情: ${pgError.detail || '无详细信息'}`);
+              console.error(`[DB-SAVE-PG-ERROR] PostgreSQL 错误提示: ${pgError.hint || '无提示'}`);
+              
+              // 记录表名和列名，如果有
+              if (pgError.table) console.error(`[DB-SAVE-PG-ERROR] 相关表名: ${pgError.table}`);
+              if (pgError.column) console.error(`[DB-SAVE-PG-ERROR] 相关列名: ${pgError.column}`);
+              if (pgError.constraint) console.error(`[DB-SAVE-PG-ERROR] 相关约束: ${pgError.constraint}`);
+            }
+            
+            // 如果是 Drizzle 错误
+            if (pgError.cause) {
+              console.error(`[DB-SAVE-DRIZZLE-ERROR] 原始错误: ${pgError.cause}`);
+            }
+          }
+          
+          // 尝试以原始 SQL 方式插入
+          try {
+            console.log(`[DB-SAVE-FALLBACK] 尝试使用原始 SQL 插入数据...`);
+            const { sql } = await import('drizzle-orm');
+            
+            // 插入的SQL语句
+            const insertSql = sql`
+              INSERT INTO learning_paths (user_id, topics, distribution, suggestions, progress_history, knowledge_graph, version, created_at, updated_at, expires_at, is_optimized)
+              VALUES (${jsonValues.user_id}, ${JSON.stringify(jsonValues.topics)}, ${JSON.stringify(jsonValues.distribution)}, 
+                     ${JSON.stringify(jsonValues.suggestions)}, ${JSON.stringify(jsonValues.progress_history)}, 
+                     ${jsonValues.knowledge_graph ? JSON.stringify(jsonValues.knowledge_graph) : null}, 
+                     ${jsonValues.version}, ${jsonValues.created_at}, ${jsonValues.updated_at}, ${jsonValues.expires_at}, ${jsonValues.is_optimized})
+              RETURNING *;
+            `;
+            
+            console.log(`[DB-SAVE-FALLBACK-SQL] 执行备用SQL插入操作...`);
+            const result = await db.execute(insertSql);
+            console.log(`[DB-SAVE-FALLBACK-OK] 备用SQL插入成功: ${JSON.stringify(result)}`);
+            return result?.[0];
+          } catch (fallbackError) {
+            console.error(`[DB-SAVE-FALLBACK-ERROR] 备用插入也失败: ${fallbackError instanceof Error ? fallbackError.message : fallbackError}`);
+            // 在这里我们继续抛出原始错误
+            throw queryError;
+          }
         }
       } catch (insertError) {
         console.error(`[DB-SAVE-INSERT-ERROR] 插入时出错: ${insertError instanceof Error ? insertError.message : insertError}`);
