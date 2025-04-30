@@ -150,10 +150,11 @@ export async function startClusteringService(): Promise<boolean> {
  */
 async function checkServiceHealth(): Promise<boolean> {
   try {
-    // 延长超时时间从1秒到5秒，给服务更多时间响应
-    const response = await axios.get(`${DEFAULT_API_URL}/health`, { timeout: 5000 });
+    // 显著延长超时时间从5秒到20秒，与API超时设置一致
+    const response = await axios.get(`${DEFAULT_API_URL}/health`, { timeout: 20000 });
     return response.status === 200 && response.data.status === 'healthy';
   } catch (error) {
+    log(`[flask_clustering] 健康检查失败: ${error}`, 'warn');
     return false;
   }
 }
@@ -189,12 +190,12 @@ async function ensureServiceRunning(): Promise<boolean> {
   
   if (startSuccess) {
     // 服务启动成功，再次验证健康状态
-    let healthCheckRetries = 10; // 增加重试次数从5到10
+    let healthCheckRetries = 10; // 保持重试次数为10
     let serviceHealthy = false;
     
     while (healthCheckRetries > 0 && !serviceHealthy) {
       log(`[flask_clustering] 检查服务健康状态，剩余重试次数: ${healthCheckRetries}`, 'info');
-      await new Promise(resolve => setTimeout(resolve, 3000)); // 等待3秒而不是1秒，给服务更多启动时间
+      await new Promise(resolve => setTimeout(resolve, 10000)); // 等待10秒，与API超时时间更匹配
       serviceHealthy = await checkServiceHealth();
       healthCheckRetries--;
     }
