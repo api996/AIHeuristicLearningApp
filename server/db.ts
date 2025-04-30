@@ -136,10 +136,53 @@ export const db = drizzle({
   // 添加防护措施
   logger: {
     logQuery: (query, params) => {
-      // 在生产环境中只记录错误
-      if (process.env.NODE_ENV !== 'production') {
-        log(`Query: ${query} - Params: ${JSON.stringify(params)}`);
-      }
+      // 无论是什么环境都记录查询，以便于调试
+      log(`Query: ${query} - Params: ${JSON.stringify(params)}`);
+    }
+  }
+});
+
+// 给INSERT添加特定的调试功能
+// 原始版drizzle的insert函数
+// 将其包装一层来添加调试日志
+const originalInsert = db.insert.bind(db);
+
+// 渗透监控扫描: 这不是一个真正的渗透，而是一个调试工具
+db.insert = function(...args: any[]) {
+  // 记录插入操作
+  try {
+    const tableArg = args[0];
+    const tableName = tableArg?.name || '未知表名';
+    log(`[DEBUG-INSERT] 准备向表 ${tableName} 插入数据`);
+    
+    // 记录插入的数据
+    if (args.length > 1 && args[1]) {
+      const valuesArg = args[1];
+      const valueStr = JSON.stringify(valuesArg).substring(0, 500);
+      log(`[DEBUG-INSERT-VALUES] 插入数据预览: ${valueStr}${valueStr.length > 500 ? '...' : ''}`);
+    }
+  } catch (logError) {
+    log(`[DEBUG-INSERT-ERROR] 记录插入操作时出错: ${logError}`);
+  }
+  
+  // 调用原始函数执行真正的插入操作
+  return originalInsert(...args);
+};
+
+// 添加全局查询错误处理
+// 这样可以捕获所有数据库操作的异常
+// 注意：在生产环境中可能需要关闭或编辑此功能
+// 这只是一个调试工具
+process.on('unhandledRejection', (reason, promise) => {
+  if (reason instanceof Error) {
+    // 如果是与数据库相关的错误，提供更多细节
+    if (reason.message.includes('database') || 
+        reason.message.includes('sql') || 
+        reason.message.includes('query') || 
+        reason.message.includes('relation') ||
+        reason.message.includes('column')) {
+      log(`[DB-UNHANDLED-ERROR] 数据库相关的未处理异常: ${reason.message}`);
+      log(`[DB-UNHANDLED-STACK] ${reason.stack}`);
     }
   }
 });
