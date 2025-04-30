@@ -40,25 +40,7 @@ async function testDifyAPI() {
       }
     };
     
-    // 使用应用级 API 端点
-    // 应用密钥格式: "app-U4atYg7zzgecfchOHo1HGAr2"
-    // 对于Dify应用密钥，我们需要提取appId部分以构建正确的URL
-    
-    // 从API密钥中提取appId
-    const appIdMatch = apiKey.match(/^app-([a-zA-Z0-9]+)/);
-    let appId = null;
-    
-    if (appIdMatch && appIdMatch[1]) {
-      appId = appIdMatch[1];
-      log(`成功提取应用ID: ${appId.substring(0, 4)}...`, 'success');
-      var endpoint = `https://api.dify.ai/v1/apps/${appId}/chat-messages`;
-    } else {
-      log(`无法从API密钥中提取应用ID，格式可能不正确`, 'warn');
-      log(`将使用公共API端点`, 'info');
-      var endpoint = `https://api.dify.ai/v1/chat-messages`;
-    }
-    
-    log(`请求端点: ${endpoint}`);
+    log(`请求端点: https://api.dify.ai/v1/chat-messages`);
     log(`请求头: Authorization: Bearer ${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`);
     log(`请求体: ${JSON.stringify(testPayload, null, 2)}`);
     
@@ -67,11 +49,11 @@ async function testDifyAPI() {
     const timeout = setTimeout(() => {
       controller.abort();
       log('请求超时，已中止', 'warn');
-    }, 60000); // 60秒超时 - Dify工作流需要较长时间
+    }, 10000); // 10秒超时
     
     let response;
     try {
-      response = await fetch(endpoint, {
+      response = await fetch('https://api.dify.ai/v1/chat-messages', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,

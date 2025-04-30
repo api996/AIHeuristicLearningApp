@@ -15,10 +15,10 @@ import { directPythonService } from "./direct_python_service";
  */
 export class ClusterCacheService {
   // 向量变化阈值，当新向量数超过此值时重新聚类
-  private vectorCountThreshold: number = 15;
+  private vectorCountThreshold: number = 10;
 
   // 缓存有效期（小时）
-  private cacheExpiryHours: number = 72;
+  private cacheExpiryHours: number = 48;
 
   /**
    * 获取用户的记忆聚类结果
@@ -247,14 +247,11 @@ export class ClusterCacheService {
       });
       
       // 计算变化百分比
-      const totalCachedCount = cachedMemoryIds.size || 1; // 防止除以0
+      const totalCachedCount = cachedMemoryIds.size;
       const changePercentage = (addedCount + removedCount) / totalCachedCount;
       
-      // 记录详细的变化情况
-      log(`[ClusterCache] 记忆变化情况：总记忆数=${totalCachedCount}，新增=${addedCount}，删除=${removedCount}，变化率=${(changePercentage * 100).toFixed(2)}%`);
-      
-      // 如果变化百分比超过30%，认为有显著变化（提高阈值以减少频繁聚类）
-      return changePercentage > 0.3;
+      // 如果变化百分比超过20%，认为有显著变化
+      return changePercentage > 0.2;
     } catch (error) {
       log(`[ClusterCache] 检测记忆变化时出错: ${error}`, "warn");
       // 出错时保守处理，返回true以执行新的聚类
