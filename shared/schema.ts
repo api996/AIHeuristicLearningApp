@@ -97,6 +97,7 @@ export const memories = pgTable("memories", {
   timestamp: timestamp("timestamp").defaultNow(),
   summary: text("summary"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // 记忆与用户的关系
