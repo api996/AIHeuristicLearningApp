@@ -12,10 +12,10 @@ import fetch from 'node-fetch';
  * @param backoff 初始退避时间(ms)
  * @returns Promise<Response>
  */
-export const fetchWithRetry = async (url: string, options: any = {}, retries = 3, backoff = 300) => {
+export const fetchWithRetry = async (url: string, options: any = {}, retries = 2, backoff = 3000) => {
   let lastError: Error | null = null;
   
-  // 设置默认超时
+  // 设置默认超时为30秒，用户明确要求至少30秒
   const timeout = options.timeout || 30000;
   let timeoutId: NodeJS.Timeout | null = null;
   
