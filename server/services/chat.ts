@@ -1102,7 +1102,7 @@ ${searchResults}`;
               method: "POST",
               headers: headers,
               body: JSON.stringify(transformedMessage),
-              timeout: 60000, // 保持60秒超时
+              timeout: 600000, // 增加到10分钟超时
             }, 2, 5000); // 减少到2次重试，增加初始间隔到5秒
 
             // 详细记录API响应状态
