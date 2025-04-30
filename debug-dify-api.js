@@ -43,16 +43,19 @@ async function testDifyAPI() {
     // 使用应用级 API 端点
     // 应用密钥格式: "app-U4atYg7zzgecfchOHo1HGAr2"
     // 对于Dify应用密钥，我们需要提取appId部分以构建正确的URL
-    // 直接硬编码应用ID，避免解析错误
-    const appId = "U4atYg7zzgecfchOHo1HGAr2";
     
-    if (!appId) {
+    // 从API密钥中提取appId
+    const appIdMatch = apiKey.match(/^app-([a-zA-Z0-9]+)/);
+    let appId = null;
+    
+    if (appIdMatch && appIdMatch[1]) {
+      appId = appIdMatch[1];
+      log(`成功提取应用ID: ${appId.substring(0, 4)}...`, 'success');
+      var endpoint = `https://api.dify.ai/v1/apps/${appId}/chat-messages`;
+    } else {
       log(`无法从API密钥中提取应用ID，格式可能不正确`, 'warn');
       log(`将使用公共API端点`, 'info');
       var endpoint = `https://api.dify.ai/v1/chat-messages`;
-    } else {
-      log(`成功提取应用ID: ${appId.substring(0, 4)}...`, 'success');
-      var endpoint = `https://api.dify.ai/v1/apps/${appId}/chat-messages`;
     }
     
     log(`请求端点: ${endpoint}`);
