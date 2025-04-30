@@ -1276,8 +1276,15 @@ export async function directSaveLearningPath(
   isOptimized: boolean = false
 ): Promise<any> {
   try {
+    console.log(`[DB-SAVE-INFO] 开始保存学习轨迹 userId=${userId}, topics=${topics?.length || 0}`);
     log(`[trajectory-direct] 开始直接保存学习轨迹数据，用户ID=${userId}`);
     
+    // 验证必要参数
+    if (!userId || userId <= 0 || !topics || !Array.isArray(topics) || topics.length === 0) {
+      console.error(`[DB-SAVE-ERROR] 参数无效: userId=${userId}, topics=${topics?.length || 0}`);
+      return null;
+    }
+
     // 安全处理数据
     const safeTopics = topics.map(t => ({
       id: t.id || `topic_${Math.random().toString(36).slice(2, 7)}`,
@@ -1297,9 +1304,9 @@ export async function directSaveLearningPath(
     
     log(`[trajectory-direct] 从topics生成分布数据，强制使用中文主题名称`);
     
-    const safeSuggestions = suggestions
-      .filter(s => typeof s === 'string')
-      .slice(0, 10);
+    const safeSuggestions = Array.isArray(suggestions) ? 
+      suggestions.filter(s => typeof s === 'string').slice(0, 10) : 
+      [];
     
     const safeGraph = knowledgeGraph ? {
       nodes: Array.isArray(knowledgeGraph.nodes) ? knowledgeGraph.nodes : [],
@@ -1314,40 +1321,79 @@ export async function directSaveLearningPath(
       const { learningPaths } = await import('@shared/schema');
       const { eq } = await import('drizzle-orm');
       
-      // 1. 先删除旧记录，确保没有冲突
-      await db.delete(learningPaths)
-        .where(eq(learningPaths.userId, userId));
+      console.log(`[DB-SAVE-MODULE] 成功加载数据库模块，db类型=${typeof db}, learningPaths类型=${typeof learningPaths}`);
       
-      log(`[trajectory-direct] 已清除用户 ${userId} 现有学习轨迹数据`);
+      // 1. 先删除旧记录，确保没有冲突
+      try {
+        console.log(`[DB-SAVE-DELETE] 开始删除用户 ${userId} 的旧记录`);
+        const deleteResult = await db.delete(learningPaths)
+          .where(eq(learningPaths.userId, userId));
+        
+        console.log(`[DB-SAVE-DELETE-OK] 已清除用户 ${userId} 现有学习轨迹数据, 删除结果=${deleteResult ? JSON.stringify(deleteResult) : '无'}`);
+        log(`[trajectory-direct] 已清除用户 ${userId} 现有学习轨迹数据`);
+      } catch (deleteError) {
+        console.error(`[DB-SAVE-DELETE-ERROR] 删除时出错: ${deleteError instanceof Error ? deleteError.message : deleteError}`);
+        // 删除失败不应该阻止后续的插入操作，我们继续尝试插入
+        console.log(`[DB-SAVE-DELETE-CONTINUE] 删除失败但将继续尝试插入操作`);
+      }
       
       // 2. 插入新记录
-      const [newPath] = await db.insert(learningPaths)
-        .values({
-          userId,
+      try {
+        console.log(`[DB-SAVE-INSERT] 开始为用户 ${userId} 插入新记录, 主题数: ${safeTopics.length}`);
+        
+        // 准备插入数据
+        const now = new Date();
+        const values = {
+          userId: userId,
           topics: safeTopics,
           distribution: safeDistribution,
           suggestions: safeSuggestions,
           knowledgeGraph: safeGraph,
           version: 1,
           isOptimized: isOptimized || false,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          updatedAt: now,
+          expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
           progressHistory: [{
-            date: new Date().toISOString().split('T')[0],
+            date: now.toISOString().split('T')[0],
             topics: safeDistribution
           }]
-        })
-        .returning();
-      
-      log(`[trajectory-direct] 成功直接创建新记录，ID: ${newPath.id}`);
-      return newPath;
+        };
+        
+        console.log(`[DB-SAVE-INSERT-DATA] 插入数据: userId=${userId}, topics=${safeTopics.length}, distribution=${safeDistribution.length}`);
+        
+        try {
+          // 执行插入
+          const insertResult = await db.insert(learningPaths)
+            .values(values)
+            .returning();
+          
+          const newPath = insertResult && insertResult.length > 0 ? insertResult[0] : null;
+          console.log(`[DB-SAVE-INSERT-OK] 插入成功，返回结果: ID=${newPath?.id || '未知'}, 用户=${userId}`);
+          log(`[trajectory-direct] 成功直接创建新记录，ID: ${newPath?.id || '未知'}, 用户ID: ${userId}`);
+          return newPath;
+        } catch (queryError) {
+          console.error(`[DB-SAVE-QUERY-ERROR] 执行插入查询时出错: ${queryError instanceof Error ? queryError.message : queryError}`);
+          log(`[trajectory-direct] 插入查询错误: ${queryError instanceof Error ? queryError.message : queryError}`);
+          throw queryError;
+        }
+      } catch (insertError) {
+        console.error(`[DB-SAVE-INSERT-ERROR] 插入时出错: ${insertError instanceof Error ? insertError.message : insertError}`);
+        if (insertError instanceof Error && insertError.stack) {
+          console.log(`[DB-SAVE-ERROR-STACK] ${insertError.stack}`);
+        }
+        // 在这里我们不抛出异常，而是返回null，以便让应用继续运行
+        log(`[trajectory-direct] 插入学习轨迹数据失败: ${insertError instanceof Error ? insertError.message : insertError}`);
+        return null;
+      }
     } catch (dbError) {
-      log(`[trajectory-direct] 数据库操作失败: ${dbError}`);
-      throw dbError;
+      console.error(`[DB-SAVE-DB-ERROR] 数据库操作失败: ${dbError instanceof Error ? dbError.message : dbError}`);
+      log(`[trajectory-direct] 数据库操作失败: ${dbError instanceof Error ? dbError.message : dbError}`);
+      return null; // 返回null而不是抛出异常
     }
   } catch (error) {
-    log(`[trajectory-direct] 保存学习轨迹数据失败: ${error}`);
-    console.error('[trajectory-direct] 详细错误:', error);
-    return null;
+    console.error(`[DB-SAVE-FATAL] 严重错误: ${error instanceof Error ? error.message : error}`);
+    log(`[trajectory-direct] 保存学习轨迹数据失败: ${error instanceof Error ? error.message : error}`);
+    return null; // 返回null而不是抛出异常
   }
 }
 
@@ -1434,7 +1480,13 @@ export async function generateLearningPathFromClusters(userId: number, clusterRe
     
     // ===== 关键改动：使用直接保存方法 =====
     // 这种方式参考了测试API，直接保存可以确保绕过任何潜在问题
-    await directSaveLearningPath(userId, topics, distribution, suggestions, knowledgeGraph);
+    console.log(`[DEBUG-CALL] 将调用directSaveLearningPath保存数据，用户ID=${userId}, 主题数=${topics.length}`);
+    try {
+      const savedPath = await directSaveLearningPath(userId, topics, distribution, suggestions, knowledgeGraph);
+      console.log(`[DEBUG-CALL-RESULT] 保存结果: ${JSON.stringify(savedPath)}`);
+    } catch (saveError) {
+      console.error(`[DEBUG-CALL-ERROR] 调用直接保存方法时出错: ${saveError}`);
+    }
     
     return result;
   } catch (error) {
