@@ -1100,13 +1100,13 @@ ${searchResults}`;
               "Content-Type": "application/json",
             };
             
-            // 添加更多的重试次数和更长的超时时间
+            // 优化重试策略：减少重试次数并增加间隔，避免频繁重复请求
             const response = await fetchWithRetry(this.modelConfigs.deep.endpoint!, {
               method: "POST",
               headers: headers,
               body: JSON.stringify(transformedMessage),
-              timeout: 60000, // 增加到60秒超时
-            }, 5, 1000); // 5次重试，初始间隔1秒
+              timeout: 60000, // 保持60秒超时
+            }, 2, 5000); // 减少到2次重试，增加初始间隔到5秒
 
             // 详细记录API响应状态
             log(`Dify API响应状态: ${response.status} ${response.statusText}`);
