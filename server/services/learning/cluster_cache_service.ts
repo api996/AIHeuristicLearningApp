@@ -15,10 +15,10 @@ import { directPythonService } from "./direct_python_service";
  */
 export class ClusterCacheService {
   // 向量变化阈值，当新向量数超过此值时重新聚类
-  private vectorCountThreshold: number = 20; // 增加阈值，减少自动刷新频率
+  private vectorCountThreshold: number = 40; // 增加阈值，显著减少自动刷新频率
 
   // 缓存有效期（小时）
-  private cacheExpiryHours: number = 168; // 增加到一周，进一步减少刷新
+  private cacheExpiryHours: number = 168; // 一周，保持较长的缓存时间
 
   /**
    * 获取用户的记忆聚类结果
@@ -215,9 +215,9 @@ export class ClusterCacheService {
             return false;
           }
           
-          // 只有当向量数量增加超过阈值且增长比例超过20%时，才更新聚类
+          // 只有当向量数量增加超过阈值且增长比例超过30%时，才更新聚类
           const growthPercentage = vectorCountDifference / cachedResult.vectorCount;
-          if (vectorCountDifference >= this.vectorCountThreshold && growthPercentage >= 0.2) {
+          if (vectorCountDifference >= this.vectorCountThreshold && growthPercentage >= 0.3) {
             log(`[ClusterCache] 向量数量增加了${vectorCountDifference}个(${(growthPercentage*100).toFixed(1)}%)，超过阈值，需要更新聚类`);
             return true;
           }
