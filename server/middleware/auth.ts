@@ -126,23 +126,37 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     
     // 如果用户ID来自查询参数或其他非会话来源，将其添加到会话中
     // 这样可以在后续请求中自动使用会话而不需要查询参数
-    if (!req.session.userId && userId) {
-      req.session.userId = userId;
-      
-      // 添加额外的cookie，用于会话恢复和客户端识别，7天有效期
-      res.cookie('userId', userId.toString(), {
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
-        httpOnly: true,
-        path: '/',
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production'
-      });
-      
-      // 记录日志，标记为会话恢复
-      log(`[Auth] 用户ID(${userId})已添加到会话并设置cookie, 路径: ${method} ${path}`);
-      
-      // 保存用户角色到会话，便于某些不需要查询数据库的检查
-      req.session.userRole = user.role || 'user';
+    if ((!req.session.userId || req.session.userId !== userId) && userId) {
+      // 确保会话存在并可以正常设置
+      if (req.session) {
+        req.session.userId = userId;
+        
+        // 刷新会话以确保更改被保存
+        req.session.save((err) => {
+          if (err) {
+            log(`[Auth] 保存会话时出错: ${err}`);
+          } else {
+            log(`[Auth] 会话已更新，用户ID: ${userId}`);
+          }
+        });
+        
+        // 添加额外的cookie，用于会话恢复和客户端识别，7天有效期
+        res.cookie('userId', userId.toString(), {
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
+          httpOnly: true,
+          path: '/',
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production'
+        });
+        
+        // 记录日志，标记为会话恢复
+        log(`[Auth] 用户ID(${userId})已添加到会话并设置cookie, 路径: ${method} ${path}`);
+        
+        // 保存用户角色到会话，便于某些不需要查询数据库的检查
+        req.session.userRole = user.role || 'user';
+      } else {
+        log(`[Auth警告] 尝试将用户ID(${userId})添加到会话，但会话对象不存在`);
+      }
     }
     
     // 将用户信息附加到请求对象
@@ -212,23 +226,37 @@ export const requireAdmin = async (req: Request, res: Response, next: NextFuncti
     }
     
     // 如果用户ID来自查询参数或其他非会话来源，将其添加到会话中
-    if (!req.session.userId && userId) {
-      req.session.userId = userId;
-      
-      // 添加额外的cookie，用于会话恢复和客户端识别，7天有效期
-      res.cookie('userId', userId.toString(), {
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
-        httpOnly: true,
-        path: '/',
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production'
-      });
-      
-      // 记录日志，标记为会话恢复
-      log(`[AdminAuth] 用户ID(${userId})已添加到会话并设置cookie, 路径: ${method} ${path}`);
-      
-      // 保存用户角色到会话，便于某些不需要查询数据库的检查
-      req.session.userRole = user.role || 'user';
+    if ((!req.session.userId || req.session.userId !== userId) && userId) {
+      // 确保会话存在并可以正常设置
+      if (req.session) {
+        req.session.userId = userId;
+        
+        // 刷新会话以确保更改被保存
+        req.session.save((err) => {
+          if (err) {
+            log(`[AdminAuth] 保存会话时出错: ${err}`);
+          } else {
+            log(`[AdminAuth] 会话已更新，用户ID: ${userId}`);
+          }
+        });
+        
+        // 添加额外的cookie，用于会话恢复和客户端识别，7天有效期
+        res.cookie('userId', userId.toString(), {
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
+          httpOnly: true,
+          path: '/',
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production'
+        });
+        
+        // 记录日志，标记为会话恢复
+        log(`[AdminAuth] 用户ID(${userId})已添加到会话并设置cookie, 路径: ${method} ${path}`);
+        
+        // 保存用户角色到会话，便于某些不需要查询数据库的检查
+        req.session.userRole = user.role || 'user';
+      } else {
+        log(`[AdminAuth警告] 尝试将用户ID(${userId})添加到会话，但会话对象不存在`);
+      }
     }
     
     // 将用户信息附加到请求对象
