@@ -1596,14 +1596,27 @@ export async function generateLearningPathFromClusters(userId: number, clusterRe
       knowledge_graph: knowledgeGraph
     };
     
-    // ===== 关键改动：使用直接保存方法 =====
-    // 这种方式参考了测试API，直接保存可以确保绕过任何潜在问题
-    console.log(`[DEBUG-CALL] 将调用directSaveLearningPath保存数据，用户ID=${userId}, 主题数=${topics.length}`);
+    // ===== 数据库保存逻辑：使用直接保存方法 =====
+    // 这种方式可以确保绕过任何潜在问题，强制保存学习轨迹数据
+    console.log(`[DB-SAVE-CALL] 开始保存学习轨迹数据，用户ID=${userId}, 主题数=${topics.length}`);
     try {
-      const savedPath = await directSaveLearningPath(userId, topics, distribution, suggestions, knowledgeGraph);
-      console.log(`[DEBUG-CALL-RESULT] 保存结果: ${JSON.stringify(savedPath)}`);
+      // 强制清除现有数据，确保新数据能正确存储
+      await import('./directSave').then(({clearLearningPath}) => clearLearningPath(userId));
+      log(`[trajectory] 成功清除用户 ${userId} 的旧数据，准备写入新数据`);
+      
+      // 进行保存操作，确保使用最新的directSaveLearningPath函数
+      const savedPath = await directSaveLearningPath(userId, topics, distribution, suggestions, knowledgeGraph, true);
+      
+      if (savedPath) {
+        log(`[trajectory] 成功直接保存学习轨迹数据，ID=${savedPath.id}`);
+        console.log(`[DB-SAVE-SUCCESS] 学习轨迹数据保存成功: ID=${savedPath.id}`);
+      } else {
+        log(`[trajectory] 学习轨迹保存返回空结果，可能发生错误`);
+        console.error(`[DB-SAVE-WARNING] 保存可能不完整，返回结果为空`);
+      }
     } catch (saveError) {
-      console.error(`[DEBUG-CALL-ERROR] 调用直接保存方法时出错: ${saveError}`);
+      console.error(`[DB-SAVE-ERROR] 保存学习轨迹数据失败: ${saveError}`);
+      log(`[trajectory] 学习轨迹数据保存失败: ${saveError}`);
     }
     
     return result;
