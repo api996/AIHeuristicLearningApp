@@ -1505,11 +1505,14 @@ ${searchResults}`;
           log(`检测到图片内容，使用Grok-2 Vision模型进行预处理...`);
           
           // 调用Grok-2 Vision模型分析图片
-          const grokVisionConfig = this.modelConfigs["grok-2-vision-1212"];
-          const imageAnalysisResponse = await grokVisionConfig.getResponse!(message);
+          // 全新重写的图像处理逻辑，直接调用processImageWithGrokVision方法
+          const imageAnalysisResponse = await this.processImageWithGrokVision(message);
           
           // 将图片分析结果添加到消息中
           const imageAnalysis = imageAnalysisResponse.text;
+          
+          // 记录详细日志，便于调试
+          log(`图片分析结果: ${imageAnalysis.substring(0, 100)}...`);
           
           // 将原始消息中的图片标记替换为文本描述
           processedMessage = message.replace(
@@ -1517,7 +1520,7 @@ ${searchResults}`;
             '[图片内容已由AI分析]'
           );
           
-          // 在消息前添加图片分析结果
+          // 在消息前添加图片分析结果 - 使用更清晰的格式
           processedMessage = `[图片分析结果]:\n${imageAnalysis}\n\n[用户原始消息]:\n${processedMessage}`;
           
           // 添加处理通知

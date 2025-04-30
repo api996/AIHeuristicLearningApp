@@ -1856,7 +1856,7 @@ asyncio.run(save_memory())
   });
   
   // 新增图片预处理端点 - 使用Grok Vision分析图片
-  app.post("/api/preprocess-image", express.json({limit: '50mb'}), async (req, res) => {
+  app.post("/api/preprocess-image", express.json({limit: '100mb'}), async (req, res) => {
     try {
       const { imageUrl } = req.body;
       
@@ -1867,7 +1867,7 @@ asyncio.run(save_memory())
         });
       }
 
-      log(`正在使用Grok Vision预处理图片: ${imageUrl}`);
+      log(`正在使用Grok-2 Vision预处理图片: ${imageUrl}`);
       
       // 检查URL是否为有效的上传图片路径
       if (!imageUrl.startsWith('/uploads/')) {
@@ -1899,7 +1899,7 @@ asyncio.run(save_memory())
           success: true,
           originalUrl: imageUrl,
           description: response.text,
-          model: response.model || "grok-vision-beta",
+          model: response.model || "grok-2-vision-1212",
           processedAt: new Date().toISOString()
         });
       } catch (grokError) {
