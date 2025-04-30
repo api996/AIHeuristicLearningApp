@@ -17,8 +17,8 @@ export class ClusterMemoryRetrievalService {
     timestamp: number;
   }> = new Map();
   
-  // 缓存过期时间（2小时）
-  private CACHE_EXPIRY = 2 * 60 * 60 * 1000;
+  // 缓存过期时间（24小时）- 增加缓存有效期以减少不必要的聚类调用
+  private CACHE_EXPIRY = 24 * 60 * 60 * 1000;
   
   constructor() {
     log('[ClusterMemoryRetrieval] 初始化基于聚类的记忆检索服务');
@@ -448,13 +448,13 @@ export class ClusterMemoryRetrievalService {
         };
       }
       
-      // 如果聚类数据有效，保存到数据库, 有效期7天 (之前是24小时)
+      // 如果聚类数据有效，保存到数据库, 有效期14天 (显著增加缓存时间以减少不必要的聚类服务调用)
       await storage.saveClusterResultCache(
         userId,
         normalizedData,
         clusterCount,
         vectorCount,
-        168 // 7天过期 (7*24=168小时)
+        336 // 14天过期 (14*24=336小时)
       );
       
       log(`[ClusterMemoryRetrieval] 成功将聚类结果缓存到数据库，用户ID=${userId}，聚类数=${clusterCount}`);
