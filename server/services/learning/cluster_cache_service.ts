@@ -15,10 +15,10 @@ import { directPythonService } from "./direct_python_service";
  */
 export class ClusterCacheService {
   // 向量变化阈值，当新向量数超过此值时重新聚类
-  private vectorCountThreshold: number = 10;
+  private vectorCountThreshold: number = 20; // 增加阈值，减少自动刷新频率
 
   // 缓存有效期（小时）
-  private cacheExpiryHours: number = 48;
+  private cacheExpiryHours: number = 168; // 增加到一周，进一步减少刷新
 
   /**
    * 获取用户的记忆聚类结果
@@ -175,8 +175,28 @@ export class ClusterCacheService {
         return false;
       }
       
-      // 比较向量数量变化
+      // 计算向量数量变化
       const vectorCountDifference = memoriesWithEmbeddings - cachedResult.vectorCount;
+      
+      // 如果没有新的向量，绝对不更新聚类
+      if (vectorCountDifference <= 0) {
+        log(`[ClusterCache] 没有新的向量数据，不需要更新聚类`);
+        return false;
+      }
+      
+      // 检查缓存的创建时间
+      const cacheTimestamp = cachedResult.timestamp ? new Date(cachedResult.timestamp) : null;
+      if (cacheTimestamp) {
+        const ageHours = (Date.now() - cacheTimestamp.getTime()) / (1000 * 60 * 60);
+        // 如果缓存时间不到24小时，除非有大量新记忆，否则不更新
+        if (ageHours < 24) {
+          // 只有当新记忆数量超过50%时才更新
+          if (vectorCountDifference < (cachedResult.vectorCount * 0.5)) {
+            log(`[ClusterCache] 缓存创建于${ageHours.toFixed(1)}小时前，且新增向量数量(${vectorCountDifference})不足50%，继续使用缓存`);
+            return false;
+          }
+        }
+      }
       
       // 如果向量数量增加超过阈值，需要更新聚类
       if (vectorCountDifference >= this.vectorCountThreshold) {

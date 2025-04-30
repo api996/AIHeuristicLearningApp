@@ -204,18 +204,8 @@ router.get('/:userId/clusters', async (req, res) => {
     
     log(`[API] 获取用户 ${userId} 的记忆聚类`);
     
-    // 执行聚类 - 转换为符合Memory接口的对象
-    const memoryObjects = memories.map(memory => ({
-      id: memory.id || '',
-      content: memory.content,
-      type: memory.type,
-      timestamp: memory.timestamp,  // 保持字符串格式
-      summary: memory.summary,
-      keywords: memory.keywords || [],
-      userId: memory.userId || userId, // 确保有userId
-    }));
-    
-    const clusters = await clusterMemories(memoryObjects, {
+    // 执行聚类 - 使用原始memories数据，避免类型转换问题
+    const clusters = await clusterMemories(memories, {
       maxClusters,
       minSimilarity,
       algorithm
