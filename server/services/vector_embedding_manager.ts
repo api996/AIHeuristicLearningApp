@@ -21,7 +21,7 @@ export const vectorEmbeddingManager = {
   // 最后处理的记忆ID计数
   lastProcessedCount: 0,
   // 最小新记忆数量阈值，低于此值不进行批处理（除非手动触发）
-  minNewMemoriesThreshold: 5, // 降低阈值到5条，使系统更频繁处理
+  minNewMemoriesThreshold: 20, // 提高阈值，减少批处理频率
   
   /**
    * 运行嵌入生成脚本
@@ -169,21 +169,9 @@ export const vectorEmbeddingManager = {
   startScheduler: function(): void {
     log(`[向量嵌入] 不再使用定时任务，改为按需触发模式`);
     
-    // 保留服务启动检查
-    setTimeout(async () => {
-      log("[向量嵌入] 服务启动后检查新记忆...");
-      try {
-        // 同样检查是否有足够的新记忆
-        const shouldProcess = await this.checkForNewMemories();
-        if (shouldProcess) {
-          await this.runGenerator("服务启动");
-        } else {
-          log(`[向量嵌入] 服务启动检查：未达到处理条件，跳过执行`);
-        }
-      } catch (err) {
-        log(`[向量嵌入] 首次任务异常: ${err}`);
-      }
-    }, 120 * 1000); // 2分钟后检查一次
+    // 不在服务启动时自动进行检查，只在用户交互过程中生成足够记忆时自动检查
+    log(`[向量嵌入] 不再自动检查，将仅在记忆数量超过${this.minNewMemoriesThreshold}时才触发处理`);
+    // 我们不再使用setTimeout自动检查
   },
   
   /**
