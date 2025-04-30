@@ -17,7 +17,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { 
-  eq, ne, and, asc, desc, sql, inArray, isNotNull, count
+  eq, ne, and, asc, desc, sql, inArray, isNotNull, count, or, isNull
 } from "drizzle-orm";
 import { sql as sqlExpr } from "drizzle-orm/sql";
 import { log } from "./vite";
@@ -1788,7 +1788,8 @@ export class DatabaseStorage implements IStorage {
     suggestions: string[],
     knowledgeGraph?: any,
     progressHistory?: any[],
-    isOptimized?: boolean
+    isOptimized?: boolean,
+    expiryHours: number = 168 // 默认1周过期，与聚类缓存保持一致
   ): Promise<LearningPath> {
     try {
       if (!userId || isNaN(userId)) {
@@ -1813,6 +1814,11 @@ export class DatabaseStorage implements IStorage {
           updatedAt: new Date(),
           version: existingPath.version + 1
         };
+        
+        // 设置过期时间（默认168小时/1周）
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + expiryHours);
+        updateData.expiresAt = expiresAt;
         
         // 只有当提供了这些可选字段时才更新它们
         if (knowledgeGraph) updateData.knowledgeGraph = knowledgeGraph;
@@ -1860,6 +1866,11 @@ export class DatabaseStorage implements IStorage {
           isOptimized: isOptimized || false
         };
         
+        // 设置过期时间（默认168小时/1周）
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + expiryHours);
+        newData.expiresAt = expiresAt;
+        
         // 只在提供时设置可选字段
         if (knowledgeGraph) newData.knowledgeGraph = knowledgeGraph;
         
@@ -1895,9 +1906,26 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
       
+      // 获取未过期的学习轨迹
       const [path] = await db.select()
         .from(learningPaths)
-        .where(eq(learningPaths.userId, userId));
+        .where(
+          and(
+            eq(learningPaths.userId, userId),
+            or(
+              // 未设置过期时间
+              isNull(learningPaths.expiresAt),
+              // 或者未过期
+              sql`${learningPaths.expiresAt} > NOW()`
+            )
+          )
+        );
+      
+      if (path) {
+        log(`找到用户 ${userId} 的有效学习轨迹，版本: ${path.version}`);
+      } else {
+        log(`未找到用户 ${userId} 的有效学习轨迹或缓存已过期`);
+      }
         
       return path;
     } catch (error) {
@@ -1928,12 +1956,17 @@ export class DatabaseStorage implements IStorage {
       // 添加新的历史记录
       const updatedHistory = [...existingHistory, newProgressEntry];
       
+      // 设置新的过期时间
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 168); // 默认七天过期
+      
       // 更新数据库记录
       const [updatedPath] = await db.update(learningPaths)
         .set({ 
           progressHistory: updatedHistory,
           updatedAt: new Date(),
-          version: existingPath.version + 1
+          version: existingPath.version + 1,
+          expiresAt: expiresAt
         })
         .where(eq(learningPaths.userId, userId))
         .returning();
