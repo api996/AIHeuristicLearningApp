@@ -17,8 +17,8 @@ export class ClusterMemoryRetrievalService {
     timestamp: number;
   }> = new Map();
   
-  // 缓存过期时间（72小时）- 显著增加缓存有效期以减少不必要的聚类调用
-  private CACHE_EXPIRY = 72 * 60 * 60 * 1000;
+  // 缓存过期时间（24小时）- 增加缓存有效期以减少不必要的聚类调用
+  private CACHE_EXPIRY = 24 * 60 * 60 * 1000;
   
   constructor() {
     log('[ClusterMemoryRetrieval] 初始化基于聚类的记忆检索服务');
