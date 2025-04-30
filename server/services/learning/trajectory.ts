@@ -1287,38 +1287,15 @@ export async function directSaveLearningPath(
     }));
     
     // 确保分布数据使用正确的主题名称
-    let safeDistribution;
+    // 直接从topics数据中创建分布数据
+    const safeDistribution = safeTopics.map(t => ({
+      id: t.id,
+      name: String(t.topic || '未命名主题'),
+      percentage: Number(t.percentage || 0),
+      topic: String(t.topic || '未命名主题')  // 添加topic字段保持一致性
+    }));
     
-    // 如果分布数据包含name字段并且不是"未知主题"，直接使用
-    if (distribution && distribution.length > 0 && distribution[0].name && distribution[0].name !== "未知主题") {
-      safeDistribution = distribution.map(d => ({
-        id: d.id || `dist_${Math.random().toString(36).slice(2, 7)}`,
-        name: String(d.name || '未命名主题'),
-        percentage: Number(d.percentage || 0),
-        topic: String(d.name || '未命名主题')  // 确保topic字段存在
-      }));
-      log(`[trajectory-direct] 使用原始分布数据中的name作为主题名称`);
-    } 
-    // 否则，从topics数据中获取主题名称
-    else if (safeTopics && safeTopics.length > 0) {
-      safeDistribution = safeTopics.map(t => ({
-        id: t.id,
-        name: String(t.topic || '未命名主题'),
-        percentage: Number(t.percentage || 0),
-        topic: String(t.topic || '未命名主题')  // 添加topic字段保持一致性
-      }));
-      log(`[trajectory-direct] 从topics数据生成分布数据，确保使用正确的中文主题名称`);
-    }
-    // 兜底情况：生成默认分布数据
-    else {
-      safeDistribution = distribution.map(d => ({
-        id: d.id || `dist_${Math.random().toString(36).slice(2, 7)}`,
-        name: String(d.name || d.topic || '未命名主题'),
-        percentage: Number(d.percentage || 0),
-        topic: String(d.name || d.topic || '未命名主题')  // 添加topic字段
-      }));
-      log(`[trajectory-direct] 使用默认逻辑生成分布数据`);
-    }
+    log(`[trajectory-direct] 从topics生成分布数据，强制使用中文主题名称`);
     
     const safeSuggestions = suggestions
       .filter(s => typeof s === 'string')
@@ -1331,145 +1308,42 @@ export async function directSaveLearningPath(
     
     log(`[trajectory-direct] 处理后数据: ${safeTopics.length}个主题, ${safeDistribution.length}个分布, ${safeSuggestions.length}个建议`);
     
-    // 1. 先清除现有数据
-    await storage.clearLearningPath(userId);
-    log(`[trajectory-direct] 已清除用户 ${userId} 现有学习轨迹数据`);
-    
-    // 2. 保存新数据
     try {
-      log(`[trajectory-direct] 开始调用storage.saveLearningPath，用户=${userId}, 主题数=${safeTopics.length}`);
-      console.log(`[DEBUG-SAVE] 主题数据样本:`, safeTopics.slice(0, 2));
-      console.log(`[DEBUG-SAVE] 分布数据样本:`, safeDistribution.slice(0, 2));
-
-      // 首先尝试删除可能存在的旧记录，避免唯一约束冲突
-      try {
-        await storage.clearLearningPath(userId);
-        log(`[trajectory-direct] 成功清理可能存在的旧记录`);
-      } catch (clearError) {
-        log(`[trajectory-direct] 清理旧记录时发生错误: ${clearError}`);
-        // 继续执行，可能旧记录不存在
-      }
-
-      // 执行保存操作
-      const result = await storage.saveLearningPath(
-        userId,
-        safeTopics,
-        safeDistribution,
-        safeSuggestions,
-        safeGraph,
-        [],
-        isOptimized
-      );
+      // 直接使用drizzle执行数据库操作
+      const { db } = await import('../../db');
+      const { learningPaths } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
       
-      if (result) {
-        log(`[trajectory-direct] 成功保存学习轨迹数据! ID=${result.id}, 用户=${userId}`);
-        
-        // 验证保存
-        const verify = await storage.getLearningPath(userId);
-        if (verify && verify.topics) {
-          log(`[trajectory-direct] 验证成功: 读取到${verify.topics.length}个主题`);
-          return verify;
-        } else {
-          log(`[trajectory-direct] 验证失败: 无法通过storage.getLearningPath找到保存的数据`);
-          console.log(`[DEBUG-SAVE] 验证结果:`, verify);
-          
-          // 探查数据库中是否有记录
-          try {
-            // 动态导入以避免循环依赖
-            const { db } = await import('../../db');
-            const { learningPaths } = await import('@shared/schema');
-            const { eq } = await import('drizzle-orm');
-            
-            const dbDirectCheck = await db.select()
-              .from(learningPaths)
-              .where(eq(learningPaths.userId, userId));
-            
-            log(`[trajectory-direct] 直接数据库查询结果: 找到${dbDirectCheck.length}条记录`);
-            
-            if (dbDirectCheck.length > 0) {
-              const record = dbDirectCheck[0];
-              log(`[trajectory-direct] 数据库中有记录，但getLearningPath无法检索到，可能是expiresAt条件不满足`);
-              console.log(`[DEBUG-SAVE] 记录ID:${record.id}, 过期时间:${record.expiresAt}`);
-              
-              // 尝试强制更新过期时间使其有效
-              const [updatedPath] = await db.update(learningPaths)
-                .set({ 
-                  expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7天后过期
-                  updatedAt: new Date()
-                })
-                .where(eq(learningPaths.userId, userId))
-                .returning();
-              
-              if (updatedPath) {
-                log(`[trajectory-direct] 成功更新过期时间，记录现在应该可见`);
-                return updatedPath;
-              }
-            }
-          } catch (dbError) {
-            log(`[trajectory-direct] 直接数据库查询失败: ${dbError}`);
-          }
-        }
-      } else {
-        log(`[trajectory-direct] 保存失败: storage.saveLearningPath返回空结果`);
-      }
-    } catch (saveError) {
-      log(`[trajectory-direct] 保存过程中发生错误: ${saveError}`);
-      console.error(`[DEBUG-SAVE] 详细错误:`, saveError);
+      // 1. 先删除旧记录，确保没有冲突
+      await db.delete(learningPaths)
+        .where(eq(learningPaths.userId, userId));
       
-      // 特殊处理唯一约束错误
-      if (saveError.message && saveError.message.includes('unique')) {
-        log(`[trajectory-direct] 检测到唯一约束冲突，尝试强制删除后重新创建`);
-        
-        try {
-          // 动态导入以避免循环依赖
-          const { db } = await import('../../db');
-          const { learningPaths } = await import('@shared/schema');
-          const { eq } = await import('drizzle-orm');
-          
-          // 使用直接的数据库操作尝试删除冲突记录
-          await db.delete(learningPaths)
-            .where(eq(learningPaths.userId, userId));
-          
-          log(`[trajectory-direct] 成功删除冲突记录，尝试重新创建`);
-          
-          // 重新创建记录
-          const [newPath] = await db.insert(learningPaths)
-            .values({
-              userId,
-              topics: safeTopics,
-              distribution: safeDistribution,
-              suggestions: safeSuggestions,
-              knowledgeGraph: safeGraph,
-              version: 1,
-              isOptimized: isOptimized || false,
-              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-              progressHistory: [{
-                date: new Date().toISOString().split('T')[0],
-                topics: safeDistribution
-              }]
-            })
-            .returning();
-          
-          log(`[trajectory-direct] 成功直接创建新记录，ID: ${newPath.id}`);
-          return newPath;
-        } catch (recoveryError) {
-          log(`[trajectory-direct] 恢复操作失败: ${recoveryError}`);
-        }
-      }
-    }
-    
-    // 如果执行到这里，说明保存过程有问题
-    log(`[trajectory-direct] 警告: 无法验证保存结果，尝试确认数据库连接状态`);
-    
-    try {
-      // 尝试简单查询测试数据库连接
-      const dbTest = await storage.getSystemConfig('learning_path_test');
-      log(`[trajectory-direct] 数据库连接测试: ${dbTest ? '成功' : '配置项未找到，但连接正常'}`);
+      log(`[trajectory-direct] 已清除用户 ${userId} 现有学习轨迹数据`);
+      
+      // 2. 插入新记录
+      const [newPath] = await db.insert(learningPaths)
+        .values({
+          userId,
+          topics: safeTopics,
+          distribution: safeDistribution,
+          suggestions: safeSuggestions,
+          knowledgeGraph: safeGraph,
+          version: 1,
+          isOptimized: isOptimized || false,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          progressHistory: [{
+            date: new Date().toISOString().split('T')[0],
+            topics: safeDistribution
+          }]
+        })
+        .returning();
+      
+      log(`[trajectory-direct] 成功直接创建新记录，ID: ${newPath.id}`);
+      return newPath;
     } catch (dbError) {
-      log(`[trajectory-direct] 数据库连接测试失败: ${dbError}`);
+      log(`[trajectory-direct] 数据库操作失败: ${dbError}`);
+      throw dbError;
     }
-    
-    return null;
   } catch (error) {
     log(`[trajectory-direct] 保存学习轨迹数据失败: ${error}`);
     console.error('[trajectory-direct] 详细错误:', error);
