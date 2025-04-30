@@ -41,7 +41,8 @@ router.get('/:userId', async (req, res) => {
     res.setHeader('Expires', '0');
     
     // 添加时间戳版本以确保每次返回的数据不一样，避免浏览器缓存
-    const result = await analyzeLearningPath(userId);
+    // 不强制刷新，使用缓存的学习轨迹数据
+    const result = await analyzeLearningPath(userId, false);  // 显式设置forceRefresh为false
     result.version = new Date().getTime(); // 添加时间戳作为版本号
     
     res.json(result);
