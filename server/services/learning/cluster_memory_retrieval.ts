@@ -51,6 +51,23 @@ export class ClusterMemoryRetrievalService {
         const cache = await storage.getClusterResultCache(userId);
         if (cache && cache.clusterData && cache.clusterData.topics) {
           log(`[ClusterMemoryRetrieval] 从数据库缓存获取到聚类主题，用户ID=${userId}`);
+          
+          // 处理可能的字符串数组
+          const topics = cache.clusterData.topics;
+          if (Array.isArray(topics) && topics.length > 0) {
+            if (typeof topics[0] === 'string') {
+              // 将字符串数组转换为ClusterTopic数组
+              const convertedTopics: ClusterTopic[] = topics.map((topic: string, index: number) => ({
+                id: `topic_${index}`,
+                topic,
+                count: 0, 
+                percentage: 1.0 / topics.length
+              }));
+              log(`[ClusterMemoryRetrieval] 已将字符串主题数组转换为ClusterTopic数组，用户ID=${userId}`);
+              return convertedTopics;
+            }
+          }
+          
           return cache.clusterData.topics;
         }
       } catch (cacheError) {
@@ -59,16 +76,38 @@ export class ClusterMemoryRetrievalService {
       
       // 如果没有缓存，获取用户聚类数据
       log(`[ClusterMemoryRetrieval] 获取用户聚类数据，包括主题信息，用户ID=${userId}`);
-      const clusterResult = await this.getUserClusters(userId, true);
+      
+      // 修复：不使用强制刷新，避免不必要的聚类
+      const clusterResult = await this.getUserClusters(userId, false);
       
       if (clusterResult && clusterResult.topics) {
         log(`[ClusterMemoryRetrieval] 成功获取到聚类主题，用户ID=${userId}, 主题数=${clusterResult.topics.length}`);
         
-        // 更新内存缓存
-        this.clusterCache.set(userId, {
-          topics: clusterResult.topics,
-          timestamp: now
-        });
+        // 处理可能是字符串数组的情况
+        let processedTopics: ClusterTopic[];
+        
+        if (Array.isArray(clusterResult.topics)) {
+          if (typeof clusterResult.topics[0] === 'string') {
+            // 将字符串数组转换为ClusterTopic数组
+            processedTopics = clusterResult.topics.map((topic: string, index: number) => ({
+              id: `topic_${index}`,
+              topic,
+              count: 0,
+              percentage: 1.0 / clusterResult.topics.length
+            }));
+            log(`[ClusterMemoryRetrieval] 已将字符串主题数组转换为ClusterTopic数组`);
+          } else {
+            processedTopics = clusterResult.topics as ClusterTopic[];
+          }
+          
+          // 更新内存缓存
+          this.clusterCache.set(userId, {
+            topics: processedTopics,
+            timestamp: now
+          });
+          
+          return processedTopics;
+        }
         
         return clusterResult.topics;
       }
@@ -254,10 +293,9 @@ export class ClusterMemoryRetrievalService {
       
       // 从python_clustering导入pythonClusteringService
       const { pythonClusteringService } = await import('./python_clustering');
-      const { VectorData } = await import('./python_clustering');
       
-      // 确保向量ID是字符串类型 - 使用VectorData类型进行类型安全的转换
-      const typedVectors: VectorData[] = filteredVectors.map(vec => ({
+      // 构建符合pythonClusteringService要求的向量数据结构
+      const typedVectors = filteredVectors.map(vec => ({
         id: String(vec.id),
         vector: vec.vector
       }));
@@ -278,18 +316,10 @@ export class ClusterMemoryRetrievalService {
         if (!clusterResult.topics || !Array.isArray(clusterResult.topics) || clusterResult.topics.length === 0) {
           log(`[ClusterMemoryRetrieval] 聚类结果缺少topics字段，从centroids生成`, "warn");
           
-          // 从centroids创建topics
-          clusterResult.topics = clusterResult.centroids.map((centroid, index) => {
-            return {
-              id: centroid.id || `topic_${index}`,
-              topic: centroid.label || `主题 ${index+1}`,
-              percentage: centroid.weight || 0.1,
-              count: centroid.memoryIds?.length || 0,
-              memories: centroid.memoryIds || []
-            };
-          });
+          // 创建默认topics数组 (字符串数组，与之前的类型兼容)
+          clusterResult.topics = clusterResult.centroids.map((_, index) => `主题 ${index+1}`);
           
-          log(`[ClusterMemoryRetrieval] 从centroids自动生成了 ${clusterResult.topics.length} 个topics`);
+          log(`[ClusterMemoryRetrieval] 从centroids自动生成了 ${clusterResult.topics.length} 个简化主题名`);
         }
       } else {
         log(`[ClusterMemoryRetrieval] 警告：聚类结果没有有效的centroids数据`, "warn");

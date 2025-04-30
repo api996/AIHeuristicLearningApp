@@ -45,6 +45,12 @@ class PythonClusteringService {
       // 确保临时目录存在
       if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true });
+        // 设置权限确保可写
+        try {
+          fs.chmodSync(tempDir, 0o777);
+        } catch (err) {
+          log(`[PythonClustering] 设置tmp目录权限失败: ${err}`, "warn");
+        }
       }
       
       const inputFilePath = path.join(tempDir, `vectors_${tempId}.json`);
@@ -52,6 +58,13 @@ class PythonClusteringService {
       
       // 将向量数据写入临时文件
       fs.writeFileSync(inputFilePath, JSON.stringify(vectors));
+      
+      // 确保文件权限正确
+      try {
+        fs.chmodSync(inputFilePath, 0o666);
+      } catch (err) {
+        log(`[PythonClustering] 设置输入文件权限失败: ${err}`, "warn");
+      }
       
       // 执行Python聚类
       const result = await this.executePythonClustering(inputFilePath, outputFilePath, vectors.length);
@@ -198,8 +211,8 @@ if __name__ == "__main__":
     main()
       `;
       
-      // 执行Python代码
-      const pythonProcess = spawn('python', ['-c', pythonCode]);
+      // 执行Python代码 - 使用python3确保在Replit环境中正确执行
+      const pythonProcess = spawn('python3', ['-c', pythonCode]);
       
       let stdoutData = '';
       let stderrData = '';
