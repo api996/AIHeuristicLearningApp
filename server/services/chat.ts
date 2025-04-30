@@ -1025,25 +1025,22 @@ ${searchResults}`;
             }
           }
           
-          // 构建Dify API请求格式 - 利用其内置会话管理
-          // 根据官方文档，首次请求传空字符串，后续请求使用返回的会话ID
+          // 构建Dify API请求格式 - 简化版
+          // 尝试最简单的请求结构，减少可能的错误
           const requestPayload: any = {
             query: userQuestion,     // 用户原始问题
-            response_mode: "blocking",
-            conversation_id: difyConversationId || "", // 首次为空，后续使用服务端返回的ID
-            user: userId ? `user-${userId}` : "user", // 添加用户标识
-            inputs: {}               // 默认为空的inputs
+            response_mode: "blocking"
           };
           
-          // 如果有记忆上下文，添加到inputs
-          if (contextMemories) {
-            requestPayload.inputs.context_memories = contextMemories;
+          // 如果有会话ID，添加到请求中
+          if (difyConversationId) {
+            requestPayload.conversation_id = difyConversationId;
           }
           
-          // 如果有搜索结果，添加到inputs
-          if (searchResults) {
-            requestPayload.inputs.search_results = searchResults;
-          }
+          // 添加基本的用户标识
+          requestPayload.user = userId ? `user-${userId}` : "user";
+          
+          // 不添加任何可选的inputs数据，测试最小化请求
           
           // 注意：由于Dify是有状态API，我们不需要传递完整的历史消息
           // Dify会自动基于conversation_id维护对话上下文
