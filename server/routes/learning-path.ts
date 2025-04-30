@@ -40,15 +40,162 @@ router.get('/:userId', async (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     
+    // 检查是否强制刷新（使用查询参数force=true）
+    const forceRefresh = req.query.force === 'true';
+    
+    log(`[API] 学习轨迹分析 - 用户: ${userId}, 强制刷新: ${forceRefresh}`);
+    
     // 添加时间戳版本以确保每次返回的数据不一样，避免浏览器缓存
-    // 不强制刷新，使用缓存的学习轨迹数据
-    const result = await analyzeLearningPath(userId, false);  // 显式设置forceRefresh为false
+    const result = await analyzeLearningPath(userId, forceRefresh);
     result.version = new Date().getTime(); // 添加时间戳作为版本号
     
     res.json(result);
   } catch (error) {
     log(`[API] 获取学习轨迹分析出错: ${error}`);
     res.status(500).json({ error: utils.sanitizeErrorMessage(error) });
+  }
+});
+
+/**
+ * 测试专用：使用真实的固定预设主题数据替换现有学习轨迹
+ * POST /api/learning-path/:userId/force-save
+ */
+router.post('/:userId/force-save', async (req, res) => {
+  try {
+    const userId = utils.safeParseInt(req.params.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ error: "无效的用户ID" });
+    }
+    
+    log(`[API-TEST] 正在使用真实预设主题为用户 ${userId} 生成学习轨迹数据`);
+    
+    // 创建有意义的中文学习主题
+    const meaningfulTopics = [
+      {
+        id: "topic_knowledge_sharing",
+        topic: "知识分享学习",
+        percentage: 0.4,
+        count: 10,
+        memories: []
+      },
+      {
+        id: "topic_technical_exploration",
+        topic: "技术探索",
+        percentage: 0.35,
+        count: 8,
+        memories: []
+      },
+      {
+        id: "topic_learning_reflection",
+        topic: "学习反思",
+        percentage: 0.25,
+        count: 6,
+        memories: []
+      }
+    ];
+    
+    // 创建相应的分布数据
+    const distribution = meaningfulTopics.map(topic => ({
+      id: topic.id,
+      name: topic.topic,
+      topic: topic.topic, // 同时添加topic字段，以兼容两种不同的结构
+      percentage: topic.percentage
+    }));
+    
+    // 创建个性化学习建议
+    const suggestions = [
+      "尝试深入探索技术探索主题的更多内容，扩展学习广度",
+      "建议关注知识分享学习与学习反思之间的联系，增强理解",
+      "定期进行知识复习和总结，巩固已学内容",
+      "尝试将学到的知识应用到实际场景中",
+      "寻找更多相关资源，丰富学习内容"
+    ];
+    
+    // 构建知识图谱节点和连接
+    const knowledgeGraph = {
+      nodes: meaningfulTopics.map((topic, index) => ({
+        id: topic.id,
+        label: topic.topic,
+        size: 20 + (topic.percentage * 60),
+        category: `group${index}`,
+        clusterId: topic.id
+      })),
+      links: [
+        {
+          source: "topic_knowledge_sharing",
+          target: "topic_technical_exploration",
+          value: 5
+        },
+        {
+          source: "topic_knowledge_sharing",
+          target: "topic_learning_reflection",
+          value: 4
+        },
+        {
+          source: "topic_technical_exploration",
+          target: "topic_learning_reflection",
+          value: 3
+        }
+      ]
+    };
+    
+    // 导入轨迹服务
+    const trajectoryService = await import('../services/learning/trajectory');
+    
+    log(`[API-TEST] 调用directSaveLearningPath直接保存预设数据`);
+    
+    // 使用新实现的直接保存方法
+    const savedResult = await trajectoryService.directSaveLearningPath(
+      userId,
+      meaningfulTopics,
+      distribution,
+      suggestions,
+      knowledgeGraph,
+      true  // 标记为优化过的数据
+    );
+    
+    // 从数据库验证是否保存成功
+    const savedPath = await storage.getLearningPath(userId);
+    const success = !!savedPath;
+    
+    if (success) {
+      log(`[API-TEST] 成功保存真实学习轨迹，ID: ${savedPath.id}, 主题数: ${savedPath.topics.length}`);
+    } else {
+      log(`[API-TEST] 警告：数据库中未找到保存的学习轨迹`);
+    }
+    
+    // 构建结果对象
+    const result = {
+      topics: meaningfulTopics,
+      distribution,
+      suggestions,
+      knowledge_graph: knowledgeGraph,
+      progress: distribution.map(item => ({
+        category: item.name,
+        score: item.percentage,
+        change: 0
+      }))
+    };
+    
+    res.json({
+      success,
+      directResult: result,
+      savedPath: savedPath || null,
+      message: success ? "成功保存真实学习轨迹数据" : "学习轨迹保存失败或未找到"
+    });
+  } catch (error) {
+    log(`[API-TEST] 强制保存学习轨迹出错: ${error}`);
+    console.error("[API-TEST] 详细错误:", error);
+    res.status(500).json({ 
+      error: utils.sanitizeErrorMessage(error),
+      errorObject: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      }
+    });
   }
 });
 

@@ -139,6 +139,16 @@ export async function analyzeLearningPath(userId: number, forceRefresh: boolean 
         log(`[trajectory] 使用聚类数据生成学习轨迹`);
         const result = await generateLearningPathFromClusters(userId, clusterResult);
         
+        // 验证学习轨迹是否成功保存
+        const savedPath = await storage.getLearningPath(userId);
+        if (savedPath) {
+          log(`[trajectory] 验证学习轨迹保存成功，ID=${savedPath.id}，包含${savedPath.topics ? savedPath.topics.length : 0}个主题`);
+        } else {
+          log(`[trajectory] 警告：学习轨迹可能未成功保存至数据库，将尝试直接保存`);
+          // 额外保险：使用直接保存方法再尝试一次
+          await directSaveLearningPath(userId, result.topics, result.distribution, result.suggestions, result.knowledge_graph);
+        }
+        
         // 更新节点和连接
         if (clusterResult.centroids && clusterResult.centroids.length > 0) {
           // 构建知识图谱节点
@@ -200,6 +210,14 @@ export async function analyzeLearningPath(userId: number, forceRefresh: boolean 
             log(`[trajectory] - 主题数量: ${result.topics.length}`);
             log(`[trajectory] - 建议数量: ${result.suggestions?.length || 0}`);
             log(`[trajectory] - 图谱节点数: ${knowledgeGraph.nodes?.length || 0}`);
+            console.log(`[DEBUG-trajectory] 完整数据结构:`);
+            console.log(JSON.stringify({
+              topics_count: result.topics.length,
+              suggestions_count: result.suggestions?.length || 0,
+              graph_nodes: knowledgeGraph.nodes?.length || 0,
+              graph_links: knowledgeGraph.links?.length || 0,
+              first_topic: result.topics[0]
+            }, null, 2));
             
             // 验证数据格式
             if (!Array.isArray(result.topics)) {
@@ -244,18 +262,40 @@ export async function analyzeLearningPath(userId: number, forceRefresh: boolean 
             log(`[trajectory] 数据已安全处理: ${safeTopics.length}个主题, ${safeDistribution.length}个分布项`);
             
             // 保存到数据库，使用安全处理过的数据
-            const savedPath = await storage.saveLearningPath(
+            log(`[trajectory] 开始将学习轨迹保存到数据库: 用户ID=${userId}, 主题数=${safeTopics.length}, 建议数=${safeSuggestions.length}`);
+            console.log(`[DEBUG-trajectory] 保存前数据：${JSON.stringify({
               userId,
-              safeTopics,
-              safeDistribution,
-              safeSuggestions,
-              safeKnowledgeGraph
-            );
+              topicsCount: safeTopics.length,
+              firstTopic: safeTopics[0],
+              suggestionsCount: safeSuggestions.length,
+              graphNodesCount: safeKnowledgeGraph.nodes.length
+            }, null, 2)}`);
             
-            if (savedPath) {
-              log(`[trajectory] 成功保存! 用户 ${userId} 的学习轨迹数据保存到数据库，ID=${savedPath.id}，包含 ${safeTopics.length} 个主题`);
-            } else {
-              log(`[trajectory] 警告: storage.saveLearningPath成功执行但没有返回保存的记录`);
+            try {
+              const savedPath = await storage.saveLearningPath(
+                userId,
+                safeTopics,
+                safeDistribution,
+                safeSuggestions,
+                safeKnowledgeGraph
+              );
+              
+              if (savedPath) {
+                log(`[trajectory] 成功保存! 用户 ${userId} 的学习轨迹数据保存到数据库，ID=${savedPath.id}，包含 ${safeTopics.length} 个主题`);
+                
+                // 验证保存是否成功
+                const verifyPath = await storage.getLearningPath(userId);
+                if (verifyPath) {
+                  log(`[trajectory] 成功验证! 学习轨迹已保存在数据库中，ID=${verifyPath.id}, 主题数=${verifyPath.topics.length}`);
+                } else {
+                  log(`[trajectory] 警告: 无法验证保存的数据，getLearningPath返回undefined`);
+                }
+              } else {
+                log(`[trajectory] 警告: storage.saveLearningPath成功执行但没有返回保存的记录`);
+              }
+            } catch (dbError) {
+              log(`[trajectory] 保存学习轨迹到数据库时出错: ${dbError}`);
+              console.error("[trajectory] 数据库错误详情:", dbError);
             }
           } else {
             log(`[trajectory] 用户 ${userId} 的学习轨迹数据不完整，不保存到数据库`);
@@ -1221,6 +1261,117 @@ async function generateSimplifiedKnowledgeGraph(topics: any[], userId: number): 
  * 从现有的聚类结果生成学习轨迹
  * 这个特殊函数用于在外部生成聚类后，直接将其应用到学习轨迹中
  */
+/**
+ * 直接保存学习轨迹数据到数据库
+ * 参考了测试API和知识图谱的保存逻辑
+ * 
+ * @param userId 用户ID
+ * @param topics 主题数据
+ * @param distribution 分布数据
+ * @param suggestions 建议列表
+ * @param knowledgeGraph 知识图谱 (可选)
+ * @param isOptimized 是否已优化 (可选)
+ * @returns 保存的学习轨迹对象，如果失败则返回null
+ */
+export async function directSaveLearningPath(
+  userId: number,
+  topics: any[],
+  distribution: any[],
+  suggestions: string[],
+  knowledgeGraph?: any,
+  isOptimized: boolean = false
+): Promise<any> {
+  try {
+    log(`[trajectory-direct] 开始直接保存学习轨迹数据，用户ID=${userId}`);
+    
+    // 安全处理数据
+    const safeTopics = topics.map(t => ({
+      id: t.id || `topic_${Math.random().toString(36).slice(2, 7)}`,
+      topic: String(t.topic || '未命名主题'),
+      percentage: Number(t.percentage || 0),
+      count: Number(t.count || 0)
+    }));
+    
+    // 确保分布数据使用正确的主题名称
+    let safeDistribution;
+    
+    // 如果分布数据包含name字段并且不是"未知主题"，直接使用
+    if (distribution && distribution.length > 0 && distribution[0].name && distribution[0].name !== "未知主题") {
+      safeDistribution = distribution.map(d => ({
+        id: d.id || `dist_${Math.random().toString(36).slice(2, 7)}`,
+        name: String(d.name || '未命名主题'),
+        percentage: Number(d.percentage || 0),
+        topic: String(d.name || '未命名主题')  // 确保topic字段存在
+      }));
+      log(`[trajectory-direct] 使用原始分布数据中的name作为主题名称`);
+    } 
+    // 否则，从topics数据中获取主题名称
+    else if (safeTopics && safeTopics.length > 0) {
+      safeDistribution = safeTopics.map(t => ({
+        id: t.id,
+        name: String(t.topic || '未命名主题'),
+        percentage: Number(t.percentage || 0),
+        topic: String(t.topic || '未命名主题')  // 添加topic字段保持一致性
+      }));
+      log(`[trajectory-direct] 从topics数据生成分布数据，确保使用正确的中文主题名称`);
+    }
+    // 兜底情况：生成默认分布数据
+    else {
+      safeDistribution = distribution.map(d => ({
+        id: d.id || `dist_${Math.random().toString(36).slice(2, 7)}`,
+        name: String(d.name || d.topic || '未命名主题'),
+        percentage: Number(d.percentage || 0),
+        topic: String(d.name || d.topic || '未命名主题')  // 添加topic字段
+      }));
+      log(`[trajectory-direct] 使用默认逻辑生成分布数据`);
+    }
+    
+    const safeSuggestions = suggestions
+      .filter(s => typeof s === 'string')
+      .slice(0, 10);
+    
+    const safeGraph = knowledgeGraph ? {
+      nodes: Array.isArray(knowledgeGraph.nodes) ? knowledgeGraph.nodes : [],
+      links: Array.isArray(knowledgeGraph.links) ? knowledgeGraph.links : []
+    } : null;
+    
+    log(`[trajectory-direct] 处理后数据: ${safeTopics.length}个主题, ${safeDistribution.length}个分布, ${safeSuggestions.length}个建议`);
+    
+    // 1. 先清除现有数据
+    await storage.clearLearningPath(userId);
+    log(`[trajectory-direct] 已清除用户 ${userId} 现有学习轨迹数据`);
+    
+    // 2. 保存新数据
+    const result = await storage.saveLearningPath(
+      userId,
+      safeTopics,
+      safeDistribution,
+      safeSuggestions,
+      safeGraph,
+      [],
+      isOptimized
+    );
+    
+    if (result) {
+      log(`[trajectory-direct] 成功保存学习轨迹数据! ID=${result.id}, 用户=${userId}`);
+      
+      // 验证保存
+      const verify = await storage.getLearningPath(userId);
+      if (verify && verify.topics) {
+        log(`[trajectory-direct] 验证成功: 读取到${verify.topics.length}个主题`);
+        return verify;
+      }
+    }
+    
+    log(`[trajectory-direct] 警告: 无法验证保存结果`);
+    return null;
+  } catch (error) {
+    log(`[trajectory-direct] 保存学习轨迹数据失败: ${error}`);
+    console.error('[trajectory-direct] 详细错误:', error);
+    return null;
+  }
+}
+
 export async function generateLearningPathFromClusters(userId: number, clusterResult: any): Promise<LearningPathResult> {
   try {
     log(`[trajectory] 正在从现有聚类为用户 ${userId} 生成学习轨迹`);
@@ -1301,14 +1452,9 @@ export async function generateLearningPathFromClusters(userId: number, clusterRe
       knowledge_graph: knowledgeGraph
     };
     
-    // 保存到数据库
-    await storage.saveLearningPath(
-      userId,
-      topics,
-      distribution,
-      suggestions,
-      knowledgeGraph
-    );
+    // ===== 关键改动：使用直接保存方法 =====
+    // 这种方式参考了测试API，直接保存可以确保绕过任何潜在问题
+    await directSaveLearningPath(userId, topics, distribution, suggestions, knowledgeGraph);
     
     return result;
   } catch (error) {
