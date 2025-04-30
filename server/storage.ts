@@ -1884,13 +1884,49 @@ export class DatabaseStorage implements IStorage {
           }
           
           // 执行更新操作，使用预处理过的安全数据
-          const [updatedPath] = await db.update(learningPaths)
-            .set(updateData)
-            .where(eq(learningPaths.userId, userId))
-            .returning();
-            
-          log(`用户 ${userId} 的学习轨迹已更新，版本: ${updatedPath.version}`);
-          return updatedPath;
+          try {
+            const result = await db.update(learningPaths)
+              .set(updateData)
+              .where(eq(learningPaths.userId, userId))
+              .returning();
+              
+            if (result && result.length > 0) {
+              const updatedPath = result[0];
+              log(`用户 ${userId} 的学习轨迹已更新，版本: ${updatedPath.version}`);
+              return updatedPath;
+            } else {
+              log(`警告: 学习轨迹更新操作没有返回任何结果，尝试强制插入新记录`);
+              // 如果更新失败（可能是记录不存在），尝试插入
+              await this.clearLearningPath(userId); // 确保没有冲突记录
+              
+              // 准备新记录数据
+              const newData = {
+                userId,
+                topics: safeTopics,
+                distribution: safeDistribution,
+                suggestions: safeSuggestions,
+                knowledgeGraph: safeKnowledgeGraph,
+                version: 1,
+                isOptimized: isOptimized || false,
+                expiresAt: new Date(Date.now() + expiryHours * 60 * 60 * 1000),
+                progressHistory: [{
+                  date: new Date().toISOString().split('T')[0],
+                  topics: safeDistribution
+                }]
+              };
+              
+              const [newPath] = await db.insert(learningPaths)
+                .values(newData)
+                .returning();
+                
+              log(`创建了新的学习轨迹记录，ID: ${newPath.id}，用户: ${userId}`);
+              return newPath;
+            }
+          } catch (updateError) {
+            log(`更新学习轨迹时出错: ${updateError}`);
+            console.error('[DB-ERROR] 更新学习轨迹详细错误:', updateError);
+            throw updateError;
+          }
         } else {
           // 如果不存在，创建新记录
           log(`为用户 ${userId} 创建首次学习轨迹记录`);

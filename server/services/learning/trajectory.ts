@@ -16,7 +16,7 @@ import { log } from '../../vite';
 import { getMemoriesByFilter } from './memoryStore';
 import { clusterMemories, calculateTopicRelations } from './cluster';
 import { db } from '../../db';
-import { memories } from '@shared/schema';
+import { memories, learningPaths } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { storage } from '../../storage';
 
@@ -594,24 +594,18 @@ async function generateLearningPathFromMemories(userId: number): Promise<Learnin
             log(`[trajectory] 聚类 ${index} 没有topic属性，使用默认标签: ${defaultLabel}`);
           }
         } else {
-          // 使用更有意义的默认标签
-          const meaningfulLabels = [
-            "学习笔记", "知识概览", "技术探索", "概念讨论", 
-            "问题分析", "编程技术", "数据科学", "学习资料",
-            "框架学习", "算法研究", "系统设计", "工具使用"
-          ];
-          
-          // 选择标签，避免重复
-          const labelIndex = index % meaningfulLabels.length;
-          let defaultLabel = meaningfulLabels[labelIndex];
-          
-          // 如果索引超出数组长度，添加编号
-          if (index >= meaningfulLabels.length) {
-            defaultLabel = `${defaultLabel} ${Math.floor(index / meaningfulLabels.length) + 1}`;
+          // 使用关键词或原始标签，而不是硬编码的默认标签
+          if (cluster.keywords && Array.isArray(cluster.keywords) && cluster.keywords.length > 0) {
+            // 只使用第一个关键词作为简单标签
+            const simpleLabel = `${cluster.keywords[0]}相关主题`;
+            cluster.topic = simpleLabel;
+            log(`[trajectory] 聚类 ${index} 使用第一个关键词生成标签: ${simpleLabel}`);
+          } else {
+            // 使用通用但有区分度的标签
+            const genericLabel = `记忆聚类 ${index + 1}`;
+            cluster.topic = genericLabel;
+            log(`[trajectory] 聚类 ${index} 无法生成有意义的标签，使用通用标签: ${genericLabel}`);
           }
-          
-          cluster.topic = defaultLabel;
-          log(`[trajectory] 聚类 ${index} 使用有意义的默认标签: ${defaultLabel}`);
         }
       });
       
@@ -1342,28 +1336,139 @@ export async function directSaveLearningPath(
     log(`[trajectory-direct] 已清除用户 ${userId} 现有学习轨迹数据`);
     
     // 2. 保存新数据
-    const result = await storage.saveLearningPath(
-      userId,
-      safeTopics,
-      safeDistribution,
-      safeSuggestions,
-      safeGraph,
-      [],
-      isOptimized
-    );
-    
-    if (result) {
-      log(`[trajectory-direct] 成功保存学习轨迹数据! ID=${result.id}, 用户=${userId}`);
+    try {
+      log(`[trajectory-direct] 开始调用storage.saveLearningPath，用户=${userId}, 主题数=${safeTopics.length}`);
+      console.log(`[DEBUG-SAVE] 主题数据样本:`, safeTopics.slice(0, 2));
+      console.log(`[DEBUG-SAVE] 分布数据样本:`, safeDistribution.slice(0, 2));
+
+      // 首先尝试删除可能存在的旧记录，避免唯一约束冲突
+      try {
+        await storage.clearLearningPath(userId);
+        log(`[trajectory-direct] 成功清理可能存在的旧记录`);
+      } catch (clearError) {
+        log(`[trajectory-direct] 清理旧记录时发生错误: ${clearError}`);
+        // 继续执行，可能旧记录不存在
+      }
+
+      // 执行保存操作
+      const result = await storage.saveLearningPath(
+        userId,
+        safeTopics,
+        safeDistribution,
+        safeSuggestions,
+        safeGraph,
+        [],
+        isOptimized
+      );
       
-      // 验证保存
-      const verify = await storage.getLearningPath(userId);
-      if (verify && verify.topics) {
-        log(`[trajectory-direct] 验证成功: 读取到${verify.topics.length}个主题`);
-        return verify;
+      if (result) {
+        log(`[trajectory-direct] 成功保存学习轨迹数据! ID=${result.id}, 用户=${userId}`);
+        
+        // 验证保存
+        const verify = await storage.getLearningPath(userId);
+        if (verify && verify.topics) {
+          log(`[trajectory-direct] 验证成功: 读取到${verify.topics.length}个主题`);
+          return verify;
+        } else {
+          log(`[trajectory-direct] 验证失败: 无法通过storage.getLearningPath找到保存的数据`);
+          console.log(`[DEBUG-SAVE] 验证结果:`, verify);
+          
+          // 探查数据库中是否有记录
+          try {
+            // 动态导入以避免循环依赖
+            const { db } = await import('../../db');
+            const { learningPaths } = await import('@shared/schema');
+            const { eq } = await import('drizzle-orm');
+            
+            const dbDirectCheck = await db.select()
+              .from(learningPaths)
+              .where(eq(learningPaths.userId, userId));
+            
+            log(`[trajectory-direct] 直接数据库查询结果: 找到${dbDirectCheck.length}条记录`);
+            
+            if (dbDirectCheck.length > 0) {
+              const record = dbDirectCheck[0];
+              log(`[trajectory-direct] 数据库中有记录，但getLearningPath无法检索到，可能是expiresAt条件不满足`);
+              console.log(`[DEBUG-SAVE] 记录ID:${record.id}, 过期时间:${record.expiresAt}`);
+              
+              // 尝试强制更新过期时间使其有效
+              const [updatedPath] = await db.update(learningPaths)
+                .set({ 
+                  expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7天后过期
+                  updatedAt: new Date()
+                })
+                .where(eq(learningPaths.userId, userId))
+                .returning();
+              
+              if (updatedPath) {
+                log(`[trajectory-direct] 成功更新过期时间，记录现在应该可见`);
+                return updatedPath;
+              }
+            }
+          } catch (dbError) {
+            log(`[trajectory-direct] 直接数据库查询失败: ${dbError}`);
+          }
+        }
+      } else {
+        log(`[trajectory-direct] 保存失败: storage.saveLearningPath返回空结果`);
+      }
+    } catch (saveError) {
+      log(`[trajectory-direct] 保存过程中发生错误: ${saveError}`);
+      console.error(`[DEBUG-SAVE] 详细错误:`, saveError);
+      
+      // 特殊处理唯一约束错误
+      if (saveError.message && saveError.message.includes('unique')) {
+        log(`[trajectory-direct] 检测到唯一约束冲突，尝试强制删除后重新创建`);
+        
+        try {
+          // 动态导入以避免循环依赖
+          const { db } = await import('../../db');
+          const { learningPaths } = await import('@shared/schema');
+          const { eq } = await import('drizzle-orm');
+          
+          // 使用直接的数据库操作尝试删除冲突记录
+          await db.delete(learningPaths)
+            .where(eq(learningPaths.userId, userId));
+          
+          log(`[trajectory-direct] 成功删除冲突记录，尝试重新创建`);
+          
+          // 重新创建记录
+          const [newPath] = await db.insert(learningPaths)
+            .values({
+              userId,
+              topics: safeTopics,
+              distribution: safeDistribution,
+              suggestions: safeSuggestions,
+              knowledgeGraph: safeGraph,
+              version: 1,
+              isOptimized: isOptimized || false,
+              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+              progressHistory: [{
+                date: new Date().toISOString().split('T')[0],
+                topics: safeDistribution
+              }]
+            })
+            .returning();
+          
+          log(`[trajectory-direct] 成功直接创建新记录，ID: ${newPath.id}`);
+          return newPath;
+        } catch (recoveryError) {
+          log(`[trajectory-direct] 恢复操作失败: ${recoveryError}`);
+        }
       }
     }
     
-    log(`[trajectory-direct] 警告: 无法验证保存结果`);
+    // 如果执行到这里，说明保存过程有问题
+    log(`[trajectory-direct] 警告: 无法验证保存结果，尝试确认数据库连接状态`);
+    
+    try {
+      // 尝试简单查询测试数据库连接
+      const dbTest = await storage.getSystemConfig('learning_path_test');
+      log(`[trajectory-direct] 数据库连接测试: ${dbTest ? '成功' : '配置项未找到，但连接正常'}`);
+    } catch (dbError) {
+      log(`[trajectory-direct] 数据库连接测试失败: ${dbError}`);
+    }
+    
     return null;
   } catch (error) {
     log(`[trajectory-direct] 保存学习轨迹数据失败: ${error}`);
@@ -1425,10 +1530,11 @@ export async function generateLearningPathFromClusters(userId: number, clusterRe
       log(`[trajectory] 添加了一个"其他"主题以改善视觉效果，主题总数: ${topics.length}`);
     }
     
-    // 转换为分布格式
+    // 转换为分布格式 - 确保同时包含name和topic字段
     const distribution = topics.map((topic: any) => ({
       id: topic.id,
       name: topic.topic,
+      topic: topic.topic, // 添加topic字段以确保directSaveLearningPath可以正确保存
       percentage: topic.percentage
     }));
     
