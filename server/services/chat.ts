@@ -82,7 +82,9 @@ export class ChatService {
     
     // 默认使用Grok模型，因为它支持多模态输入且没有使用量限制
     this.currentModel = "grok";
-    this.apiKey = difyApiKey || "";
+    // 临时禁用Dify模型，因为Dify API目前有连接问题
+    // this.apiKey = difyApiKey || "";
+    this.apiKey = "";
     
     // 添加专用的图像分析模型配置
     this.visionModel = "grok-2-vision-1212";
