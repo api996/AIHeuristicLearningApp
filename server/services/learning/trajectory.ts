@@ -207,17 +207,53 @@ export async function analyzeLearningPath(userId: number, forceRefresh: boolean 
               result.topics = [];
             }
             
-            // 保存到数据库
+            // 确保主题内每个对象的格式符合预期
+            const safeTopics = Array.isArray(result.topics) 
+              ? result.topics.map((topic: any) => {
+                  // 确保每个主题对象有正确的结构
+                  return {
+                    id: topic.id || `topic_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+                    topic: typeof topic.topic === 'string' ? topic.topic : 'Unnamed Topic',
+                    percentage: typeof topic.percentage === 'number' ? topic.percentage : 0.1
+                  };
+                }) 
+              : [];
+              
+            // 确保分布数据有相同的安全格式
+            const safeDistribution = Array.isArray(result.distribution) 
+              ? result.distribution.map((item: any) => {
+                  return {
+                    topic: typeof item.topic === 'string' ? item.topic : 'Unnamed Topic',
+                    percentage: typeof item.percentage === 'number' ? item.percentage : 0.1,
+                    id: item.id || `dist_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+                  };
+                })
+              : safeTopics; // 如果没有distribution，使用安全处理过的topics
+            
+            // 确保建议是字符串数组
+            const safeSuggestions = Array.isArray(result.suggestions)
+              ? result.suggestions.filter(s => typeof s === 'string')
+              : [];
+              
+            // 确保知识图谱节点和链接是数组
+            const safeKnowledgeGraph = {
+              nodes: Array.isArray(knowledgeGraph.nodes) ? knowledgeGraph.nodes : [],
+              links: Array.isArray(knowledgeGraph.links) ? knowledgeGraph.links : []
+            };
+            
+            log(`[trajectory] 数据已安全处理: ${safeTopics.length}个主题, ${safeDistribution.length}个分布项`);
+            
+            // 保存到数据库，使用安全处理过的数据
             const savedPath = await storage.saveLearningPath(
               userId,
-              result.topics,
-              result.distribution || result.topics, // 使用distribution或回退到topics
-              result.suggestions || [],
-              knowledgeGraph
+              safeTopics,
+              safeDistribution,
+              safeSuggestions,
+              safeKnowledgeGraph
             );
             
             if (savedPath) {
-              log(`[trajectory] 成功保存! 用户 ${userId} 的学习轨迹数据保存到数据库，ID=${savedPath.id}，包含 ${result.topics.length} 个主题`);
+              log(`[trajectory] 成功保存! 用户 ${userId} 的学习轨迹数据保存到数据库，ID=${savedPath.id}，包含 ${safeTopics.length} 个主题`);
             } else {
               log(`[trajectory] 警告: storage.saveLearningPath成功执行但没有返回保存的记录`);
             }
@@ -227,6 +263,13 @@ export async function analyzeLearningPath(userId: number, forceRefresh: boolean 
         } catch (saveError) {
           log(`[trajectory] 保存学习轨迹数据到数据库时出错: ${saveError}`);
           console.error("[trajectory] 详细错误:", saveError);
+          // 打印详细的错误对象以便调试
+          console.error('[trajectory] 完整错误对象:', JSON.stringify({
+            name: saveError.name,
+            message: saveError.message,
+            code: saveError.code,
+            stack: saveError.stack
+          }, null, 2));
           // 保存失败不影响返回结果
         }
         
