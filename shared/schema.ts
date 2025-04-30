@@ -231,10 +231,14 @@ export const learningPaths = pgTable("learning_paths", {
   suggestions: json("suggestions").notNull(), // 格式：["建议1", "建议2", ...]
   // 学习进度历史记录，用于跟踪进步
   progressHistory: json("progress_history"), // 格式：[{date: "2023-01-01", topics: [{topic: "主题1", percentage: 75}, ...]}]
+  // 知识图谱数据
+  knowledgeGraph: json("knowledge_graph"), // 存储知识图谱节点和连接
   // 版本号，用于缓存控制
   version: integer("version").notNull().default(1),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  // 缓存过期时间
+  expiresAt: timestamp("expires_at"), // 缓存过期时间，与聚类缓存保持一致
   // 标记学习轨迹数据是否已优化/精确化
   isOptimized: boolean("is_optimized").default(false),
 });
