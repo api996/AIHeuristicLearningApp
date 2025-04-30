@@ -2383,6 +2383,100 @@ asyncio.run(test_memory())
     }
   });
 
+  // DEBUG: 直接数据库调试API - 学习轨迹表
+  app.get("/api/debug/learning-paths", async (req, res) => {
+    try {
+      // 直接从数据库查询学习轨迹表所有数据
+      const { db } = await import('./db');
+      const { learningPaths } = await import('../shared/schema');
+      
+      log(`[DEBUG] 查询学习轨迹表`);
+      const result = await db.select().from(learningPaths);
+      
+      log(`[DEBUG] 学习轨迹表查询结果: ${result.length} 条记录`);
+      res.json({ 
+        success: true, 
+        count: result.length,
+        paths: result.map(path => ({
+          id: path.id,
+          userId: path.userId,
+          createdAt: path.createdAt,
+          expiresAt: path.expiresAt,
+          topicsCount: path.topics?.length || 0
+        }))
+      });
+    } catch (error) {
+      console.error(`[DEBUG] 查询学习轨迹表出错:`, error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  });
+
+  // DEBUG: 保存测试学习轨迹
+  app.post("/api/debug/save-learning-path", async (req, res) => {
+    try {
+      const userId = parseInt(req.query.userId as string) || 6;
+      
+      log(`[DEBUG] 尝试保存测试学习轨迹数据，用户ID=${userId}`);
+      
+      // 从storage导入而不是trajectory，避免引入复杂依赖
+      const { storage } = await import('./storage');
+      
+      // 创建简单的测试数据
+      const testTopics = [
+        { id: "test-topic-1", topic: "测试主题1", percentage: 0.4 },
+        { id: "test-topic-2", topic: "测试主题2", percentage: 0.3 },
+        { id: "test-topic-3", topic: "测试主题3", percentage: 0.3 }
+      ];
+      
+      const testDistribution = testTopics;
+      const testSuggestions = ["建议1", "建议2", "建议3"];
+      const testGraph = { nodes: [], links: [] };
+      
+      // 直接调用storage保存功能
+      log(`[DEBUG] 开始保存测试学习轨迹数据`);
+      const savedPath = await storage.saveLearningPath(
+        userId,
+        testTopics,
+        testDistribution,
+        testSuggestions,
+        testGraph
+      );
+      
+      if (savedPath) {
+        log(`[DEBUG] 测试学习轨迹保存成功! ID=${savedPath.id}`);
+        
+        // 再次验证是否已保存
+        const verifyPath = await storage.getLearningPath(userId);
+        const verified = !!verifyPath;
+        
+        res.json({
+          success: true,
+          message: "测试学习轨迹保存成功",
+          path: savedPath,
+          verified,
+          verifyPath: verifyPath || null
+        });
+      } else {
+        log(`[DEBUG] 测试学习轨迹保存失败，返回值为空`);
+        res.status(500).json({
+          success: false,
+          message: "保存操作没有返回路径数据"
+        });
+      }
+    } catch (error) {
+      console.error(`[DEBUG] 保存测试学习轨迹出错:`, error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
