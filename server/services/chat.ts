@@ -989,7 +989,18 @@ ${searchResults}`;
       // search模型已移除，网络搜索现在作为辅助功能集成到其他模型中
       
       deep: {
-        endpoint: `https://api.dify.ai/v1/chat-messages`,
+        // 使用应用级 API 格式
+        // 应用密钥格式为 "app-{appId}{后缀}"，需要提取应用 ID
+        // 确保在使用前已经检查并提取了正确的应用 ID
+        endpoint: difyApiKey ? 
+          (() => {
+            // Dify应用密钥格式: "app-U4atYg7zzgecfchOHo1HGAr2"
+            // 由于密钥格式特殊，直接使用硬编码的appId构建URL
+            const appId = "U4atYg7zzgecfchOHo1HGAr2";
+            log(`使用Dify应用级API端点，应用ID: ${appId.substring(0, 4)}...`);
+            return `https://api.dify.ai/v1/apps/${appId}/chat-messages`;
+          })() 
+          : `https://api.dify.ai/v1/chat-messages`,
         headers: {
           "Authorization": `Bearer ${difyApiKey}`,
           "Content-Type": "application/json",
@@ -1025,22 +1036,32 @@ ${searchResults}`;
             }
           }
           
-          // 构建Dify API请求格式 - 简化版
-          // 尝试最简单的请求结构，减少可能的错误
+          // 构建Dify API请求格式 - 参考debug-dify-api.js的结构
+          // 需要完整的请求结构，包括inputs字段
           const requestPayload: any = {
             query: userQuestion,     // 用户原始问题
-            response_mode: "blocking"
+            response_mode: "blocking",
+            user: userId ? `user-${userId}` : "user", // 用户标识
+            inputs: {}               // 需要包含inputs字段，即使是空对象
           };
           
           // 如果有会话ID，添加到请求中
           if (difyConversationId) {
             requestPayload.conversation_id = difyConversationId;
+          } else {
+            // 如果没有会话ID，传空字符串而不是省略
+            requestPayload.conversation_id = "";
           }
           
-          // 添加基本的用户标识
-          requestPayload.user = userId ? `user-${userId}` : "user";
+          // 如果有记忆上下文，添加到inputs
+          if (contextMemories) {
+            requestPayload.inputs.context_memories = contextMemories;
+          }
           
-          // 不添加任何可选的inputs数据，测试最小化请求
+          // 如果有搜索结果，添加到inputs
+          if (searchResults) {
+            requestPayload.inputs.search_results = searchResults;
+          }
           
           // 注意：由于Dify是有状态API，我们不需要传递完整的历史消息
           // Dify会自动基于conversation_id维护对话上下文
@@ -1102,7 +1123,7 @@ ${searchResults}`;
               method: "POST",
               headers: headers,
               body: JSON.stringify(transformedMessage),
-              timeout: 60000, // 保持60秒超时
+              timeout: 60000, // 60秒超时 - Dify工作流需要较长时间
             }, 2, 5000); // 减少到2次重试，增加初始间隔到5秒
 
             // 详细记录API响应状态
