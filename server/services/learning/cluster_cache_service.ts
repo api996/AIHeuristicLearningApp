@@ -163,60 +163,87 @@ export class ClusterCacheService {
    */
   private async shouldRefreshCache(userId: number, cachedResult: any): Promise<boolean> {
     try {
-      // 获取当前记忆数据
-      const memories = await storage.getMemoriesByUserId(userId);
-      
-      // 获取有嵌入向量的记忆数量
-      const memoriesWithEmbeddings = await this.countMemoriesWithEmbeddings(userId, memories);
-      
-      // 如果记忆总数小于5，不需要更新聚类
-      if (memories.length < 5 || memoriesWithEmbeddings < 5) {
-        log(`[ClusterCache] 记忆数量不足(总数=${memories.length}, 有向量=${memoriesWithEmbeddings})，不更新聚类`);
-        return false;
+      // 检查缓存是否存在且有足够的数据
+      if (!cachedResult || !cachedResult.clusterData || Object.keys(cachedResult.clusterData).length === 0) {
+        log(`[ClusterCache] 缓存不存在或为空，需要创建新的聚类`);
+        return true;
       }
       
-      // 计算向量数量变化
-      const vectorCountDifference = memoriesWithEmbeddings - cachedResult.vectorCount;
-      
-      // 如果没有新的向量，绝对不更新聚类
-      if (vectorCountDifference <= 0) {
-        log(`[ClusterCache] 没有新的向量数据，不需要更新聚类`);
-        return false;
-      }
-      
-      // 检查缓存的创建时间
-      const cacheTimestamp = cachedResult.timestamp ? new Date(cachedResult.timestamp) : null;
-      if (cacheTimestamp) {
-        const ageHours = (Date.now() - cacheTimestamp.getTime()) / (1000 * 60 * 60);
-        // 如果缓存时间不到24小时，除非有大量新记忆，否则不更新
-        if (ageHours < 24) {
-          // 只有当新记忆数量超过50%时才更新
-          if (vectorCountDifference < (cachedResult.vectorCount * 0.5)) {
-            log(`[ClusterCache] 缓存创建于${ageHours.toFixed(1)}小时前，且新增向量数量(${vectorCountDifference})不足50%，继续使用缓存`);
-            return false;
-          }
+      // 检查缓存的过期时间 - 首先检查是否设置了明确的过期时间
+      if (cachedResult.expiresAt) {
+        const expiresAt = new Date(cachedResult.expiresAt);
+        if (expiresAt > new Date()) {
+          log(`[ClusterCache] 缓存尚未过期，将于 ${expiresAt.toISOString()} 过期，继续使用缓存`);
+          return false;
+        } else {
+          log(`[ClusterCache] 缓存已过期，需要刷新`);
+          return true;
         }
       }
       
-      // 如果向量数量增加超过阈值，需要更新聚类
-      if (vectorCountDifference >= this.vectorCountThreshold) {
-        log(`[ClusterCache] 向量数量增加了${vectorCountDifference}个，超过阈值(${this.vectorCountThreshold})，需要更新聚类`);
+      // 如果没有明确的过期时间，检查更新时间
+      if (cachedResult.updatedAt) {
+        const updatedAt = new Date(cachedResult.updatedAt);
+        const ageHours = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60);
+        
+        // 如果缓存非常新（不到12小时），直接使用
+        if (ageHours < 12) {
+          log(`[ClusterCache] 缓存非常新，仅${ageHours.toFixed(1)}小时前更新，继续使用缓存`);
+          return false;
+        }
+        
+        // 如果缓存在有效期内（不到cacheExpiryHours，默认168小时/1周），检查是否有显著变化
+        if (ageHours < this.cacheExpiryHours) {
+          // 获取当前记忆数据，检查是否有新的记忆
+          const memories = await storage.getMemoriesByUserId(userId);
+          
+          // 获取有嵌入向量的记忆数量
+          const memoriesWithEmbeddings = await this.countMemoriesWithEmbeddings(userId, memories);
+          
+          // 如果记忆总数小于5，不需要更新聚类
+          if (memories.length < 5 || memoriesWithEmbeddings < 5) {
+            log(`[ClusterCache] 记忆数量不足(总数=${memories.length}, 有向量=${memoriesWithEmbeddings})，不更新聚类`);
+            return false;
+          }
+          
+          // 计算向量数量变化
+          const vectorCountDifference = memoriesWithEmbeddings - cachedResult.vectorCount;
+          
+          // 如果没有新的向量，绝对不更新聚类
+          if (vectorCountDifference <= 0) {
+            log(`[ClusterCache] 没有新的向量数据，不需要更新聚类`);
+            return false;
+          }
+          
+          // 只有当向量数量增加超过阈值且增长比例超过20%时，才更新聚类
+          const growthPercentage = vectorCountDifference / cachedResult.vectorCount;
+          if (vectorCountDifference >= this.vectorCountThreshold && growthPercentage >= 0.2) {
+            log(`[ClusterCache] 向量数量增加了${vectorCountDifference}个(${(growthPercentage*100).toFixed(1)}%)，超过阈值，需要更新聚类`);
+            return true;
+          }
+          
+          log(`[ClusterCache] 向量数量增加了${vectorCountDifference}个(${(growthPercentage*100).toFixed(1)}%)，未达到刷新阈值，继续使用缓存`);
+          return false;
+        } else {
+          log(`[ClusterCache] 缓存已超过${this.cacheExpiryHours}小时(${ageHours.toFixed(1)}小时)，需要刷新`);
+          return true;
+        }
+      }
+      
+      // 如果没有更新时间信息，检查是否有足够的聚类
+      const clusterCount = Object.keys(cachedResult.clusterData).length;
+      if (clusterCount < 3) {
+        log(`[ClusterCache] 缓存的聚类数量不足(${clusterCount})，需要重新聚类`);
         return true;
       }
       
-      // 检查记忆ID是否有变化
-      const hasSignificantChanges = await this.detectSignificantMemoryChanges(userId, cachedResult);
-      if (hasSignificantChanges) {
-        log(`[ClusterCache] 记忆数据有显著变化，需要更新聚类`);
-        return true;
-      }
-      
-      log(`[ClusterCache] 记忆数据变化不大，继续使用缓存的聚类结果`);
+      // 如果以上条件都不满足，默认使用缓存
+      log(`[ClusterCache] 使用默认策略，继续使用现有缓存结果`);
       return false;
     } catch (error) {
       log(`[ClusterCache] 检查缓存更新需求时出错: ${error}`, "warn");
-      // 出错时保守处理，返回true以执行新的聚类
-      return true;
+      // 出错时保守处理，优先使用缓存
+      return false;
     }
   }
   

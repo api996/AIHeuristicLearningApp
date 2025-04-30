@@ -2502,7 +2502,7 @@ export class DatabaseStorage implements IStorage {
     clusterData: any,
     clusterCount: number,
     vectorCount: number,
-    expiryHours: number = 24
+    expiryHours: number = 168 // 默认一周
   ): Promise<ClusterResultCache> {
     try {
       // 计算过期时间
