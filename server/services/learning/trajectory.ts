@@ -194,21 +194,39 @@ export async function analyzeLearningPath(userId: number, forceRefresh: boolean 
               links: []
             };
             
+            // 添加详细调试日志
+            log(`[trajectory] 准备保存学习轨迹，检查数据结构:`);
+            log(`[trajectory] - 用户ID: ${userId}`);
+            log(`[trajectory] - 主题数量: ${result.topics.length}`);
+            log(`[trajectory] - 建议数量: ${result.suggestions?.length || 0}`);
+            log(`[trajectory] - 图谱节点数: ${knowledgeGraph.nodes?.length || 0}`);
+            
+            // 验证数据格式
+            if (!Array.isArray(result.topics)) {
+              log(`[trajectory] 错误: 主题不是数组格式，是 ${typeof result.topics}`);
+              result.topics = [];
+            }
+            
             // 保存到数据库
-            await storage.saveLearningPath(
+            const savedPath = await storage.saveLearningPath(
               userId,
               result.topics,
               result.distribution || result.topics, // 使用distribution或回退到topics
-              result.suggestions,
+              result.suggestions || [],
               knowledgeGraph
             );
             
-            log(`[trajectory] 已将用户 ${userId} 的学习轨迹数据保存到数据库，包含 ${result.topics.length} 个主题`);
+            if (savedPath) {
+              log(`[trajectory] 成功保存! 用户 ${userId} 的学习轨迹数据保存到数据库，ID=${savedPath.id}，包含 ${result.topics.length} 个主题`);
+            } else {
+              log(`[trajectory] 警告: storage.saveLearningPath成功执行但没有返回保存的记录`);
+            }
           } else {
             log(`[trajectory] 用户 ${userId} 的学习轨迹数据不完整，不保存到数据库`);
           }
         } catch (saveError) {
           log(`[trajectory] 保存学习轨迹数据到数据库时出错: ${saveError}`);
+          console.error("[trajectory] 详细错误:", saveError);
           // 保存失败不影响返回结果
         }
         

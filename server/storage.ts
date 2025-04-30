@@ -1797,7 +1797,8 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Invalid user ID");
       }
       
-      log(`保存用户 ${userId} 的学习轨迹数据，${topics.length} 个主题`);
+      log(`[storage-debug] 保存用户 ${userId} 的学习轨迹数据，${topics.length} 个主题，${suggestions.length} 个建议`);
+      console.log(`[DEBUG] 保存学习轨迹: 用户ID=${userId}, 主题数=${topics.length}, 建议数=${suggestions.length}`);
       
       // 检查用户是否已有学习轨迹
       const existingPath = await this.getLearningPath(userId);
@@ -1893,9 +1894,62 @@ export class DatabaseStorage implements IStorage {
         log(`为用户 ${userId} 创建了新的学习轨迹记录`);
         return newPath;
       }
-    } catch (error) {
-      log(`保存学习轨迹错误: ${error}`);
-      throw error;
+    } catch (error: any) {
+      console.error('[DB-ERROR] 保存学习轨迹错误:', error);
+      
+      // 安全访问错误属性
+      const errorMessage = error?.message || '未知错误';
+      log(`[storage-error] 保存学习轨迹错误: ${errorMessage}`);
+      
+      // 检查错误类型，提供更详细的日志
+      if (error?.code) {
+        log(`[storage-error] 数据库错误代码: ${error.code}`);
+      }
+      
+      // 检查是否为JSON序列化错误
+      if (errorMessage && errorMessage.includes && errorMessage.includes('JSON')) {
+        log(`[storage-error] 可能是JSON序列化错误，检查数据类型`);
+        log(`[storage-error] topics类型: ${typeof topics}, distribution类型: ${typeof distribution}`);
+        log(`[storage-error] suggestions类型: ${typeof suggestions}, knowledgeGraph类型: ${typeof knowledgeGraph}`);
+        
+        // 尝试使用简化版本的数据重新保存
+        try {
+          // 准备简化数据
+          const simplifiedData = {
+            userId,
+            topics: Array.isArray(topics) ? topics.map((t: any) => ({
+              topic: typeof t.topic === 'string' ? t.topic : '未知主题',
+              percentage: typeof t.percentage === 'number' ? t.percentage : 0.1,
+              id: typeof t.id === 'string' ? t.id : `topic_${Date.now()}`
+            })) : [],
+            distribution: Array.isArray(distribution) ? distribution : [],
+            suggestions: Array.isArray(suggestions) ? suggestions : [],
+            version: 1,
+            isOptimized: isOptimized || false,
+            expiresAt: new Date(Date.now() + expiryHours * 60 * 60 * 1000),
+            knowledgeGraph: { nodes: [], links: [] },
+            progressHistory: [{
+              date: new Date().toISOString().split('T')[0],
+              topics: []
+            }]
+          };
+          
+          log(`[storage-recovery] 尝试使用简化数据重新保存学习轨迹`);
+          
+          // 执行插入操作
+          const [recoveredPath] = await db.insert(learningPaths)
+            .values(simplifiedData)
+            .returning();
+            
+          log(`[storage-recovery] 成功使用简化数据保存学习轨迹，ID: ${recoveredPath.id}`);
+          return recoveredPath;
+        } catch (recoveryError: any) {
+          log(`[storage-recovery] 使用简化数据保存失败: ${recoveryError?.message || '未知错误'}`);
+        }
+      }
+      
+      // 重新抛出经过处理的错误对象，以避免undefined或非标准错误导致应用崩溃
+      throw new Error(`保存学习轨迹失败: ${errorMessage}`);
     }
   }
   
