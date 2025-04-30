@@ -994,11 +994,16 @@ ${searchResults}`;
         // 确保在使用前已经检查并提取了正确的应用 ID
         endpoint: difyApiKey ? 
           (() => {
-            // Dify应用密钥格式: "app-U4atYg7zzgecfchOHo1HGAr2"
-            // 由于密钥格式特殊，直接使用硬编码的appId构建URL
-            const appId = "U4atYg7zzgecfchOHo1HGAr2";
-            log(`使用Dify应用级API端点，应用ID: ${appId.substring(0, 4)}...`);
-            return `https://api.dify.ai/v1/apps/${appId}/chat-messages`;
+            // 正确处理Dify应用密钥，格式示例: "app-U4atYgxxxxxx"
+            const appIdMatch = difyApiKey.match(/^app-([a-zA-Z0-9]+)/);
+            if (appIdMatch && appIdMatch[1]) {
+              const appId = appIdMatch[1];
+              log(`使用Dify应用级API端点，应用ID: ${appId.substring(0, 4)}...`);
+              return `https://api.dify.ai/v1/apps/${appId}/chat-messages`;
+            } else {
+              log(`密钥格式不是应用级密钥，回退到公共API端点`);
+              return `https://api.dify.ai/v1/chat-messages`;
+            }
           })() 
           : `https://api.dify.ai/v1/chat-messages`,
         headers: {
