@@ -1,0 +1,213 @@
+
+<mxfile host="app.diagrams.net" modified="2023-06-19T12:45:33.365Z" agent="Mozilla/5.0" version="21.5.0" etag="Kc1vvUMMZzZhHWEw8Iid" type="device">
+  <diagram id="prtHgNgQTEPvFCAcTncT" name="系统架构图">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- 标题 -->
+        <mxCell id="2" value="&lt;font style=&quot;font-size: 24px;&quot;&gt;AI学习伴侣系统架构图&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="258" y="20" width="310" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- 前端交互层 -->
+        <mxCell id="3" value="前端交互层" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;gradientColor=#7ea6e0;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="120" y="80" width="600" height="120" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="4" value="对话界面" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="3">
+          <mxGeometry x="20" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="5" value="知识图谱可视化" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="3">
+          <mxGeometry x="160" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="6" value="学习轨迹分析" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="3">
+          <mxGeometry x="300" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="7" value="管理界面" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="3">
+          <mxGeometry x="440" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- 后端服务层 -->
+        <mxCell id="8" value="后端服务层" style="swimlane;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;gradientColor=#97d077;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="120" y="240" width="600" height="120" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="9" value="API路由服务" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="8">
+          <mxGeometry x="20" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="10" value="会话管理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="8">
+          <mxGeometry x="160" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="11" value="提示词管理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="8">
+          <mxGeometry x="300" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="12" value="对话阶段分析" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="8">
+          <mxGeometry x="440" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- AI服务层 -->
+        <mxCell id="13" value="AI服务层" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;gradientColor=#ffd966;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="120" y="400" width="600" height="120" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="14" value="模型抽象接口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="13">
+          <mxGeometry x="20" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="15" value="向量嵌入服务" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="13">
+          <mxGeometry x="160" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="16" value="内容分析服务" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="13">
+          <mxGeometry x="300" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="17" value="动态提示词注入" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="13">
+          <mxGeometry x="440" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- 数据处理层 -->
+        <mxCell id="18" value="数据处理层" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;gradientColor=#ea6b66;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="120" y="560" width="600" height="120" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="19" value="聚类服务&#xa;(K-means, DBSCAN)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="18">
+          <mxGeometry x="20" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="20" value="知识图谱构建" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="18">
+          <mxGeometry x="160" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="21" value="学习轨迹分析" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="18">
+          <mxGeometry x="300" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="22" value="主题关系构建" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="18">
+          <mxGeometry x="440" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- 数据存储层 -->
+        <mxCell id="23" value="数据存储层" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;gradientColor=#d5739d;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="120" y="720" width="600" height="120" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="24" value="PostgreSQL&#xa;关系型数据库" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="23">
+          <mxGeometry x="90" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="25" value="向量数据存储" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="23">
+          <mxGeometry x="240" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="26" value="缓存服务" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="23">
+          <mxGeometry x="390" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- 外部服务 -->
+        <mxCell id="27" value="外部AI服务" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;gradientColor=#b3b3b3;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="880" width="760" height="100" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="28" value="Google Gemini" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="27">
+          <mxGeometry x="40" y="30" width="140" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="29" value="OpenAI API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="27">
+          <mxGeometry x="210" y="30" width="140" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="30" value="DeepSeek API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="27">
+          <mxGeometry x="380" y="30" width="140" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="31" value="其他LLM API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="27">
+          <mxGeometry x="550" y="30" width="140" height="50" as="geometry" />
+        </mxCell>
+        
+        <!-- 微服务连接 -->
+        <mxCell id="32" value="Python微服务" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="740" y="585" width="120" height="70" as="geometry" />
+        </mxCell>
+        
+        <!-- 连接线 - 前端到后端 -->
+        <mxCell id="33" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="8" target="3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="390" y="230" as="sourcePoint" />
+            <mxPoint x="440" y="180" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="34" value="HTTP/WebSocket" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="33">
+          <mxGeometry x="0.0667" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- 连接线 - 后端到AI服务 -->
+        <mxCell id="35" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="13" target="8">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="390" y="390" as="sourcePoint" />
+            <mxPoint x="440" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- 连接线 - AI服务到数据处理 -->
+        <mxCell id="36" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="18" target="13">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="390" y="550" as="sourcePoint" />
+            <mxPoint x="440" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- 连接线 - 数据处理到数据存储 -->
+        <mxCell id="37" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="23" target="18">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="390" y="710" as="sourcePoint" />
+            <mxPoint x="440" y="660" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- 连接线 - 数据存储到外部服务 -->
+        <mxCell id="38" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="27" target="23">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="390" y="870" as="sourcePoint" />
+            <mxPoint x="440" y="820" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- 连接线 - 数据处理到Python微服务 -->
+        <mxCell id="39" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="19" target="32">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="390" y="630" as="sourcePoint" />
+            <mxPoint x="440" y="580" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="40" value="Flask API" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="39">
+          <mxGeometry x="0.0667" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- 标注 - 核心技术 -->
+        <mxCell id="41" value="&lt;h3&gt;核心AI技术&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;向量嵌入 (3072维)&lt;/li&gt;&lt;li&gt;K-means/DBSCAN聚类分析&lt;/li&gt;&lt;li&gt;动态提示词注入&lt;/li&gt;&lt;li&gt;知识图谱构建&lt;/li&gt;&lt;li&gt;对话阶段分析 (K-W-L-Q)&lt;/li&gt;&lt;/ul&gt;" style="text;html=1;strokeColor=#666666;fillColor=#f5f5f5;overflow=fill;rounded=1;glass=0;shadow=0;sketch=0;gradientColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="220" height="130" as="geometry" />
+        </mxCell>
+        
+        <!-- 核心文件路径 -->
+        <mxCell id="42" value="&lt;h3&gt;核心实现文件&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;server/services/genai/genai_service.ts&lt;/li&gt;&lt;li&gt;server/services/learning/vector_embeddings.ts&lt;/li&gt;&lt;li&gt;server/services/api/clustering/app.py&lt;/li&gt;&lt;li&gt;server/services/learning/knowledge_graph.ts&lt;/li&gt;&lt;li&gt;server/services/prompt-manager.ts&lt;/li&gt;&lt;/ul&gt;" style="text;html=1;strokeColor=#666666;fillColor=#f5f5f5;overflow=fill;rounded=1;glass=0;shadow=0;sketch=0;gradientColor=#b3b3b3;" vertex="1" parent="1">
+          <mxGeometry x="580" y="90" width="270" height="130" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
