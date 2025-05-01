@@ -1,0 +1,372 @@
+<mxfile host="app.diagrams.net" modified="2025-05-01T18:14:00.000Z" agent="Mozilla/5.0" version="24.0.0" type="device">
+  <diagram id="ai_learning_companion_arch" name="智能学习伴侣系统架构">
+    <mxGraphModel dx="1500" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- 系统标题 -->
+        <mxCell id="title" value="智能学习伴侣系统架构图" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=20;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="420" y="20" width="240" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 前端层 -->
+        <mxCell id="frontend" value="前端层 (React + TypeScript)" style="swimlane;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="70" width="1000" height="150" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="fe_pages" value="页面组件&#xa;(home.tsx, chat-details.tsx, memory-space.tsx, &#xa;learning-path.tsx, knowledge-graph-view.tsx)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="frontend">
+          <mxGeometry x="20" y="40" width="310" height="90" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="fe_components" value="UI组件及钩子&#xa;(components/ui, hooks)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="frontend">
+          <mxGeometry x="350" y="40" width="310" height="90" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="fe_services" value="前端服务&#xa;(API调用, Force Graph可视化)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="frontend">
+          <mxGeometry x="680" y="40" width="300" height="90" as="geometry" />
+        </mxCell>
+        
+        <!-- 后端层 -->
+        <mxCell id="backend" value="后端层 (Express + TypeScript)" style="swimlane;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="40" y="240" width="1000" height="150" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="be_routes" value="API路由&#xa;(chat.ts, memory-space.ts, learning-path.ts, &#xa;topic-graph.ts, student-agent.ts)" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="backend">
+          <mxGeometry x="20" y="40" width="230" height="90" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="be_middleware" value="中间件&#xa;(auth.ts, validation, logging, turnstile.ts)" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="backend">
+          <mxGeometry x="270" y="40" width="230" height="90" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="be_services" value="通用服务&#xa;(hybrid-storage.service.ts, chat.ts, &#xa;file-bucket.service.ts, content-value-analyzer.ts)" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="backend">
+          <mxGeometry x="520" y="40" width="230" height="90" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="be_storage" value="数据存储&#xa;(storage.ts, db.ts, schema.ts, Drizzle ORM)" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="backend">
+          <mxGeometry x="770" y="40" width="210" height="90" as="geometry" />
+        </mxCell>
+        
+        <!-- 学习系统核心 -->
+        <mxCell id="learning_core" value="学习系统核心" style="swimlane;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="410" width="490" height="320" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="lc_memory" value="记忆管理&#xa;(memory_service.ts, memory_summarizer.ts)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="learning_core">
+          <mxGeometry x="20" y="40" width="220" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="lc_vector" value="向量嵌入&#xa;(vector_embeddings.ts, python_embedding.ts)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="learning_core">
+          <mxGeometry x="250" y="40" width="220" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="lc_cluster" value="聚类与缓存&#xa;(cluster.ts, cluster_cache_service.ts)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="learning_core">
+          <mxGeometry x="20" y="110" width="220" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="lc_trajectory" value="学习轨迹&#xa;(trajectory.ts, directSave.ts)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="learning_core">
+          <mxGeometry x="250" y="110" width="220" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="lc_knowledge" value="知识图谱&#xa;(knowledge_graph.ts, topic_graph_builder.ts)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="learning_core">
+          <mxGeometry x="20" y="180" width="220" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="lc_retrieval" value="记忆检索&#xa;(cluster_memory_retrieval.ts)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="learning_core">
+          <mxGeometry x="250" y="180" width="220" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="lc_python" value="Python服务集成&#xa;(direct_python_service.ts, python_clustering.ts, &#xa;flask_clustering_service.ts)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="learning_core">
+          <mxGeometry x="20" y="250" width="450" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- AI模型服务 -->
+        <mxCell id="ai_models" value="AI模型服务" style="swimlane;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="550" y="410" width="490" height="320" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="ai_genai" value="生成式AI服务 (services/genai)&#xa;- genai_service.ts&#xa;- 支持Gemini, DeepSeek, Grok模型" style="rounded=1;fillColor=#ffcccc;strokeColor=#36393d;" vertex="1" parent="ai_models">
+          <mxGeometry x="20" y="40" width="450" height="80" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="ai_mcp" value="MCP搜索服务 (services/mcp)&#xa;- search-client.ts&#xa;- search-server.ts" style="rounded=1;fillColor=#ffcccc;strokeColor=#36393d;" vertex="1" parent="ai_models">
+          <mxGeometry x="20" y="130" width="450" height="80" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="ai_conversation" value="对话分析服务&#xa;- conversation-analytics.ts&#xa;- conversation-analytics-light.ts" style="rounded=1;fillColor=#ffcccc;strokeColor=#36393d;" vertex="1" parent="ai_models">
+          <mxGeometry x="20" y="220" width="220" height="80" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="ai_content" value="内容审核与价值分析&#xa;- content-moderation.ts&#xa;- content-value-analyzer.ts" style="rounded=1;fillColor=#ffcccc;strokeColor=#36393d;" vertex="1" parent="ai_models">
+          <mxGeometry x="250" y="220" width="220" height="80" as="geometry" />
+        </mxCell>
+        
+        <!-- 学生智能体系统 -->
+        <mxCell id="student_agent" value="学生智能体系统" style="swimlane;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="40" y="750" width="1000" height="150" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="sa_service" value="智能体服务 (services/student-agent.ts)&#xa;- 智能体核心&#xa;- KWLQ学习模型&#xa;- 学生配置库" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="student_agent">
+          <mxGeometry x="20" y="40" width="310" height="90" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="sa_routes" value="智能体路由 (routes/student-agent.ts)&#xa;- 会话管理&#xa;- 消息交互&#xa;- 模拟器" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="student_agent">
+          <mxGeometry x="350" y="40" width="310" height="90" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="sa_analytics" value="学习分析与评估&#xa;- 学习行为分析&#xa;- 效果评估&#xa;- 学习数据分析" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="student_agent">
+          <mxGeometry x="680" y="40" width="300" height="90" as="geometry" />
+        </mxCell>
+        
+        <!-- 数据库 -->
+        <mxCell id="database" value="PostgreSQL数据库" style="swimlane;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="40" y="920" width="1000" height="200" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="db_user" value="用户相关表&#xa;(users, user_settings, user_files)" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="database">
+          <mxGeometry x="20" y="40" width="230" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="db_chat" value="聊天相关表&#xa;(chats, messages, conversation_analytics)" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="database">
+          <mxGeometry x="270" y="40" width="230" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="db_memory" value="记忆相关表&#xa;(memories, memory_embeddings, memory_keywords)" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="database">
+          <mxGeometry x="520" y="40" width="230" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="db_learning" value="学习相关表&#xa;(learning_paths, cluster_result_cache, &#xa;knowledge_graph_cache)" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="database">
+          <mxGeometry x="770" y="40" width="210" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="db_student" value="学生智能体相关表&#xa;(student_agent_presets, student_agent_sessions, &#xa;student_agent_messages, student_agent_evaluations)" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="database">
+          <mxGeometry x="20" y="120" width="480" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="db_system" value="系统表&#xa;(prompt_templates, system_config, search_results, session)" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="database">
+          <mxGeometry x="520" y="120" width="460" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- 外部服务 -->
+        <mxCell id="external" value="外部服务" style="swimlane;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1140" width="1000" height="100" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="ext_gemini" value="Google Gemini API" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="external">
+          <mxGeometry x="20" y="40" width="180" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="ext_deepseek" value="DeepSeek API" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="external">
+          <mxGeometry x="220" y="40" width="180" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="ext_grok" value="Grok API" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="external">
+          <mxGeometry x="420" y="40" width="180" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="ext_dify" value="Dify API" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="external">
+          <mxGeometry x="620" y="40" width="180" height="40" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="ext_serper" value="Serper 搜索 API" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="external">
+          <mxGeometry x="820" y="40" width="160" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- 连接线 -->
+        <mxCell id="fe_be_conn" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="frontend" target="backend">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="560" y="530" as="sourcePoint" />
+            <mxPoint x="610" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="be_lc_conn" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="backend" target="learning_core">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="560" y="530" as="sourcePoint" />
+            <mxPoint x="610" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="be_ai_conn" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="backend" target="ai_models">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="560" y="530" as="sourcePoint" />
+            <mxPoint x="610" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="lc_sa_conn" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="learning_core" target="student_agent">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="560" y="530" as="sourcePoint" />
+            <mxPoint x="610" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="ai_sa_conn" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="ai_models" target="student_agent">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="560" y="530" as="sourcePoint" />
+            <mxPoint x="610" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="sa_db_conn" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="student_agent" target="database">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="560" y="530" as="sourcePoint" />
+            <mxPoint x="610" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="lc_db_conn" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="learning_core" target="database">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="560" y="530" as="sourcePoint" />
+            <mxPoint x="610" y="480" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="285" y="890" />
+              <mxPoint x="290" y="900" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="ai_db_conn" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="ai_models" target="database">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="560" y="530" as="sourcePoint" />
+            <mxPoint x="610" y="480" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="795" y="890" />
+              <mxPoint x="790" y="900" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="db_ext_conn" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="database" target="external">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="560" y="530" as="sourcePoint" />
+            <mxPoint x="610" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="ai_ext_conn" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="ai_models" target="external">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="560" y="530" as="sourcePoint" />
+            <mxPoint x="610" y="480" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="918" y="750" />
+              <mxPoint x="918" y="1120" />
+              <mxPoint x="790" y="1120" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- 关键组件说明注释 -->
+        <mxCell id="note1" value="学习轨迹生成" style="shape=note;strokeWidth=2;fontSize=12;size=20;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="320" y="370" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="note2" value="记忆聚类分析" style="shape=note;strokeWidth=2;fontSize=12;size=20;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="90" y="370" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="note3" value="多模型AI整合" style="shape=note;strokeWidth=2;fontSize=12;size=20;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="670" y="370" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="note4" value="知识图谱生成" style="shape=note;strokeWidth=2;fontSize=12;size=20;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="170" y="730" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="note5" value="学生智能体模拟" style="shape=note;strokeWidth=2;fontSize=12;size=20;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="750" y="730" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="note6" value="PostgreSQL数据存储" style="shape=note;strokeWidth=2;fontSize=12;size=20;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="460" y="1130" width="160" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 核心功能说明 -->
+        <mxCell id="feature1" value="学习轨迹生成与保存流程" style="swimlane;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1260" width="1000" height="130" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="feature1_step1" value="1. 用户学习活动&#xa;生成记忆数据" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="feature1">
+          <mxGeometry x="20" y="40" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="feature1_step2" value="2. 向量化处理&#xa;生成记忆向量嵌入" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="feature1">
+          <mxGeometry x="190" y="40" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="feature1_step3" value="3. 聚类分析&#xa;在向量空间实现聚类" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="feature1">
+          <mxGeometry x="360" y="40" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="feature1_step4" value="4. 聚类结果缓存&#xa;存储到cluster_result_cache" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="feature1">
+          <mxGeometry x="530" y="40" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="feature1_step5" value="5. 生成学习轨迹&#xa;包含主题和建议" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="feature1">
+          <mxGeometry x="700" y="40" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="feature1_step6" value="6. 保存到数据库&#xa;存储到learning_paths表" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="feature1">
+          <mxGeometry x="870" y="40" width="110" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="feature1_conn1" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="feature1" source="feature1_step1" target="feature1_step2">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="480" y="180" as="sourcePoint" />
+            <mxPoint x="530" y="130" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="feature1_conn2" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="feature1" source="feature1_step2" target="feature1_step3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="480" y="180" as="sourcePoint" />
+            <mxPoint x="530" y="130" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="feature1_conn3" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="feature1" source="feature1_step3" target="feature1_step4">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="480" y="180" as="sourcePoint" />
+            <mxPoint x="530" y="130" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="feature1_conn4" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="feature1" source="feature1_step4" target="feature1_step5">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="480" y="180" as="sourcePoint" />
+            <mxPoint x="530" y="130" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="feature1_conn5" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="feature1" source="feature1_step5" target="feature1_step6">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="480" y="180" as="sourcePoint" />
+            <mxPoint x="530" y="130" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- 核心组件人物角色/职责 -->
+        <mxCell id="roles" value="核心组件流程科目起始" style="swimlane;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1410" width="1000" height="100" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="role1" value="directSave.ts&#xa;直接数据库保存组件&#xa;负责维护学习轨迹数据完整性" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="roles">
+          <mxGeometry x="20" y="40" width="220" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="role2" value="trajectory.ts&#xa;学习轨迹生成组件&#xa;从聚类生成学习路径" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="roles">
+          <mxGeometry x="260" y="40" width="220" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="role3" value="cluster_cache_service.ts&#xa;聚类缓存服务组件&#xa;管理聚类结果的缓存和重用" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="roles">
+          <mxGeometry x="500" y="40" width="220" height="50" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="role4" value="learning-path.ts路由&#xa;API路由组件&#xa;处理客户端的学习轨迹请求" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="roles">
+          <mxGeometry x="740" y="40" width="220" height="50" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

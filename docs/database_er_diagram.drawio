@@ -1,0 +1,353 @@
+<mxfile host="app.diagrams.net" modified="2025-05-01T18:13:00.000Z" agent="Mozilla/5.0" version="24.0.0" type="device">
+  <diagram id="ai_learning_companion_er" name="智能学习伴侣数据库ER图">
+    <mxGraphModel dx="1500" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- 标题 -->
+        <mxCell id="title" value="智能学习伴侣系统数据库ER图 - 学习轨迹和记忆聚类" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=20;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="340" y="20" width="490" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 用户表 -->
+        <mxCell id="users" value="users&#xa;用户表" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="220" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="users_id" value="id (integer) - 主键" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="users">
+          <mxGeometry y="40" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="users_username" value="username (text) - 用户名" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="users">
+          <mxGeometry y="70" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="users_password" value="password (text) - 密码" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="users">
+          <mxGeometry y="100" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="users_role" value="role (text) - 角色" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="users">
+          <mxGeometry y="130" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="users_timestamps" value="created_at, updated_at (timestamp)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="users">
+          <mxGeometry y="160" width="220" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- 用户设置表 -->
+        <mxCell id="user_settings" value="user_settings&#xa;用户设置表" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="320" width="220" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="user_settings_id" value="id (integer) - 主键" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="user_settings">
+          <mxGeometry y="40" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="user_settings_user_id" value="user_id (integer) - 关联用户表" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="user_settings">
+          <mxGeometry y="70" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="user_settings_theme" value="theme (text) - 主题" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="user_settings">
+          <mxGeometry y="100" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="user_settings_timestamps" value="created_at, updated_at (timestamp)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="user_settings">
+          <mxGeometry y="130" width="220" height="40" as="geometry" />
+        </mxCell>
+        
+        <!-- 记忆表 -->
+        <mxCell id="memories" value="memories&#xa;记忆表" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="320" y="80" width="220" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="memories_id" value="id (text) - 主键，时间戳格式" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memories">
+          <mxGeometry y="40" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="memories_user_id" value="user_id (integer) - 关联用户表" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memories">
+          <mxGeometry y="70" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="memories_title" value="title (text) - 标题" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memories">
+          <mxGeometry y="100" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="memories_content" value="content (text) - 内容" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memories">
+          <mxGeometry y="130" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="memories_summary" value="summary (text) - 摘要" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memories">
+          <mxGeometry y="160" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="memories_type" value="type (text) - 类型" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memories">
+          <mxGeometry y="190" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="memories_timestamps" value="created_at, updated_at (timestamp)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memories">
+          <mxGeometry y="220" width="220" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 向量嵌入表 -->
+        <mxCell id="memory_embeddings" value="memory_embeddings&#xa;记忆向量嵌入表" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="320" y="360" width="220" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="memory_embeddings_id" value="id (integer) - 主键" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memory_embeddings">
+          <mxGeometry y="40" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="memory_embeddings_memory_id" value="memory_id (text) - 关联记忆表" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memory_embeddings">
+          <mxGeometry y="70" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="memory_embeddings_vector" value="vector (float[]) - 向量嵌入，3072维" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memory_embeddings">
+          <mxGeometry y="100" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="memory_embeddings_timestamps" value="created_at, updated_at (timestamp)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memory_embeddings">
+          <mxGeometry y="130" width="220" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 记忆关键词表 -->
+        <mxCell id="memory_keywords" value="memory_keywords&#xa;记忆关键词表" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="320" y="550" width="220" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="memory_keywords_id" value="id (integer) - 主键" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memory_keywords">
+          <mxGeometry y="40" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="memory_keywords_memory_id" value="memory_id (text) - 关联记忆表" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memory_keywords">
+          <mxGeometry y="70" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="memory_keywords_keyword" value="keyword (text) - 关键词" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memory_keywords">
+          <mxGeometry y="100" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="memory_keywords_timestamps" value="created_at, updated_at (timestamp)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="memory_keywords">
+          <mxGeometry y="130" width="220" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 聚类结果缓存表 -->
+        <mxCell id="cluster_result_cache" value="cluster_result_cache&#xa;聚类结果缓存表" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="600" y="80" width="220" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="cluster_result_cache_id" value="id (integer) - 主键" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="cluster_result_cache">
+          <mxGeometry y="40" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cluster_result_cache_user_id" value="user_id (integer) - 关联用户表" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="cluster_result_cache">
+          <mxGeometry y="70" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cluster_result_cache_data" value="cluster_data (jsonb) - 聚类数据" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="cluster_result_cache">
+          <mxGeometry y="100" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cluster_result_cache_count" value="cluster_count (integer) - 聚类数" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="cluster_result_cache">
+          <mxGeometry y="130" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cluster_result_cache_vector_count" value="vector_count (integer) - 向量数" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="cluster_result_cache">
+          <mxGeometry y="160" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cluster_result_cache_version" value="version (integer) - 版本号" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="cluster_result_cache">
+          <mxGeometry y="190" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cluster_result_cache_timestamps" value="created_at, updated_at, expires_at&#xa;(timestamp)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="cluster_result_cache">
+          <mxGeometry y="220" width="220" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 学习轨迹表 -->
+        <mxCell id="learning_paths" value="learning_paths&#xa;学习轨迹表" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="600" y="360" width="220" height="310" as="geometry" />
+        </mxCell>
+        <mxCell id="learning_paths_id" value="id (integer) - 主键" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="learning_paths">
+          <mxGeometry y="40" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="learning_paths_user_id" value="user_id (integer) - 关联用户表" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="learning_paths">
+          <mxGeometry y="70" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="learning_paths_topics" value="topics (jsonb) - 主题数据" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="learning_paths">
+          <mxGeometry y="100" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="learning_paths_distribution" value="distribution (jsonb) - 分布数据" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="learning_paths">
+          <mxGeometry y="130" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="learning_paths_suggestions" value="suggestions (jsonb) - 学习建议" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="learning_paths">
+          <mxGeometry y="160" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="learning_paths_progress" value="progress_history (jsonb) - 进度历史" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="learning_paths">
+          <mxGeometry y="190" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="learning_paths_knowledge_graph" value="knowledge_graph (jsonb) - 知识图谱" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="learning_paths">
+          <mxGeometry y="220" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="learning_paths_version" value="version (integer) - 版本号" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="learning_paths">
+          <mxGeometry y="250" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="learning_paths_timestamps" value="created_at, updated_at, expires_at&#xa;(timestamp)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="learning_paths">
+          <mxGeometry y="280" width="220" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 知识图谱缓存表 -->
+        <mxCell id="knowledge_graph_cache" value="knowledge_graph_cache&#xa;知识图谱缓存表" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="880" y="80" width="220" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="knowledge_graph_cache_id" value="id (integer) - 主键" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="knowledge_graph_cache">
+          <mxGeometry y="40" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="knowledge_graph_cache_user_id" value="user_id (integer) - 关联用户表" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="knowledge_graph_cache">
+          <mxGeometry y="70" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="knowledge_graph_cache_data" value="graph_data (jsonb) - 图谱数据" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="knowledge_graph_cache">
+          <mxGeometry y="100" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="knowledge_graph_cache_node_count" value="node_count (integer) - 节点数" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="knowledge_graph_cache">
+          <mxGeometry y="130" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="knowledge_graph_cache_edge_count" value="edge_count (integer) - 边数" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="knowledge_graph_cache">
+          <mxGeometry y="160" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="knowledge_graph_cache_version" value="version (integer) - 版本号" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="knowledge_graph_cache">
+          <mxGeometry y="190" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="knowledge_graph_cache_timestamps" value="created_at, updated_at, expires_at&#xa;(timestamp)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="knowledge_graph_cache">
+          <mxGeometry y="220" width="220" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 系统配置表 -->
+        <mxCell id="system_config" value="system_config&#xa;系统配置表" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="880" y="360" width="220" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="system_config_id" value="id (integer) - 主键" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="system_config">
+          <mxGeometry y="40" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="system_config_key" value="key (text) - 配置键" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="system_config">
+          <mxGeometry y="70" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="system_config_value" value="value (text) - 配置值" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="system_config">
+          <mxGeometry y="100" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="system_config_description" value="description (text) - 描述" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="system_config">
+          <mxGeometry y="130" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="system_config_timestamps" value="updated_at, updated_by (timestamp)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;fontSize=13;" vertex="1" parent="system_config">
+          <mxGeometry y="160" width="220" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 关系连接 -->
+        <!-- 用户 -> 用户设置 -->
+        <mxCell id="user_settings_rel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmandOne;endFill=0;startArrow=ERmandOne;startFill=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="users" target="user_settings">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- 用户 -> 记忆 -->
+        <mxCell id="users_memories_rel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERzeroToMany;endFill=0;startArrow=ERmandOne;startFill=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="users_id" target="memories_user_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- 记忆 -> 向量嵌入 -->
+        <mxCell id="memories_embeddings_rel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERzeroToOne;endFill=0;startArrow=ERmandOne;startFill=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="memories" target="memory_embeddings">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- 记忆 -> 记忆关键词 -->
+        <mxCell id="memories_keywords_rel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERzeroToMany;endFill=0;startArrow=ERmandOne;startFill=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="memory_embeddings" target="memory_keywords">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- 用户 -> 聚类结果缓存 -->
+        <mxCell id="users_cluster_cache_rel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERzeroToOne;endFill=0;startArrow=ERmandOne;startFill=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="users_id" target="cluster_result_cache_user_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- 用户 -> 学习轨迹 -->
+        <mxCell id="users_learning_paths_rel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERzeroToOne;endFill=0;startArrow=ERmandOne;startFill=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="users_id" target="learning_paths_user_id">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="290" y="135" />
+              <mxPoint x="290" y="445" />
+              <mxPoint x="600" y="445" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- 用户 -> 知识图谱缓存 -->
+        <mxCell id="users_knowledge_graph_rel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERzeroToOne;endFill=0;startArrow=ERmandOne;startFill=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="users_id" target="knowledge_graph_cache_user_id">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="290" y="135" />
+              <mxPoint x="290" y="40" />
+              <mxPoint x="860" y="40" />
+              <mxPoint x="860" y="115" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- 分组说明 -->
+        <mxCell id="user_group_title" value="用户相关表" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="100" y="50" width="100" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="memory_group_title" value="记忆相关表" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="380" y="50" width="100" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="learning_group_title" value="学习轨迹相关表" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="720" y="50" width="120" height="30" as="geometry" />
+        </mxCell>
+        
+        <!-- 分组背景 -->
+        <mxCell id="user_group_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=20;" vertex="1" parent="1">
+          <mxGeometry x="30" y="50" width="240" height="450" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="memory_group_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;opacity=20;" vertex="1" parent="1">
+          <mxGeometry x="310" y="50" width="240" height="670" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="learning_group_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;opacity=20;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="520" height="630" as="geometry" />
+        </mxCell>
+        
+        <!-- 图例 -->
+        <mxCell id="legend" value="图例" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="730" width="50" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend_user" value="用户相关表" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="40" y="760" width="90" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend_memory" value="记忆相关表" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="150" y="760" width="90" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend_learning" value="学习轨迹相关表" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="260" y="760" width="110" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend_system" value="系统配置表" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="380" y="760" width="90" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="legend_rel1" value="一对一" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmandOne;endFill=0;startArrow=ERmandOne;startFill=0;" edge="1" parent="1">
+          <mxGeometry x="0.3333" y="-10" relative="1" as="geometry">
+            <mxPoint x="520" y="760" as="sourcePoint" />
+            <mxPoint x="580" y="760" as="targetPoint" />
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="legend_rel2" value="一对多" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERzeroToMany;endFill=0;startArrow=ERmandOne;startFill=0;" edge="1" parent="1">
+          <mxGeometry x="0.3333" y="-10" relative="1" as="geometry">
+            <mxPoint x="520" y="790" as="sourcePoint" />
+            <mxPoint x="580" y="790" as="targetPoint" />
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="legend_rel3" value="一对零或一" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERzeroToOne;endFill=0;startArrow=ERmandOne;startFill=0;" edge="1" parent="1">
+          <mxGeometry x="0.3333" y="-10" relative="1" as="geometry">
+            <mxPoint x="640" y="760" as="sourcePoint" />
+            <mxPoint x="700" y="760" as="targetPoint" />
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- 注解 -->
+        <mxCell id="note1" value="记忆ID使用时间戳格式作为主键&#xa;例: 1684321098765" style="shape=note;strokeWidth=2;fontSize=12;size=20;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#666600;" vertex="1" parent="1">
+          <mxGeometry x="320" y="20" width="200" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="note2" value="主题和向量数据使用JSONB格式&#xa;支持高效查询和索引" style="shape=note;strokeWidth=2;fontSize=12;size=20;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#006600;" vertex="1" parent="1">
+          <mxGeometry x="600" y="20" width="200" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="note3" value="向量嵌入使用3072维向量&#xa;支持语义记忆分析" style="shape=note;strokeWidth=2;fontSize=12;size=20;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#666600;" vertex="1" parent="1">
+          <mxGeometry x="320" y="330" width="200" height="30" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="note4" value="学习轨迹包含主题分布和知识图谱&#xa;支持个性化学习路径推荐" style="shape=note;strokeWidth=2;fontSize=12;size=20;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#006600;" vertex="1" parent="1">
+          <mxGeometry x="600" y="330" width="200" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
