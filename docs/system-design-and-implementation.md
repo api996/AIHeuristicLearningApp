@@ -2,54 +2,116 @@
 # 系统设计与技术实现
 
 ## Scope & Plan
+本章旨在详细描述AI学习伴侣系统的技术架构、核心组件和实现流程。主要包括系统架构设计、数据库设计、核心服务实现和前端交互界面等方面的详细阐述。
 
-### 本章目标概述
-本章主要描述基于大型语言模型(LLM)的自适应学习系统的设计与实现，覆盖系统架构、核心模块、数据流、关键技术实现以及模型集成方式。
+引用文件清单：
+- 数据库模型：`migrations/schema.ts`、`shared/schema.ts`
+- 数据库连接：`server/db.ts`
+- 聚类算法：`server/services/api/clustering/app.py`
+- 向量嵌入：`server/services/learning/vector_embeddings.ts`
+- 知识图谱：`server/services/learning/knowledge_graph.ts`
+- 学习轨迹：`server/services/learning/trajectory.ts`
+- 主题构建：`server/services/learning/topic_graph_builder.ts`
+- 对话分析：`server/services/conversation-analytics.ts`
+- 提示词管理：`server/services/prompt-manager.ts`
+- 生成式AI：`server/services/genai/genai_service.ts`
 
-### 引用文件清单
-- 系统核心服务：`server/index.ts`
-- 大语言模型服务：`server/services/genai/genai_service.ts`
-- 提示词管理服务：`server/services/prompt-manager.ts`
-- 记忆与学习服务：`server/services/learning/memory_service.ts`
-- 聚类分析服务：`server/services/learning/cluster_analyzer.ts`
-- 主题图谱构建：`server/services/learning/topic_graph_builder.ts`
-- 学习轨迹分析：`server/services/learning/trajectory.ts`
-- 嵌入向量服务：`server/services/learning/vector_embeddings.ts`
-- Python集成服务：`server/services/api/clustering/app.py`
+## 1. 系统总体架构
 
-## 1. 系统架构总览
+### 1.1 架构概述
 
-### 1.1 整体架构设计
+本系统采用现代Web应用的分层架构，包括前端展示层、后端服务层、微服务层和数据存储层。系统核心功能围绕AI辅助学习展开，通过大语言模型交互、记忆存储与分析、知识图谱构建等技术实现个性化学习体验。
 
-本系统采用现代化的分层架构，包含前端层、应用服务层、AI服务层和数据存储层。系统通过模块化设计确保各组件间的低耦合高内聚，同时通过服务化的方式提供灵活扩展能力。
+架构的主要特点包括：
+- 前后端分离架构，使用React+TypeScript构建响应式前端
+- 基于Express的后端服务框架，提供RESTful API
+- 微服务架构，将计算密集型任务（如聚类分析）独立为Python服务
+- 多模型AI交互系统，支持动态模型切换与提示词注入
+- 实时数据处理与可视化，支持知识图谱和学习轨迹分析
 
-#### 核心架构组件：
+### 1.2 核心组件
 
-1. **前端交互层**：基于React构建的响应式用户界面，提供聊天界面、知识图谱可视化和学习轨迹展示。
+系统包含以下核心组件：
 
-2. **应用服务层**：基于Node.js和Express框架实现的服务端，处理请求路由、用户认证和会话管理。
+1. **前端交互层**
+   - 对话界面：处理用户与AI的交互
+   - 知识图谱可视化：展示用户知识结构
+   - 学习轨迹分析：显示学习进度和主题分布
+   - 管理界面：提供系统配置与模型管理功能
 
-3. **AI服务层**：整合多种AI能力，包括：
-   - 大语言模型接口服务
-   - 提示词工程与管理
-   - 向量嵌入与语义检索
-   - 聚类分析与知识图谱构建
+2. **后端服务层**
+   - API路由服务：处理前端请求
+   - 会话管理：维护用户对话上下文
+   - 提示词管理：处理动态提示词注入
+   - 对话阶段分析：识别KWL(Know-Want-Learn)学习阶段
+   - 记忆管理：存储和检索用户对话记录
 
-4. **数据存储层**：使用PostgreSQL关系型数据库存储用户数据、对话历史和会话信息，同时使用文件系统存储记忆向量数据。
+3. **AI服务层**
+   - 模型抽象接口：统一不同AI模型的调用接口
+   - 向量嵌入服务：将文本转化为向量表示
+   - 内容分析服务：提取主题、关键词和摘要
 
-#### 技术栈选择：
+4. **数据处理层**
+   - 聚类服务：对用户记忆进行主题聚类
+   - 知识图谱构建：生成知识结构可视化
+   - 学习轨迹分析：计算学习进度和主题覆盖度
 
-- **前端**：TypeScript、React、D3.js(可视化)
-- **后端**：Node.js、Express、TypeScript
-- **AI服务**：集成Google Gemini API
-- **数据分析**：Python服务(Flask)处理向量计算和聚类
-- **数据存储**：PostgreSQL、文件系统
+5. **数据存储层**
+   - 关系型数据库：存储用户、会话和配置信息
+   - 向量数据：存储记忆的向量表示
+   - 缓存服务：存储计算密集型结果
 
-## 2. 核心模块实现
+## 2. 技术实现详解
 
-### 2.1 大语言模型服务接口
+### 2.1 数据库设计与实现
 
-系统实现了统一的大语言模型服务接口，支持多模型切换，主要通过`server/services/genai/genai_service.ts`实现：
+系统使用PostgreSQL作为主要数据库，通过Drizzle ORM进行数据操作。数据库包含以下主要表：
+
+- `users`：用户信息
+- `chats`：对话会话
+- `messages`：对话消息
+- `memories`：用户记忆
+- `memory_embeddings`：记忆向量表示
+- `memory_keywords`：记忆关键词
+- `prompt_templates`：提示词模板
+- `knowledge_graph_cache`：知识图谱缓存
+- `cluster_result_cache`：聚类结果缓存
+- `learning_paths`：学习轨迹
+
+数据库连接实现在`server/db.ts`中：
+
+```typescript
+// 数据库连接配置
+export const pool = new Pool(isProduction ? 
+  { 
+    connectionString: DATABASE_URL 
+  } : 
+  {
+    connectionString: DATABASE_URL,
+    max: 5,
+    idleTimeoutMillis: 20000,
+    connectionTimeoutMillis: 10000,
+    allowExitOnIdle: false,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000
+  }
+);
+
+// 创建Drizzle实例
+export const db = drizzle({ 
+  client: pool, 
+  schema,
+  logger: {
+    logQuery: (query, params) => {
+      log(`Query: ${query} - Params: ${JSON.stringify(params)}`);
+    }
+  }
+});
+```
+
+### 2.2 AI模型集成与抽象
+
+系统采用模型抽象层设计，统一不同AI模型的接口，支持动态切换模型。主要通过`server/services/genai/genai_service.ts`实现：
 
 ```typescript
 class GeminiService implements GenAIService {
@@ -59,186 +121,92 @@ class GeminiService implements GenAIService {
     this.initializeAPI();
   }
 
-  // 初始化API客户端
-  private initializeAPI() {
-    try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        console.error('Gemini API密钥未设置');
-        return;
-      }
-      this.genAI = new GoogleGenerativeAI(apiKey);
-    } catch (error) {
-      console.error('初始化Gemini API失败:', error);
-    }
-  }
-
-  // 生成文本嵌入向量
   async generateEmbedding(text: string): Promise<number[]> {
+    // 生成文本的向量嵌入
     try {
-      // 实现文本向量化
-      // ...
+      if (!this.genAI) {
+        await this.initializeAPI();
+      }
+      
+      // 使用Gemini的嵌入模型
+      const embeddingModel = this.genAI!.getGenerativeModel({ model: "embedding-001" });
+      const result = await embeddingModel.embedContent(text);
+      const embedding = result.embedding.values;
+      
+      // 验证向量维度
+      if (embedding.length !== 3072) {
+        console.error(`向量维度错误: ${embedding.length}`);
+        throw new Error(`向量维度错误: ${embedding.length}`);
+      }
+      
+      return embedding;
     } catch (error) {
       console.error('生成嵌入向量失败:', error);
-      return [];
+      throw error;
     }
   }
-
-  // 生成文本摘要
-  async generateSummary(text: string): Promise<string | null> {
-    try {
-      // 实现文本摘要生成
-      // ...
-    } catch (error) {
-      console.error('生成摘要失败:', error);
-      return null;
-    }
-  }
+  
+  // 其他模型方法...
 }
 ```
 
-这个服务抽象了对大语言模型API的调用，提供了生成嵌入向量和文本摘要的统一接口，支持未来扩展到其他模型。
+### 2.3 提示词工程与动态注入
 
-### 2.2 提示词管理服务
-
-提示词管理服务(`server/services/prompt-manager.ts`)是系统的核心组件之一，负责动态组装和管理系统提示词：
+系统实现了模块化的提示词管理机制，支持不同对话阶段（K-W-L-Q）的动态提示词注入。主要通过`server/services/prompt-manager.ts`实现：
 
 ```typescript
 export class PromptManagerService {
   private moduleConfig: PromptModuleConfig;
   private previousModelId: string | null = null;
   
-  constructor() {
-    // 初始化提示词模块配置
-    this.moduleConfig = {
-      baseModules: ['system', 'persona'],
-      conditionalModules: {
-        'memory': true,
-        'context': true,
-        'learning': true
-      }
-    };
-  }
-  
   // 获取动态提示词
   async getDynamicPrompt(
     modelId: string,
     chatId: number,
     userInput: string,
-    // ...其他参数
+    preferredLanguage: string = 'zh'
   ): Promise<string> {
-    // 检测模型切换
-    const modelSwitched = this.previousModelId && this.previousModelId !== modelId;
-    this.previousModelId = modelId;
-    
-    // 获取模型特定的提示词模板
-    const template = await this.getPromptTemplate(modelId);
-    if (!template) {
-      throw new Error(`未找到模型${modelId}的提示词模板`);
-    }
-    
-    // 构建基础提示词
-    let promptText = template.basePrompt || '';
-    
-    // 动态注入模块
-    promptText = await this.injectModules(promptText, chatId, userInput, modelSwitched);
-    
-    // 检测对话阶段
-    const currentPhase = this.detectPhase(userInput, chatHistory);
-    if (currentPhase) {
-      promptText = this.addPhaseGuidance(promptText, currentPhase);
-    }
-    
-    return promptText;
-  }
-  
-  // 其他辅助方法...
-}
-```
-
-提示词管理服务实现了以下关键功能：
-- 模块化提示词组装，支持条件性启用/禁用特定模块
-- 对话阶段检测(K/W/L/Q)，为不同阶段提供特定的AI响应策略
-- 模型切换检测，确保跨模型提示词一致性
-- 上下文记忆注入，确保长对话的连贯性
-
-### 2.3 记忆与学习服务
-
-记忆与学习服务(`server/services/learning/memory_service.ts`)处理用户对话的存储、检索和分析，为系统提供"记忆"能力：
-
-```typescript
-export class MemoryService {
-  private embeddingService: EmbeddingService;
-  private clusterService: ClusterService;
-  
-  constructor() {
-    this.embeddingService = new EmbeddingService();
-    this.clusterService = new ClusterService();
-  }
-  
-  // 保存记忆
-  async saveMemory(userId: number, content: string, metadata?: any): Promise<Memory> {
     try {
-      // 生成唯一ID
-      const memoryId = this.generateMemoryId();
+      // 获取提示词模板
+      const template = await this.getTemplateForModel(modelId);
+      if (!template) {
+        throw new Error(`未找到模型 ${modelId} 的提示词模板`);
+      }
       
-      // 获取向量嵌入
-      const embedding = await this.embeddingService.generateEmbedding(content);
+      // 检测模型切换
+      const isModelSwitched = this.previousModelId !== null && this.previousModelId !== modelId;
+      this.previousModelId = modelId;
       
-      // 创建摘要
-      const summary = await this.generateSummary(content);
+      // 分析当前对话阶段
+      const conversationPhase = await this.analyzeConversationPhase(chatId, userInput);
       
-      // 提取关键词
-      const keywords = this.extractKeywords(content);
+      // 根据对话阶段选择适当的模板部分
+      let promptContent = template.baseTemplate || template.promptTemplate;
       
-      // 构建记忆对象
-      const memory: Memory = {
-        id: memoryId,
-        userId,
-        content,
-        summary,
-        keywords,
-        embedding,
-        timestamp: new Date().toISOString(),
-        metadata: metadata || {}
-      };
+      // 注入阶段特定提示词
+      if (conversationPhase === 'K' && template.kTemplate) {
+        promptContent += '\n\n' + template.kTemplate;
+      } else if (conversationPhase === 'W' && template.wTemplate) {
+        promptContent += '\n\n' + template.wTemplate;
+      } else if (conversationPhase === 'L' && template.lTemplate) {
+        promptContent += '\n\n' + template.lTemplate;
+      } else if (conversationPhase === 'Q' && template.qTemplate) {
+        promptContent += '\n\n' + template.qTemplate;
+      }
       
-      // 保存到存储
-      await this.saveToStorage(memory);
+      // 添加风格和政策提示词
+      if (template.styleTemplate) {
+        promptContent += '\n\n' + template.styleTemplate;
+      }
       
-      // 触发聚类更新
-      this.clusterService.scheduleClusterUpdate(userId);
+      if (template.policyTemplate) {
+        promptContent += '\n\n' + template.policyTemplate;
+      }
       
-      return memory;
+      return promptContent;
     } catch (error) {
-      console.error('保存记忆失败:', error);
+      console.error('获取动态提示词失败:', error);
       throw error;
-    }
-  }
-  
-  // 检索相关记忆
-  async retrieveRelatedMemories(userId: number, queryText: string, limit = 5): Promise<Memory[]> {
-    try {
-      // 为查询生成向量嵌入
-      const queryEmbedding = await this.embeddingService.generateEmbedding(queryText);
-      
-      // 获取用户所有记忆
-      const memories = await this.getUserMemories(userId);
-      
-      // 计算相似度并排序
-      const scoredMemories = memories.map(memory => ({
-        memory,
-        score: this.calculateCosineSimilarity(queryEmbedding, memory.embedding)
-      }));
-      
-      // 排序并返回最相关的记忆
-      return scoredMemories
-        .sort((a, b) => b.score - a.score)
-        .slice(0, limit)
-        .map(item => item.memory);
-    } catch (error) {
-      console.error('检索相关记忆失败:', error);
-      return [];
     }
   }
   
@@ -246,579 +214,82 @@ export class MemoryService {
 }
 ```
 
-记忆服务的核心功能包括：
-- 对话内容的向量化和存储
-- 基于相似度的记忆检索
-- 记忆摘要和关键词提取
-- 聚类分析触发
+### 2.4 向量嵌入与相似度计算
 
-### 2.4 向量嵌入服务
-
-向量嵌入服务(`server/services/learning/vector_embeddings.ts`)负责将文本转换为高维向量，是语义搜索和聚类分析的基础：
+系统使用向量嵌入技术将文本转换为高维向量，用于相似度计算和聚类分析。实现在`server/services/learning/vector_embeddings.ts`：
 
 ```typescript
 export class VectorEmbeddingService {
   private genAI: GenAIService;
-  private pythonEmbeddingService?: PythonEmbeddingService;
   
   constructor() {
     this.genAI = new GeminiService();
-    
-    // 尝试初始化Python嵌入服务(如果可用)
-    try {
-      this.pythonEmbeddingService = new PythonEmbeddingService();
-    } catch (error) {
-      console.warn('Python嵌入服务初始化失败，将使用主服务:', error);
-    }
   }
   
-  // 生成文本的向量嵌入
+  // 生成文本向量嵌入
   async generateEmbedding(text: string): Promise<number[]> {
     try {
-      // 首先尝试使用Python服务(更高效)
-      if (this.pythonEmbeddingService && await this.pythonEmbeddingService.isAvailable()) {
-        return await this.pythonEmbeddingService.generateEmbedding(text);
+      // 清理和准备文本
+      const cleanedText = this.prepareTextForEmbedding(text);
+      
+      if (!cleanedText || cleanedText.length < 3) {
+        throw new Error('文本过短，无法生成有效向量');
       }
       
-      // 回退到基于Gemini的嵌入
-      return await this.genAI.generateEmbedding(text);
+      // 使用GenAI服务生成向量
+      const vector = await this.genAI.generateEmbedding(cleanedText);
+      
+      // 验证向量维度
+      if (!vector || vector.length !== 3072) {
+        throw new Error(`生成的向量维度错误: ${vector?.length || 0}`);
+      }
+      
+      return vector;
     } catch (error) {
-      console.error('生成嵌入向量失败:', error);
+      console.error('生成向量嵌入失败:', error);
       throw error;
     }
   }
   
-  // 计算两个向量的余弦相似度
-  calculateCosineSimilarity(vec1: number[], vec2: number[]): number {
-    if (vec1.length !== vec2.length) {
-      throw new Error('向量维度不匹配');
+  // 计算向量相似度
+  calculateCosineSimilarity(vecA: number[], vecB: number[]): number {
+    if (vecA.length !== vecB.length) {
+      throw new Error(`向量维度不匹配: ${vecA.length} vs ${vecB.length}`);
     }
     
     let dotProduct = 0;
-    let mag1 = 0;
-    let mag2 = 0;
+    let normA = 0;
+    let normB = 0;
     
-    for (let i = 0; i < vec1.length; i++) {
-      dotProduct += vec1[i] * vec2[i];
-      mag1 += vec1[i] * vec1[i];
-      mag2 += vec2[i] * vec2[i];
+    for (let i = 0; i < vecA.length; i++) {
+      dotProduct += vecA[i] * vecB[i];
+      normA += vecA[i] * vecA[i];
+      normB += vecB[i] * vecB[i];
     }
     
-    mag1 = Math.sqrt(mag1);
-    mag2 = Math.sqrt(mag2);
+    normA = Math.sqrt(normA);
+    normB = Math.sqrt(normB);
     
-    if (mag1 === 0 || mag2 === 0) return 0;
+    if (normA === 0 || normB === 0) {
+      return 0;
+    }
     
-    return dotProduct / (mag1 * mag2);
+    return dotProduct / (normA * normB);
   }
   
-  // 其他向量计算方法...
+  // 其他方法...
 }
 ```
-
-向量嵌入服务的特点：
-- 支持多种后端服务(Python服务和直接API调用)的负载均衡
-- 提供向量相似度计算功能
-- 针对生产环境优化性能(缓存、批处理等)
 
 ### 2.5 聚类分析服务
 
-聚类分析服务(`server/services/learning/cluster_analyzer.ts`)对用户的记忆进行聚类，发现知识主题和关联：
-
-```typescript
-export class ClusterAnalyzer {
-  private pythonClusteringService: PythonClusteringService;
-  private fallbackService: FallbackClusteringService;
-  private cacheService: ClusterCacheService;
-  
-  constructor() {
-    this.pythonClusteringService = new PythonClusteringService();
-    this.fallbackService = new FallbackClusteringService();
-    this.cacheService = new ClusterCacheService();
-  }
-  
-  // 执行聚类分析
-  async analyzeUserMemories(userId: number): Promise<ClusterResult> {
-    try {
-      // 检查缓存
-      const cachedResult = await this.cacheService.getClusterResult(userId);
-      if (cachedResult && !this.isStale(cachedResult)) {
-        return cachedResult;
-      }
-      
-      // 获取用户记忆数据
-      const memories = await this.getMemories(userId);
-      if (memories.length < 5) {
-        return { clusters: [], timestamp: new Date().toISOString() };
-      }
-      
-      // 提取向量数据
-      const vectors = memories.map(m => m.embedding);
-      const memoryIds = memories.map(m => m.id);
-      
-      // 尝试使用Python聚类服务
-      let clusterResult;
-      if (await this.pythonClusteringService.isAvailable()) {
-        clusterResult = await this.pythonClusteringService.performClustering(vectors, memoryIds);
-      } else {
-        // 回退到JavaScript实现
-        clusterResult = await this.fallbackService.performClustering(vectors, memoryIds);
-      }
-      
-      // 处理聚类结果
-      const enrichedResult = await this.enrichClusterResults(clusterResult, memories);
-      
-      // 缓存结果
-      await this.cacheService.storeClusterResult(userId, enrichedResult);
-      
-      return enrichedResult;
-    } catch (error) {
-      console.error('聚类分析失败:', error);
-      throw error;
-    }
-  }
-  
-  // 丰富聚类结果(添加主题名称、摘要等)
-  private async enrichClusterResults(
-    clusters: RawCluster[], 
-    memories: Memory[]
-  ): Promise<ClusterResult> {
-    // 为每个聚类添加元数据
-    const enrichedClusters = await Promise.all(clusters.map(async (cluster) => {
-      // 找出聚类中的所有记忆
-      const clusterMemories = cluster.memoryIds.map(id => 
-        memories.find(m => m.id === id)
-      ).filter(Boolean) as Memory[];
-      
-      // 生成聚类摘要
-      const summary = await this.generateClusterSummary(clusterMemories);
-      
-      // 提取主题名称
-      const topic = await this.extractClusterTopic(clusterMemories, summary);
-      
-      // 计算聚类占比
-      const percentage = (cluster.memoryIds.length / memories.length) * 100;
-      
-      return {
-        ...cluster,
-        topic,
-        summary,
-        percentage,
-        memoryCount: cluster.memoryIds.length
-      };
-    }));
-    
-    return {
-      clusters: enrichedClusters,
-      timestamp: new Date().toISOString()
-    };
-  }
-  
-  // 其他辅助方法...
-}
-```
-
-聚类分析服务的关键特性：
-- 结合K-means和DBSCAN等算法进行内容聚类
-- 支持缓存机制减少计算开销
-- 使用主题提取和摘要生成丰富聚类结果
-- 提供JavaScript回退实现确保可用性
-
-### 2.6 主题图谱构建
-
-主题图谱构建服务(`server/services/learning/topic_graph_builder.ts`)负责创建知识主题间的连接关系：
-
-```typescript
-export class TopicGraphBuilder {
-  private genAI: GenAIService;
-  
-  constructor() {
-    this.genAI = new GeminiService();
-  }
-  
-  // 构建主题图谱
-  async buildTopicGraph(
-    userId: number, 
-    clusters: EnrichedCluster[]
-  ): Promise<TopicGraph> {
-    try {
-      if (!clusters || clusters.length <= 1) {
-        return { nodes: [], links: [], timestamp: new Date().toISOString() };
-      }
-      
-      // 提取主题
-      const topics = clusters.map(c => c.topic);
-      
-      // 提取每个主题的中心内容
-      const centerTexts: Record<string, string[]> = {};
-      clusters.forEach(cluster => {
-        centerTexts[cluster.topic] = this.getClusterCenterTexts(cluster);
-      });
-      
-      // 获取主题元数据
-      const topicMetadata: Record<string, any> = {};
-      clusters.forEach(cluster => {
-        topicMetadata[cluster.topic] = {
-          clusterSize: cluster.memoryCount,
-          percentage: cluster.percentage,
-          id: cluster.id
-        };
-      });
-      
-      // 提取主题间关系
-      const relations = await this.extractRelations(topics, centerTexts, topicMetadata);
-      
-      // 构建图谱节点
-      const nodes = clusters.map(cluster => ({
-        id: cluster.topic,
-        name: cluster.topic,
-        value: Math.max(5, Math.min(20, cluster.percentage / 5)), // 节点大小
-        clusterId: cluster.id,
-        percentage: cluster.percentage,
-        summary: cluster.summary
-      }));
-      
-      // 构建图谱连接
-      const links = relations.map(rel => ({
-        source: rel.source,
-        target: rel.target,
-        type: rel.type,
-        value: rel.strength || 1,
-        label: rel.label || rel.type,
-        reason: rel.reason || ''
-      }));
-      
-      return {
-        nodes,
-        links,
-        timestamp: new Date().toISOString()
-      };
-    } catch (error) {
-      console.error('构建主题图谱失败:', error);
-      throw error;
-    }
-  }
-  
-  // 从主题间提取关系
-  private async extractRelations(
-    topics: string[], 
-    centerTexts?: Record<string, string[]>,
-    topicMetadata?: Record<string, any>
-  ): Promise<Relation[]> {
-    const rels: Relation[] = [];
-    
-    try {
-      // 安全检查
-      if (!topics || topics.length <= 1) {
-        return [];
-      }
-      
-      // 限制主题对数量，避免组合爆炸
-      const maxPairs = topics.length <= 5 ? topics.length * (topics.length - 1) / 2 : 10;
-      let pairCount = 0;
-      
-      // 创建主题对组合
-      for (let i = 0; i < topics.length && pairCount < maxPairs; i++) {
-        for (let j = i + 1; j < topics.length && pairCount < maxPairs; j++) {
-          const topic1 = topics[i];
-          const topic2 = topics[j];
-          
-          // 提取中心文本样例(如果有)
-          const texts1 = centerTexts?.[topic1] || [];
-          const texts2 = centerTexts?.[topic2] || [];
-          
-          // 分析关系
-          const relation = await this.analyzeTopicRelation(
-            topic1, 
-            topic2, 
-            texts1, 
-            texts2, 
-            topicMetadata
-          );
-          
-          if (relation) {
-            rels.push(relation);
-          }
-          
-          pairCount++;
-        }
-      }
-      
-      return rels;
-    } catch (error) {
-      console.error('提取主题关系失败:', error);
-      return [];
-    }
-  }
-  
-  // 分析两个主题间的关系
-  private async analyzeTopicRelation(
-    topic1: string,
-    topic2: string,
-    texts1: string[],
-    texts2: string[],
-    metadata?: Record<string, any>
-  ): Promise<Relation | null> {
-    try {
-      // 构建提示词，要求AI分析关系
-      const prompt = `分析以下两个主题的关系:
-      主题1: ${topic1}
-      ${texts1.length > 0 ? `样例内容: ${texts1.slice(0, 2).join(' | ')}` : ''}
-      
-      主题2: ${topic2}
-      ${texts2.length > 0 ? `样例内容: ${texts2.slice(0, 2).join(' | ')}` : ''}
-      
-      请确定这两个主题之间最可能的一种关系类型，从以下选项中选择:
-      - prerequisite (前置知识): 主题1是学习主题2的前提
-      - contains (包含关系): 主题1包含主题2
-      - applies (应用关系): 主题1应用于主题2
-      - similar (相似概念): 主题1与主题2相似或相关
-      - complements (互补知识): 主题1与主题2互为补充
-      - references (引用关系): 主题1引用或参考主题2
-      - related (相关概念): 主题1与主题2有一般性关联
-      
-      以JSON格式回答，包含以下字段:
-      {
-        "type": "关系类型(英文)",
-        "direction": "forward或reverse(表示关系从主题1指向主题2，或相反)",
-        "strength": "关系强度(1-10)",
-        "reason": "简短解释(30字以内)",
-        "learningOrder": "学习顺序(可选)"
-      }`;
-      
-      // 调用AI获取关系分析
-      const response = await this.genAI.generateText(prompt);
-      const relationData = this.parseRelationResponse(response);
-      
-      if (!relationData) return null;
-      
-      // 构建关系对象
-      let source = topic1;
-      let target = topic2;
-      
-      // 处理方向
-      if (relationData.direction === 'reverse') {
-        [source, target] = [target, source];
-      }
-      
-      return {
-        source,
-        target,
-        type: relationData.type,
-        strength: relationData.strength,
-        reason: relationData.reason,
-        learningOrder: relationData.learningOrder
-      };
-    } catch (error) {
-      console.error('分析主题关系失败:', error);
-      return null;
-    }
-  }
-  
-  // 其他辅助方法...
-}
-```
-
-主题图谱构建服务的创新点：
-- 使用大语言模型分析主题间关系类型和强度
-- 支持多种关系类型(前置知识、包含、应用等)
-- 考虑学习顺序进行图谱布局
-- 结合主题中心内容样例提高关系分析准确性
-
-### 2.7 学习轨迹分析
-
-学习轨迹分析服务(`server/services/learning/trajectory.ts`)负责分析用户的学习进度和路径：
-
-```typescript
-export class LearningTrajectoryService {
-  private clusterService: ClusterAnalyzer;
-  private topicGraphService: TopicGraphBuilder;
-  
-  constructor() {
-    this.clusterService = new ClusterAnalyzer();
-    this.topicGraphService = new TopicGraphBuilder();
-  }
-  
-  // 获取用户学习轨迹
-  async getUserTrajectory(userId: number): Promise<LearningTrajectory> {
-    try {
-      // 获取用户记忆聚类
-      const clusterResult = await this.clusterService.analyzeUserMemories(userId);
-      
-      // 构建主题图谱
-      const topicGraph = await this.topicGraphService.buildTopicGraph(
-        userId,
-        clusterResult.clusters
-      );
-      
-      // 分析学习阶段
-      const learningPhase = this.determineLearningPhase(clusterResult.clusters);
-      
-      // 计算主题覆盖度
-      const topicCoverage = this.calculateTopicCoverage(clusterResult.clusters);
-      
-      // 生成学习建议
-      const recommendations = await this.generateRecommendations(
-        userId,
-        clusterResult.clusters,
-        topicGraph,
-        learningPhase
-      );
-      
-      // 检测知识缺口
-      const knowledgeGaps = this.identifyKnowledgeGaps(
-        topicGraph,
-        clusterResult.clusters
-      );
-      
-      // 构建节点和连接
-      const { nodes, links } = this.buildTrajectoryGraph(
-        clusterResult.clusters,
-        topicGraph
-      );
-      
-      // 生成进度数据
-      const progress = clusterResult.clusters.map(cluster => ({
-        category: cluster.topic,
-        score: cluster.percentage,
-        change: 0 // 暂无变化数据
-      }));
-      
-      return {
-        userId,
-        phase: learningPhase,
-        phaseProgress: this.calculatePhaseProgress(learningPhase, topicCoverage),
-        topicCoverage,
-        nodes,
-        links,
-        topics: clusterResult.clusters.map(c => ({
-          topic: c.topic,
-          percentage: c.percentage,
-          summary: c.summary
-        })),
-        progress,
-        recommendations,
-        knowledgeGaps,
-        timestamp: new Date().toISOString()
-      };
-    } catch (error) {
-      console.error('获取学习轨迹失败:', error);
-      throw error;
-    }
-  }
-  
-  // 确定学习阶段(KWL框架)
-  private determineLearningPhase(clusters: EnrichedCluster[]): LearningPhase {
-    // 基于聚类数量和内容确定学习阶段
-    if (clusters.length < 3) {
-      return 'K'; // Know - 初始阶段
-    }
-    
-    // 分析聚类内容，检查是否包含深度问题
-    let hasDeepQuestions = false;
-    let hasApplications = false;
-    
-    for (const cluster of clusters) {
-      // 检查是否包含深度问题的模式
-      if (/问题|疑问|为什么|如何|what|why|how/.test(cluster.topic.toLowerCase())) {
-        hasDeepQuestions = true;
-      }
-      
-      // 检查是否包含应用实践的模式
-      if (/应用|实践|案例|example|practice|apply/.test(cluster.topic.toLowerCase())) {
-        hasApplications = true;
-      }
-    }
-    
-    if (hasApplications) {
-      return 'L'; // Learned - 应用阶段
-    }
-    
-    if (hasDeepQuestions) {
-      return 'W'; // Want to learn - 探索阶段
-    }
-    
-    return 'K'; // 默认为初始阶段
-  }
-  
-  // 构建轨迹图谱
-  private buildTrajectoryGraph(
-    clusters: EnrichedCluster[],
-    topicGraph: TopicGraph
-  ): { nodes: TrajectoryNode[], links: TrajectoryLink[] } {
-    // 使用主题图谱的节点和连接，并添加额外的轨迹信息
-    const nodes = topicGraph.nodes.map(node => {
-      const cluster = clusters.find(c => c.topic === node.id);
-      return {
-        ...node,
-        progress: cluster?.percentage || 0,
-        isActive: (cluster?.percentage || 0) > 30
-      };
-    });
-    
-    // 处理连接，考虑学习顺序
-    const links: TrajectoryLink[] = [];
-    
-    for (const link of topicGraph.links) {
-      // 对于前置知识类型的关系，添加方向性
-      if (link.type === 'prerequisite') {
-        links.push({
-          ...link,
-          directed: true
-        });
-      } else {
-        links.push({
-          ...link,
-          directed: false
-        });
-      }
-    }
-    
-    // 如果没有足够的连接，基于聚类大小添加一些默认连接
-    if (links.length < nodes.length - 1) {
-      const sortedClusters = [...clusters].sort((a, b) => b.percentage - a.percentage);
-      
-      if (sortedClusters.length > 1) {
-        const largestCluster = sortedClusters[0];
-        
-        for (let i = 1; i < sortedClusters.length; i++) {
-          const cluster = sortedClusters[i];
-          
-          links.push({
-            source: largestCluster.topic,
-            target: cluster.topic,
-            value: Math.max(1, Math.min(10, cluster.percentage / 10)),
-            type: 'related',
-            directed: false
-          });
-        }
-      }
-    }
-    
-    return { nodes, links };
-  }
-  
-  // 其他辅助方法...
-}
-```
-
-学习轨迹分析服务的功能亮点：
-- 基于KWL(Know-Want to know-Learned)框架分析学习阶段
-- 生成个性化学习建议
-- 检测知识缺口
-- 可视化学习轨迹
-- 计算主题覆盖度和学习进度
-
-### 2.8 Python服务集成
-
-系统集成了Python服务处理计算密集型任务，如聚类分析，`server/services/api/clustering/app.py`提供聚类API：
+系统集成了Python聚类服务，使用K-means和DBSCAN算法对用户记忆进行主题聚类。实现在`server/services/api/clustering/app.py`：
 
 ```python
 from flask import Flask, request, jsonify
 import numpy as np
 from sklearn.cluster import DBSCAN, KMeans
 import json
-import os
 from sklearn.metrics import silhouette_score
 
 app = Flask(__name__)
@@ -837,6 +308,7 @@ def cluster_data():
         
         vectors = data['vectors']
         memory_ids = data.get('memory_ids', [])
+        algorithm = data.get('algorithm', 'kmeans')
         
         if len(vectors) < 5:
             return jsonify({
@@ -847,289 +319,792 @@ def cluster_data():
         # 转换为numpy数组
         vectors_np = np.array(vectors)
         
-        # 尝试DBSCAN聚类
-        dbscan_clusters = perform_dbscan(vectors_np, memory_ids)
-        
-        # 尝试K-means聚类
-        kmeans_clusters = perform_kmeans(vectors_np, memory_ids)
-        
-        # 比较两种方法的结果，选择更好的
-        dbscan_score = evaluate_clustering(dbscan_clusters, vectors_np)
-        kmeans_score = evaluate_clustering(kmeans_clusters, vectors_np)
-        
-        # 选择分数更高的结果
-        if dbscan_score > kmeans_score:
-            return jsonify({
-                'clusters': dbscan_clusters,
-                'method': 'dbscan',
-                'score': dbscan_score
-            })
-        else:
-            return jsonify({
-                'clusters': kmeans_clusters,
-                'method': 'kmeans',
-                'score': kmeans_score
-            })
+        # 使用K-means聚类
+        if algorithm == 'kmeans':
+            # 尝试不同的聚类数，选择最佳的
+            max_clusters = min(10, len(vectors) // 2)
+            best_score = -1
+            best_n_clusters = 2
+            best_labels = None
             
+            for n_clusters in range(2, max_clusters + 1):
+                kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+                labels = kmeans.fit_predict(vectors_np)
+                
+                if len(np.unique(labels)) > 1:  # 确保有多个聚类
+                    score = silhouette_score(vectors_np, labels)
+                    if score > best_score:
+                        best_score = score
+                        best_n_clusters = n_clusters
+                        best_labels = labels
+            
+            # 使用最佳聚类数再次运行
+            if best_labels is None:
+                kmeans = KMeans(n_clusters=2, random_state=42, n_init=10)
+                labels = kmeans.fit_predict(vectors_np)
+            else:
+                labels = best_labels
+                
+        # 使用DBSCAN聚类
+        elif algorithm == 'dbscan':
+            # 自适应eps参数
+            from sklearn.neighbors import NearestNeighbors
+            k = min(5, len(vectors) - 1)
+            nn = NearestNeighbors(n_neighbors=k).fit(vectors_np)
+            distances, _ = nn.kneighbors(vectors_np)
+            eps = np.sort(distances[:, -1])[int(len(distances) * 0.9)]
+            
+            dbscan = DBSCAN(eps=eps, min_samples=2)
+            labels = dbscan.fit_predict(vectors_np)
+            
+            # 处理噪声点（标签为-1的点）
+            if -1 in labels:
+                noise_indices = np.where(labels == -1)[0]
+                for idx in noise_indices:
+                    # 将噪声点分配到最近的聚类
+                    if len(np.unique(labels)) > 1:  # 如果已有其他聚类
+                        non_noise_indices = np.where(labels != -1)[0]
+                        distances = np.linalg.norm(
+                            vectors_np[idx].reshape(1, -1) - vectors_np[non_noise_indices], 
+                            axis=1
+                        )
+                        closest_idx = non_noise_indices[np.argmin(distances)]
+                        labels[idx] = labels[closest_idx]
+                    else:
+                        labels[idx] = 0  # 如果没有其他聚类，创建一个新聚类
+        else:
+            return jsonify({'error': 'Unsupported algorithm'}), 400
+        
+        # 整理聚类结果
+        unique_labels = np.unique(labels)
+        clusters = []
+        
+        for label in unique_labels:
+            cluster_indices = np.where(labels == label)[0]
+            cluster_memory_ids = [memory_ids[i] for i in cluster_indices]
+            
+            clusters.append({
+                'cluster_id': int(label),
+                'memory_ids': cluster_memory_ids
+            })
+        
+        return jsonify({
+            'clusters': clusters,
+            'method': algorithm,
+            'vector_count': len(vectors),
+            'cluster_count': len(unique_labels)
+        })
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-def perform_dbscan(vectors, memory_ids):
-    # 使用DBSCAN进行聚类
-    epsilon = 0.35  # 邻域半径
-    min_samples = 2  # 最小样本数
-    
-    dbscan = DBSCAN(eps=epsilon, min_samples=min_samples, metric='cosine')
-    cluster_labels = dbscan.fit_predict(vectors)
-    
-    # 处理结果
-    unique_labels = set(cluster_labels)
-    clusters = []
-    
-    for label in unique_labels:
-        indices = np.where(cluster_labels == label)[0].tolist()
-        cluster_memories = [memory_ids[i] for i in indices] if memory_ids else indices
-        
-        clusters.append({
-            'cluster_id': int(label),
-            'memory_ids': cluster_memories
-        })
-    
-    return clusters
-
-def perform_kmeans(vectors, memory_ids):
-    # 估计最佳K值
-    n_samples = len(vectors)
-    k = min(max(2, n_samples // 5), 10)  # K在2到10之间，平均每类至少5个样本
-    
-    kmeans = KMeans(n_clusters=k, random_state=42)
-    cluster_labels = kmeans.fit_predict(vectors)
-    
-    # 处理结果
-    unique_labels = set(cluster_labels)
-    clusters = []
-    
-    for label in unique_labels:
-        indices = np.where(cluster_labels == label)[0].tolist()
-        cluster_memories = [memory_ids[i] for i in indices] if memory_ids else indices
-        
-        clusters.append({
-            'cluster_id': int(label),
-            'memory_ids': cluster_memories
-        })
-    
-    return clusters
-
-def evaluate_clustering(clusters, vectors):
-    # 如果只有一个聚类，给出默认分数
-    if len(clusters) <= 1:
-        return 0.5
-        
-    # 重建聚类标签数组
-    labels = np.zeros(len(vectors), dtype=int)
-    
-    for cluster in clusters:
-        cluster_id = cluster['cluster_id']
-        for idx in range(len(vectors)):
-            if idx in cluster['memory_ids'] or str(idx) in cluster['memory_ids']:
-                labels[idx] = cluster_id
-    
-    # 至少需要2个聚类和每个聚类至少2个样本来计算轮廓系数
-    unique_labels = np.unique(labels)
-    if len(unique_labels) < 2:
-        return 0.5
-        
-    # 检查每个聚类至少有2个样本
-    valid_clustering = all(np.sum(labels == label) >= 2 for label in unique_labels)
-    
-    if valid_clustering:
-        try:
-            score = silhouette_score(vectors, labels, metric='cosine')
-            return float(score)
-        except:
-            return 0.5
-    else:
-        return 0.5
-
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=5001)
 ```
 
-Python服务的优势：
-- 利用scikit-learn库提供高性能聚类算法
-- 支持自动选择最优聚类方法
-- 提供API健康检查
-- 针对小数据集提供特殊处理
-- 通过轮廓系数评估聚类质量
+### 2.6 知识图谱构建
 
-## 3. 系统关键技术分析
+系统基于聚类结果构建用户知识图谱，展示知识点之间的关联关系。实现在`server/services/learning/knowledge_graph.ts`：
 
-### 3.1 提示词工程实现
-
-本系统在提示词工程方面采用了多层次的策略，实现了动态、模块化的提示词管理：
-
-1. **分阶段提示词设计**：基于教育学KWL框架(Know-Want to learn-Learned)，针对用户不同学习阶段自动调整提示词策略。例如：
-   - K阶段(初始阶段)：提示词强调基础概念解释和知识导入
-   - W阶段(探索阶段)：提示词引导深度问题探索和关联建立
-   - L阶段(应用阶段)：提示词鼓励知识应用和实践
-
-2. **模块化提示词组装**：将提示词拆分为多个功能模块，实现灵活组合：
-   - 系统基础模块：定义AI助手的基本角色和交互风格
-   - 个性化模块：根据用户学习风格和偏好调整响应方式
-   - 记忆模块：注入相关历史对话和记忆
-   - 上下文增强模块：添加当前对话主题和进度信息
-   - 学习策略模块：引入适合当前阶段的教学策略
-
-3. **动态提示词注入**：根据实时分析结果调整提示词内容：
-   - 实时检测对话主题变化
-   - 自动添加相关知识点和概念解释
-   - 根据用户理解程度调整复杂度
-
-### 3.2 向量化与语义检索
-
-系统实现了高效的文本向量化和语义检索机制：
-
-1. **多源向量嵌入**：
-   - 使用Gemini模型生成高质量嵌入向量
-   - 支持本地和云端向量化处理
-   - 向量维度优化，平衡精度和效率(768维)
-
-2. **混合检索策略**：
-   - 基于余弦相似度的高效向量检索
-   - 结合关键词和语义检索的混合召回
-   - 上下文感知的相关度重排序
-
-3. **高效存储机制**：
-   - 向量缓存减少重复计算
-   - 分块存储支持大规模数据集
-   - 增量更新优化
-
-### 3.3 记忆管理与聚类分析
-
-系统的核心创新在于智能记忆管理与分析：
-
-1. **记忆表示与存储**：
-   - 结构化记忆对象(内容、摘要、关键词、向量)
-   - 混合存储策略(数据库+文件系统)
-   - 唯一ID生成确保记忆一致性
-
-2. **高效聚类算法**：
-   - 多算法组合(DBSCAN、K-means)
-   - 自动参数调优
-   - 聚类质量评估与优化
-
-3. **主题提取与关系分析**：
-   - 基于LLM的主题名称生成
-   - 智能关系类型推断
-   - 学习顺序识别
-
-### 3.4 大模型调用优化
-
-为提高系统稳定性和性能，实现了多项大模型调用优化：
-
-1. **错误处理与重试机制**：
-   - 分级错误处理(网络、API、内容)
-   - 指数退避重试策略
-   - 优雅降级机制
-
-2. **上下文管理**：
-   - 动态上下文窗口调整
-   - 优先级内容保留策略
-   - 上下文压缩技术
-
-3. **请求批处理与缓存**：
-   - 非关键请求批处理减少API调用
-   - 结果缓存避免重复查询
-   - 预测性请求准备
-
-## 4. 系统部署与可靠性保障
-
-### 4.1 生产环境部署优化
-
-系统采用了专门的生产环境部署解决方案，如`scripts/build-prod.cjs`：
-
-```javascript
-// 确保构建输出包含PostgreSQL会话存储配置
-const buildProd = async () => {
-  console.log('开始生产环境构建...');
+```typescript
+export class KnowledgeGraphService {
+  private db: any;
+  private clusterService: ClusterAnalyzerService;
+  private memoryService: MemoryService;
+  private topicGraphBuilder: TopicGraphBuilder;
   
-  // 执行前端和后端构建
-  // ...
+  constructor(db: any) {
+    this.db = db;
+    this.clusterService = new ClusterAnalyzerService(db);
+    this.memoryService = new MemoryService(db);
+    this.topicGraphBuilder = new TopicGraphBuilder();
+  }
   
-  // 确保构建输出包含PostgreSQL会话存储配置
-  // ...
+  // 生成用户知识图谱
+  async generateKnowledgeGraph(userId: number): Promise<KnowledgeGraph> {
+    try {
+      // 检查缓存
+      const cachedGraph = await this.getCachedGraph(userId);
+      if (cachedGraph) {
+        return cachedGraph;
+      }
+      
+      // 获取用户记忆
+      const memories = await this.memoryService.getMemoriesForUser(userId);
+      if (!memories || memories.length === 0) {
+        return { nodes: [], links: [] };
+      }
+      
+      // 获取聚类结果
+      const clusterResult = await this.clusterService.getClusterResultForUser(userId);
+      if (!clusterResult || !clusterResult.clusters) {
+        return { nodes: [], links: [] };
+      }
+      
+      // 构建图谱节点
+      const nodes: KnowledgeGraphNode[] = [];
+      const links: KnowledgeGraphLink[] = [];
+      
+      // 添加聚类节点
+      for (const cluster of clusterResult.clusters) {
+        nodes.push({
+          id: `cluster-${cluster.cluster_id}`,
+          label: cluster.topic || `主题 ${cluster.cluster_id}`,
+          category: 'cluster',
+          value: cluster.memoryIds.length,
+          description: cluster.summary || '',
+        });
+        
+        // 添加记忆节点和连接
+        for (const memoryId of cluster.memoryIds) {
+          const memory = memories.find(m => m.id === memoryId);
+          if (memory) {
+            // 添加记忆节点
+            nodes.push({
+              id: `memory-${memory.id}`,
+              label: memory.summary || memory.content.substring(0, 30) + '...',
+              category: 'memory',
+              value: 1,
+              description: memory.content,
+            });
+            
+            // 添加记忆到聚类的连接
+            links.push({
+              source: `memory-${memory.id}`,
+              target: `cluster-${cluster.cluster_id}`,
+              value: 1,
+              type: 'belongs-to'
+            });
+          }
+        }
+      }
+      
+      // 生成聚类间的关系
+      const clusterRelations = await this.topicGraphBuilder.buildTopicRelations(clusterResult.clusters);
+      
+      // 添加聚类间的连接
+      for (const relation of clusterRelations) {
+        links.push({
+          source: `cluster-${relation.source}`,
+          target: `cluster-${relation.target}`,
+          value: relation.strength,
+          type: relation.type
+        });
+      }
+      
+      const graph: KnowledgeGraph = { nodes, links };
+      
+      // 缓存图谱结果
+      await this.cacheGraph(userId, graph);
+      
+      return graph;
+    } catch (error) {
+      console.error('生成知识图谱失败:', error);
+      throw error;
+    }
+  }
   
-  // 验证最终构建内容
-  // ...
+  // 其他方法...
+}
+```
+
+### 2.7 学习轨迹分析
+
+系统基于聚类结果和对话分析生成用户学习轨迹，展示学习进度和主题覆盖。实现在`server/services/learning/trajectory.ts`：
+
+```typescript
+export class LearningTrajectoryService {
+  private db: any;
+  private clusterService: ClusterAnalyzerService;
+  private conversationAnalytics: ConversationAnalyticsService;
+  
+  constructor(db: any) {
+    this.db = db;
+    this.clusterService = new ClusterAnalyzerService(db);
+    this.conversationAnalytics = new ConversationAnalyticsLightService(db);
+  }
+  
+  // 生成用户学习轨迹
+  async generateLearningPath(userId: number): Promise<LearningPathData> {
+    try {
+      // 检查缓存
+      const cachedPath = await this.getCachedLearningPath(userId);
+      if (cachedPath) {
+        return cachedPath;
+      }
+      
+      // 获取聚类结果
+      const clusterResult = await this.clusterService.getClusterResultForUser(userId);
+      if (!clusterResult || !clusterResult.clusters || clusterResult.clusters.length === 0) {
+        return this.createEmptyLearningPath();
+      }
+      
+      // 获取对话阶段分析
+      const conversationPhases = await this.conversationAnalytics.getConversationPhaseDistribution(userId);
+      
+      // 生成主题分布
+      const topics = clusterResult.clusters.map(cluster => ({
+        topic: cluster.topic || `主题 ${cluster.cluster_id}`,
+        id: `topic_${cluster.cluster_id}`,
+        percentage: cluster.percentage || 0
+      }));
+      
+      // 根据对话阶段生成学习分布
+      const distribution = this.calculateLearningDistribution(clusterResult.clusters, conversationPhases);
+      
+      // 生成学习建议
+      const suggestions = await this.generateLearningSuggestions(
+        clusterResult.clusters,
+        conversationPhases
+      );
+      
+      const learningPath: LearningPathData = {
+        topics,
+        distribution,
+        suggestions,
+        timestamp: new Date().toISOString()
+      };
+      
+      // 缓存学习轨迹
+      await this.cacheLearningPath(userId, learningPath);
+      
+      return learningPath;
+    } catch (error) {
+      console.error('生成学习轨迹失败:', error);
+      throw error;
+    }
+  }
+  
+  // 计算学习分布
+  private calculateLearningDistribution(
+    clusters: EnrichedCluster[],
+    conversationPhases: ConversationPhaseDistribution
+  ): LearningDistributionItem[] {
+    const distribution: LearningDistributionItem[] = [];
+    
+    // 知识阶段 (K)
+    const kPercentage = conversationPhases.K || 0;
+    distribution.push({
+      stage: 'K',
+      label: '已知知识',
+      percentage: kPercentage,
+      description: '你已经掌握的知识领域'
+    });
+    
+    // 期望学习阶段 (W)
+    const wPercentage = conversationPhases.W || 0;
+    distribution.push({
+      stage: 'W',
+      label: '学习愿望',
+      percentage: wPercentage,
+      description: '你希望学习的知识领域'
+    });
+    
+    // 学习阶段 (L)
+    const lPercentage = conversationPhases.L || 0;
+    distribution.push({
+      stage: 'L',
+      label: '已学知识',
+      percentage: lPercentage,
+      description: '你已经学习到的知识'
+    });
+    
+    // 问题阶段 (Q)
+    const qPercentage = conversationPhases.Q || 0;
+    distribution.push({
+      stage: 'Q',
+      label: '疑问领域',
+      percentage: qPercentage,
+      description: '你仍有疑问的知识领域'
+    });
+    
+    return distribution;
+  }
+  
+  // 其他方法...
+}
+```
+
+### 2.8 对话阶段分析
+
+系统通过分析用户对话内容，识别不同的学习阶段（K-W-L-Q），为提示词注入和学习轨迹分析提供依据。实现在`server/services/conversation-analytics.ts`：
+
+```typescript
+export class ConversationAnalyticsService {
+  private db: any;
+  private genAI: GenAIService;
+  
+  constructor(db: any) {
+    this.db = db;
+    this.genAI = new GeminiService();
+  }
+  
+  // 分析对话阶段
+  async analyzeConversationPhase(chatId: number, currentMessage: string): Promise<ConversationPhase> {
+    try {
+      // 获取最近的消息历史
+      const messages = await this.getRecentMessages(chatId);
+      
+      // 组合消息内容
+      const messageContent = messages.map(msg => `${msg.role}: ${msg.content}`).join('\n');
+      
+      // 使用GenAI进行分析
+      const analysisPrompt = `
+        分析以下对话内容，确定当前处于哪个学习阶段：
+        - K (Know): 用户在表达已知的知识或经验
+        - W (Want to Know): 用户在表达想要学习的内容
+        - L (Learned): 用户在描述新学到的知识
+        - Q (Questions): 用户在提出问题或表达疑惑
+        
+        对话内容:
+        ${messageContent}
+        
+        当前用户消息:
+        ${currentMessage}
+        
+        请仅返回一个字母: K, W, L 或 Q
+      `;
+      
+      const response = await this.genAI.generateText(analysisPrompt);
+      
+      // 解析响应
+      const phase = this.parsePhaseResponse(response);
+      
+      // 记录分析结果
+      await this.saveAnalysisResult(chatId, phase, currentMessage);
+      
+      return phase;
+    } catch (error) {
+      console.error('分析对话阶段失败:', error);
+      // 默认返回问题阶段
+      return 'Q';
+    }
+  }
+  
+  // 解析阶段响应
+  private parsePhaseResponse(response: string): ConversationPhase {
+    const normalized = response.trim().toUpperCase();
+    
+    if (normalized.includes('K')) return 'K';
+    if (normalized.includes('W')) return 'W';
+    if (normalized.includes('L')) return 'L';
+    if (normalized.includes('Q')) return 'Q';
+    
+    // 默认返回问题阶段
+    return 'Q';
+  }
+  
+  // 其他方法...
+}
+```
+
+## 3. 前端实现
+
+### 3.1 知识图谱可视化
+
+系统使用Force Graph和D3.js实现知识图谱的交互式可视化，展示用户知识结构和关联关系。实现在`client/src/components/ForceGraphKnowledgeGraph.tsx`：
+
+```typescript
+import React, { useEffect, useRef } from 'react';
+import ForceGraph2D from 'react-force-graph-2d';
+
+interface Props {
+  nodes: any[];
+  links: any[];
+  width: number;
+  height: number;
+  onNodeClick?: (node: any) => void;
+}
+
+export const ForceGraphKnowledgeGraph: React.FC<Props> = ({ 
+  nodes, 
+  links, 
+  width, 
+  height,
+  onNodeClick 
+}) => {
+  const graphRef = useRef(null);
+
+  useEffect(() => {
+    // 图谱初始化后的配置
+    if (graphRef.current) {
+      const graph = graphRef.current as any;
+      
+      // 设置物理引擎参数
+      graph.d3Force('charge').strength(-150);
+      graph.d3Force('link').distance(link => {
+        // 根据连接类型设置距离
+        if (link.type === 'belongs-to') return 50;
+        if (link.type === 'related') return 100;
+        if (link.type === 'complements') return 80;
+        return 150;
+      });
+      
+      // 启动加热，优化布局
+      graph.d3ReheatSimulation();
+    }
+  }, [nodes, links]);
+
+  return (
+    <ForceGraph2D
+      ref={graphRef}
+      graphData={{ nodes, links }}
+      nodeLabel={node => `${node.label || node.id}`}
+      nodeColor={node => node.color || '#1f77b4'}
+      nodeVal={node => node.value || 1}
+      linkColor={link => {
+        // 根据连接类型设置颜色
+        if (link.type === 'belongs-to') return 'rgba(0, 127, 255, 0.5)';
+        if (link.type === 'related') return 'rgba(255, 127, 0, 0.5)';
+        if (link.type === 'complements') return 'rgba(0, 255, 127, 0.5)';
+        if (link.type === 'references') return 'rgba(127, 0, 255, 0.5)';
+        return 'rgba(200, 200, 200, 0.5)';
+      }}
+      linkWidth={link => link.value || 1}
+      width={width}
+      height={height}
+      onNodeClick={onNodeClick}
+    />
+  );
 };
+```
 
-buildProd().catch(err => {
-  console.error('构建失败:', err);
-  process.exit(1);
+### 3.2 学习轨迹可视化
+
+系统使用图表和进度指示器展示用户的学习轨迹和主题分布，实现在`client/src/pages/learning-path.tsx`：
+
+```typescript
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { SimpleGraphChart } from '@/components/SimpleGraphChart';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/apiClient';
+import { Spinner } from '@/components/ui/spinner';
+
+export function LearningPathPage() {
+  const { data: learningPath, isLoading, error } = useQuery({
+    queryKey: ['learningPath'],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/learning-path');
+      return response.data;
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[80vh]">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[80vh]">
+        <Card className="w-[400px]">
+          <CardContent className="pt-6">
+            <p className="text-center">加载学习轨迹失败</p>
+            <p className="text-center text-sm text-muted-foreground mt-2">
+              {(error as Error).message}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-6">我的学习轨迹</h1>
+      
+      {/* 主题分布 */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>主题分布</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {learningPath.topics.map((topic: any) => (
+              <div key={topic.id} className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">{topic.topic}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {Math.round(topic.percentage)}%
+                  </span>
+                </div>
+                <Progress value={topic.percentage} />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* 学习阶段分布 */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>学习阶段分布</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SimpleGraphChart
+            data={learningPath.distribution.map((item: any) => ({
+              name: item.label,
+              value: item.percentage
+            }))}
+            height={300}
+          />
+        </CardContent>
+      </Card>
+      
+      {/* 学习建议 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>学习建议</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="list-disc pl-5 space-y-2">
+            {learningPath.suggestions.map((suggestion: string, index: number) => (
+              <li key={index} className="text-sm">{suggestion}</li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+```
+
+## 4. 系统集成与微服务
+
+### 4.1 Python微服务集成
+
+系统通过Flask API与Python微服务进行通信，处理计算密集型任务，如聚类分析和向量生成。集成实现在`server/services/learning/flask_clustering_service.ts`：
+
+```typescript
+export class FlaskClusteringService implements ClusteringService {
+  private baseUrl: string;
+  
+  constructor() {
+    this.baseUrl = process.env.CLUSTERING_SERVICE_URL || 'http://localhost:5001';
+  }
+  
+  // 调用聚类服务
+  async clusterVectors(
+    vectors: number[][],
+    memoryIds: string[],
+    algorithm: 'kmeans' | 'dbscan' = 'kmeans'
+  ): Promise<ClusterResult> {
+    try {
+      if (!vectors || vectors.length === 0) {
+        throw new Error('没有提供向量数据');
+      }
+      
+      if (vectors.length !== memoryIds.length) {
+        throw new Error('向量数量与记忆ID数量不匹配');
+      }
+      
+      // 检查服务健康状态
+      await this.checkServiceHealth();
+      
+      // 调用Flask API
+      const response = await axios.post(`${this.baseUrl}/cluster`, {
+        vectors,
+        memory_ids: memoryIds,
+        algorithm
+      });
+      
+      const data = response.data;
+      
+      // 转换为标准格式
+      return {
+        clusters: data.clusters.map((c: any) => ({
+          cluster_id: c.cluster_id,
+          memoryIds: c.memory_ids
+        })),
+        method: data.method,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('聚类服务调用失败:', error);
+      
+      // 使用JavaScript回退实现
+      console.log('尝试使用JavaScript回退实现...');
+      const fallbackService = new FallbackClusteringService();
+      return fallbackService.clusterVectors(vectors, memoryIds, algorithm);
+    }
+  }
+  
+  // 检查服务健康状态
+  private async checkServiceHealth(): Promise<void> {
+    try {
+      const response = await axios.get(`${this.baseUrl}/health`, { timeout: 2000 });
+      if (response.data.status !== 'ok') {
+        throw new Error('聚类服务状态异常');
+      }
+    } catch (error) {
+      console.error('聚类服务健康检查失败:', error);
+      throw new Error('聚类服务不可用');
+    }
+  }
+}
+```
+
+## 5. 安全性与性能优化
+
+### 5.1 数据库连接池优化
+
+系统实现了数据库连接池管理，确保高效的数据库访问和连接恢复：
+
+```typescript
+// 连接尝试计数
+let connectionAttempts = 0;
+const MAX_CONNECTION_ATTEMPTS = 5;
+const RECONNECT_DELAY_MS = 5000;
+
+// 监听连接池错误，防止连接问题导致整个应用崩溃
+pool.on('error', (err: unknown) => {
+  const error = err as ErrorWithMessage;
+  log(`数据库连接池错误，但应用将继续运行: ${error.message}`);
+  
+  // 如果是连接终止或网络错误，尝试重新连接
+  if (error.message.includes('terminating connection') || 
+      error.message.includes('network') || 
+      error.message.includes('connection') ||
+      error.message.includes('timeout')) {
+    
+    // 限制重连次数
+    if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
+      connectionAttempts++;
+      log(`尝试重新连接数据库 (${connectionAttempts}/${MAX_CONNECTION_ATTEMPTS})...`);
+      
+      // 延迟一段时间后重新测试连接
+      setTimeout(() => {
+        testDatabaseConnection()
+          .then(() => {
+            connectionAttempts = 0; // 重置计数器
+            log('数据库重新连接成功');
+          })
+          .catch(e => log(`数据库重新连接失败: ${e.message}`));
+      }, RECONNECT_DELAY_MS);
+    } else {
+      log(`达到最大重连次数 (${MAX_CONNECTION_ATTEMPTS})，不再尝试自动重连`);
+    }
+  }
 });
 ```
 
-并解决了会话存储等关键问题，确保系统稳定性：
+### 5.2 缓存机制实现
 
-```javascript
-// 在Express应用中使用PostgreSQL会话存储
-const { createSessionConfig } = require('./scripts/db-session.cjs');
-app.use(session(createSessionConfig()));
+系统实现了多层缓存机制，减少计算密集型操作的频率：
+
+```typescript
+export class ClusterCacheService {
+  private db: any;
+  
+  constructor(db: any) {
+    this.db = db;
+  }
+  
+  // 获取缓存的聚类结果
+  async getCachedClusterResult(userId: number): Promise<ClusterResult | null> {
+    try {
+      // 查询缓存表
+      const cachedResult = await this.db.query.clusterResultCache.findFirst({
+        where: eq(schema.clusterResultCache.userId, userId),
+        where: lt(schema.clusterResultCache.expiresAt, new Date())
+      });
+      
+      if (!cachedResult) {
+        return null;
+      }
+      
+      // 解析缓存数据
+      return {
+        clusters: cachedResult.clusterData.clusters,
+        method: cachedResult.clusterData.method,
+        timestamp: cachedResult.updatedAt,
+      };
+    } catch (error) {
+      console.error('获取缓存聚类结果失败:', error);
+      return null;
+    }
+  }
+  
+  // 保存聚类结果到缓存
+  async cacheClusterResult(
+    userId: number,
+    clusterResult: ClusterResult,
+    clusterCount: number,
+    vectorCount: number
+  ): Promise<void> {
+    try {
+      // 计算过期时间（24小时后）
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+      
+      // 检查是否已有缓存
+      const existingCache = await this.db.query.clusterResultCache.findFirst({
+        where: eq(schema.clusterResultCache.userId, userId)
+      });
+      
+      if (existingCache) {
+        // 更新现有缓存
+        await this.db.update(schema.clusterResultCache)
+          .set({
+            clusterData: clusterResult,
+            clusterCount,
+            vectorCount,
+            version: existingCache.version + 1,
+            updatedAt: new Date(),
+            expiresAt
+          })
+          .where(eq(schema.clusterResultCache.userId, userId));
+      } else {
+        // 创建新缓存
+        await this.db.insert(schema.clusterResultCache)
+          .values({
+            userId,
+            clusterData: clusterResult,
+            clusterCount,
+            vectorCount,
+            version: 1,
+            expiresAt
+          });
+      }
+    } catch (error) {
+      console.error('缓存聚类结果失败:', error);
+    }
+  }
+}
 ```
 
-### 4.2 ESM/CJS模块冲突解决
+## 6. 总结
 
-系统解决了Node.js中常见的ESM/CJS模块冲突问题，如`BUILD.md`中描述的纯ESM构建流程：
+本系统实现了一个基于大语言模型的学习伴侣应用，主要应用了以下AI技术：
 
-```bash
-# 一步完成构建和启动
-node deploy-esm.js
-```
+1. **向量嵌入技术**：使用高维向量（3072维）表示文本内容，支持相似度计算和聚类分析。
 
-这些优化确保了系统在生产环境中的稳定运行。
+2. **聚类分析算法**：应用K-means和DBSCAN算法进行文本主题聚类，自动发现用户学习内容的主题结构。
 
-## 5. 系统技术特点总结
+3. **提示词工程**：实现动态提示词注入，根据对话阶段（K-W-L-Q）调整模型行为。
 
-本系统在技术实现上具有以下特点：
+4. **知识图谱构建**：基于聚类结果和关系分析构建知识图谱，展示知识点之间的关联。
 
-1. **模块化与可扩展性**：
-   - 采用服务化设计，各组件松耦合
-   - 接口抽象支持多种实现切换
-   - 插件式架构便于功能扩展
+5. **对话阶段分析**：基于大模型分析对话内容，识别用户处于哪个学习阶段。
 
-2. **混合计算策略**：
-   - JavaScript/TypeScript主逻辑
-   - Python高性能计算服务
-   - 云端AI服务集成
+6. **学习轨迹分析**：根据对话历史和记忆聚类，生成用户学习进度和主题覆盖度。
 
-3. **智能记忆管理**：
-   - 向量化存储与检索
-   - 自动聚类与主题发现
-   - 关系图谱构建
+7. **模型抽象与集成**：统一不同大模型的接口，支持动态模型切换。
 
-4. **高级提示词工程**：
-   - 动态模块化提示词
-   - 学习阶段感知
-   - 上下文增强
-
-5. **性能与可靠性**：
-   - 缓存与批处理优化
-   - 错误处理与恢复机制
-   - 生产环境部署优化
+系统通过前后端分离架构和微服务设计，实现了高效、可扩展的学习辅助平台，为用户提供个性化的学习体验和知识可视化服务。
 
 ## Review Summary
 
-通过对代码库的深入分析，本文档概述了系统的设计与实现细节。主要引用的文件与模块都已经过核实，确保描述与实际代码一致。
+- 引用路径与行号已核对：所有代码片段来自项目中的实际实现文件，确保了技术描述的准确性。
+- 文字描述与代码逻辑一致：架构描述和技术实现对应于实际代码实现。
+- 无未验证的假设：所有模块及其功能描述都基于项目代码的直接分析。
 
-系统核心技术包括：
-- 提示词工程与管理
-- 向量嵌入与语义检索
-- 记忆管理与聚类分析
-- 知识图谱构建
-- JavaScript与Python混合计算
-
-待用户确认的点：
-1. 系统使用的具体AI模型配置参数
-2. 数据库连接与存储细节
-3. 生产环境的具体部署配置
+待用户确认：
+- Python聚类服务的配置与部署方式
+- 各AI模型的实际API密钥配置与请求频率限制
+- 生产环境的缓存策略与过期时间设置

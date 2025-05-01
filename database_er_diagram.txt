@@ -1,0 +1,196 @@
+# 数据库ER图说明
+
+以下是系统数据库的ER图描述，可以在draw.io中创建图表。
+
+## 实体关系图
+
+```
++---------------+          +--------------------+
+|    users      |          |   user_settings    |
++---------------+          +--------------------+
+| PK: id        |<---------| FK: user_id        |
+| username      |          | background_file    |
+| password      |          | theme              |
+| role          |          | font_size          |
++---------------+          | created_at         |
+        |                 | updated_at         |
+        |                 +--------------------+
+        |
+        |                 +--------------------+
+        |                 |     memories       |
+        |                 +--------------------+
+        |-----------------| FK: user_id        |
+        |                 | PK: id (text)      |
+        |                 | content            |
+        |                 | type               |
+        |                 | timestamp          |
+        |                 | summary            |
+        |                 | created_at         |
+        |                 | updated_at         |
+        |                 +--------------------+
+        |                          |
+        |                          |
+        |                          v
+        |                 +--------------------+      +-------------------+
+        |                 | memory_embeddings  |      |  memory_keywords  |
+        |                 +--------------------+      +-------------------+
+        |                 | PK: id             |      | PK: id            |
+        |                 | FK: memory_id      |<-----| FK: memory_id     |
+        |                 | vector_data (jsonb)|      | keyword           |
+        |                 +--------------------+      +-------------------+
+        |
+        |
+        |                 +--------------------+
+        |                 |      chats         |
+        |                 +--------------------+
+        |-----------------| FK: user_id        |
+        |                 | PK: id             |
+        |                 | title              |
+        |                 | model              |
+        |                 | created_at         |
+        |                 | metadata           |
+        |                 +--------------------+
+        |                          |
+        |                          |
+        |                          v
+        |                 +--------------------+      +----------------------+
+        |                 |     messages       |      | conversation_analytics|
+        |                 +--------------------+      +----------------------+
+        |                 | PK: id             |      | PK: id               |
+        |                 | FK: chat_id        |<-----| FK: chat_id          |
+        |                 | content            |      | current_phase        |
+        |                 | role               |      | summary              |
+        |                 | model              |      | timestamp            |
+        |                 | feedback           |      +----------------------+
+        |                 | is_edited          |
+        |                 | is_active          |
+        |                 | created_at         |
+        |                 +--------------------+
+        |
+        |
+        |                 +--------------------+
+        |                 |  learning_paths    |
+        |                 +--------------------+
+        |-----------------| FK: user_id        |
+        |                 | PK: id             |
+        |                 | topics (jsonb)     |
+        |                 | distribution (jsonb)|
+        |                 | suggestions (jsonb)|
+        |                 | progress_history   |
+        |                 | knowledge_graph    |
+        |                 | version            |
+        |                 | created_at         |
+        |                 | updated_at         |
+        |                 | is_optimized       |
+        |                 | expires_at         |
+        |                 +--------------------+
+        |
+        |
+        |                 +--------------------+
+        |                 | cluster_result_cache|
+        |                 +--------------------+
+        |-----------------| FK: user_id        |
+        |                 | PK: id             |
+        |                 | cluster_data (jsonb)|
+        |                 | cluster_count      |
+        |                 | vector_count       |
+        |                 | version            |
+        |                 | created_at         |
+        |                 | updated_at         |
+        |                 | expires_at         |
+        |                 +--------------------+
+        |
+        |
+        |                 +--------------------+
+        |                 | knowledge_graph_cache|
+        |                 +--------------------+
+        |-----------------| FK: user_id        |
+        |                 | PK: id             |
+        |                 | nodes (jsonb)      |
+        |                 | links (jsonb)      |
+        |                 | version            |
+        |                 | created_at         |
+        |                 | updated_at         |
+        |                 | expires_at         |
+        |                 +--------------------+
+        |
+        |
+        |                 +--------------------+
+        |                 |    user_files      |
+        |                 +--------------------+
+        |-----------------| FK: user_id        |
+        |                 | PK: id             |
+        |                 | file_id            |
+        |                 | original_name      |
+        |                 | file_path          |
+        |                 | file_type          |
+        |                 | public_url         |
+        |                 | storage_type       |
+        |                 | created_at         |
+        |                 +--------------------+
+        |
+        |
+        |                 +------------------------+
+        |                 | student_agent_sessions |
+        |-----------------| FK: user_id            |
+                          | PK: id                 |
+                          | FK: preset_id          |-----+
+                          | name                   |    |
+                          | learning_topic         |    |
+                          | current_state          |    |
+                          | motivation_level       |    |
+                          | confusion_level        |    |
+                          | completed_objectives   |    |
+                          | created_at             |    |
+                          | last_interaction_at    |    |
+                          | is_active              |    |
+                          +------------------------+    |
+                                    |                   |
+                 +------------------+                   |
+                 |                  |                   |
+                 v                  v                   |
++---------------------------+  +-------------------------+ +-----------------------+
+| student_agent_messages    |  | student_agent_evaluations| | student_agent_presets |
++---------------------------+  +-------------------------+ +-----------------------+
+| PK: id                    |  | PK: id                  | | PK: id                |
+| FK: session_id            |  | FK: session_id          | | ...                   |
+| ...                       |  | FK: evaluator_id        | |                       |
++---------------------------+  +-------------------------+ +-----------------------+
+```
+
+## 主要关联说明
+
+1. **用户关联**
+   - users(1) → user_settings(1): 每个用户可以有一组个人设置
+   - users(1) → memories(N): 每个用户可以有多个学习记忆
+   - users(1) → chats(N): 每个用户可以有多个聊天对话
+   - users(1) → learning_paths(N): 每个用户可以有多个学习轨迹
+   - users(1) → cluster_result_cache(N): 每个用户可以有多个聚类缓存
+   - users(1) → knowledge_graph_cache(N): 每个用户可以有多个知识图谱缓存
+   - users(1) → user_files(N): 每个用户可以上传多个文件
+   - users(1) → student_agent_sessions(N): 每个用户可以创建多个学生代理会话
+
+2. **记忆关联**
+   - memories(1) → memory_embeddings(N): 每个记忆可以有多个向量嵌入
+   - memories(1) → memory_keywords(N): 每个记忆可以有多个关键词
+
+3. **对话关联**
+   - chats(1) → messages(N): 每个聊天可以有多个消息
+   - chats(1) → conversation_analytics(N): 每个聊天可以有多个分析结果
+
+4. **学生代理关联**
+   - student_agent_presets(1) → student_agent_sessions(N): 每个预设可以用于多个代理会话
+   - student_agent_sessions(1) → student_agent_messages(N): 每个代理会话可以有多个消息
+   - student_agent_sessions(1) → student_agent_evaluations(N): 每个代理会话可以有多个评估
+
+## 与现有学习轨迹和知识图谱功能的关系
+
+1. `learning_paths` 表存储用户的学习轨迹信息，包含了用户的学习主题、分布和建议。
+
+2. `knowledge_graph_cache` 表缓存生成的知识图谱数据，使系统不需要每次都重新算。
+
+3. `learning_paths` 表还包含 `knowledge_graph` 字段，它存储了知识图谱的原始数据。
+
+4. `cluster_result_cache` 表缓存记忆聚类分析的结果，这些结果用于生成学习轨迹和主题。
+
+5. 这些表都有 `expires_at` 字段，实现自动过期机制，以便在需要时更新数据。
