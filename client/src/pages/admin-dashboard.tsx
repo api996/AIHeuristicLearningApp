@@ -90,8 +90,8 @@ export default function AdminDashboard() {
       const response = await fetch(`/api/users?userId=${userId}`);
       if (!response.ok) throw new Error("Failed to fetch users");
       const allUsers = await response.json();
-      // 过滤掉管理员用户
-      return allUsers.filter((user: User) => user.role !== "admin");
+      // 只显示普通用户，不显示管理员用户
+      return allUsers.filter((user: User) => user.role === "user");
     },
     enabled: userId > 0, // 只在userId有效时执行查询
   });
@@ -219,33 +219,31 @@ export default function AdminDashboard() {
                 <Card className="mt-8 bg-neutral-900 border-neutral-800">
                   <CardHeader>
                     <CardTitle className="text-white">用户列表</CardTitle>
-                    <CardDescription>查看所有用户的使用情况</CardDescription>
+                    <CardDescription>查看所有用户的使用情况 (总计: {users?.length || 0}个普通用户)</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="flex-1 h-auto max-h-[60vh]">
-                      <div className="space-y-4">
-                        {users?.map((user: User) => (
-                          <div
-                            key={user.id}
-                            className="flex items-center justify-between p-4 rounded-lg bg-neutral-800 hover:bg-neutral-700 transition-colors"
-                          >
-                            <div>
-                              <p className="font-medium text-white">{user.username}</p>
-                              <p className="text-sm text-neutral-400">
-                                对话数: {user.chatCount || 0} | 角色: {user.role}
-                              </p>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setLocation(`/admin/users/${user.id}`)}
-                            >
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
+                    <div className="user-list-container" style={{maxHeight: 'none'}}>
+                      {users?.map((user: User) => (
+                        <div
+                          key={user.id}
+                          className="flex items-center justify-between p-3 mb-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 transition-colors"
+                        >
+                          <div>
+                            <p className="font-medium text-white">{user.username}</p>
+                            <p className="text-sm text-neutral-400">
+                              ID: {user.id} | 对话数: {user.chatCount || 0} | 角色: {user.role}
+                            </p>
                           </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setLocation(`/admin/users/${user.id}`)}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </main>

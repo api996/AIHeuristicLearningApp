@@ -25,6 +25,21 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch; /* 添加动量滚动 */
   padding-bottom: 100px; /* 确保底部有足够空间 */
+  max-height: none !important; /* 移除高度限制 */
+}
+
+/* 确保滚动区域没有高度限制 */
+.admin-dashboard .scrollable-container,
+.admin-dashboard [data-radix-scroll-area-viewport] {
+  max-height: none !important;
+  height: auto !important;
+}
+
+/* 确保用户列表可以完全显示 */
+.admin-dashboard [data-radix-scroll-area-viewport] > div {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 仅针对iPad的滚动修复 */

@@ -1069,13 +1069,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const users = await storage.getAllUsers();
       const usersWithStats = await Promise.all(
         users
-          .filter(user => user.role !== "admin") // 排除管理员用户
+          // 包含所有用户，不再排除管理员用户
           .map(async (user) => {
             const chats = await storage.getUserChats(user.id, true);
             return {
               ...user,
               chatCount: chats.length,
-              lastActive: chats[0]?.createdAt || null
+              lastActive: chats[0]?.createdAt || null,
+              isAdmin: user.role === "admin"  // 添加这个字段以便于前端区分显示
             };
           })
       );
