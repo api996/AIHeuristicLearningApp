@@ -35,13 +35,16 @@ class MCPWebSearchService {
     if (this.geminiApiKey) {
       try {
         this.genAI = new GoogleGenerativeAI(this.geminiApiKey);
-        console.log("[MCP-SEARCH] Gemini API 初始化成功");
+        // 避免在子进程中使用标准输出，可能导致EPIPE错误
+        // console.log("[MCP-SEARCH] Gemini API 初始化成功");
       } catch (error) {
-        console.error("[MCP-SEARCH] Gemini API 初始化失败:", error);
+        // 避免在子进程中使用标准错误输出，可能导致EPIPE错误
+        // console.error("[MCP-SEARCH] Gemini API 初始化失败:", error);
         this.genAI = null;
       }
     } else {
-      console.warn("[MCP-SEARCH] Gemini API 密钥未设置");
+      // 避免在子进程中使用标准警告输出，可能导致EPIPE错误
+      // console.warn("[MCP-SEARCH] Gemini API 密钥未设置");
     }
   }
   
@@ -395,13 +398,14 @@ const searchParamsSchema = {
 // 简化：直接注册搜索函数作为工具
 // 注意：如果 SDK API 与此不匹配，请使用更底层的 RPC 方式实现
 try {
-  // 尝试在控制台看到注册函数
-  console.log(`[MCP-SERVER] 注册工具函数: ${typeof server.tool}`);
+  // 避免在子进程中使用标准输出，可能导致EPIPE错误
+  // console.log(`[MCP-SERVER] 注册工具函数: ${typeof server.tool}`);
   
   // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
   server.tool && server.tool("webSearch", async (params: any) => {
     try {
-      console.log(`[MCP-SERVER] 收到搜索请求，参数:`, params);
+      // 避免在子进程中使用复杂日志，可能导致EPIPE错误
+      // console.log(`[MCP-SERVER] 收到搜索请求，参数:`, params);
       
       // 新的参数处理逻辑 - MCP SDK可能通过多种方式传递参数
       // 检查所有可能的参数位置
