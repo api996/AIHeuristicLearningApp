@@ -358,16 +358,11 @@ async function directPythonEmbedding(pythonScript: string, text: string): Promis
   
   return await new Promise<number[]>((resolve, reject) => {
     try {
-      log(`[flask_embedding] 启动Python进程: ${pythonScript}`, 'info');
+      // 文本过长时截断，保证命令行参数不会超过限制
+      const truncatedText = text.length > 1000 ? text.substring(0, 1000) : text;
       
-      // 创建临时文件保存文本内容，避免命令行参数过长
-      const tempFilePath = path.join(os.tmpdir(), `embedding_text_${Date.now()}.txt`);
-      fs.writeFileSync(tempFilePath, text, 'utf8');
-      
-      log(`[flask_embedding] 文本内容已写入临时文件: ${tempFilePath}`, 'info');
-      
-      // 使用文件路径而不是直接传递文本
-      const pythonProcess = spawn('python3', [pythonScript, '--file', tempFilePath]);
+      log(`[flask_embedding] 启动Python进程: ${pythonScript}, 文本长度: ${truncatedText.length}`, 'info');
+      const pythonProcess = spawn('python', [pythonScript, '--text', truncatedText]);
       
       let output = '';
       pythonProcess.stdout.on('data', (data: Buffer) => {
