@@ -21,7 +21,7 @@ export const vectorEmbeddingManager = {
   // 最后处理的记忆ID计数
   lastProcessedCount: 0,
   // 最小新记忆数量阈值，低于此值不进行批处理（除非手动触发）
-  minNewMemoriesThreshold: 20, // 提高阈值，减少批处理频率
+  minNewMemoriesThreshold: 5, // 调整为5条，与EmbeddingManager的批处理大小一致
   
   /**
    * 运行嵌入生成脚本
