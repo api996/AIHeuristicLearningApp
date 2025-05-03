@@ -100,11 +100,13 @@ export async function startEmbeddingService(): Promise<boolean> {
         return;
       }
 
-      // 设置环境变量
+      // 设置环境变量 - 确保传递GEMINI_API_KEY
       const env = { 
         ...process.env, 
         EMBEDDING_API_PORT: servicePort.toString(),
-        PYTHONUNBUFFERED: '1' // 确保Python输出不缓冲
+        PYTHONUNBUFFERED: '1', // 确保Python输出不缓冲
+        // 确保API密钥环境变量被传递
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY
       };
 
       log(`[flask_embedding] 尝试启动嵌入服务: ${scriptPath}`, 'info');
@@ -362,7 +364,20 @@ async function directPythonEmbedding(pythonScript: string, text: string): Promis
       const truncatedText = text.length > 1000 ? text.substring(0, 1000) : text;
       
       log(`[flask_embedding] 启动Python进程: ${pythonScript}, 文本长度: ${truncatedText.length}`, 'info');
-      const pythonProcess = spawn('python', [pythonScript, '--text', truncatedText]);
+      // 设置环境变量，确保GEMINI_API_KEY被传递给Python进程
+      const pythonEnv = {
+        ...process.env,
+        PYTHONUNBUFFERED: '1',
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+        // 设置更保守的API限制参数
+        GEMINI_API_MINUTE_LIMIT: '2',    // 每分钟最多2个请求
+        GEMINI_API_DAILY_LIMIT: '50'     // 每天24小时最多50个请求
+      };
+      log(`[flask_embedding] 启动Python进程，已传递API密钥及限制参数环境变量`, 'info');
+      const pythonProcess = spawn('python', [pythonScript, '--text', truncatedText], {
+        env: pythonEnv,
+        timeout: 30000  // 30秒超时，避免进程卡死
+      });
       
       let output = '';
       pythonProcess.stdout.on('data', (data: Buffer) => {
@@ -378,19 +393,76 @@ async function directPythonEmbedding(pythonScript: string, text: string): Promis
       pythonProcess.on('close', (code: number) => {
         if (code !== 0) {
           log(`[flask_embedding] Python脚本退出代码: ${code}, 错误: ${errorOutput}`, 'error');
+          
+          // 检查是否包含 API 配额耗尽错误
+          if (errorOutput.includes('Resource has been exhausted') || 
+              errorOutput.includes('429') || 
+              errorOutput.includes('配额') || 
+              errorOutput.includes('已耗尽')) {
+            log(`[flask_embedding] 检测到API配额限制，将延后处理`, 'warn');
+            // 返回特殊错误以标记配额耗尽
+            reject(new Error('QUOTA_EXCEEDED: API 配额已耗尽，需延后处理'));
+            return;
+          }
+          
           reject(new Error(`Python脚本执行失败，代码: ${code}, 错误: ${errorOutput}`));
           return;
         }
         
         try {
           log(`[flask_embedding] Python输出: ${output.substring(0, 100)}...`, 'info');
-          const result = JSON.parse(output.trim());
-          if (result && Array.isArray(result)) {
-            log(`[flask_embedding] 直接嵌入模式成功，维度: ${result.length}`, 'info');
-            resolve(result);
-          } else {
-            reject(new Error('无效的Python嵌入输出格式'));
+          
+          // 校验JSON格式
+          if (output.trim().startsWith('{') && output.trim().includes('"success"')) {
+            // 解析标准JSON对象
+            const resultObj = JSON.parse(output.trim());
+            if (resultObj.success && Array.isArray(resultObj.embedding)) {
+              log(`[flask_embedding] 直接嵌入模式成功，维度: ${resultObj.embedding.length}`, 'info');
+              resolve(resultObj.embedding);
+              return;
+            }
+            
+            // 检测错误信息，可能包含配额耗尽错误
+            if (resultObj.error && (
+                resultObj.error.includes('Resource has been exhausted') || 
+                resultObj.error.includes('429') || 
+                resultObj.error.includes('配额'))) {
+              log(`[flask_embedding] 检测到API配额限制，将延后处理`, 'warn');
+              reject(new Error('QUOTA_EXCEEDED: API 配额已耗尽，需延后处理'));
+              return;
+            }
+          } else if (output.trim().startsWith('[') && output.trim().endsWith(']')) {
+            // 直接是数组形式
+            const result = JSON.parse(output.trim());
+            if (Array.isArray(result)) {
+              log(`[flask_embedding] 直接嵌入模式成功，维度: ${result.length}`, 'info');
+              resolve(result);
+              return;
+            }
           }
+          
+          // 如果未正确处理，继续判断
+          log(`[flask_embedding] 嵌入格式异常，尝试其他解析方法`, 'warn');
+          
+          // 尝试查找JSON字符串
+          const jsonMatch = output.trim().match(/\[.*\]/);
+          if (jsonMatch) {
+            const extractedJson = jsonMatch[0];
+            log(`[flask_embedding] 找到可能的JSON数组: ${extractedJson.substring(0, 50)}...`, 'info');
+            try {
+              const result = JSON.parse(extractedJson);
+              if (Array.isArray(result) && result.length > 0) {
+                log(`[flask_embedding] 成功解析提取的JSON数组，维度: ${result.length}`, 'info');
+                resolve(result);
+                return;
+              }
+            } catch (innerError) {
+              log(`[flask_embedding] 解析提取的JSON失败: ${innerError}`, 'error');
+            }
+          }
+          
+          // 当所有尝试都失败时
+          reject(new Error(`无法解析Python嵌入输出: ${output.trim().substring(0, 100)}...`));
         } catch (parseError) {
           reject(new Error(`解析Python输出失败: ${parseError}, 输出: ${output.trim().substring(0, 100)}...`));
         }
