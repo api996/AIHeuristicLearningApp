@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 @import url('./components/ui/button-styles.css');
+@import url('./theme-fallback.css'); /* 确保主题回退样式在全局可用 */
 
 @tailwind base;
 @tailwind components;
@@ -39,16 +40,89 @@
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
   border-radius: 16px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+}
+
+/* 确保对话框中的关闭按钮总是可见 */
+.frosted-dialog .DialogClose {
+  position: fixed !important;
+  z-index: 100 !important;
+  background-color: rgba(30, 30, 35, 0.9) !important;
+  border-radius: 50% !important;
+  width: 30px !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  top: 20px !important;
+  right: 20px !important;
 }
 
 /* 对话框磨砂玻璃样式 - 浅色模式 */
 :root.light .frosted-dialog {
-  background: rgba(250, 250, 255, 0.85) !important; 
+  background: rgba(255, 255, 255, 0.95) !important; 
   backdrop-filter: blur(20px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid rgba(230, 230, 250, 0.5) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
-  color: #1a1a2e !important;
+  border: 1px solid rgba(160, 195, 235, 0.5) !important;
+  box-shadow: 0 10px 30px rgba(65, 105, 225, 0.12) !important;
+  color: #283452 !important;
+}
+
+/* 偏好设置对话框中的按钮样式增强 */
+.frosted-dialog button[variant="default"],
+.frosted-dialog button[class*="bg-primary"] {
+  background-color: rgba(13, 234, 228, 0.25) !important;
+  color: rgba(13, 234, 228, 1) !important;
+  font-weight: 500 !important;
+  border: 1px solid rgba(13, 234, 228, 0.4) !important;
+  box-shadow: 0 0 10px rgba(13, 234, 228, 0.2) !important;
+  transform: scale(1.05) !important;
+}
+
+/* 偏好设置对话框中的未选中按钮 */
+.frosted-dialog button[variant="outline"],
+.frosted-dialog button[class*="border"] {
+  background-color: rgba(50, 50, 60, 0.3) !important;
+  color: rgba(220, 220, 230, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  transition: all 0.2s ease;
+}
+
+.frosted-dialog button[variant="outline"]:hover,
+.frosted-dialog button[class*="border"]:hover {
+  background-color: rgba(60, 60, 70, 0.5) !important;
+  border-color: rgba(13, 234, 228, 0.2) !important;
+  color: rgba(13, 234, 228, 0.8) !important;
+}
+
+/* 浅色模式下对话框中的选中按钮 */
+:root.light .frosted-dialog button[variant="default"],
+:root.light .frosted-dialog button[class*="bg-primary"] {
+  background-color: rgba(0, 122, 255, 0.25) !important;
+  color: rgba(0, 80, 170, 1) !important;
+  font-weight: 600 !important;
+  border: 2px solid rgba(0, 122, 255, 0.6) !important;
+  box-shadow: 0 0 12px rgba(0, 122, 255, 0.2) !important;
+  transform: scale(1.05) !important;
+  transition: all 0.2s ease !important;
+}
+
+/* 浅色模式下对话框中的未选中按钮 */
+:root.light .frosted-dialog button[variant="outline"],
+:root.light .frosted-dialog button[class*="border"] {
+  background-color: rgba(240, 245, 250, 0.85) !important;
+  color: rgba(50, 70, 100, 0.9) !important;
+  border: 1px solid rgba(200, 220, 240, 0.5) !important;
+  transition: all 0.2s ease !important;
+}
+
+:root.light .frosted-dialog button[variant="outline"]:hover,
+:root.light .frosted-dialog button[class*="border"]:hover {
+  background-color: rgba(220, 235, 255, 0.9) !important;
+  border-color: rgba(0, 122, 255, 0.4) !important;
+  color: rgba(0, 122, 255, 0.9) !important;
+  transform: scale(1.02) !important;
 }
 
 /* 精美磨砂玻璃提示框样式 - 深色模式 */
@@ -360,6 +434,7 @@ div[role="dialog"] {
   --selected-background: #2c2e35;
   --hover-background: #25272e;
   --vh: 1vh; /* 默认viewport height变量，将通过JS动态更新 */
+  --custom-theme-color: #0deae4; /* 默认青色主题颜色 */
   font-size: 16px; /* 默认字体大小 */
 }
 
@@ -376,15 +451,15 @@ div[role="dialog"] {
 
 :root.light {
   --primary-foreground: #1c1e24;
-  --primary-background: rgba(230, 242, 255, 0.85); /* 更浅蓝色背景 */
-  --secondary-foreground: #406080; /* 蓝灰色文字 */
-  --secondary-background: rgba(235, 245, 255, 0.8); /* 浅蓝色二级背景 */
-  --border-color: rgba(190, 215, 250, 0.5); /* 浅蓝色边框 */
-  --input-background: rgba(240, 248, 255, 0.9); /* 更亮的浅蓝色输入框 */
-  --selected-background: rgba(210, 230, 255, 0.8); /* 蓝色选中背景 */
-  --hover-background: rgba(220, 235, 255, 0.7); /* 蓝色悬停背景 */
-  --glass-effect: saturate(150%) blur(16px);
-  --accent-blue: rgba(0, 122, 255, 1); /* iOS系统蓝色 */
+  --primary-background: rgba(120, 195, 215, 0.98); /* 介于克莱因蓝和蒂芙尼蓝之间的背景 */
+  --secondary-foreground: #0a3446; /* 深蓝绿色文字，增强对比度 */
+  --secondary-background: rgba(140, 205, 220, 0.97); /* 蓝绿色二级背景 */
+  --border-color: rgba(80, 170, 200, 0.75); /* 更明显的蓝绿色边框 */
+  --input-background: rgba(150, 215, 225, 0.98); /* 蓝绿色输入框 */
+  --selected-background: rgba(100, 180, 210, 0.95); /* 蓝绿色选中背景 */
+  --hover-background: rgba(110, 190, 215, 0.9); /* 蓝绿色悬停背景 */
+  --glass-effect: saturate(200%) blur(16px);
+  --accent-blue: rgba(0, 140, 175, 1); /* 介于克莱因蓝和蒂芙尼蓝之间的强调色 */
   color-scheme: light;
 }
 
@@ -468,18 +543,44 @@ div[role="dialog"] {
   background-color: rgba(99, 102, 241, 0.5);
 }
 
-/* 自定义滚动条样式 - 浅色模式蓝色系 */
+/* 自定义滚动条样式 - 浅色模式蓝绿色系 */
 :root.light ::-webkit-scrollbar-track {
-  background-color: rgba(230, 242, 255, 0.5); /* 浅蓝色背景 */
+  background-color: rgba(140, 205, 220, 0.75); /* 蓝绿色背景 */
 }
 
 :root.light ::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 122, 255, 0.2); /* 浅蓝色滑块 */
+  background-color: rgba(0, 140, 175, 0.55); /* 蓝绿色滑块 */
   border-radius: 8px;
 }
 
 :root.light ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 122, 255, 0.4); /* 更深的浅蓝色 */
+  background-color: rgba(0, 140, 175, 0.75); /* 更强烈的蓝绿色悬停效果 */
+}
+
+/* 浅色模式下底部导航按钮的蓝绿色主题 */
+:root.light .bottom-nav-button {
+  color: rgba(0, 140, 175, 0.9) !important;
+  transition: color 0.2s ease, background-color 0.2s ease;
+  -webkit-tap-highlight-color: transparent !important; /* 禁用iOS的默认点击高亮 */
+  outline: none !important; /* 禁用焦点轮廓 */
+}
+
+:root.light .bottom-nav-button:hover {
+  color: rgba(0, 140, 175, 1) !important;
+  background-color: rgba(150, 215, 225, 0.8) !important;
+}
+
+:root.light .bottom-nav-button:focus {
+  color: rgba(0, 140, 175, 1) !important;
+  background-color: transparent !important; /* 焦点状态不改变背景，避免输入时的蓝色高亮 */
+  box-shadow: none !important; /* 移除焦点阴影 */
+  border: none !important; /* 确保没有焦点边框 */
+  outline: none !important; /* 禁用焦点轮廓 */
+}
+
+:root.light .bottom-nav-button.active {
+  color: rgba(0, 140, 175, 1) !important;
+  background-color: rgba(120, 195, 215, 0.9) !important;
 }
 
 /* 隐藏空内容区域的滚动条 */
@@ -530,11 +631,11 @@ div[role="dialog"] {
 
 /* 苹果风格的磨砂玻璃效果 */
 .frosted-glass {
-  background-color: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.07);
+  background-color: rgba(120, 195, 215, 0.75);
+  backdrop-filter: blur(12px) saturate(200%);
+  -webkit-backdrop-filter: blur(12px) saturate(200%);
+  border: 1px solid rgba(80, 170, 200, 0.4);
+  box-shadow: 0 4px 24px 0 rgba(0, 140, 175, 0.1);
 }
 
 .frosted-glass-dark {
@@ -665,9 +766,9 @@ div[role="dialog"] {
   
   /* 浅色模式下的输入区域样式 */
   :root.light .keyboard-open .chat-input-container {
-    background-color: rgba(230, 242, 255, 0.85) !important; /* 浅蓝色半透明背景 */
-    border-top: 1px solid rgba(190, 215, 250, 0.5) !important; /* 浅蓝色边框 */
-    box-shadow: 0 -5px 15px rgba(0, 122, 255, 0.05) !important; /* 蓝色阴影 */
+    background-color: rgba(160, 190, 235, 0.95) !important; /* 更深的蓝色半透明背景 */
+    border-top: 1px solid rgba(120, 170, 230, 0.7) !important; /* 更深更明显的蓝色边框 */
+    box-shadow: 0 -5px 15px rgba(0, 80, 200, 0.12) !important; /* 更强的深蓝色阴影 */
   }
 
   /* 键盘打开时，确保消息区域留有足够空间且内容可见 */
@@ -745,12 +846,12 @@ div[role="dialog"] {
   /* 确保输入框背景与内容完全显示 - 浅色模式 */
   :root.light .keyboard-open .chat-input-container > div,
   :root.light .keyboard-focused .chat-input-container > div {
-    backdrop-filter: blur(10px) saturate(150%) !important;
-    background-color: rgba(230, 242, 255, 0.85) !important; /* 浅蓝色半透明磨砂玻璃效果 */
+    backdrop-filter: blur(10px) saturate(200%) !important;
+    background-color: rgba(160, 190, 235, 0.95) !important; /* 更深的蓝色半透明磨砂玻璃效果 */
     padding: 8px !important;
     border-radius: 12px !important;
-    border: 1px solid rgba(190, 215, 250, 0.5) !important; /* 浅蓝色边框 */
-    box-shadow: 0 4px 15px rgba(0, 122, 255, 0.05) !important; /* 蓝色阴影 */
+    border: 1px solid rgba(120, 170, 230, 0.7) !important; /* 更深更明显的蓝色边框 */
+    box-shadow: 0 4px 15px rgba(0, 80, 200, 0.12) !important; /* 更强的深蓝色阴影 */
   }
 }
 
@@ -842,11 +943,11 @@ div[role="dialog"] {
   
   /* 浅色模式侧边栏样式 */
   :root.light .sidebar-container {
-    background-color: rgba(250, 250, 255, 0.85) !important;
-    backdrop-filter: blur(12px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
-    border-right: 1px solid rgba(220, 225, 235, 0.5) !important;
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.05) !important;
+    background-color: rgba(160, 190, 235, 0.95) !important;
+    backdrop-filter: blur(12px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(200%) !important;
+    border-right: 1px solid rgba(120, 170, 230, 0.7) !important;
+    box-shadow: 4px 0 20px rgba(0, 80, 200, 0.12) !important;
   }
 
   /* 修复当侧边栏关闭时的问题 */
@@ -953,11 +1054,11 @@ div[role="dialog"] {
   :root.light .vh-chat-input,
   :root.light .chat-input-area,
   :root.light [class*="chat-input"] {
-    background-color: rgba(250, 250, 255, 0.9) !important;
-    backdrop-filter: blur(12px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
-    border-top: 1px solid rgba(220, 225, 235, 0.5) !important;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05) !important;
+    background-color: rgba(120, 195, 215, 0.95) !important;
+    backdrop-filter: blur(12px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(200%) !important;
+    border-top: 1px solid rgba(80, 170, 200, 0.7) !important;
+    box-shadow: 0 -4px 20px rgba(0, 140, 175, 0.12) !important;
   }
 
   /* iPad特有标记时应用更特殊的规则 - 彻底简化iPad键盘处理 - 深色模式 */
@@ -982,11 +1083,11 @@ div[role="dialog"] {
   
   /* iPad浅色模式样式 */
   :root.light .ipad-device.keyboard-open .chat-input-area {
-    background-color: rgba(250, 250, 255, 0.9) !important;
-    backdrop-filter: blur(15px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
-    border-top: 1px solid rgba(220, 225, 235, 0.5) !important;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05) !important;
+    background-color: rgba(120, 195, 215, 0.95) !important;
+    backdrop-filter: blur(15px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(200%) !important;
+    border-top: 1px solid rgba(80, 170, 200, 0.7) !important;
+    box-shadow: 0 -4px 20px rgba(0, 140, 175, 0.12) !important;
   }
 
   /* 输入框聚焦时特殊样式 - 确保输入框始终在视野内 - 深色模式 */
@@ -1022,11 +1123,11 @@ div[role="dialog"] {
   :root.light .ipad-device.keyboard-focused .chat-input-container {
     padding: 12px !important;
     border-radius: 12px !important;
-    backdrop-filter: blur(15px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
-    background-color: rgba(250, 250, 255, 0.85) !important;
-    border: 1px solid rgba(220, 225, 235, 0.5) !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+    backdrop-filter: blur(15px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(200%) !important;
+    background-color: rgba(120, 195, 215, 0.95) !important;
+    border: 1px solid rgba(80, 170, 200, 0.7) !important;
+    box-shadow: 0 4px 20px rgba(0, 140, 175, 0.12) !important;
   }
 
   /* 键盘弹出时的消息容器调整 - 固定布局而非弹性布局 */

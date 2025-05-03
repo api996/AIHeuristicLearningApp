@@ -1,0 +1,45 @@
+/*
+ * 偏好设置对话框在iPad上的滚动修复
+ * 确保偏好设置对话框在iPad上可以正常滚动，防止内容溢出
+ */
+
+/* iPad设备上的偏好设置对话框滚动修复 */
+.ipad-device .preferences-dialog-content,
+.tablet-device .preferences-dialog-content {
+  max-height: 85vh !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: 20px !important;
+}
+
+/* 对话框内容区域滚动修复 */
+.ipad-device .preferences-dialog-content > div,
+.tablet-device .preferences-dialog-content > div {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 70vh !important;
+}
+
+/* 修复颜色选择部分在iPad上的显示 */
+.ipad-device .preferences-theme-color-section,
+.tablet-device .preferences-theme-color-section {
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+
+/* 修复背景图片上传区域在iPad上的触摸交互 */
+.ipad-device .preferences-background-upload,
+.tablet-device .preferences-background-upload {
+  min-height: 120px !important;
+  touch-action: manipulation !important;
+}
+
+/* iOS Safari特定修复 */
+@supports (-webkit-touch-callout: none) {
+  .preferences-dialog-content {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    overscroll-behavior-y: contain !important;
+  }
+}

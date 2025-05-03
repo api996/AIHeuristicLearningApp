@@ -1,0 +1,144 @@
+/**
+ * 管理员后台通用响应式布局样式
+ * 基于Flex布局原则，适用于所有屏幕尺寸
+ */
+
+/* ===== 全局布局结构 ===== */
+.admin-dashboard-container {
+  /* 基础布局 - Flex容器充满整个视口高度 */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  max-width: 100vw;
+  overflow-x: hidden;
+  /* 确保内容可以垂直滚动 - iPad兼容性修复 */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* 内容区域充满剩余空间并支持滚动 - 强化滚动样式 */
+.admin-dashboard-tabs-content {
+  flex: 1;
+  width: 100%;
+  overflow: auto;
+  overflow-y: auto !important; /* 使用auto而非scroll，更符合iOS惯例 */
+  -webkit-overflow-scrolling: touch; /* 增强iOS滚动体验 */
+  height: auto !important; /* 允许内容自然扩展 */
+  max-height: none !important; /* 重要：移除高度限制 */
+  position: relative; /* 创建新的堆叠上下文 */
+}
+
+/* 标签内容面板支持滚动 */
+[role="tabpanel"] {
+  height: auto !important;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* 特别针对学生智能体标签页的滚动修复 */
+.admin-dashboard-container [data-state="active"][role="tabpanel"] {
+  min-height: 70vh; /* 确保内容有足够高度触发滚动 */
+  padding-bottom: 50px; /* 底部留出足够空间 */
+}
+
+/* ===== 容器与网格布局 ===== */
+/* 内容区应铺满 */
+.admin-dashboard-container .w-full {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 页面网格布局响应式设置 */
+.admin-dashboard-container .grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+/* ===== 组件样式 ===== */
+/* 卡片应适应父容器 */
+.admin-dashboard-container .card {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 标签导航允许横向滚动 */
+.admin-dashboard-container [role="tablist"] {
+  display: flex;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 隐藏标签导航滚动条 */
+.admin-dashboard-container [role="tablist"]::-webkit-scrollbar {
+  display: none;
+}
+
+/* 表单元素全宽并垂直布局 */
+.admin-dashboard-container form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* 表格布局修复 */
+.admin-dashboard-container table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+/* ===== 学生智能体组件样式 ===== */
+/* 学生智能体模拟器容器 */
+.student-agent-simulator,
+.student-agent-manager {
+  width: 100%;
+  max-width: 100%;
+  /* 确保滚动功能正常 */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* 保持良好间距 */
+  padding-bottom: 80px;
+}
+
+/* 表单控件撑满容器 */
+.admin-dashboard-container [role="combobox"],
+.admin-dashboard-container [role="listbox"] {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* 确保按钮正常渲染 */
+.admin-dashboard-container button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 图标修复 */
+.admin-dashboard-container svg {
+  flex-shrink: 0;
+}
+
+/* ===== iPad滚动特别修复 ===== */
+/* 防止嵌套容器滚动冲突 */
+.admin-dashboard-container * {
+  /* 确保所有元素都使用正确的盒模型 */
+  box-sizing: border-box;
+}
+
+/* 通用表单容器滚动支持 */
+.admin-dashboard-container .form-container,
+.admin-dashboard-container .scrollable-area {
+  max-height: 70vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 50px;
+}

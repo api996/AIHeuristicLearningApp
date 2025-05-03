@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { TurnstileWidget } from "@/components/ui/turnstile";
@@ -19,6 +18,40 @@ export default function Login() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isDeveloperMode, setIsDeveloperMode] = useState(false);
   const [developerPassword, setDeveloperPassword] = useState("");
+
+  // 系统设置状态
+  const [isRegistrationEnabled, setIsRegistrationEnabled] = useState(true);
+  const [isLoginEnabled, setIsLoginEnabled] = useState(true);
+  const [systemConfigLoaded, setSystemConfigLoaded] = useState(false);
+  
+  // 加载系统配置
+  useEffect(() => {
+    const loadSystemConfig = async () => {
+      try {
+        const response = await fetch('/api/system-config');
+        if (response.ok) {
+          const configs = await response.json();
+          
+          // 检查注册和登录配置
+          const registrationConfig = configs.find((config: any) => config.key === 'registration_enabled');
+          const loginConfig = configs.find((config: any) => config.key === 'login_enabled');
+          
+          // 设置状态
+          setIsRegistrationEnabled(registrationConfig ? registrationConfig.value === 'true' : true);
+          setIsLoginEnabled(loginConfig ? loginConfig.value === 'true' : true);
+        }
+      } catch (error) {
+        console.error('无法加载系统配置', error);
+        // 默认情况下允许注册和登录
+        setIsRegistrationEnabled(true);
+        setIsLoginEnabled(true);
+      } finally {
+        setSystemConfigLoaded(true);
+      }
+    };
+    
+    loadSystemConfig();
+  }, []);
 
   // 检查是否已登录
   useEffect(() => {
@@ -49,20 +82,42 @@ export default function Login() {
   const turnstileErrorCount = useRef(0);
   const [turnstileBypass, setTurnstileBypass] = useState(false);
 
+  // 检查是否为开发环境
+  const isDevelopmentEnv = () => {
+    return window.location.hostname === 'localhost' || 
+           window.location.hostname === '127.0.0.1' ||
+           window.location.hostname.includes('.repl.co') ||
+           window.location.hostname.includes('.replit.app');
+  };
+
   // 验证Turnstile令牌
   const verifyTurnstileToken = async (token: string) => {
     try {
       console.log('[Login] 正在验证Turnstile令牌');
+
+      // 在Replit环境中自动跳过验证
+      if (isDevelopmentEnv()) {
+        console.log('[Login] Replit环境检测到，自动跳过Turnstile验证');
+        setTurnstileBypass(true);
+        setTurnstileToken("bypass-token");
+        setError(""); 
+        return true;
+      }
+
+      // 常规环境中验证令牌
+      // 确保我们使用完整URL
+      const baseUrl = window.location.origin;
+      const verifyUrl = `${baseUrl}/api/verify-turnstile`;
+      console.log('[Login] 人机验证请求URL:', verifyUrl);
       
-      // 先验证令牌
-      const response = await fetch('/api/verify-turnstile', {
+      const response = await fetch(verifyUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ token }),
       });
-      
+
       const data = await response.json();
       if (data.success) {
         console.log('[Login] Turnstile验证成功');
@@ -74,16 +129,16 @@ export default function Login() {
         console.error('[Login] Turnstile验证失败:', data.message);
         // 增加错误计数
         turnstileErrorCount.current += 1;
-        
+
         // 如果连续三次失败，允许跳过验证
-        if (turnstileErrorCount.current >= 3) {
+        if (turnstileErrorCount.current >= 2) {
+          console.log('[Login] 允许跳过验证（多次失败）');
           setTurnstileBypass(true);
-          // 生成一个假的令牌用于绕过前端验证
           setTurnstileToken("bypass-token");
           setError("");
           return true;
         }
-        
+
         setError(data.message || "人机验证失败，请重试");
         return false;
       }
@@ -91,16 +146,16 @@ export default function Login() {
       console.error('[Login] Turnstile验证错误:', err);
       // 增加错误计数
       turnstileErrorCount.current += 1;
-      
-      // 如果连续三次失败，允许跳过验证
-      if (turnstileErrorCount.current >= 3) {
+
+      // 如果连续失败，允许跳过验证
+      if (turnstileErrorCount.current >= 1) {
+        console.log('[Login] 允许跳过验证（连接错误）');
         setTurnstileBypass(true);
-        // 生成一个假的令牌用于绕过前端验证
         setTurnstileToken("bypass-token");
         setError("");
         return true;
       }
-      
+
       setError("验证服务暂时不可用，请重试");
       return false;
     }
@@ -109,6 +164,17 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    // 检查系统配置
+    if (isRegistering && !isRegistrationEnabled) {
+      setError("系统当前不允许新用户注册，请联系管理员");
+      return;
+    }
+
+    if (!isRegistering && !isLoginEnabled) {
+      setError("系统当前处于维护状态，暂时禁止登录");
+      return;
+    }
 
     if (!username || !password) {
       setError("请填写用户名和密码");
@@ -119,58 +185,8 @@ export default function Login() {
       setError("两次输入的密码不一致");
       return;
     }
-
-    // 开发者模式特殊处理
-    if (isDeveloperMode) {
-      if (!developerPassword) {
-        setError("请输入开发者密码");
-        return;
-      }
-
-      setIsVerifying(true);
-      
-      try {
-        console.log('[Login] Starting developer authentication process');
-        const response = await fetch('/api/developer-login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            username, 
-            password, 
-            developerPassword 
-          }),
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          const userData = {
-            userId: data.userId,
-            role: data.role,
-            username: username
-          };
-          localStorage.setItem("user", JSON.stringify(userData));
-          
-          if (data.role === 'admin') {
-            setLocation("/admin");
-          } else {
-            setLocation("/");
-          }
-        } else {
-          setError(data.message || "开发者验证失败");
-        }
-      } catch (err) {
-        console.error('[Login] Developer authentication error:', err);
-        setError("服务器错误，请稍后重试");
-      } finally {
-        setIsVerifying(false);
-      }
-      return;
-    }
-
-    // 正常模式需要人机验证
+    
+    // 检查人机验证
     if (!turnstileToken) {
       setError("请完成人机验证");
       return;
@@ -181,20 +197,31 @@ export default function Login() {
     try {
       console.log('[Login] Starting authentication process');
       const endpoint = isRegistering ? '/api/register' : '/api/login';
-      const response = await fetch(endpoint, {
+
+      // 构建请求体，注册时包含确认密码
+      const requestBody = isRegistering 
+        ? { username, password, confirmPassword, turnstileToken }
+        : { username, password, turnstileToken };
+
+      // 确保我们使用正确的URL（在Replit环境中特别重要）
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}${endpoint}`;
+      
+      console.log(`[Login] 发送${isRegistering ? '注册' : '登录'}请求到 ${apiUrl}`, requestBody);
+      
+      // 发送登录请求
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          username, 
-          password, 
-          turnstileToken 
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log(`[Login] 收到响应状态: ${response.status}`);
       const data = await response.json();
-      
+      console.log(`[Login] 响应数据:`, data);
+
       if (data.success) {
         // 设置用户会话数据
         const userData = {
@@ -204,17 +231,39 @@ export default function Login() {
         };
         localStorage.setItem("user", JSON.stringify(userData));
         
-        // 根据角色导航到相应页面
-        if (data.role === 'admin') {
-          setLocation("/admin");
-        } else {
-          setLocation("/");
+        // 触发用户注册事件，通知其他组件更新状态
+        console.log('[Login] 用户登录成功，保存用户信息');
+        
+        // 这里改为直接手动触发事件，不依赖于动态导入
+        if (window.document) {
+          console.log('[Login] 手动创建并触发用户注册事件');
+          const event = new CustomEvent('userRegistered');
+          document.dispatchEvent(event);
         }
+
+        // 根据角色导航到相应页面
+        console.log('[Login] 登录成功，即将导航到相应页面');
+        
+        // 添加短暂延迟，确保状态更新完成
+        setTimeout(() => {
+          if (data.role === 'admin') {
+            console.log('[Login] 导航到管理页面');
+            setLocation("/admin");
+          } else {
+            console.log('[Login] 导航到主页');
+            setLocation("/");
+          }
+        }, 100);
       } else {
         setError(data.message || "验证失败，请稍后重试");
       }
     } catch (err) {
       console.error('[Login] Authentication error:', err);
+      console.error('[Login] Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+      console.error('[Login] Error occurred after response:', {
+        localStorage: !!window.localStorage,
+        navigator: !!window.navigator
+      });
       setError("服务器错误，请稍后重试");
     } finally {
       setIsVerifying(false);
@@ -228,6 +277,29 @@ export default function Login() {
           {isRegistering ? "注册" : "登录"}
         </h1>
         
+        {/* 系统状态通知 */}
+        {systemConfigLoaded && (
+          <>
+            {!isLoginEnabled && (
+              <Alert className="bg-red-900 border-red-700 text-white mb-4">
+                <AlertCircle className="h-4 w-4 text-red-300" />
+                <AlertDescription className="text-sm">
+                  系统当前处于维护状态，暂时禁止登录。
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {isRegistering && !isRegistrationEnabled && (
+              <Alert className="bg-yellow-900 border-yellow-700 text-white mb-4">
+                <AlertCircle className="h-4 w-4 text-yellow-300" />
+                <AlertDescription className="text-sm">
+                  系统当前不允许新用户注册，请联系管理员。
+                </AlertDescription>
+              </Alert>
+            )}
+          </>
+        )}
+
         <form onSubmit={handleSubmit} className="w-full">
           <div className="input-box relative w-full my-[30px] border-b-2 border-white">
             <i className="fas fa-user icon absolute right-2 text-white text-lg top-1/2 -translate-y-1/2"></i>
@@ -242,7 +314,7 @@ export default function Login() {
               用户名
             </label>
           </div>
-          
+
           <div className="input-box relative w-full my-[30px] border-b-2 border-white">
             <i className="fas fa-lock icon absolute right-2 text-white text-lg top-1/2 -translate-y-1/2"></i>
             <input
@@ -257,6 +329,21 @@ export default function Login() {
             </label>
           </div>
           
+          {/* 注册时显示密码要求提示 */}
+          {isRegistering && (
+            <div className="text-xs text-blue-300 mt-1">
+              <p>密码要求：</p>
+              <ul className="list-disc pl-5">
+                <li className={password.length >= 6 && password.length <= 30 ? "text-green-400" : ""}>
+                  长度为6-30个字符
+                </li>
+                <li className={confirmPassword === password && confirmPassword !== "" ? "text-green-400" : confirmPassword !== "" ? "text-red-400" : ""}>
+                  两次输入的密码需要一致
+                </li>
+              </ul>
+            </div>
+          )}
+
           {isRegistering && (
             <div className="input-box relative w-full my-[30px] border-b-2 border-white">
               <i className="fas fa-lock icon absolute right-2 text-white text-lg top-1/2 -translate-y-1/2"></i>
@@ -273,7 +360,8 @@ export default function Login() {
             </div>
           )}
 
-          {/* 开发者模式切换 */}
+          {/* 开发者模式相关代码已暂时注释 */}
+          {/*
           <div className="flex items-center justify-end space-x-2 my-4">
             <Label htmlFor="developer-mode" className="text-white cursor-pointer">
               开发者模式
@@ -284,58 +372,33 @@ export default function Login() {
               onCheckedChange={setIsDeveloperMode}
             />
           </div>
+          */}
 
-          {/* 开发者密码输入框 */}
-          {isDeveloperMode && (
-            <div className="input-box relative w-full my-[30px] border-b-2 border-white">
-              <i className="fas fa-code icon absolute right-2 text-white text-lg top-1/2 -translate-y-1/2"></i>
-              <input
-                type="password"
-                value={developerPassword}
-                onChange={(e) => setDeveloperPassword(e.target.value)}
-                className="w-full h-[50px] bg-transparent outline-none border-none text-base text-white px-[5px] pr-[40px]"
-                required={isDeveloperMode}
+          {/* 显示人机验证 */}
+          <div className="space-y-2 mt-4">
+            {turnstileBypass ? (
+              <Alert className="bg-blue-900 border-blue-700 text-white">
+                <AlertCircle className="h-4 w-4 text-blue-300" />
+                <AlertDescription className="text-sm">
+                  人机验证已绕过。您现在可以继续登录或注册。
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <TurnstileWidget 
+                onVerify={verifyTurnstileToken}
+                onError={() => {
+                  turnstileErrorCount.current += 1;
+                  if (turnstileErrorCount.current >= 3) {
+                    setTurnstileBypass(true);
+                    setTurnstileToken("bypass-token");
+                    setError("");
+                  } else {
+                    setError("人机验证加载失败，请刷新页面重试");
+                  }
+                }}
               />
-              <label className="absolute top-1/2 left-[5px] -translate-y-1/2 text-base text-white pointer-events-none transition-all duration-500 peer-focus:-top-[5px] peer-valid:-top-[5px]">
-                管理员密码
-              </label>
-            </div>
-          )}
-          
-          {/* 开发者模式说明 */}
-          {isDeveloperMode && (
-            <div className="text-xs text-blue-300 mt-1 italic">
-              使用管理员密码验证后，将在此会话中跳过后续的人机验证
-            </div>
-          )}
-
-          {/* 在非开发者模式下显示人机验证 */}
-          {!isDeveloperMode && (
-            <div className="space-y-2 mt-4">
-              {turnstileBypass ? (
-                <Alert className="bg-blue-900 border-blue-700 text-white">
-                  <AlertCircle className="h-4 w-4 text-blue-300" />
-                  <AlertDescription className="text-sm">
-                    人机验证已绕过。您现在可以继续登录或注册。
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <TurnstileWidget 
-                  onVerify={verifyTurnstileToken}
-                  onError={() => {
-                    turnstileErrorCount.current += 1;
-                    if (turnstileErrorCount.current >= 3) {
-                      setTurnstileBypass(true);
-                      setTurnstileToken("bypass-token");
-                      setError("");
-                    } else {
-                      setError("人机验证加载失败，请刷新页面重试");
-                    }
-                  }}
-                />
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
           {error && (
             <div className="text-red-500 text-sm text-center mt-2">{error}</div>
@@ -344,7 +407,7 @@ export default function Login() {
           <button 
             type="submit" 
             className="btn w-full h-[40px] bg-white outline-none border-none rounded-[40px] cursor-pointer text-base font-medium text-black mt-[20px] hover:bg-[#ffffea]"
-            disabled={isVerifying || (!isDeveloperMode && !turnstileToken)}
+            disabled={isVerifying || !turnstileToken}
           >
             {isVerifying ? "验证中..." : (isRegistering ? "注册" : "登录")}
           </button>

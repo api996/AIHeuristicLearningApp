@@ -1,0 +1,166 @@
+以下是完整版文档，先给出 MCP 的协议规范和关键术语，再贴出如何在已有搜索工具库基础上，快速将该工具接入到 MCP 服务与客户端中的示例代码。
+
+⸻
+
+一、MCP 协议规范（全文要点）
+	1.	定义与目标
+模型上下文协议（Model Context Protocol，MCP）是一个开放标准，旨在通过统一的 JSON‑RPC 接口，将大型语言模型（LLM）与任意外部资源（Resources）、函数（Tools）、提示模板（Prompts）进行安全、可审计的双向通信。MCP 于 2024 年 11 月 25 日由 Anthropic 开源，并迅速被多家 AI 平台（如 OpenAI、DeepMind）采纳。
+	2.	架构概览
+	•	Host（主机进程）：运行 MCP Client，管理整个会话生命周期。
+	•	Client（MCP 客户端）：作为 Host 的中间层，负责发起 RPC、接收事件、序列化／反序列化消息。
+	•	Server（MCP 服务器）：实现并暴露 Resources、Tools、Prompts 能力，通过标准输入/输出（stdio）、HTTP+SSE、WebSockets 等传输层与 Client 通信。
+	3.	核心能力
+
+能力类型	描述
+Resources	静态或动态可查询的数据集，如文件、数据库或自定义服务；通过 resource 接口暴露。
+Tools	模型可调用的函数/API，如“搜索”、“翻译”、“发送邮件”；通过 tool 接口注册，并接收结构化参数。
+Prompts	上下文敏感的文本模板，可动态填充变量，以便模型生成特定风格或结构的回复。
+
+
+	4.	消息格式（JSON‑RPC 2.0）
+	•	请求：
+
+{
+  "jsonrpc": "2.0",
+  "id":      1,
+  "method":  "initialize",      // 或 tools/listTools、resources/list 等
+  "params":  { /* 参数对象 */ }
+}
+
+
+	•	响应：
+
+{
+  "jsonrpc": "2.0",
+  "id":      1,
+  "result":  { /* 返回值 */ }
+}
+
+
+	•	通知（无 id）：
+
+{ "jsonrpc": "2.0", "method": "initialized", "params": {} }
+
+
+	5.	典型握手流程
+	1.	Client → Server：initialize 请求，声明可用能力（tools/resources）。
+	2.	Server → Client：返回 serverName、version、支持的能力列表。
+	3.	Client → Server：发送 initialized 通知，正式进入交互循环。
+	6.	安全与校验
+	•	Transport 校验：在接收任何消息前，用 JSON Schema（或 Zod）强制校验字段 jsonrpc、method、params 格式，防止模型“幻觉”出错。
+	•	参数校验：对每个 tool 接口都声明严格的输入 schema，抛弃多余字段。
+	•	权限控制：由 Host 负责授权，所有对外调用都在 Host 可信上下文中执行，并可配置审计日志。
+
+⸻
+
+二、示例：在已有搜索工具库基础上接入 MCP
+
+前提：
+	•	你的搜索工具已封装为 your-search-lib 中的 search(query, options) 函数。
+	•	已安装依赖：
+
+npm install @modelcontextprotocol/sdk zod
+
+
+	•	环境中已配置好任何必需的 API KEY。
+
+1. Server 端（server.ts）
+
+// server.ts
+import { McpServer }                 from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport }      from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z }                         from "zod";
+import { search }                    from "your-search-lib";  // 现成的搜索工具
+
+// —— 严格校验 JSON‑RPC 消息格式
+const RpcRequestSchema = z.object({
+  jsonrpc: z.literal("2.0"),
+  id:      z.union([z.string(), z.number()]).optional(),
+  method:  z.string(),
+  params:  z.any().optional()
+});
+
+// —— 创建 MCP Server
+const server = new McpServer({ name: "mcp-search-server", version: "1.0.0" });
+
+// —— 设置 stdio Transport，并校验入站消息
+const transport = new StdioServerTransport();
+transport.on("message", (msg: unknown) => {
+  const parsed = RpcRequestSchema.safeParse(msg);
+  if (!parsed.success) {
+    console.error("Invalid JSON‑RPC message:", parsed.error.format());
+    throw new Error("MCP 协议校验失败");
+  }
+});
+
+// —— 定义 webSearch 工具：直接调用现成的 search() 函数
+const WebSearchInput = z.object({
+  query:      z.string(),
+  numResults: z.number().int().min(1).max(20).optional().default(5)
+});
+
+server.tool(
+  "webSearch",
+  WebSearchInput,
+  async (args) => {
+    const { query, numResults } = WebSearchInput.parse(args);
+    const hits = await search(query, { limit: numResults });
+    return {
+      content: hits.map((h, i) => ({
+        type: "text",
+        text:  `${i+1}. ${h.title}\n${h.snippet}\n${h.url}`
+      }))
+    };
+  }
+);
+
+// —— 可选：暴露服务信息资源
+server.resource(
+  "info",
+  { /* 简单 ResourceTemplate 配置 */ },
+  async () => ({
+    contents: [{ uri: "info://version", text: `version ${server.version}` }]
+  })
+);
+
+// —— 启动服务
+(async () => {
+  await server.connect(transport);
+  console.log("MCP Search Server 已启动，监听 stdio...");
+})();
+
+2. Client 端（client.ts）
+
+// client.ts
+import { Client }               from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+
+(async () => {
+  // 启动并连接到 server.ts
+  const transport = new StdioClientTransport({
+    command: "node",
+    args:    ["server.js"]  // 根据实际编译输出调整
+  });
+
+  const client = new Client({ name: "mcp-search-client", version: "1.0.0" });
+  await client.connect(transport);
+
+  // 握手
+  const init = await client.initialize();
+  console.log("服务能力：", init.capabilities);
+
+  // 调用搜索
+  const res = await client.callTool({
+    name:      "webSearch",
+    arguments: { query: "MCP 协议", numResults: 3 }
+  });
+
+  console.log("搜索结果：");
+  res.content.forEach(item => console.log(item.text, "\n---"));
+})();
+
+
+
+⸻
+
+以上即包含完整协议规范文本与在既有搜索库基础上的接入示例。整个流程中，Transport 层的 JSON‑RPC 校验和 Zod 参数定义，能显著降低模型“幻觉”误用的风险。

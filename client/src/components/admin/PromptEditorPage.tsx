@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronLeft, Save, RotateCcw, Trash, BookOpen, Lightbulb, LampDesk, HelpCircle, Pencil, Settings } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import './admin-ipad-fixes.css'; // 导入iPad专用修复CSS
 
 // 提示词模板接口
 interface PromptTemplate {
@@ -458,12 +459,12 @@ export function PromptEditorPage() {
   const templateContent = getTemplateContent(activeTab);
 
   return (
-    <div className="min-h-screen bg-black py-6">
+    <div className="min-h-screen bg-black py-6 admin-template-editor">
       <div className="container px-4 mx-auto max-w-6xl">
         <div className="mb-6 flex items-center">
           <Button 
             variant="default" 
-            onClick={() => navigate('/admin-dashboard')}
+            onClick={() => navigate('/admin')}
             className="mr-3 bg-blue-600 hover:bg-blue-700"
           >
             <ChevronLeft className="h-4 w-4 mr-1" /> 返回
@@ -474,7 +475,7 @@ export function PromptEditorPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 admin-template-editor-grid">
           {/* 左侧边栏 */}
           <div className="lg:col-span-1">
             <Card className="bg-neutral-900 border-neutral-800">
@@ -595,8 +596,8 @@ export function PromptEditorPage() {
 
           {/* 右侧编辑区 */}
           <div className="lg:col-span-3">
-            <Card className="h-full bg-neutral-900 border-neutral-800">
-              <CardHeader>
+            <Card className="h-full bg-neutral-900 border-neutral-800 flex flex-col template-editor-card">
+              <CardHeader className="flex-shrink-0">
                 <div className="flex items-center">
                   <div className="text-blue-500 mr-2">
                     {currentTab.icon}
@@ -612,7 +613,12 @@ export function PromptEditorPage() {
                   </div>
                 )}
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-grow overflow-y-auto overflow-x-hidden template-editor-content" style={{ 
+                  minHeight: "300px",
+                  WebkitOverflowScrolling: "touch",
+                  msOverflowStyle: "none",
+                  scrollbarWidth: "thin" 
+                }}>
                 <div className="bg-neutral-800 border border-neutral-700 p-3 rounded-md mb-3 text-sm text-white">
                   <p className="text-gray-200">提示词支持以下变量：</p>
                   <div className="grid grid-cols-2 gap-2 mt-1">
@@ -627,19 +633,27 @@ export function PromptEditorPage() {
                   </div>
                 </div>
                 
-                <Textarea
-                  value={templateContent.value}
-                  onChange={(e) => templateContent.setter(e.target.value)}
-                  placeholder={templateContent.placeholder}
-                  className="min-h-[400px] font-mono text-sm bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500"
-                  disabled={loading}
-                />
+                <div className="template-textarea-container">
+                  <Textarea
+                    value={templateContent.value}
+                    onChange={(e) => templateContent.setter(e.target.value)}
+                    placeholder={templateContent.placeholder}
+                    className="template-textarea min-h-[200px] w-full font-mono text-sm bg-neutral-800 border-neutral-700 text-white placeholder:text-gray-500"
+                    disabled={loading}
+                    style={{ 
+                      WebkitOverflowScrolling: "touch",
+                      touchAction: "pan-y",
+                      overscrollBehavior: "contain",
+                      resize: "vertical"
+                    }}
+                  />
+                </div>
               </CardContent>
               <CardFooter className="flex justify-between">
                 <div className="flex space-x-2">
                   <Button
                     variant="outline"
-                    onClick={() => navigate('/admin-dashboard')}
+                    onClick={() => navigate('/admin')}
                     className="bg-neutral-800 text-white border-neutral-700 hover:bg-neutral-700"
                   >
                     <ChevronLeft className="h-4 w-4 mr-1" />

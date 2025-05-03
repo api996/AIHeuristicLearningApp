@@ -54,11 +54,12 @@ export function ChatHistory({
   user 
 }: ChatHistoryProps) {
   // 状态变量
-  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
-  const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<number | null>(null);
-  const [longPressActive, setLongPressActive] = useState(false);
+  
+  // 长按相关状态
+  const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [isLongPressing, setIsLongPressing] = useState(false);
   
   // 如果用户不存在或未登录，不渲染任何内容
   if (!user?.userId) {
@@ -86,187 +87,254 @@ export function ChatHistory({
 
   const deleteChatMutation = useMutation({
     mutationFn: async (chatId: number) => {
-      await apiRequest('DELETE', `/api/chats/${chatId}?userId=${user.userId}&role=${user.role}`);
+      // 添加错误处理和详细的日志输出
+      console.log(`[Chat] Attempting to delete chat ID: ${chatId}, user ID: ${user.userId}, role: ${user.role}`);
+      try {
+        const res = await apiRequest('DELETE', `/api/chats/${chatId}?userId=${user.userId}&role=${user.role}`);
+        console.log(`[Chat] Delete API response status: ${res.status}`);
+        return res;
+      } catch (error) {
+        console.error(`[Chat] Delete API error:`, error);
+        throw error;
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/chats'] });
+      console.log('[Chat] Deletion successful, invalidating queries');
+      queryClient.invalidateQueries({ queryKey: ['/api/chats', user.userId, user.role] });
     },
+    onError: (error) => {
+      console.error('[Chat] Deletion mutation error:', error);
+    }
   });
 
   // 常规删除处理函数
   const handleDeleteChat = async (chatId: number, e: React.MouseEvent) => {
+    console.log(`[ChatHistory] 尝试删除聊天，ID: ${chatId}`);
     e.stopPropagation();
-    try {
-      await deleteChatMutation.mutateAsync(chatId);
-      if (onDeleteChat) onDeleteChat(chatId);
-      toast({
-        title: "删除成功",
-        description: "已成功删除对话",
-      });
-    } catch (error) {
-      console.error('Failed to delete chat:', error);
-      toast({
-        title: "删除失败",
-        description: "删除对话时发生错误",
-        variant: "destructive",
-      });
-    }
+    e.preventDefault(); // 防止事件冒泡
+    
+    // 显示确认对话框前记录日志
+    console.log(`[ChatHistory] 打开确认对话框，chatId=${chatId}`);
+    
+    // 先显示确认对话框
+    setChatToDelete(chatId);
+    setShowDeleteAlert(true);
+    
+    // 确保对话框已显示
+    console.log(`[ChatHistory] 删除确认对话框状态：${showDeleteAlert ? '已显示' : '未显示'}`);
   };
   
-  // 长按开始函数
-  const handleLongPressStart = (chatId: number, e: React.MouseEvent) => {
-    // 防止触发正常点击事件
+  // 长按开始处理
+  const handleLongPressStart = (chatId: number, e: React.TouchEvent | React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     
-    // 记录当前活动的聊天ID
-    setActiveChatId(chatId);
+    console.log(`[ChatHistory] 开始长按, ID: ${chatId}`);
     
-    // 设置3秒定时器
+    // 设置长按计时器
     const timer = setTimeout(() => {
-      // 显示删除确认对话框
+      console.log(`[ChatHistory] 长按时间到达，触发删除确认`);
+      setIsLongPressing(true);
+      
+      // 触发确认对话框
       setChatToDelete(chatId);
       setShowDeleteAlert(true);
-      setLongPressActive(true);
       
-      // 提供触觉反馈（如果浏览器支持）
+      // 震动反馈 (如果设备支持)
       if (navigator.vibrate) {
         navigator.vibrate(100);
       }
-    }, 3000); // 3秒长按
+    }, 600); // 长按时间设为600毫秒
     
     setLongPressTimer(timer);
   };
   
-  // 长按结束函数
+  // 长按结束处理
   const handleLongPressEnd = () => {
-    // 清除定时器
+    console.log(`[ChatHistory] 长按结束`);
+    
+    // 清除计时器
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       setLongPressTimer(null);
     }
     
-    // 如果长按已激活并且已显示删除确认框，则保持状态不变
-    // 否则重置状态
-    if (!longPressActive) {
-      setActiveChatId(null);
-    }
+    setIsLongPressing(false);
   };
   
   // 确认删除函数
   const confirmDelete = async () => {
+    console.log(`[ChatHistory] 确认删除聊天，ID: ${chatToDelete}`);
+    
     if (chatToDelete) {
       try {
+        console.log(`[ChatHistory] 开始调用API删除聊天，ID: ${chatToDelete}`);
         await deleteChatMutation.mutateAsync(chatToDelete);
-        if (onDeleteChat) onDeleteChat(chatToDelete);
+        
+        console.log(`[ChatHistory] API删除成功，通知父组件更新UI`);
+        if (onDeleteChat) {
+          onDeleteChat(chatToDelete);
+          console.log(`[ChatHistory] 已通知父组件删除ID: ${chatToDelete}`);
+        }
+        
         toast({
           title: "删除成功",
           description: "已成功删除对话",
         });
+        console.log(`[ChatHistory] 已显示成功提示`);
       } catch (error) {
-        console.error('Failed to delete chat:', error);
+        console.error('[ChatHistory] 删除聊天失败:', error);
         toast({
           title: "删除失败",
           description: "删除对话时发生错误",
           variant: "destructive",
         });
       }
+    } else {
+      console.warn('[ChatHistory] 确认删除时chatToDelete为null');
     }
     
     // 重置状态
+    console.log('[ChatHistory] 重置确认对话框状态');
     setShowDeleteAlert(false);
     setChatToDelete(null);
-    setActiveChatId(null);
-    setLongPressActive(false);
   };
 
   // 确定使用哪个chats数据
   const chatsToRender = propsChats || apiChats;
 
+  // 准备聊天列表内容
+  let chatListContent;
+  
   if (isLoading && !propsChats) {
-    return (
+    chatListContent = (
       <div className="p-4 text-sm text-neutral-400">
         加载中...
       </div>
     );
-  }
-
-  if (!chatsToRender || chatsToRender.length === 0) {
-    return (
+  } else if (!chatsToRender || chatsToRender.length === 0) {
+    chatListContent = (
       <div className="p-4 text-sm text-neutral-400">
         暂无记录
       </div>
     );
-  }
-
-  return (
-    <div className="w-full flex flex-col h-full">
-      {/* 新对话按钮（不在顶部显示） - 已从ChatGPT风格移动到ai-chat.tsx组件 */}
-      
-      {/* 聊天记录列表 */}
+  
+    // 添加空状态提示
+  } else if (chatsToRender.length === 1) {
+    // 只有一个聊天记录时，显示长按提示
+    chatListContent = (
+      <>
+        <div className="px-2 pt-1 pb-0">
+          <div className="text-xs text-[#0deae4]/70 mb-1 text-center">
+            提示: 长按聊天记录可以删除
+          </div>
+        </div>
+        <ScrollArea className="flex-1">
+          <div className="px-2 py-2 space-y-1">
+            {chatsToRender.map((chat: any) => (
+              <div
+                key={chat.id}
+                className={`group flex items-center rounded-lg select-none ${
+                  currentChatId === chat.id ? 'bg-[#0deae4]/10' : 'hover:bg-black/40'
+                }`}
+                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+                onTouchStart={(e) => handleLongPressStart(chat.id, e)}
+                onTouchEnd={handleLongPressEnd}
+                onTouchMove={handleLongPressEnd}
+                onTouchCancel={handleLongPressEnd}
+              >
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-sm py-3 px-3 h-auto"
+                  onClick={() => {
+                    // 如果是长按结束，不触发导航
+                    if (isLongPressing) return;
+                    
+                    if (onSelectChat) onSelectChat(chat.id);
+                    if (setCurrentChatId) setCurrentChatId(chat.id);
+                  }}
+                >
+                  <MessageSquare className={`mr-3 h-4 w-4 shrink-0 ${currentChatId === chat.id ? 'text-[#0deae4]' : 'text-[#0deae4]/60'}`} />
+                  <div className="flex flex-col items-start truncate">
+                    <span className={`truncate w-[180px] ${currentChatId === chat.id ? 'text-white' : 'text-white/80'}`}>{chat.title}</span>
+                    {user.role === "admin" && chat.username && (
+                      <span className="text-xs text-[#0deae4]/50">
+                        by {chat.username}
+                      </span>
+                    )}
+                  </div>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity h-8 w-8 mr-1 hover:bg-red-500/10 select-none"
+                  style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+                  onClick={(e) => handleDeleteChat(chat.id, e)}
+                  onTouchStart={(e) => handleLongPressStart(chat.id, e)}
+                  onTouchEnd={handleLongPressEnd}
+                  onTouchMove={handleLongPressEnd}
+                  onTouchCancel={handleLongPressEnd}
+                >
+                  <Trash2 className="h-4 w-4 text-red-400" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </>
+    );
+  } else {
+    chatListContent = (
       <ScrollArea className="flex-1">
-        <div className="px-2 py-3 space-y-1">
+        <div className="px-2 pt-1 pb-0">
+          <div className="text-xs text-[#0deae4]/70 mb-1 text-center">
+            提示: 长按聊天记录可以删除
+          </div>
+        </div>
+        <div className="px-2 py-2 space-y-1">
           {chatsToRender.map((chat: any) => (
             <div
               key={chat.id}
-              className={`group flex items-center rounded-lg ${
-                currentChatId === chat.id ? 'bg-neutral-800' : 'hover:bg-neutral-800/50'
-              } ${activeChatId === chat.id && longPressActive ? 'bg-red-900/30' : ''}`}
+              className={`group flex items-center rounded-lg select-none ${
+                currentChatId === chat.id ? 'bg-[#0deae4]/10' : 'hover:bg-black/40'
+              }`}
+              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+              onTouchStart={(e) => handleLongPressStart(chat.id, e)}
+              onTouchEnd={handleLongPressEnd}
+              onTouchMove={handleLongPressEnd}
+              onTouchCancel={handleLongPressEnd}
             >
               <Button
                 variant="ghost"
                 className="w-full justify-start text-sm py-3 px-3 h-auto"
                 onClick={() => {
-                  if (longPressActive && activeChatId === chat.id) return;
+                  // 如果是长按结束，不触发导航
+                  if (isLongPressing) return;
+                  
                   if (onSelectChat) onSelectChat(chat.id);
                   if (setCurrentChatId) setCurrentChatId(chat.id);
                 }}
-                // 添加长按事件
-                onMouseDown={(e) => handleLongPressStart(chat.id, e)}
-                onMouseUp={handleLongPressEnd}
-                onMouseLeave={handleLongPressEnd}
-                onTouchStart={(e) => handleLongPressStart(chat.id, e as unknown as React.MouseEvent)}
-                onTouchEnd={handleLongPressEnd}
-                onTouchCancel={handleLongPressEnd}
               >
-                <MessageSquare className="mr-3 h-4 w-4 shrink-0 text-neutral-400" />
+                <MessageSquare className={`mr-3 h-4 w-4 shrink-0 ${currentChatId === chat.id ? 'text-[#0deae4]' : 'text-[#0deae4]/60'}`} />
                 <div className="flex flex-col items-start truncate">
-                  <span className="truncate w-full">{chat.title}</span>
+                  <span className={`truncate w-[180px] ${currentChatId === chat.id ? 'text-white' : 'text-white/80'}`}>{chat.title}</span>
                   {user.role === "admin" && chat.username && (
-                    <span className="text-xs text-neutral-500">
+                    <span className="text-xs text-[#0deae4]/50">
                       by {chat.username}
                     </span>
                   )}
                 </div>
-                {/* 倒计时指示器 - 仅在长按过程中显示 */}
-                {activeChatId === chat.id && !longPressActive && (
-                  <div className="ml-auto">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center bg-neutral-700/50">
-                      <svg className="w-4 h-4 text-white animate-spin" viewBox="0 0 24 24">
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                          fill="none"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                )}
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 mr-1"
+                className="md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity h-8 w-8 mr-1 hover:bg-red-500/10 select-none"
+                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                 onClick={(e) => handleDeleteChat(chat.id, e)}
+                onTouchStart={(e) => handleLongPressStart(chat.id, e)}
+                onTouchEnd={handleLongPressEnd}
+                onTouchMove={handleLongPressEnd}
+                onTouchCancel={handleLongPressEnd}
               >
                 <Trash2 className="h-4 w-4 text-red-400" />
               </Button>
@@ -274,10 +342,19 @@ export function ChatHistory({
           ))}
         </div>
       </ScrollArea>
+    );
+  }
+
+  return (
+    <div className="w-full flex flex-col h-full bg-black/50 backdrop-blur-md">
+      {/* 新对话按钮（不在顶部显示） - 已从ChatGPT风格移动到ai-chat.tsx组件 */}
+      
+      {/* 聊天记录列表 */}
+      {chatListContent}
       
       {/* 删除确认对话框 */}
       <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
-        <AlertDialogContent className="bg-neutral-800 border border-neutral-700 text-white">
+        <AlertDialogContent className="bg-black/70 backdrop-blur-md border border-[#0deae4]/30 text-white">
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除对话</AlertDialogTitle>
             <AlertDialogDescription className="text-neutral-300">
@@ -289,16 +366,14 @@ export function ChatHistory({
               onClick={() => {
                 setShowDeleteAlert(false);
                 setChatToDelete(null);
-                setActiveChatId(null);
-                setLongPressActive(false);
               }}
-              className="bg-neutral-700 hover:bg-neutral-600 text-white border-none"
+              className="bg-black/60 hover:bg-black/80 text-white border border-neutral-700"
             >
               取消
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600/80 hover:bg-red-700/90 text-white border border-red-500"
             >
               删除
             </AlertDialogAction>
@@ -307,19 +382,19 @@ export function ChatHistory({
       </AlertDialog>
       
       {/* 用户中心下拉菜单 - 使用ChatGPT风格固定在底部 */}
-      <div className="mt-auto p-2 border-t border-neutral-800">
+      <div className="mt-auto p-2 border-t border-[#0deae4]/20">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="w-full justify-start p-3 text-neutral-300 hover:bg-neutral-800 rounded-lg transition-colors"
+              className="w-full justify-start p-3 text-white hover:bg-[#0deae4]/10 rounded-lg transition-colors"
             >
-              <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-full mr-3">
+              <div className="bg-gradient-to-br from-[#0deae4] to-[#0d8ae4] p-1.5 rounded-full mr-3 shadow-lg shadow-[#0deae4]/20">
                 <User className="h-5 w-5 text-white" />
               </div>
               <div className="flex flex-col items-start">
                 <span className="text-sm font-medium truncate max-w-[140px]">{user.username || '用户'}</span>
-                <span className="text-xs text-neutral-500">{user.role === 'admin' ? '管理员' : '用户'}</span>
+                <span className="text-xs text-[#0deae4]/70">{user.role === 'admin' ? '管理员' : '用户'}</span>
               </div>
             </Button>
           </DropdownMenuTrigger>
@@ -327,41 +402,41 @@ export function ChatHistory({
             align="center" 
             side="top"
             sideOffset={10} 
-            className="w-[260px] bg-neutral-800 border border-neutral-700 text-white rounded-xl shadow-lg animate-in slide-in-from-bottom-5 fade-in-80"
+            className="w-[260px] bg-black/80 backdrop-blur-lg border border-[#0deae4]/30 text-white rounded-xl shadow-lg shadow-[#0deae4]/20 animate-in slide-in-from-bottom-5 fade-in-80"
           >
             <DropdownMenuGroup className="py-1">
               <DropdownMenuItem 
-                className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                className="cursor-pointer flex items-center hover:bg-[#0deae4]/10 py-2.5 px-3 focus:bg-[#0deae4]/20"
                 onClick={onShowProfile}
               >
-                <User className="mr-2.5 h-4 w-4 text-blue-400" />
+                <User className="mr-2.5 h-4 w-4 text-[#0deae4]" />
                 <span>个人资料</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
-                className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                className="cursor-pointer flex items-center hover:bg-[#0deae4]/10 py-2.5 px-3 focus:bg-[#0deae4]/20"
                 onClick={onChangePassword}
               >
-                <Settings className="mr-2.5 h-4 w-4 text-green-400" />
+                <Settings className="mr-2.5 h-4 w-4 text-[#0deae4]" />
                 <span>修改密码</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
-                className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                className="cursor-pointer flex items-center hover:bg-[#0deae4]/10 py-2.5 px-3 focus:bg-[#0deae4]/20"
                 onClick={onShowLearningPath}
               >
-                <Brain className="mr-2.5 h-4 w-4 text-purple-400" />
+                <Brain className="mr-2.5 h-4 w-4 text-[#0deae4]" />
                 <span>学习轨迹</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
-                className="cursor-pointer flex items-center hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+                className="cursor-pointer flex items-center hover:bg-[#0deae4]/10 py-2.5 px-3 focus:bg-[#0deae4]/20"
                 onClick={onShowPreferences}
               >
-                <Sparkles className="mr-2.5 h-4 w-4 text-yellow-400" />
+                <Sparkles className="mr-2.5 h-4 w-4 text-[#0deae4]" />
                 <span>偏好设置</span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator className="bg-neutral-700" />
+            <DropdownMenuSeparator className="bg-[#0deae4]/20" />
             <DropdownMenuItem 
-              className="cursor-pointer flex items-center text-red-400 hover:bg-neutral-700 py-2.5 px-3 focus:bg-neutral-700"
+              className="cursor-pointer flex items-center text-red-400 hover:bg-red-500/10 py-2.5 px-3 focus:bg-red-500/20"
               onClick={onLogout}
             >
               <LogOut className="mr-2.5 h-4 w-4" />

@@ -97,6 +97,107 @@ export class MemorySummarizerService {
       return words.slice(0, 5);
     }
   }
+  
+  /**
+   * 为聚类生成主题
+   * @param text 聚类内容
+   * @returns 生成的主题
+   */
+  async generateTopic(text: string): Promise<string | null> {
+    try {
+      if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        log('[memory_summarizer] 无法为空文本生成主题', 'warn');
+        return null;
+      }
+
+      // 如果文本非常短，直接使用原文
+      if (text.length < 50) {
+        log('[memory_summarizer] 文本过短，使用文本开头作为主题');
+        return `主题: ${text.slice(0, 20)}`;
+      }
+      
+      // 检查genAiService是否已初始化
+      if (!genAiService) {
+        throw new Error('GenAI服务尚未初始化，请稍后再试或检查API配置');
+      }
+
+      log('[memory_summarizer] 开始使用GenAI服务生成主题...');
+      
+      // 拆分文本为段落，最多使用5个段落进行主题生成
+      const paragraphs = text.split(/\n+/).filter(p => p.trim().length > 0);
+      const sampleParagraphs = paragraphs.slice(0, 5).map(p => p.trim());
+      
+      // 使用GenAI服务生成主题
+      try {
+        const topic = await genAiService.generateTopicForMemories(sampleParagraphs);
+        log(`[memory_summarizer] GenAI服务返回主题: "${topic}"`);
+        
+        // 检查主题有效性
+        if (!topic) {
+          throw new Error('GenAI服务返回了空主题');
+        }
+        
+        // 检查主题是否有意义 (排除无意义主题如"用户问"等格式标记)
+        const lowQualityPatterns = [
+          /^用户问$/i, 
+          /^问题$/i, 
+          /^ai回答$/i, 
+          /^对话$/i, 
+          /^聊天$/i,
+          /^记忆$/i,
+          /^问答$/i
+        ];
+        
+        if (lowQualityPatterns.some(pattern => pattern.test(topic))) {
+          throw new Error(`生成的主题质量低: "${topic}"`);
+        }
+        
+        log(`[memory_summarizer] 成功生成主题: "${topic}"`);
+        return topic;
+      } catch (apiError) {
+        // 记录具体的API错误
+        log(`[memory_summarizer] GenAI API调用失败: ${apiError}`, 'error');
+        throw apiError; // 向上传递错误
+      }
+    } catch (error) {
+      log(`[memory_summarizer] 生成主题时出错: ${error}`, 'error');
+      throw error; // 不再使用后备方案，直接抛出错误
+    }
+  }
+  
+  /**
+   * 生成后备主题
+   * @param text 文本内容
+   * @returns 后备主题
+   */
+  private async generateFallbackTopic(text: string): Promise<string> {
+    try {
+      // 尝试使用关键词组合作为主题
+      const keywords = await this.extractKeywords(text);
+      if (keywords && keywords.length > 0) {
+        // 过滤掉低质量关键词
+        const filteredKeywords = keywords.filter(kw => 
+          kw.length >= 2 && 
+          !/^(用户|ai|回答|问题|聊天)$/i.test(kw)
+        );
+        
+        if (filteredKeywords.length > 0) {
+          const topKeywords = filteredKeywords.slice(0, 2).join('和');
+          log(`[memory_summarizer] 使用关键词组合作为主题: "${topKeywords}主题"`);
+          return `${topKeywords}主题`;
+        }
+      }
+      
+      // 如果关键词提取失败，使用时间戳为基础的主题名
+      const fallbackTopic = `记忆主题${Date.now().toString().slice(-4)}`;
+      log(`[memory_summarizer] 无法提取有效关键词，使用时间戳作为主题: "${fallbackTopic}"`, 'warn');
+      return fallbackTopic;
+    } catch (error) {
+      const fallbackTopic = `记忆主题${Date.now().toString().slice(-4)}`;
+      log(`[memory_summarizer] 后备主题生成出错，使用时间戳: "${fallbackTopic}"`, 'error');
+      return fallbackTopic;
+    }
+  }
 }
 
 // 导出服务实例

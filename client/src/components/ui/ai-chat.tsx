@@ -1,10 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatHistory } from "@/components/chat-history";
 import { ChatMessage } from "@/components/chat-message";
-import { setupViewportHeightListeners, scrollToBottom, isNearBottom } from "@/lib/viewportUtils";
+import { setupViewportHeightListeners, scrollToBottom, isNearBottom, enhanceTouchInteraction } from "@/lib/viewportUtils";
+import { isIpadDevice } from "@/lib/deviceUtils";
+import { useTheme } from "@/utils/theme-migration"; // 导入全局主题上下文
+import type { Theme, FontSize } from "@/services/ThemeService"; // 导入主题相关类型
 import "./ipad-fixes.css"; // 导入iPad专用修复样式
 import "./mobile-fixes.css"; // 导入手机设备专用修复样式
+import "./preferences-dialog-fixes.css"; // 导入偏好设置对话框的iPad滚动修复样式
 import { useLocation } from "wouter";
 import {
   Search,
@@ -23,9 +27,11 @@ import {
   ChevronDown,
   MessageSquare,
   Pencil,
-  X
+  X,
+  Upload
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -46,11 +52,14 @@ type Message = {
   role: "user" | "assistant";     // 消息角色
   content: string;                // 消息内容
   isRegenerating?: boolean;       // 标记消息是否正在重新生成
+  isProcessing?: boolean;         // 标记消息是否正在处理中（如图片上传）
   feedback?: "like" | "dislike";  // 消息反馈
   created_at?: string;            // 创建时间
   is_edited?: boolean;            // 是否已编辑
+  is_active?: boolean;            // 标记消息是否为活动状态（非分支历史）
   chat_id?: number;               // 所属对话ID
   model?: string;                 // 使用的模型，如"deep"、"gemini"等
+  hasError?: boolean;             // 标记消息是否包含错误信息
 };
 
 type Model = "deep" | "gemini" | "deepseek" | "grok";
@@ -79,30 +88,50 @@ export function AIChat({ userData }: AIChatProps) {
   const [input, setInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentModel, setCurrentModel] = useState<Model>("deep");
+  // 从系统配置获取默认模型
+  const { data: systemConfig } = useQuery({
+    queryKey: ["/api/system-config"],
+    queryFn: async () => {
+      const response = await fetch("/api/system-config");
+      if (!response.ok) throw new Error('获取系统配置失败');
+      return response.json();
+    },
+  });
+  
+  // 使用系统配置的默认模型，并通过localStorage保持状态
+  const [currentModel, setCurrentModel] = useState<Model>(() => {
+    const savedModel = localStorage.getItem('currentModel') as Model;
+    return savedModel || "grok"; // 默认使用grok，后续会通过useEffect更新为系统配置的值
+  });
   
   // 跨模型上下文共享函数，用于在模型切换时更新聊天模型设置
   const handleModelChange = async (newModel: Model) => {
     // 如果已经是当前模型，不执行任何操作
     if (newModel === currentModel) return;
     
-    // 设置新的模型
+    // 设置新的模型（不影响网络搜索状态）
     setCurrentModel(newModel);
     
-    // 显示模型切换提示
+    // 显示模型切换提示，包含网络搜索状态信息
     toast({
       title: `已切换到${newModel === "deep" ? "深度推理" : 
              newModel === "gemini" ? "Gemini" :
              newModel === "deepseek" ? "Deepseek" : "Grok"}模型`,
-      description: "对话上下文已保留，继续您的对话",
+      description: useWebSearch 
+        ? "网络搜索功能仍然启用中，对话上下文已保留" 
+        : "对话上下文已保留，继续您的对话",
       variant: "default",
+      className: "frosted-toast",
     });
     
     // 如果有当前聊天ID，则更新聊天的模型设置
     if (currentChatId) {
       try {
         // 发送请求更新聊天模型
-        const response = await fetch(`/api/chats/${currentChatId}/model`, {
+        const baseUrl = window.location.origin;
+        const apiUrl = `${baseUrl}/api/chats/${currentChatId}/model`;
+        console.log("切换模型请求URL:", apiUrl, "网络搜索状态保持为:", useWebSearch);
+        const response = await fetch(apiUrl, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -110,7 +139,8 @@ export function AIChat({ userData }: AIChatProps) {
           body: JSON.stringify({ 
             model: newModel,
             userId: user.userId,
-            userRole: user.role // 添加用户角色参数
+            userRole: user.role, // 添加用户角色参数
+            useWebSearch: useWebSearch // 保持网络搜索状态不变
           }),
         });
         
@@ -126,9 +156,9 @@ export function AIChat({ userData }: AIChatProps) {
         if (responseData.changed) {
           // 更新查询缓存
           queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
-          console.log(`聊天ID ${currentChatId} 的模型已更新从 ${responseData.previousModel} 变更为 ${responseData.newModel}`);
+          console.log(`聊天ID ${currentChatId} 的模型已更新从 ${responseData.previousModel} 变更为 ${responseData.newModel}，网络搜索状态：${useWebSearch}`);
         } else {
-          console.log(`聊天ID ${currentChatId} 的模型未变更，保持为 ${newModel}`);
+          console.log(`聊天ID ${currentChatId} 的模型未变更，保持为 ${newModel}，网络搜索状态：${useWebSearch}`);
         }
       } catch (error) {
         console.error("更新聊天模型时出错:", error);
@@ -136,11 +166,17 @@ export function AIChat({ userData }: AIChatProps) {
           title: "更新模型设置失败",
           description: "无法更新聊天模型，但您仍可继续使用当前模型",
           variant: "destructive",
+          className: "frosted-toast-error",
         });
       }
     }
   };
-  const [useWebSearch, setUseWebSearch] = useState(false);
+  // 网络搜索状态 - 默认关闭，使用 localStorage 保持状态一致性
+  const [useWebSearch, setUseWebSearch] = useState(() => {
+    const savedState = localStorage.getItem('useWebSearch');
+    // 如果没有保存的状态，则默认为关闭
+    return savedState === 'true' ? true : false;
+  });
   const [currentChatId, setCurrentChatId] = useState<number>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -166,14 +202,17 @@ export function AIChat({ userData }: AIChatProps) {
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [showLearningPathDialog, setShowLearningPathDialog] = useState(false);
   const [showPreferencesDialog, setShowPreferencesDialog] = useState(false);
-  const [showBackgroundDialog, setShowBackgroundDialog] = useState(false);
 
-  // 偏好设置状态
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("light"); // 默认设置为浅色主题以展示苹果风格效果
-  const [fontSize, setFontSize] = useState<"small" | "medium" | "large">("medium");
+  // 使用全局主题上下文
+  const { theme, setTheme, fontSize, setFontSize } = useTheme();
+  // 其他主题相关本地状态
+  const [customThemeColor, setCustomThemeColor] = useState<string>("#0deae4"); // 默认青色
+  const [tempThemeColor, setTempThemeColor] = useState<string>("#0deae4"); // 临时存储编辑中的颜色
 
   // 背景图片相关状态
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [selectedBackgroundFile, setSelectedBackgroundFile] = useState<File | null>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
 
   // Use the passed in userData
@@ -183,7 +222,10 @@ export function AIChat({ userData }: AIChatProps) {
   const { data: currentChat } = useQuery({
     queryKey: [`/api/chats/${currentChatId}/messages`, user.userId, user.role],
     queryFn: async () => {
-      const response = await fetch(`/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`);
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`;
+      console.log("获取消息列表请求URL:", apiUrl);
+      const response = await fetch(apiUrl);
       if (!response.ok) throw new Error('Failed to fetch messages');
       return response.json();
     },
@@ -289,7 +331,11 @@ export function AIChat({ userData }: AIChatProps) {
     }
   };
 
-  // 重写：处理消息重新生成功能 - 增强错误处理和ID查找逻辑
+  // 中间消息重新生成确认对话框状态
+  const [showBranchConfirmDialog, setShowBranchConfirmDialog] = useState(false);
+  const [pendingRegenerateMessageId, setPendingRegenerateMessageId] = useState<number | undefined>();
+  
+  // 处理消息重新生成功能 - 增强错误处理和ID查找逻辑
   const handleRegenerateMessage = async (messageId: number | undefined) => {
     try {
       // 开始加载状态，可以添加视觉反馈
@@ -309,7 +355,8 @@ export function AIChat({ userData }: AIChatProps) {
 
         try {
           // 使用直接fetch而非API请求工具，确保最大兼容性
-          const url = `/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
+          const baseUrl = window.location.origin;
+          const url = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
           console.log("API请求URL:", url);
           
           const messagesResponse = await fetch(url);
@@ -344,6 +391,54 @@ export function AIChat({ userData }: AIChatProps) {
         }
       }
       
+      // 检查是否为中间消息（非最后一条AI消息），如果是，则显示确认对话框
+      if (currentChatId && finalMessageId) {
+        const baseUrl = window.location.origin;
+        const url = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}&activeOnly=false`;
+        try {
+          const allMessagesResponse = await fetch(url);
+          if (allMessagesResponse.ok) {
+            const allMessages = await allMessagesResponse.json();
+            // 筛选所有AI消息
+            const aiMessages = allMessages.filter((msg: Message) => msg.role === "assistant");
+            
+            // 如果要重新生成的不是最后一条AI消息，需要确认
+            if (aiMessages.length > 0 && finalMessageId !== aiMessages[aiMessages.length - 1].id) {
+              console.log("检测到中间消息重新生成，将显示确认对话框");
+              setPendingRegenerateMessageId(finalMessageId);
+              setShowBranchConfirmDialog(true);
+              setIsLoading(false);
+              return; // 等待用户确认
+            }
+          }
+        } catch (error) {
+          console.error("检查消息位置时出错:", error);
+          // 继续执行，不阻止重新生成
+        }
+      }
+      
+      // 直接重新生成（最后一条消息或用户已确认）
+      await executeRegenerateMessage(finalMessageId);
+      
+    } catch (error) {
+      console.error("准备重新生成消息时出错:", error);
+      toast({
+        title: "重新生成失败",
+        description: error instanceof Error ? error.message : "未知错误",
+        variant: "destructive",
+        className: "frosted-toast-error",
+      });
+      setIsLoading(false);
+    }
+  };
+  
+  // 实际执行重新生成的函数
+  const executeRegenerateMessage = async (finalMessageId: number | undefined) => {
+    if (!finalMessageId) {
+      throw new Error("消息ID不存在");
+    }
+    
+    try {
       // 添加临时状态表示AI正在思考
       setMessages(prev => {
         // 找到要重新生成的消息的索引
@@ -362,8 +457,12 @@ export function AIChat({ userData }: AIChatProps) {
         return prev;
       });
 
-      // 使用直接fetch发送请求
-      const response = await fetch(`/api/messages/${finalMessageId}/regenerate`, {
+      // 使用直接fetch发送请求，确保URL是完整的
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/messages/${finalMessageId}/regenerate`;
+      console.log("发送重新生成请求:", apiUrl, "使用模型:", currentModel);
+      
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -371,7 +470,9 @@ export function AIChat({ userData }: AIChatProps) {
         body: JSON.stringify({
           userId: userData.userId,
           userRole: userData.role,
-          chatId: currentChatId
+          chatId: currentChatId,
+          model: currentModel, // 添加当前选择的模型信息
+          useWebSearch: useWebSearch // 添加网络搜索参数
         })
       });
       
@@ -410,11 +511,16 @@ export function AIChat({ userData }: AIChatProps) {
           
           console.log("更新消息内容:", newContent.substring(0, 50) + "...");
           
-          // 创建新消息对象，保留原有属性并更新内容
+          // 提取模型信息，确保更新为当前使用的模型
+          const modelSource = result.model || currentModel;
+          console.log("更新消息来源模型:", modelSource);
+          
+          // 创建新消息对象，保留原有属性并更新内容和模型信息
           newMessages[index] = {
             ...newMessages[index],
             content: newContent,
-            isRegenerating: false
+            isRegenerating: false,
+            model: modelSource  // 更新模型来源，确保显示正确的重新生成模型
           };
           
           return newMessages;
@@ -431,7 +537,10 @@ export function AIChat({ userData }: AIChatProps) {
           queryClient.cancelQueries({ queryKey: [`/api/chats/${currentChatId}/messages`] });
           
           // 使用直接fetch获取最新数据
-          const refreshResponse = await fetch(`/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`);
+          const baseUrl = window.location.origin;
+          const refreshUrl = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
+          console.log("刷新消息列表URL:", refreshUrl);
+          const refreshResponse = await fetch(refreshUrl);
           if (refreshResponse.ok) {
             const latestMessages = await refreshResponse.json();
             if (Array.isArray(latestMessages) && latestMessages.length > 0) {
@@ -487,10 +596,19 @@ export function AIChat({ userData }: AIChatProps) {
 
   // 处理消息反馈的变异函数
   const feedbackMessageMutation = useMutation({
-    mutationFn: async ({ messageId, feedback }: { messageId: number | undefined; feedback: "like" | "dislike" }) => {
+    mutationFn: async ({ 
+      messageId, 
+      feedback, 
+      feedbackText 
+    }: { 
+      messageId: number | undefined; 
+      feedback: "like" | "dislike";
+      feedbackText?: string;
+    }) => {
       if (!messageId) throw new Error("消息ID不存在");
       const response = await apiRequest("PATCH", `/api/messages/${messageId}/feedback`, { 
         feedback,
+        feedbackText,
         userId: userData.userId,
         userRole: userData.role,
         chatId: currentChatId
@@ -504,6 +622,7 @@ export function AIChat({ userData }: AIChatProps) {
       }
     },
     onError: (error: Error) => {
+      console.error("提交反馈失败:", error);
       toast({
         title: "提交反馈失败",
         description: error.message,
@@ -635,9 +754,6 @@ export function AIChat({ userData }: AIChatProps) {
       // 注意：我们先添加一个空内容的消息，显示思考动画
       setMessages([...newMessages, { role: "assistant" as const, content: "" }]);
 
-      // 发送给后端 API - 故意延迟300-600ms以显示思考状态
-      await new Promise(resolve => setTimeout(resolve, Math.random() * 300 + 300));
-
       // 确保使用正确的聊天ID发送消息
       console.log("使用聊天ID发送消息:", chatIdForRequest);
       const response = await apiRequest("POST", "/api/chat", {
@@ -653,6 +769,18 @@ export function AIChat({ userData }: AIChatProps) {
       // 获取AI响应内容
       const aiResponse = data.text || "抱歉，我现在无法回答这个问题。";
 
+      // 检查API响应是否包含错误信息
+      const containsError = aiResponse.includes("模型暂时无法使用") || 
+                           aiResponse.includes("DeepSeek模型无法生成回应") || 
+                           aiResponse.includes("Dify模型暂时无法使用") || 
+                           aiResponse.includes("模型认证失败") || 
+                           aiResponse.includes("API密钥") || 
+                           aiResponse.includes("API调用次数已达上限") || 
+                           aiResponse.includes("频率限制") || 
+                           aiResponse.includes("服务响应超时") || 
+                           aiResponse.includes("连接服务失败") ||
+                           aiResponse.includes("无法回应");
+      
       // 更新现有的思考消息为真实响应
       setMessages(prev => {
         // 复制当前消息数组
@@ -663,11 +791,32 @@ export function AIChat({ userData }: AIChatProps) {
           updatedMessages[updatedMessages.length - 1] = {
             role: "assistant" as const,
             content: aiResponse,
-            model: data.model || currentModel // 添加模型信息
+            model: data.model || currentModel, // 添加模型信息
+            hasError: containsError // 标记是否包含错误信息
           };
         }
         return updatedMessages;
       });
+      
+      // 如果是DeepSeek模型且响应中包含错误信息，显示提示
+      if (currentModel === "deepseek" && containsError) {
+        toast({
+          title: "DeepSeek模型暂时不可用",
+          description: "请尝试使用Gemini或Grok模型，或稍后再试",
+          variant: "destructive",
+          duration: 5000
+        });
+      }
+      
+      // 如果是Deep模型且响应中包含错误信息，显示提示
+      if (currentModel === "deep" && containsError) {
+        toast({
+          title: "Deep模型暂时不可用",
+          description: "请尝试使用Gemini或Grok模型，或稍后再试",
+          variant: "destructive",
+          duration: 5000
+        });
+      }
 
       // 保存用户消息到记忆空间
       saveToMemorySpace(userInput, 'user');
@@ -771,10 +920,54 @@ export function AIChat({ userData }: AIChatProps) {
     setShowSidebar(!showSidebar);
   };
 
+  // 根据系统配置获取默认模型
+  const getDefaultModelFromConfig = useCallback(() => {
+    if (!systemConfig) return "grok"; // 默认回退值
+    
+    const defaultModelConfig = systemConfig.find((config: any) => config.key === "default_model");
+    if (defaultModelConfig && defaultModelConfig.value) {
+      return defaultModelConfig.value as Model;
+    }
+    
+    return "grok"; // 如果未找到默认回退值
+  }, [systemConfig]);
+  
+  // 当系统配置加载完成后，自动设置默认模型
+  useEffect(() => {
+    if (systemConfig) {
+      const defaultModel = getDefaultModelFromConfig();
+      // 只有当前选择的模型不是默认模型，且不是用户通过localStorage保存的自定义模型时，才进行切换
+      const savedModel = localStorage.getItem('currentModel') as Model;
+      if (!savedModel && defaultModel !== currentModel) {
+        console.log(`从系统配置加载默认模型: ${defaultModel}`);
+        setCurrentModel(defaultModel);
+        localStorage.setItem('currentModel', defaultModel);
+      }
+    }
+  }, [systemConfig, getDefaultModelFromConfig, currentModel]);
+
+  // 创建新对话时重置状态并获取系统默认模型
   const handleNewChat = () => {
     setMessages([]);
     setCurrentChatId(undefined);
     setShowSidebar(false);
+    
+    // 获取系统默认模型并设置为当前模型
+    const defaultModel = getDefaultModelFromConfig();
+    if (defaultModel !== currentModel) {
+      setCurrentModel(defaultModel);
+      // 保存到本地存储中以便下次使用
+      localStorage.setItem('currentModel', defaultModel);
+      
+      toast({
+        title: `已切换到默认模型: ${defaultModel === "deep" ? "深度推理" : 
+               defaultModel === "gemini" ? "Gemini" :
+               defaultModel === "deepseek" ? "Deepseek" : "Grok"}`,
+        description: "系统已为新对话设置默认模型",
+        variant: "default",
+        className: "frosted-toast",
+      });
+    }
   };
 
   // 开始编辑消息
@@ -828,12 +1021,16 @@ export function AIChat({ userData }: AIChatProps) {
   };
 
   // 处理消息反馈
-  const handleMessageFeedback = async (messageId: number | undefined, feedback: "like" | "dislike") => {
+  const handleMessageFeedback = async (
+    messageId: number | undefined, 
+    feedback: "like" | "dislike", 
+    feedbackText?: string
+  ) => {
     try {
-      await feedbackMessageMutation.mutateAsync({ messageId, feedback });
+      await feedbackMessageMutation.mutateAsync({ messageId, feedback, feedbackText });
       toast({
         title: feedback === "like" ? "感谢您的好评!" : "感谢您的反馈",
-        description: "您的反馈将帮助我们改进系统",
+        description: feedbackText ? "您的详细反馈已提交，将帮助我们改进系统" : "您的反馈将帮助我们改进系统",
       });
     } catch (error) {
       console.error("提交反馈失败:", error);
@@ -842,48 +1039,16 @@ export function AIChat({ userData }: AIChatProps) {
 
 
 
-  // 应用主题设置到DOM
-  const applyTheme = (newTheme: "light" | "dark" | "system") => {
-    // 移除所有主题类
-    document.documentElement.classList.remove('light', 'dark');
-
-    // 应用新主题
-    if (newTheme === "system") {
-      // 根据系统偏好设置主题
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.add('light');
-      }
-    } else {
-      // 直接应用指定主题
-      document.documentElement.classList.add(newTheme);
-    }
-
-    // 保存设置到本地存储
-    localStorage.setItem('theme', newTheme);
+  // 应用主题设置 - 现在使用全局主题上下文
+  const applyTheme = (newTheme: 'light' | 'dark' | 'system') => {
+    // 使用全局上下文的setTheme方法
+    setTheme(newTheme);
   };
 
-  // 应用字体大小设置
-  const applyFontSize = (size: "small" | "medium" | "large") => {
-    // 移除所有字体大小类
-    document.documentElement.classList.remove('text-sm', 'text-md', 'text-lg');
-
-    // 应用新字体大小
-    switch (size) {
-      case "small":
-        document.documentElement.classList.add('text-sm');
-        break;
-      case "medium":
-        document.documentElement.classList.add('text-md');
-        break;
-      case "large":
-        document.documentElement.classList.add('text-lg');
-        break;
-    }
-
-    // 保存设置到本地存储
-    localStorage.setItem('font-size', size);
+  // 应用字体大小设置 - 现在使用全局主题上下文
+  const applyFontSize = (size: 'small' | 'medium' | 'large') => {
+    // 使用全局上下文的setFontSize方法
+    setFontSize(size);
   };
 
   // Update handleSelectChat to properly load messages
@@ -894,9 +1059,10 @@ export function AIChat({ userData }: AIChatProps) {
     const fetchMessages = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(
-          `/api/chats/${chatId}/messages?userId=${user.userId}&role=${user.role}`
-        );
+        const baseUrl = window.location.origin;
+        const apiUrl = `${baseUrl}/api/chats/${chatId}/messages?userId=${user.userId}&role=${user.role}`;
+        console.log("加载聊天消息URL:", apiUrl);
+        const response = await fetch(apiUrl);
         if (!response.ok) {
           throw new Error("Failed to fetch messages");
         }
@@ -927,26 +1093,93 @@ export function AIChat({ userData }: AIChatProps) {
     fetchMessages();
   };
 
-  // 处理消息中图片上传
+  // 处理消息中图片上传 - 改进版，支持Grok Vision预处理
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       setIsLoading(true);
+      toast({
+        title: "正在处理图片...",
+        description: "使用Grok Vision分析图片内容中，请稍候",
+        duration: 3000,
+      });
+      
+      // 第一步：上传图片
       const base64Image = await readFileAsBase64(file);
-
-      const response = await apiRequest("POST", "/api/upload", { image: base64Image });
-      const data: UploadResponse = await response.json();
-
-      // Add image to messages with model
-      setMessages([...messages, {
+      const uploadResponse = await apiRequest("POST", "/api/upload", { image: base64Image });
+      const uploadData: UploadResponse = await uploadResponse.json();
+      
+      if (!uploadData.url) {
+        throw new Error("图片上传失败，未返回URL");
+      }
+      
+      // 显示上传中的临时用户消息
+      setMessages(prev => [...prev, {
         role: "user",
-        content: `![Uploaded Image](${data.url})`,
-        model: currentModel // 设置模型信息
+        content: `![上传中图片...](${uploadData.url})`,
+        model: currentModel,
+        isProcessing: true // 标记为处理中
       }]);
+      
+      // 第二步：使用Grok Vision预处理图片
+      const preprocessResponse = await apiRequest("POST", "/api/preprocess-image", { 
+        imageUrl: uploadData.url 
+      });
+      const preprocessData = await preprocessResponse.json();
+      
+      // 更新消息，将处理后的图片描述和原始图片一起显示
+      setMessages(prev => {
+        const newMessages = [...prev];
+        // 找到最后一条标记为处理中的消息
+        const lastIndex = newMessages.findIndex(msg => msg.isProcessing);
+        
+        if (lastIndex !== -1) {
+          // 如果成功预处理，则添加描述
+          if (preprocessData.success) {
+            // 组合图片和描述
+            newMessages[lastIndex] = {
+              role: "user",
+              content: `![Uploaded Image](${uploadData.url})\n\n${preprocessData.description}`,
+              model: currentModel
+            };
+          } else {
+            // 预处理失败，仅使用原始图片
+            newMessages[lastIndex] = {
+              role: "user",
+              content: `![Uploaded Image](${uploadData.url})`,
+              model: currentModel
+            };
+            
+            // 显示错误提示
+            toast({
+              title: "图片分析失败",
+              description: "无法使用Grok Vision分析图片，但图片已成功上传",
+              variant: "destructive",
+              duration: 3000,
+            });
+          }
+        }
+        return newMessages;
+      });
+      
+      // 如果预处理成功，显示成功提示
+      if (preprocessData.success) {
+        toast({
+          title: "图片处理完成",
+          description: "已使用Grok Vision分析图片内容",
+          duration: 2000,
+        });
+      }
     } catch (error) {
-      console.error("Failed to upload image:", error);
+      console.error("Failed to upload and process image:", error);
+      toast({
+        title: "图片处理失败",
+        description: error instanceof Error ? error.message : "无法上传或处理图片",
+        variant: "destructive",
+        duration: 5000,
+      });
     } finally {
       setIsLoading(false);
       if (fileInputRef.current) {
@@ -1081,6 +1314,53 @@ export function AIChat({ userData }: AIChatProps) {
     };
   }, []);
   
+  // 优化触摸交互，特别针对iPad和平板设备
+  useEffect(() => {
+    // 检测是否为iPad或平板设备
+    const isIPad = /iPad/.test(navigator.userAgent) || 
+                  (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
+    const isTablet = isIPad || (window.innerWidth >= 768 && window.innerWidth <= 1366 && 'ontouchend' in document);
+    
+    // 应用触摸优化到消息容器
+    if (messagesContainerRef.current) {
+      enhanceTouchInteraction(messagesContainerRef.current);
+      
+      // 为消息容器添加滚动优化类
+      messagesContainerRef.current.classList.add('scroll-container');
+      messagesContainerRef.current.setAttribute('data-scroll-container', 'true');
+    }
+    
+    // 为文本输入区域添加触摸优化
+    const textareaElement = document.querySelector('.chat-input textarea');
+    if (textareaElement) {
+      enhanceTouchInteraction(textareaElement as HTMLElement);
+    }
+    
+    // 为整个聊天界面添加设备特定类
+    const chatInterface = document.querySelector('.chat-container');
+    if (chatInterface) {
+      chatInterface.classList.add('touch-optimized');
+      if (isIPad) {
+        chatInterface.classList.add('ipad-optimized');
+      } else if (isTablet) {
+        chatInterface.classList.add('tablet-optimized');
+      }
+    }
+    
+    // 优化消息滚动区域的过渡效果
+    if (isIPad || isTablet) {
+      // 为所有按钮添加触摸优化
+      document.querySelectorAll('button').forEach(button => {
+        enhanceTouchInteraction(button);
+      });
+      
+      // 优化对话框交互
+      document.querySelectorAll('.dialog-content').forEach(dialog => {
+        enhanceTouchInteraction(dialog as HTMLElement);
+      });
+    }
+  }, []);
+  
   // 检查用户登录状态和初始化偏好设置
   useEffect(() => {
     // 1. 检查用户登录状态
@@ -1091,25 +1371,36 @@ export function AIChat({ userData }: AIChatProps) {
     }
 
     // 2. 加载用户设置
-    // 2.1 初始化主题
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | "system" | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      applyTheme(savedTheme);
-    } else {
-      // 默认使用浅色主题
-      setTheme("light");
-      applyTheme("light");
-    }
+    // 注意：现在使用全局ThemeContext管理主题和字体大小
+    // ThemeContext将在组件挂载时自动从localStorage读取并应用这些设置
+    // 无需在每个组件中单独处理这些逻辑
+    
+    // 如果需要其他组件特定的设置，可以在这里处理
 
-    // 2.2 初始化字体大小
-    const savedFontSize = localStorage.getItem("font-size") as "small" | "medium" | "large" | null;
-    if (savedFontSize) {
-      setFontSize(savedFontSize);
-      applyFontSize(savedFontSize);
-    }
-
-    // 2.3 加载背景图片
+    // 2.3 加载自定义主题颜色
+    const savedThemeColor = localStorage.getItem("custom-theme-color") ?? "#0deae4";
+    setCustomThemeColor(savedThemeColor);
+    setTempThemeColor(savedThemeColor);
+    
+    // 应用自定义主题颜色到CSS变量
+    document.documentElement.style.setProperty('--custom-theme-color', savedThemeColor);
+    
+    // 将颜色转换为RGB格式并保存到CSS变量中，用于透明度效果
+    const hexToRgb = (hex: string) => {
+      // 将#0deae4格式转换为rgb(13, 234, 228)格式
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      if (!result) {
+        return '13, 234, 228'; // 默认青色的RGB值
+      }
+      const r = parseInt(result[1], 16);
+      const g = parseInt(result[2], 16);
+      const b = parseInt(result[3], 16);
+      return `${r}, ${g}, ${b}`;
+    };
+    
+    document.documentElement.style.setProperty('--custom-theme-color-rgb', hexToRgb(savedThemeColor));
+    
+    // 2.4 加载背景图片
     const savedBackgroundImage = localStorage.getItem("background-image");
     if (savedBackgroundImage) {
       setBackgroundImage(savedBackgroundImage);
@@ -1152,7 +1443,10 @@ export function AIChat({ userData }: AIChatProps) {
   const { data: apiChats, isLoading: apiChatsLoading } = useQuery({
     queryKey: ['/api/chats', user.userId, user.role],
     queryFn: async () => {
-      const response = await fetch(`/api/chats?userId=${user.userId}&role=${user.role}`);
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/chats?userId=${user.userId}&role=${user.role}`;
+      console.log("获取聊天列表URL:", apiUrl);
+      const response = await fetch(apiUrl);
       if (!response.ok) throw new Error('Failed to fetch chats');
       return response.json();
     },
@@ -1280,7 +1574,7 @@ export function AIChat({ userData }: AIChatProps) {
   }, []);
   
   return (
-    <div className="flex h-screen text-white relative" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
+    <div className="flex h-screen text-white relative overflow-auto" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
       {/* 背景图片容器 */}
       {backgroundImage && (
         <div className="bg-container">
@@ -1338,54 +1632,81 @@ export function AIChat({ userData }: AIChatProps) {
 
       {/* Main Content - 添加iPad优化类 */}
       <div className="flex-1 flex flex-col relative chat-content-area w-full ipad-chat-content">
-        {/* Header - 苹果风格磨砂透明 */}
-        <header className={`h-16 flex items-center justify-between px-6 border-b py-4 ${theme === 'dark' ? 'frosted-glass-dark border-neutral-800' : 'frosted-glass border-neutral-200/20'}`}>
+        {/* Header - 主题样式根据模式切换 */}
+        <header className={`flex items-center justify-between border-b sm:h-16 sm:px-6 sm:py-4 h-14 px-3 py-2 ${
+          theme === 'dark' 
+            ? 'frosted-glass-dark border-neutral-800' 
+            : 'bg-black/30 backdrop-blur-md border-[#0deae4]/20'
+        }`}>
           <div className="flex items-center">
             {/* 左侧菜单按钮 - 显示历史记录 */}
             <Button
               variant="ghost"
               size="icon"
-              className="mr-4 hover:bg-neutral-800 rounded-lg h-12 w-12"
+              className={`mr-3 sm:mr-4 rounded-lg sm:h-12 sm:w-12 h-10 w-10 ${
+                theme === 'dark'
+                  ? 'hover:bg-neutral-800'
+                  : 'hover:bg-[#0deae4]/10'
+              }`}
               onClick={toggleSidebar}
               aria-label="显示侧边栏"
             >
-              <Menu className="h-7 w-7 text-neutral-300" />
+              <Menu className={`sm:h-7 sm:w-7 h-5 w-5 ${theme === 'dark' ? 'text-neutral-300' : 'text-[#0deae4]'}`} />
             </Button>
 
             {/* 当前对话标题 */}
             {currentChatId ? (
               <div className="flex items-center">
-                <h1 className="text-lg font-medium text-neutral-200 mr-2 truncate max-w-[180px] sm:max-w-[320px] md:max-w-[400px]">{currentChat?.title}</h1>
+                <h1 className={`text-base font-medium mr-2 truncate max-w-[160px] sm:max-w-[280px] md:max-w-[350px] ${
+                  theme === 'dark' ? 'text-neutral-200' : 'text-white'
+                }`}>{currentChat?.title}</h1>
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   onClick={() => setShowTitleDialog(true)}
-                  className="h-8 w-8 rounded-full hover:bg-neutral-800"
+                  className={`h-8 w-8 rounded-full ${
+                    theme === 'dark' ? 'hover:bg-neutral-800' : 'hover:bg-[#0deae4]/10'
+                  }`}
                 >
-                  <Edit className="h-4 w-4 text-neutral-400" />
+                  <Edit className={`h-4 w-4 ${
+                    theme === 'dark' ? 'text-neutral-400' : 'text-[#0deae4]'
+                  }`} />
                 </Button>
               </div>
             ) : (
               <div className="flex items-center">
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-lg mr-2.5">
-                  <Brain className="h-5 w-5 text-white" />
+                <div className={`p-1 sm:p-1.5 rounded-lg mr-2 sm:mr-2.5 ${
+                  theme === 'dark' 
+                    ? 'bg-gradient-to-br from-blue-500 to-purple-600' 
+                    : 'bg-gradient-to-br from-[#0deae4] to-[#0d8ae4]'
+                }`}>
+                  <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <h1 className="text-lg font-bold text-white">启发式对话导师</h1>
+                <h1 className="text-sm font-bold text-white whitespace-nowrap">启发式对话导师</h1>
               </div>
             )}
           </div>
 
           {/* 右侧功能区 - 只保留新对话按钮，改为ChatGPT风格 */}
           <div className="flex items-center">
-            {/* 新对话按钮 - 使用ChatGPT风格 */}
+            {/* 新对话按钮 - 更可爱的青色主题样式 */}
             <Button 
               variant="outline" 
               onClick={handleNewChat}
-              className="h-12 px-6 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700 flex items-center transition-colors"
+              className={`h-9 px-4 rounded-full bg-white/10 backdrop-blur-md hover:bg-opacity-20 text-white border text-xs flex items-center transition-all shadow-sm hover:scale-105 ${
+                theme === 'dark' ? 'border-[#0deae4] hover:bg-[#0deae4]/20 hover:shadow-[#0deae4]/30' : ''
+              }`}
+              style={theme === 'light' ? {
+                borderColor: 'var(--custom-theme-color)',
+                '--tw-bg-opacity': 0.2,
+                '--tw-hover-bg-opacity': 0.3,
+                boxShadow: '0 0 10px rgba(var(--custom-theme-color-rgb, 13, 234, 228), 0.2)',
+                '--tw-hover-shadow': '0 0 15px rgba(var(--custom-theme-color-rgb, 13, 234, 228), 0.3)',
+              } as React.CSSProperties : {}}
               title="新对话"
             >
-              <Plus className="h-6 w-6 mr-2" />
-              <span>新对话</span>
+              <Plus className={`h-3.5 w-3.5 mr-1.5 ${theme === 'dark' ? 'text-[#0deae4]' : ''}`} style={theme === 'light' ? {color: 'var(--custom-theme-color)'} : {}} />
+              <span className="font-medium whitespace-nowrap">新对话</span>
             </Button>
           </div>
         </header>
@@ -1456,62 +1777,204 @@ export function AIChat({ userData }: AIChatProps) {
           <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 md:px-8">
             {/* 模型选择和网络搜索开关 */}
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
-              {/* 网络搜索按钮 - 作为一个可以切换的辅助功能 */}
+              {/* 网络搜索按钮 - 特殊样式，表明它是独立选项 */}
               <Button
                 variant="outline"
                 size="sm"
-                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
-                  (useWebSearch ? "border-blue-500" : "border-neutral-700")
+                className={`h-8 text-xs bg-black/40 hover:bg-opacity-10 relative transition-all duration-200 
+                  ${useWebSearch ? 'shadow-inner transform scale-105' : ''} ` + 
+                  (useWebSearch 
+                    ? (theme === 'dark' 
+                        ? "border-yellow-400 text-yellow-300 bg-yellow-900/30" 
+                        : "border-yellow-500 text-yellow-700 bg-yellow-50") 
+                    : (theme === 'dark'
+                        ? "border-yellow-600/40 text-white"
+                        : "border-yellow-400/40 text-white"))
                 }
-                onClick={() => setUseWebSearch(!useWebSearch)}
+                style={{
+                  ...(theme === 'light' && useWebSearch ? {
+                    borderColor: '#f59e0b',
+                    color: '#b45309',
+                    backgroundColor: 'rgba(254, 240, 138, 0.2)',
+                    boxShadow: useWebSearch ? 'inset 0 2px 4px rgba(245, 158, 11, 0.1)' : 'none'
+                  } : {}),
+                  ...(theme === 'light' && !useWebSearch ? {
+                    borderColor: 'rgba(245, 158, 11, 0.4)',
+                    '--tw-hover-bg-opacity': 0.1
+                  } as React.CSSProperties : {})
+                }}
+                onClick={() => {
+                  const newState = !useWebSearch;
+                  setUseWebSearch(newState);
+                  // 保存到localStorage，确保刷新页面后状态不丢失
+                  localStorage.setItem('useWebSearch', String(newState));
+                  
+                  // 显示状态变化提示
+                  toast({
+                    title: newState ? "网络搜索已启用" : "网络搜索已关闭",
+                    description: newState ? "现在AI将使用网络搜索工具获取最新信息" : "AI将仅使用内部知识回答",
+                    variant: "default",
+                    className: newState ? "frosted-toast-success" : "frosted-toast",
+                  });
+                }}
               >
-                <Search className="w-3.5 h-3.5 mr-1.5" />
+                <Search 
+                  className={`w-3.5 h-3.5 mr-1.5 ${
+                    theme === 'dark' 
+                      ? (useWebSearch ? 'text-yellow-300' : 'text-yellow-600/70')
+                      : ''
+                  }`} 
+                  style={theme === 'light' ? {
+                    color: useWebSearch 
+                      ? '#b45309' 
+                      : 'rgba(245, 158, 11, 0.7)'
+                  } : {}}
+                />
                 网络搜索
+                {useWebSearch && (
+                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-green-500 border border-green-200"></span>
+                )}
               </Button>
               
               {/* 模型选择按钮 */}
               <Button
                 variant="outline"
                 size="sm"
-                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
-                  (currentModel === "deep" ? "border-blue-500" : "border-neutral-700")
+                className={`h-8 text-xs bg-black/40 hover:bg-opacity-10 ` + 
+                  (currentModel === "deep" 
+                    ? (theme === 'dark' 
+                        ? "border-[#0deae4] text-[#0deae4]" 
+                        : "border-custom-theme text-custom-theme") 
+                    : (theme === 'dark'
+                        ? "border-[#0deae4]/40 text-white"
+                        : "border-custom-theme/40 text-white"))
                 }
+                style={theme === 'light' && currentModel === "deep" ? {
+                  borderColor: 'var(--custom-theme-color)',
+                  color: 'var(--custom-theme-color)'
+                } : theme === 'light' ? {
+                  borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
+                  '--tw-hover-bg-opacity': 0.1
+                } as React.CSSProperties : {}}
                 onClick={() => handleModelChange("deep")}
               >
-                <Brain className="w-3.5 h-3.5 mr-1.5" />
+                <Brain 
+                  className={`w-3.5 h-3.5 mr-1.5 ${
+                    theme === 'dark' 
+                      ? (currentModel === "deep" ? 'text-[#0deae4]' : 'text-[#0deae4]/70')
+                      : ''
+                  }`} 
+                  style={theme === 'light' ? {
+                    color: currentModel === "deep" 
+                      ? 'var(--custom-theme-color)' 
+                      : 'rgba(var(--custom-theme-color-rgb), 0.7)'
+                  } : {}}
+                />
                 深度推理
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
-                  (currentModel === "gemini" ? "border-blue-500" : "border-neutral-700")
+                className={`h-8 text-xs bg-black/40 hover:bg-opacity-10 ` + 
+                  (currentModel === "gemini" 
+                    ? (theme === 'dark' 
+                        ? "border-[#0deae4] text-[#0deae4]" 
+                        : "border-custom-theme text-custom-theme") 
+                    : (theme === 'dark'
+                        ? "border-[#0deae4]/40 text-white"
+                        : "border-custom-theme/40 text-white"))
                 }
+                style={theme === 'light' && currentModel === "gemini" ? {
+                  borderColor: 'var(--custom-theme-color)',
+                  color: 'var(--custom-theme-color)'
+                } : theme === 'light' ? {
+                  borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
+                  '--tw-hover-bg-opacity': 0.1
+                } as React.CSSProperties : {}}
                 onClick={() => handleModelChange("gemini")}
               >
-                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                <Sparkles 
+                  className={`w-3.5 h-3.5 mr-1.5 ${
+                    theme === 'dark' 
+                      ? (currentModel === "gemini" ? 'text-[#0deae4]' : 'text-[#0deae4]/70')
+                      : ''
+                  }`} 
+                  style={theme === 'light' ? {
+                    color: currentModel === "gemini" 
+                      ? 'var(--custom-theme-color)' 
+                      : 'rgba(var(--custom-theme-color-rgb), 0.7)'
+                  } : {}}
+                />
                 Gemini
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
-                  (currentModel === "deepseek" ? "border-blue-500" : "border-neutral-700")
+                className={`h-8 text-xs bg-black/40 hover:bg-opacity-10 ` + 
+                  (currentModel === "deepseek" 
+                    ? (theme === 'dark' 
+                        ? "border-[#0deae4] text-[#0deae4]" 
+                        : "border-custom-theme text-custom-theme") 
+                    : (theme === 'dark'
+                        ? "border-[#0deae4]/40 text-white"
+                        : "border-custom-theme/40 text-white"))
                 }
+                style={theme === 'light' && currentModel === "deepseek" ? {
+                  borderColor: 'var(--custom-theme-color)',
+                  color: 'var(--custom-theme-color)'
+                } : theme === 'light' ? {
+                  borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
+                  '--tw-hover-bg-opacity': 0.1
+                } as React.CSSProperties : {}}
                 onClick={() => handleModelChange("deepseek")}
               >
-                <Code className="w-3.5 h-3.5 mr-1.5" />
+                <Code 
+                  className={`w-3.5 h-3.5 mr-1.5 ${
+                    theme === 'dark' 
+                      ? (currentModel === "deepseek" ? 'text-[#0deae4]' : 'text-[#0deae4]/70')
+                      : ''
+                  }`} 
+                  style={theme === 'light' ? {
+                    color: currentModel === "deepseek" 
+                      ? 'var(--custom-theme-color)' 
+                      : 'rgba(var(--custom-theme-color-rgb), 0.7)'
+                  } : {}}
+                />
                 Deepseek
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className={"h-8 text-xs bg-neutral-900 hover:bg-neutral-800 " + 
-                  (currentModel === "grok" ? "border-blue-500" : "border-neutral-700")
+                className={`h-8 text-xs bg-black/40 hover:bg-opacity-10 ` + 
+                  (currentModel === "grok" 
+                    ? (theme === 'dark' 
+                        ? "border-[#0deae4] text-[#0deae4]" 
+                        : "border-custom-theme text-custom-theme") 
+                    : (theme === 'dark'
+                        ? "border-[#0deae4]/40 text-white"
+                        : "border-custom-theme/40 text-white"))
                 }
+                style={theme === 'light' && currentModel === "grok" ? {
+                  borderColor: 'var(--custom-theme-color)',
+                  color: 'var(--custom-theme-color)'
+                } : theme === 'light' ? {
+                  borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
+                  '--tw-hover-bg-opacity': 0.1
+                } as React.CSSProperties : {}}
                 onClick={() => handleModelChange("grok")}
               >
-                <Rocket className="w-3.5 h-3.5 mr-1.5" />
+                <Rocket 
+                  className={`w-3.5 h-3.5 mr-1.5 ${
+                    theme === 'dark' 
+                      ? (currentModel === "grok" ? 'text-[#0deae4]' : 'text-[#0deae4]/70')
+                      : ''
+                  }`} 
+                  style={theme === 'light' ? {
+                    color: currentModel === "grok" 
+                      ? 'var(--custom-theme-color)' 
+                      : 'rgba(var(--custom-theme-color-rgb), 0.7)'
+                  } : {}}
+                />
                 Grok
               </Button>
             </div>
@@ -1535,13 +1998,14 @@ export function AIChat({ userData }: AIChatProps) {
               </div>
             )}
 
-            {/* 输入框区域 - 苹果风格磨砂玻璃效果 */}
+            {/* 输入框区域 - 青色主题磨砂玻璃效果 */}
             <div className={`
               relative rounded-xl border shadow-lg overflow-hidden
-              ${theme === 'dark' 
-                ? 'border-blue-700/20 bg-neutral-900/70 backdrop-blur-lg' 
-                : 'border-blue-300/20 bg-white/70 backdrop-blur-lg'}
-            `}>
+              ${theme === 'dark' ? 'border-[#0deae4]/30' : ''} bg-black/40 backdrop-blur-lg
+            `}
+            style={theme === 'light' ? {
+              borderColor: 'rgba(var(--custom-theme-color-rgb), 0.3)'
+            } : {}}>
               <div className="flex items-end">
                 <div className="flex-1 relative">
                   <textarea
@@ -1552,14 +2016,14 @@ export function AIChat({ userData }: AIChatProps) {
                     onBlur={handleInputBlur}
                     placeholder="输入消息..."
                     disabled={isLoading}
-                    className="w-full h-[54px] min-h-[54px] max-h-[150px] py-4 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-[16px]"
+                    className="w-full h-[54px] min-h-[54px] max-h-[150px] py-4 pl-12 pr-3 bg-transparent border-0 resize-none focus:outline-none focus:ring-0 text-[16px] text-white"
                     style={{
                       WebkitAppearance: 'none',
                       MozAppearance: 'none',
                       appearance: 'none',
                       WebkitUserSelect: 'text',
                       userSelect: 'text',
-                      caretColor: theme === 'dark' ? 'white' : '#1c1e24'
+                      caretColor: theme === 'dark' ? '#0deae4' : 'var(--custom-theme-color)'
                     }}
                   />
                   <input
@@ -1572,12 +2036,15 @@ export function AIChat({ userData }: AIChatProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className={`
-                      absolute bottom-[13px] left-2 h-8 w-8 rounded-full 
-                      ${theme === 'dark' 
-                        ? 'hover:bg-neutral-700/70 text-neutral-400' 
-                        : 'hover:bg-neutral-200/60 text-neutral-600'}
-                    `}
+                    className={`absolute bottom-[13px] left-2 h-8 w-8 rounded-full ${
+                      theme === 'dark' 
+                        ? 'hover:bg-[#0deae4]/20 text-[#0deae4]' 
+                        : 'hover:bg-opacity-20'
+                    }`}
+                    style={theme === 'light' ? {
+                      color: 'var(--custom-theme-color)',
+                      '--tw-hover-bg-opacity': 0.2
+                    } as React.CSSProperties : {}}
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <ImageIcon className="h-5 w-5" />
@@ -1587,13 +2054,29 @@ export function AIChat({ userData }: AIChatProps) {
                   onClick={handleSend}
                   disabled={isLoading}
                   className={`
-                    h-10 w-10 mr-3 mb-2 rounded-full shadow-lg
+                    h-10 w-10 mr-3 mb-2 rounded-full shadow-lg transition-all
                     ${isLoading 
-                      ? 'opacity-50 cursor-not-allowed' 
-                      : 'bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600'}
+                      ? 'opacity-50 cursor-not-allowed bg-black/60 border border-opacity-40' 
+                      : 'hover:scale-105 text-black'}
+                    ${theme === 'dark' 
+                      ? (isLoading ? 'border-[#0deae4]/40' : 'bg-[#0deae4] hover:bg-[#0deae4]/80') 
+                      : ''}
                   `}
                   style={{
-                    boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
+                    ...(!isLoading && theme === 'light' ? {
+                      backgroundColor: 'var(--custom-theme-color)',
+                      boxShadow: '0 0 20px rgba(var(--custom-theme-color-rgb), 0.5)'
+                    } : {}),
+                    ...(isLoading && theme === 'light' ? {
+                      borderColor: 'rgba(var(--custom-theme-color-rgb), 0.4)',
+                      boxShadow: '0 0 10px rgba(var(--custom-theme-color-rgb), 0.2)'
+                    } : {}),
+                    ...(isLoading && theme === 'dark' ? {
+                      boxShadow: '0 0 10px rgba(13, 234, 228, 0.2)'
+                    } : {}),
+                    ...(!isLoading && theme === 'dark' ? {
+                      boxShadow: '0 0 20px rgba(13, 234, 228, 0.5)'
+                    } : {})
                   }}
                 >
                   <Send className="h-5 w-5" />
@@ -1753,7 +2236,10 @@ export function AIChat({ userData }: AIChatProps) {
             const { isLoading, error, data } = useQuery<LearningPathData>({
               queryKey: ["/api/learning-path", user.userId, user.role],
               queryFn: async () => {
-                const response = await fetch(`/api/learning-path?userId=${user.userId}&role=${user.role}`);
+                const baseUrl = window.location.origin;
+                const apiUrl = `${baseUrl}/api/learning-path?userId=${user.userId}&role=${user.role}`;
+                console.log("获取学习路径URL:", apiUrl);
+                const response = await fetch(apiUrl);
                 if (!response.ok) {
                   throw new Error("获取学习轨迹数据失败");
                 }
@@ -1922,45 +2408,73 @@ export function AIChat({ userData }: AIChatProps) {
       </Dialog>
 
       {/* 偏好设置对话框 */}
-      <Dialog open={showPreferencesDialog} onOpenChange={setShowPreferencesDialog}>
+      {/* 中间消息重新生成确认对话框 */}
+      <Dialog open={showBranchConfirmDialog} onOpenChange={setShowBranchConfirmDialog}>
         <DialogContent className="sm:max-w-md frosted-dialog">
+          <DialogHeader>
+            <DialogTitle>创建新对话分支</DialogTitle>
+          </DialogHeader>
+          <p className="py-4">重新生成此消息将创建新的对话分支，这将隐藏此消息之后的所有回复。您可以随时查看或恢复完整对话历史。</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowBranchConfirmDialog(false);
+              setPendingRegenerateMessageId(undefined);
+            }}>取消</Button>
+            <Button onClick={() => {
+              // 关闭对话框
+              setShowBranchConfirmDialog(false);
+              
+              // 执行重新生成
+              const messageId = pendingRegenerateMessageId;
+              setPendingRegenerateMessageId(undefined);
+              
+              if (messageId) {
+                // 异步执行重新生成
+                executeRegenerateMessage(messageId).catch(error => {
+                  console.error("确认后执行重新生成失败:", error);
+                  toast({
+                    title: "重新生成失败",
+                    description: error instanceof Error ? error.message : "处理请求时发生错误",
+                    variant: "destructive", 
+                    className: "frosted-toast-error",
+                  });
+                });
+              }
+            }}>继续创建分支</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPreferencesDialog} onOpenChange={setShowPreferencesDialog}>
+        <DialogContent className="sm:max-w-md frosted-dialog preferences-dialog-content">
           <DialogHeader>
             <DialogTitle>偏好设置</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 py-3">
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">外观</h3>
+              <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">外观</h3>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={theme === "light" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    setTheme("light");
-                    applyTheme("light");
-                  }}
-                  className="flex-1"
+                  onClick={() => setTheme("light")}
+                  className={`flex-1 ${theme === "light" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   浅色
                 </Button>
                 <Button
                   variant={theme === "dark" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    setTheme("dark");
-                    applyTheme("dark");
-                  }}
-                  className="flex-1"
+                  onClick={() => setTheme("dark")}
+                  className={`flex-1 ${theme === "dark" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   深色
                 </Button>
                 <Button
                   variant={theme === "system" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    setTheme("system");
-                    applyTheme("system");
-                  }}
-                  className="flex-1"
+                  onClick={() => setTheme("system")}
+                  className={`flex-1 ${theme === "system" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   跟随系统
                 </Button>
@@ -1968,99 +2482,218 @@ export function AIChat({ userData }: AIChatProps) {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">字体大小</h3>
+              <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">字体大小</h3>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={fontSize === "small" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    setFontSize("small");
-                    applyFontSize("small");
-                  }}
-                  className="flex-1"
+                  onClick={() => setFontSize("small")}
+                  className={`flex-1 ${fontSize === "small" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   小
                 </Button>
                 <Button
                   variant={fontSize === "medium" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    setFontSize("medium");
-                    applyFontSize("medium");
-                  }}
-                  className="flex-1"
+                  onClick={() => setFontSize("medium")}
+                  className={`flex-1 ${fontSize === "medium" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   中
                 </Button>
                 <Button
                   variant={fontSize === "large" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    setFontSize("large");
-                    applyFontSize("large");
-                  }}
-                  className="flex-1"
+                  onClick={() => setFontSize("large")}
+                  className={`flex-1 ${fontSize === "large" && "dark:border-[#0deae4] dark:border-2"}`}
                 >
                   大
                 </Button>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">背景设置</h3>
-              <div className="p-4 bg-neutral-800 rounded-md text-neutral-300 text-sm">
-                <div className="flex flex-col gap-3">
+
+            {/* 自定义主题颜色 - 仅在浅色模式下显示 */}
+            {theme === 'light' && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">主题颜色 <span className="text-xs text-blue-600 dark:text-[#0deae4]">(浅色模式)</span></h3>
+                <div className="p-4 bg-blue-50/90 dark:bg-neutral-800 rounded-md text-neutral-700 dark:text-neutral-300 text-sm space-y-3">
                   <div className="flex justify-between items-center">
-                    <span>自定义背景图片</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => document.getElementById('background-upload')?.click()}
-                      className="h-8 px-3 bg-neutral-700 hover:bg-neutral-600 border-neutral-600"
-                    >
-                      <ImageIcon className="h-4 w-4 mr-2" />
-                      上传图片
-                    </Button>
+                    <span>自定义颜色</span>
+                    <div className="flex items-center space-x-2">
+                      <div 
+                        className="w-6 h-6 rounded-full border border-gray-500 dark:border-white/30"
+                        style={{ backgroundColor: tempThemeColor }}
+                      ></div>
+                      <input
+                        type="text"
+                        value={tempThemeColor}
+                        onChange={(e) => setTempThemeColor(e.target.value)}
+                        placeholder="#0deae4"
+                        className="w-24 h-8 px-2 bg-blue-100 dark:bg-neutral-700 border border-blue-300 dark:border-neutral-600 rounded text-xs text-blue-900 dark:text-white"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // 验证颜色代码合法性
+                          const isValidColor = /^#([0-9A-F]{3}){1,2}$/i.test(tempThemeColor);
+                          if (isValidColor) {
+                            setCustomThemeColor(tempThemeColor);
+                            
+                            // 保存到 localStorage
+                            localStorage.setItem('custom-theme-color', tempThemeColor);
+                            
+                            // 将颜色应用到全局CSS变量
+                            document.documentElement.style.setProperty('--custom-theme-color', tempThemeColor);
+                            
+                            toast({
+                              title: "颜色已更新",
+                              description: "自定义主题颜色已应用",
+                            });
+                          } else {
+                            toast({
+                              title: "无效的颜色代码",
+                              description: "请输入有效的十六进制颜色代码，例如 #0deae4",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                        className="h-8 bg-blue-200 hover:bg-blue-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 border-blue-300 dark:border-neutral-600 text-blue-800 dark:text-white"
+                      >
+                        应用
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2 preferences-theme-color-section">
+                    <div 
+                      className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
+                      style={{ backgroundColor: "#0deae4" }}
+                      onClick={() => setTempThemeColor("#0deae4")}
+                    ></div>
+                    <div 
+                      className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
+                      style={{ backgroundColor: "#FF5E5B" }}
+                      onClick={() => setTempThemeColor("#FF5E5B")}
+                    ></div>
+                    <div 
+                      className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
+                      style={{ backgroundColor: "#9d65ff" }}
+                      onClick={() => setTempThemeColor("#9d65ff")}
+                    ></div>
+                    <div 
+                      className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
+                      style={{ backgroundColor: "#5e17eb" }}
+                      onClick={() => setTempThemeColor("#5e17eb")}
+                    ></div>
+                    <div 
+                      className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
+                      style={{ backgroundColor: "#00C6FF" }}
+                      onClick={() => setTempThemeColor("#00C6FF")}
+                    ></div>
+                    <div 
+                      className="w-8 h-8 rounded-full cursor-pointer border border-gray-500 dark:border-white/30 transition-all hover:scale-110"
+                      style={{ backgroundColor: "#F9D371" }}
+                      onClick={() => setTempThemeColor("#F9D371")}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-neutral-500 mt-2">
+                    自定义颜色仅在浅色模式下生效，深色模式将使用原有的样式
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* 背景图片设置 */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">背景图片</h3>
+              <div className="p-4 bg-blue-50/90 dark:bg-neutral-800 rounded-md text-neutral-700 dark:text-neutral-300 text-sm space-y-3">
+                <p className="text-neutral-500 dark:text-neutral-400 text-xs">
+                  上传自定义背景图片，支持JPG、PNG和WebP格式
+                </p>
+                <div className="flex flex-col gap-2">
+                  <div 
+                    className="border-2 border-dashed border-blue-300 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:bg-blue-100/50 dark:hover:bg-gray-800 transition-colors preferences-background-upload"
+                    onClick={() => backgroundInputRef.current?.click()}
+                  >
+                    <div className="py-4 flex flex-col items-center">
+                      <Upload className="h-8 w-8 text-blue-500 dark:text-gray-400 mb-2" />
+                      <p className="text-sm text-neutral-700 dark:text-gray-400">
+                        点击选择图片或拖拽图片到此处
+                      </p>
+                      <p className="text-xs text-neutral-500 dark:text-gray-500 mt-1">
+                        支持JPG、PNG、WebP格式，最大10MB
+                      </p>
+                    </div>
+                    <input
+                      ref={backgroundInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          try {
+                            // 检查文件大小，最大10MB
+                            if (file.size > 10 * 1024 * 1024) {
+                              toast({
+                                title: "文件过大",
+                                description: "背景图片不能超过10MB",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            
+                            // 仅保存文件引用，不立即上传
+                            setSelectedBackgroundFile(file);
+                            
+                            // 生成本地预览URL
+                            const previewUrl = URL.createObjectURL(file);
+                            setPreviewImage(previewUrl);
+                            
+                            toast({
+                              title: "图片已选择",
+                              description: "请点击\"保存设置\"按钮应用更改",
+                            });
+                          } catch (error) {
+                            console.error("处理背景图片失败:", error);
+                            toast({
+                              title: "处理失败",
+                              description: "无法处理所选图片，请重试",
+                              variant: "destructive",
+                            });
+                          }
+                        }
+                      }}
+                    />
                   </div>
                   
-                  {backgroundImage && (
-                    <div className="mt-2">
-                      <div className="relative overflow-hidden rounded-md h-20 bg-neutral-900">
-                        <img src={backgroundImage} alt="当前背景" className="w-full h-full object-cover" />
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => {
-                            localStorage.removeItem('background-image');
-                            setBackgroundImage(null);
-                            toast({
-                              title: "背景已移除",
-                              description: "已恢复默认背景设置",
-                            });
-                          }}
-                          className="absolute top-1 right-1 h-7 w-7 p-0 bg-black/50 hover:bg-black/70 border-0"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                  {/* 图片预览区域 */}
+                  {previewImage && (
+                    <div className="mt-4 border rounded-md p-2 bg-blue-100/50 dark:bg-black/30">
+                      <p className="text-xs text-blue-800 dark:text-neutral-300 mb-2">预览图片:</p>
+                      <div className="relative w-full h-32 rounded-md overflow-hidden border border-blue-200 dark:border-neutral-600">
+                        <img 
+                          src={previewImage} 
+                          alt="背景预览" 
+                          className="w-full h-full object-cover rounded-md"
+                        />
                       </div>
-                      <p className="text-xs text-neutral-500 mt-1">
-                        提示：上传图片后会立即应用为背景
+                      <p className="text-xs text-blue-600 dark:text-cyan-400 mt-2">
+                        点击&quot;保存设置&quot;按钮应用此背景
                       </p>
                     </div>
                   )}
                   
-                  {!backgroundImage && (
-                    <p className="text-xs text-neutral-500">
-                      上传图片作为聊天背景，支持JPG、PNG、GIF等常见图片格式，大小不超过5MB
-                    </p>
-                  )}
+                  <p className="text-xs text-neutral-400 mt-1">
+                    点击上方区域选择背景图片，然后点击&quot;保存设置&quot;按钮应用更改
+                  </p>
                 </div>
               </div>
             </div>
             
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-neutral-300">其他功能 <span className="text-xs text-neutral-500">(即将推出)</span></h3>
-              <div className="p-3 bg-neutral-800 rounded-md text-neutral-400 text-sm">
+              <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">其他功能 <span className="text-xs text-neutral-500 dark:text-neutral-500">(即将推出)</span></h3>
+              <div className="p-3 bg-blue-50/90 dark:bg-neutral-800 rounded-md text-neutral-600 dark:text-neutral-400 text-sm">
                 更多自定义功能将在后续版本推出，敬请期待！
               </div>
             </div>
@@ -2068,22 +2701,95 @@ export function AIChat({ userData }: AIChatProps) {
           <DialogFooter>
             <Button 
               type="button" 
-              onClick={() => {
-                // 保存所有偏好设置
-                localStorage.setItem('theme', theme);
-                localStorage.setItem('font-size', fontSize);
+              onClick={async () => {
+                try {
+                  // 不再需要手动保存主题和字体大小设置，因为已经从ThemeContext自动处理
+                  // 全局主题上下文会自动将设置保存到localStorage并应用到DOM中
+                  
+                  // 如果选择了新的背景图片，则上传
+                  if (selectedBackgroundFile) {
+                    // 显示上传中提示
+                    toast({
+                      title: "上传背景中",
+                      description: "正在上传您选择的背景图片...",
+                    });
+                    
+                    // 构建FormData
+                    const formData = new FormData();
+                    formData.append('file', selectedBackgroundFile);
+                    formData.append('fileType', 'background');
+                    formData.append('userId', String(userData.userId)); // 确保传递用户ID
+                    
+                    const baseUrl = window.location.origin;
+                    const response = await fetch(`${baseUrl}/api/files/upload`, {
+                      method: 'POST',
+                      body: formData,
+                      credentials: 'include', // 确保包含凭据（cookies）
+                    });
+                    
+                    if (!response.ok) {
+                      throw new Error('上传失败');
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data && data.success && data.url) {
+                      // 刷新背景
+                      const bgResponse = await fetch(`${baseUrl}/api/files/background?userId=${userData.userId}&orientation=portrait`);
+                      if (bgResponse.ok) {
+                        const bgData = await bgResponse.json();
+                        if (bgData && bgData.url) {
+                          // 构建完整的URL
+                          let fullUrl = bgData.url.startsWith('http') 
+                            ? bgData.url 
+                            : `${baseUrl}${bgData.url}`;
+                            
+                          // 确保背景图片URL包含用户ID参数，避免401未授权错误
+                          if (fullUrl.includes('/api/files/') && !fullUrl.includes('userId=')) {
+                            const separator = fullUrl.includes('?') ? '&' : '?';
+                            fullUrl += `${separator}userId=${userData.userId}`;
+                          }
+                          
+                          console.log('背景上传成功，新背景URL:', fullUrl);
+                          
+                          // 直接更新页面背景（立即生效）
+                          const homeElement = document.querySelector('.min-h-screen');
+                          if (homeElement instanceof HTMLElement) {
+                            homeElement.style.backgroundImage = `url('${fullUrl}')`;
+                          }
+                          
+                          // 触发应用重新加载背景图片 - 通过广播事件
+                          const event = new CustomEvent('background-updated', { 
+                            detail: { url: fullUrl }
+                          });
+                          window.dispatchEvent(event);
+                          
+                          // 清理预览状态
+                          setSelectedBackgroundFile(null);
+                          if (previewImage) {
+                            URL.revokeObjectURL(previewImage);
+                            setPreviewImage(null);
+                          }
+                        }
+                      }
+                    }
+                  }
 
-                // 应用设置
-                applyTheme(theme);
-                applyFontSize(fontSize);
+                  // 关闭设置对话框
+                  setShowPreferencesDialog(false);
 
-                // 关闭设置对话框
-                setShowPreferencesDialog(false);
-
-                toast({
-                  title: "设置已保存",
-                  description: "您的偏好设置已成功更新",
-                });
+                  toast({
+                    title: "设置已保存",
+                    description: selectedBackgroundFile ? "所有设置和背景图片已更新" : "您的偏好设置已成功更新",
+                  });
+                } catch (error) {
+                  console.error("保存设置失败:", error);
+                  toast({
+                    title: "保存失败",
+                    description: "无法应用所有设置，请重试",
+                    variant: "destructive",
+                  });
+                }
               }}
             >
               保存设置

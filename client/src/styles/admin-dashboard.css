@@ -1,0 +1,53 @@
+/* 管理控制台特定样式 - 仅为解决iPad滚动问题 */
+.admin-dashboard {
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-tabs-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-tabs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.admin-dashboard-tabs-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* 添加动量滚动 */
+  padding-bottom: 100px; /* 确保底部有足够空间 */
+  max-height: none !important; /* 移除高度限制 */
+}
+
+/* 确保滚动区域没有高度限制 */
+.admin-dashboard .scrollable-container,
+.admin-dashboard [data-radix-scroll-area-viewport] {
+  max-height: none !important;
+  height: auto !important;
+}
+
+/* 确保用户列表可以完全显示 */
+.admin-dashboard [data-radix-scroll-area-viewport] > div {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 仅针对iPad的滚动修复 */
+@media only screen and (min-width: 768px) and (max-width: 1024px) {
+  .admin-header-container {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: #000;
+  }
+}

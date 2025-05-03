@@ -6,6 +6,9 @@
 import { spawn } from 'child_process';
 import { Cluster, ClusterOptions, Memory } from './types';
 import { log } from '../../vite';
+import fs from 'fs';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import { summarizeText } from './summarizer';
 
 /**
@@ -61,23 +64,53 @@ export async function clusterMemories(
     
     const userId = memories[0].userId; // 假设所有记忆属于同一用户
     
-    // 调用Python服务进行聚类
+    // 使用临时文件传递数据而非命令行参数，避免E2BIG错误
+    
+    // 创建唯一的临时文件名
+    const tempDir = path.resolve('./tmp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    // 创建唯一的临时数据文件
+    const tempDataFile = path.join(tempDir, `memory_data_${uuidv4()}.json`);
+    fs.writeFileSync(tempDataFile, JSON.stringify({
+      memories: memoriesData,
+      userId: userId
+    }));
+    
+    // 调用Python服务进行聚类，传递临时文件路径
     const pythonProcess = spawn('python3', ['-c', `
 import asyncio
 import sys
 import json
+import os
 sys.path.append('server')
 from services.learning_memory import learning_memory_service
 
 async def cluster_memories():
-    # 准备记忆数据
-    memories_data = ${JSON.stringify(memoriesData)}
-    
-    # 调用聚类方法
-    clusters = await learning_memory_service.cluster_memories(memories_data, ${userId})
-    
-    # 转换为JSON输出
-    print(json.dumps(clusters, ensure_ascii=False))
+    # 从临时文件读取数据
+    try:
+        with open('${tempDataFile}', 'r') as f:
+            data = json.load(f)
+            memories_data = data['memories']
+            user_id = data['userId']
+        
+        # 调用聚类方法
+        clusters = await learning_memory_service.cluster_memories(memories_data, user_id)
+        
+        # 转换为JSON输出
+        print(json.dumps(clusters, ensure_ascii=False))
+        
+        # 清理临时文件
+        if os.path.exists('${tempDataFile}'):
+            os.remove('${tempDataFile}')
+    except Exception as e:
+        print(f"聚类错误: {str(e)}", file=sys.stderr)
+        # 确保错误情况下也清理临时文件
+        if os.path.exists('${tempDataFile}'):
+            os.remove('${tempDataFile}')
+        sys.exit(1)
 
 asyncio.run(cluster_memories())
     `]);
@@ -87,13 +120,28 @@ asyncio.run(cluster_memories())
       output += data.toString();
     });
     
+    // 清理函数，确保临时文件被删除
+    const cleanupTempFile = () => {
+      try {
+        if (fs.existsSync(tempDataFile)) {
+          fs.unlinkSync(tempDataFile);
+          log(`[cluster] 已清理临时文件: ${tempDataFile}`);
+        }
+      } catch (error) {
+        log(`[cluster] 清理临时文件失败: ${error}`);
+      }
+    };
+    
     return new Promise((resolve, reject) => {
       pythonProcess.on('close', async (code) => {
+        // 确保临时文件被清理
+        cleanupTempFile();
+        
         if (code !== 0) {
-          log(`[cluster] 聚类失败，Python进程退出码: ${code}`);
-          // 使用备用方法进行简单聚类
-          const fallbackClusters = await performSimpleClustering(memories, options);
-          resolve(fallbackClusters);
+          const errorMsg = `[cluster] Python聚类服务失败，退出码: ${code}，请确保Python环境正确配置`;
+          log(errorMsg, 'error');
+          // 不使用备用方法，而是抛出错误，确保问题可见
+          reject(new Error(errorMsg));
         } else {
           try {
             const clusters = JSON.parse(output.trim());
@@ -138,10 +186,10 @@ asyncio.run(cluster_memories())
             
             resolve(formattedClusters);
           } catch (error) {
-            log(`[cluster] 解析聚类结果失败: ${error}`);
-            // 使用备用方法进行简单聚类
-            const fallbackClusters = await performSimpleClustering(memories, options);
-            resolve(fallbackClusters);
+            const errorMsg = `[cluster] 解析Python聚类结果失败: ${error}，请检查Python脚本的输出格式`;
+            log(errorMsg, 'error');
+            // 不使用备用方法，而是抛出错误，确保问题可见
+            reject(new Error(errorMsg));
           }
         }
       });
@@ -151,15 +199,19 @@ asyncio.run(cluster_memories())
       });
       
       pythonProcess.on('error', async (error) => {
-        log(`[cluster] 启动Python进程失败: ${error}`);
-        // 使用备用方法进行简单聚类
-        const fallbackClusters = await performSimpleClustering(memories, options);
-        resolve(fallbackClusters);
+        // 确保临时文件被清理
+        cleanupTempFile();
+        
+        const errorMsg = `[cluster] 启动Python聚类进程失败: ${error}，请检查Python环境配置`;
+        log(errorMsg, 'error');
+        // 不使用备用方法，而是抛出错误，确保问题可见
+        reject(new Error(errorMsg));
       });
     });
   } catch (error) {
-    log(`[cluster] 聚类时遇到错误: ${error}`);
-    return performSimpleClustering(memories, options);
+    // 捕获并抛出错误，不使用备用方法
+    log(`[cluster] 聚类时遇到错误: ${error}`, 'error');
+    throw new Error(`Python聚类服务无法正常工作: ${error}`);
   }
 }
 

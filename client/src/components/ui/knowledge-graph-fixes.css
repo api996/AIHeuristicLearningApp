@@ -1,0 +1,99 @@
+/**
+ * 知识图谱UI修复样式
+ * 优化触摸和拖拽交互体验
+ */
+
+/* 容器基础样式 */
+.knowledge-graph-container {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  cursor: grab;
+  overflow: visible !important;
+  position: relative;
+}
+
+/* 拖拽时的光标 */
+.knowledge-graph-container:active {
+  cursor: grabbing;
+}
+
+/* 节点基础样式 */
+.node {
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+/* 节点悬停效果 */
+.node:hover circle {
+  stroke: white;
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+}
+
+/* 提升连接线可见性 */
+.link-main {
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 1px rgba(100, 180, 255, 0.3));
+}
+
+.link-highlight {
+  stroke-linecap: round;
+}
+
+/* SVG交互优化 */
+svg {
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 全屏模式下的样式 */
+.fullscreened-graph {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  background-color: rgba(13, 17, 23, 0.95);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* 适配移动设备 */
+@media (max-width: 768px) {
+  .node text {
+    font-size: 10px;
+  }
+  
+  .knowledge-graph-container {
+    touch-action: manipulation;
+  }
+}
+
+/* 触摸滚动优化 */
+.card-container-for-fullscreen {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* 节点类型不同颜色 */
+.node[data-category="cluster"] circle {
+  fill: #3b82f6;
+}
+
+.node[data-category="keyword"] circle {
+  fill: #10b981;
+}
+
+.node[data-category="memory"] circle {
+  fill: #f59e0b;
+}

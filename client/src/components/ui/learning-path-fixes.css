@@ -1,0 +1,227 @@
+/*
+ * 学习路径页面在iPad上的滚动修复 - 强化版 2.0
+ * 确保学习路径页面及其所有子页面在iPad上可以正常滚动，防止内容溢出
+ * 适配各种屏幕尺寸和方向，注重iPad体验优化
+ */
+
+/* iPad设备上的学习路径页面滚动修复 - 强化版 */
+.ipad-device .learning-path-container,
+.tablet-device .learning-path-container,
+.ipad-device .knowledge-graph-detail-page,
+.tablet-device .knowledge-graph-detail-page,
+.ipad-device .memory-space-container,
+.tablet-device .memory-space-container {
+  max-height: 100vh !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: 100px !important; /* 增加底部距离 */
+  position: relative !important;
+  height: auto !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  overscroll-behavior: contain !important; /* 防止过度滚动 */
+  touch-action: pan-y !important; /* 允许垂直触摸滑动 */
+  display: flex !important;
+  flex-direction: column !important;
+  transform: translateZ(0) !important; /* 提升为合成层，优化渲染性能 */
+  will-change: transform !important; /* 提前告知浏览器元素将要改变 */
+  -webkit-backface-visibility: hidden !important; /* 提升iOS渲染性能 */
+}
+
+/* 页面标题区域修复 */
+.ipad-device .learning-path-container .flex.justify-between.items-center.mb-6,
+.tablet-device .learning-path-container .flex.justify-between.items-center.mb-6,
+.ipad-device .learning-path-container h1.text-3xl,
+.tablet-device .learning-path-container h1.text-3xl {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background-color: rgba(17, 17, 24, 0.8) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  padding: 1rem 0 !important;
+  margin-bottom: 1rem !important;
+  width: 100% !important;
+}
+
+/* 标签容器修复 */
+.ipad-device .learning-path-container .tabs-container,
+.tablet-device .learning-path-container .tabs-container {
+  flex: 1 !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 80vh !important;
+}
+
+/* 标签列表修复 */
+.ipad-device .learning-path-container [role="tablist"],
+.tablet-device .learning-path-container [role="tablist"] {
+  position: sticky !important;
+  top: 4rem !important; /* 标题下方 */
+  z-index: 5 !important;
+  background-color: rgba(17, 17, 24, 0.8) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  padding: 0.5rem 0 !important;
+  margin-bottom: 1rem !important;
+  border-radius: 0.5rem !important;
+  width: 100% !important;
+}
+
+/* 标签内容区域滚动修复 - 强化版 */
+.ipad-device .learning-path-container [data-state="active"],
+.tablet-device .learning-path-container [data-state="active"],
+.ipad-device .learning-path-container [data-orientation="horizontal"] > div,
+.tablet-device .learning-path-container [data-orientation="horizontal"] > div {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  height: auto !important;
+  min-height: 60vh !important; /* 确保最小高度 */
+  max-height: none !important; /* 移除最大高度限制 */
+  width: 100% !important;
+  position: relative !important;
+  padding-bottom: 2rem !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* 卡片样式修复 */
+.ipad-device .learning-path-container .card,
+.tablet-device .learning-path-container .card {
+  height: auto !important;
+  margin-bottom: 1.5rem !important;
+  width: 100% !important;
+  position: relative !important;
+  transform: translateZ(0) !important; /* 启用硬件加速 */
+  border-radius: 0.5rem !important;
+  overflow: hidden !important;
+}
+
+/* 图表容器修复 - 强化版 */
+.ipad-device .learning-path-container .knowledge-graph-container,
+.tablet-device .learning-path-container .knowledge-graph-container {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 300px !important;
+  max-height: 60vh !important; /* 增加最大高度 */
+  position: relative !important;
+  overflow: visible !important;
+  touch-action: manipulation !important;
+  transform: translateZ(0) !important; /* 启用硬件加速 */
+  will-change: transform !important; /* 提升性能 */
+  margin: 0 auto !important; /* 水平居中 */
+}
+
+/* 确保图表容器内的SVG正确显示 */
+.ipad-device .learning-path-container .knowledge-graph-container svg,
+.tablet-device .learning-path-container .knowledge-graph-container svg {
+  touch-action: manipulation !important;
+  overflow: visible !important;
+  height: 100% !important;
+  width: 100% !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+/* 卡片内容滚动修复 - 强化版 */
+.ipad-device .learning-path-container .card-content,
+.tablet-device .learning-path-container .card-content {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 70vh !important; /* 增加最大高度 */
+  height: auto !important;
+  position: relative !important;
+  padding: 1.5rem !important;
+  border-radius: 0 0 0.5rem 0.5rem !important;
+}
+
+/* 进度条容器修复 */
+.ipad-device .learning-path-container .progress-container,
+.tablet-device .learning-path-container .progress-container {
+  margin: 1rem 0 !important;
+  width: 100% !important;
+  position: relative !important;
+}
+
+/* 总结信息卡片修复 */
+.ipad-device .learning-path-container .summary-card,
+.tablet-device .learning-path-container .summary-card {
+  margin-bottom: 1rem !important;
+  padding: 1rem !important;
+  border-radius: 0.5rem !important;
+  height: auto !important;
+  min-height: 150px !important;
+}
+
+/* 学习建议修复 */
+.ipad-device .learning-path-container .suggestions-container,
+.tablet-device .learning-path-container .suggestions-container {
+  width: 100% !important;
+  padding: 0.5rem 0 !important;
+  height: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* 水平图表和统计信息容器修复 */
+.ipad-device .learning-path-container .stats-container,
+.tablet-device .learning-path-container .stats-container,
+.ipad-device .learning-path-container .chart-container,
+.tablet-device .learning-path-container .chart-container {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 200px !important;
+  max-height: 400px !important;
+  overflow: hidden !important;
+  margin: 1rem 0 !important;
+  position: relative !important;
+}
+
+/* 空状态容器修复 */
+.ipad-device .learning-path-container .empty-state,
+.tablet-device .learning-path-container .empty-state {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 200px !important;
+  padding: 2rem !important;
+  text-align: center !important;
+}
+
+/* iOS Safari特定修复 - 强化版 */
+@supports (-webkit-touch-callout: none) {
+  .learning-path-container {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    overscroll-behavior-y: contain !important;
+    -webkit-tap-highlight-color: transparent !important; /* 移除点击高亮 */
+  }
+  
+  /* 容器内所有卡片的额外修复 */
+  .ipad-device .learning-path-container .card,
+  .tablet-device .learning-path-container .card {
+    transform: translateZ(0) !important; /* 启用硬件加速 */
+    backface-visibility: hidden !important; /* 提高渲染性能 */
+    perspective: 1000px !important; /* 提高3D性能 */
+  }
+  
+  /* iOS特有的全屏修复 */
+  .ipad-device .learning-path-container.fullscreen,
+  .tablet-device .learning-path-container.fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    padding: 1rem !important;
+    box-sizing: border-box !important;
+  }
+}

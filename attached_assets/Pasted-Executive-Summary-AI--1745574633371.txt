@@ -1,0 +1,168 @@
+Executive Summary
+本报告聚焦于“多模型无状态／有状态会话管理”与“网络搜索结果注入”两大核心需求，并提供清晰的架构图、数据流示意及可执行的伪码示例，兼具AI 智能体提示与技术报告双重属性。
+
+⸻
+
+1 · 引言
+
+当前主流大模型厂商的 Chat API 均为无状态，即它们不持久化会话，上下文需由客户端每次传入完整历史；唯有 Dify 提供了原生的 conversation_id 支持。本报告将详细比较四种场景（Dify、DeepSeek-R1/NVIDIA NIM、Google Gemini 2.5 Pro、xAI Grok 3 Beta Fast）的调用差异，并给出最佳实践和实现方案。
+
+⸻
+
+2 · 有状态 vs 无状态 API 支持
+
+平台 / 模型	conversation_id 支持	会话上下文维持方式
+Dify AI	✓ 支持	conversation_id 由服务端生成并管理；后续请求需带入同一 ID 继续对话  [oai_citation:0‡Welcome to Dify
+NVIDIA NIM (DeepSeek-R1)	✗ 不支持	/v1/chat/completions 不含会话 ID；需每次传入完整 messages 数组  ￼
+Google Gemini 2.5 Pro	✗ 不支持	Vertex AI GenerateMessageRequest 定义中无会话 ID，仅靠 contents 数组承载上下文  ￼
+xAI Grok 3 Beta Fast	✗ 不支持	OpenAI-兼容 /v1/chat/completions 端点，无会话管理机制  [oai_citation:4‡Overview
+
+
+
+⸻
+
+3 · 架构总览
+
+flowchart TD
+  subgraph Frontend/UI
+    U[用户界面] 
+    U -->|请求(userInput, model, searchEnabled)| Svc[PromptSvc]
+  end
+  subgraph Backend
+    Svc --> DB1[历史消息存储]
+    Svc --> DB2[长期记忆存储]
+    Svc -->|拼接 & 截断| LLM[Chat API 层]
+    LLM -->|响应| Svc
+    Svc -->|过滤( sanitize )| U
+  end
+  subgraph External
+    LLM --> Dify[(Dify)]
+    LLM --> NIM[(NVIDIA NIM)]
+    LLM --> Gemini[(Google Gemini)]
+    LLM --> Grok[(xAI Grok)]
+  end
+
+
+
+⸻
+
+4 · 会话管理方案
+
+4.1 Dify （有状态）
+	•	首次调用：conversation_id=""，API 返回新 ID
+	•	续接调用：传入同一 conversation_id，query 续接对话
+	•	示例  ￼ ￼
+
+# 第一次
+curl -X POST https://api.dify.ai/v1/chat-messages \
+  -H "Authorization: Bearer DIFY_KEY" \
+  -d '{ "conversation_id":"", "query":"你好", "response_mode":"streaming" }'
+# 后续
+curl -X POST https://api.dify.ai/v1/chat-messages \
+  -H "Authorization: Bearer DIFY_KEY" \
+  -d '{ "conversation_id":"conv-789","query":"接着说" }'
+
+
+
+4.2 DeepSeek-R1 / Gemini / Grok （无状态）
+	•	客户端必须：
+	1.	持久化 conversationId → 取回历史 messages
+	2.	每次调用将 所有 system/user/assistant 消息一并发给 API
+	•	调用格式对比
+
+// NVIDIA NIM (DeepSeek-R1)
+POST https://api.nvidia.com/v1/chat/completions
+{ "model":"DeepSeek-R1","echo":false,"messages":[…] }
+
+// Google Gemini
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateMessage?key=KEY
+{ "model":"gemini-2.5-pro","messages":[…] }
+
+// xAI Grok
+POST https://api.x.ai/v1/chat/completions
+{ "model":"grok-3-fast-beta","echo":false,"messages":[…] }
+
+
+
+⸻
+
+5 · 网络搜索结果注入
+
+if (searchEnabled) {
+  const snippets = await fetch('/api/mcp/search',{method:'POST',body:JSON.stringify({query:userInput})})
+    .then(r=>r.json()).then(r=>r.snippets);
+  systemMods.push({
+    role:'system',
+    content:
+      `【SEARCH-RESULTS】
+${snippets.map((s,i)=>`${i+1}. ${s}`).join('\n')}
+【END-SEARCH】`
+  });
+}
+
+	•	前端控件开关 searchEnabled
+	•	调用内部 MCP 接口获得摘录
+	•	作为额外 system 模块注入
+
+⸻
+
+6 · 动态上下文截断
+
+const MODEL_WINDOW = {
+  "DeepSeek-R1": 65536,
+  "gemini-2.5-pro": 131072,
+  "grok-3-fast-beta": 16384
+};
+function trimContext(msgs, model) {
+  let tokens = countTokens(msgs),
+      limit  = MODEL_WINDOW[model] - 1024;
+  while (tokens > limit) {
+    // 优先剪掉最早的非 system
+    const idx = msgs.findIndex(m=>m.role!=='system');
+    if (idx<0) break;
+    msgs.splice(idx,1);
+    tokens = countTokens(msgs);
+  }
+  return msgs;
+}
+
+	•	保留所有 system 模块
+	•	裁剪最老的 user/assistant 消息
+	•	保证响应缓冲区 ≥1024 token
+
+⸻
+
+7 · “Regenerate” 保持一致
+
+async function regenerate(convId, model) {
+  const lastUser = await db.getLastUserMessage(convId);
+  return sendMessage(convId, lastUser.content, model, /*searchEnabled=*/false);
+}
+
+	•	复用同一 sendMessage 流程
+	•	不跳过截断或系统提示
+
+⸻
+
+8 · 实施要点
+	1.	模块化管理：后台支持分模型生效、拖拽排序、实时 JSON 预览
+	2.	会话键：Dify 原生，其他自维护；切勿误将 conversation_id 传给 NIM/Gemini/Grok
+	3.	安全过滤：统一 echo:false + 正则清理 <think> 与 【…】…【END-…】
+	4.	监控与自检：阶段切换/模型切换时自动插入自检提问，日志记录 conversationId 与 token 用量
+	5.	重试兼容：既有“重新生成”按钮无需改动，继续调 sendMessage 即可
+
+⸻
+
+9 · 结论
+	•	Dify 提供有状态会话能力，其他三家均无，需要客户端全量重传历史
+	•	通过模块化提示词注入、网络搜索、动态截断，可构建稳定、可监控、易扩展的多模型对话平台
+	•	本方案兼顾AI 智能体提示与技术报告双重需求，可直接用于系统提示或交付给开发团队实施
+
+⸻
+
+文档版本：v1.0 | 2025-04-25
+主要引用：
+	•	Dify Chat-Messages API Docs  ￼ ￼
+	•	NVIDIA NIM Chat Completions Docs  ￼
+	•	Google GenerativeLanguage GenerateMessageRequest  ￼
+	•	xAI API Overview  ￼

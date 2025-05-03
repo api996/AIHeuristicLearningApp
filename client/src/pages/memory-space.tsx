@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { Navbar } from '@/components/ui/navbar';
+// 导入iPad滚动修复CSS
+import '@/components/ui/memory-space-fixes.css';
 
 // 类型定义
 interface Memory {
@@ -83,12 +85,34 @@ const MemorySpace: React.FC = () => {
   const { 
     data: memoriesData, 
     isLoading: isLoadingMemories,
+    error: memoriesError,
     refetch: refetchMemories
   } = useQuery({
     queryKey: ['/api/memory-space', localUserId || userId],
     // 使用localUserId或userId中任一有效值
     enabled: !!(localUserId || userId),
+    queryFn: async () => {
+      console.log('记忆查询，使用用户ID:', localUserId || userId);
+      const effectiveUserId = localUserId || userId;
+      
+      if (!effectiveUserId) {
+        console.error('查询记忆时无有效用户ID');
+        throw new Error('无有效用户ID');
+      }
+      
+      const response = await fetch(`/api/memory-space/${effectiveUserId}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('获取记忆失败:', response.status, errorText);
+        throw new Error(`获取记忆失败: ${response.status} ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('记忆API返回数据:', data);
+      return data || { memories: [] };
+    },
     select: (data) => {
+      console.log('记忆API数据处理:', data);
       return data || { memories: [] };
     }
   });
@@ -96,12 +120,34 @@ const MemorySpace: React.FC = () => {
   // 获取记忆聚类
   const { 
     data: clustersData, 
-    isLoading: isLoadingClusters 
+    isLoading: isLoadingClusters,
+    error: clustersError 
   } = useQuery({
     queryKey: ['/api/memory-space', localUserId || userId, 'clusters'],
     // 使用localUserId或userId中任一有效值
     enabled: !!(localUserId || userId),
+    queryFn: async () => {
+      console.log('聚类查询，使用用户ID:', localUserId || userId);
+      const effectiveUserId = localUserId || userId;
+      
+      if (!effectiveUserId) {
+        console.error('查询聚类时无有效用户ID');
+        throw new Error('无有效用户ID');
+      }
+      
+      const response = await fetch(`/api/memory-space/${effectiveUserId}/clusters`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('获取聚类失败:', response.status, errorText);
+        throw new Error(`获取聚类失败: ${response.status} ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('聚类API返回数据:', data);
+      return data || { topics: [] };
+    },
     select: (data) => {
+      console.log('聚类API数据处理:', data);
       return data || { topics: [] };
     }
   });
@@ -219,8 +265,30 @@ const MemorySpace: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-background">
       <Navbar />
       
-      <div className="container mx-auto py-6 flex-1 flex flex-col">
-        <div className="flex justify-between items-center mb-6">
+      <div 
+        className="container mx-auto py-6 flex-1 memory-space-container"
+        style={{
+          height: '90vh', // 设置高度，留出底部空间
+          overflowY: 'scroll', // 强制使用滚动条
+          WebkitOverflowScrolling: 'touch', // iOS滚动优化
+          scrollbarWidth: 'thin', // Firefox
+          padding: '16px',
+          boxSizing: 'border-box',
+          display: 'block' // 使用block布局
+        }}
+      >
+        <div 
+          className="flex justify-between items-center mb-6"
+          style={{
+            position: 'sticky',
+            top: 0,
+            backgroundColor: 'rgba(13, 17, 23, 0.8)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            zIndex: 10,
+            padding: '10px 0'
+          }}
+        >
           <h1 className="text-3xl font-bold">记忆空间</h1>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleRepairMemories} disabled={isRepairing}>

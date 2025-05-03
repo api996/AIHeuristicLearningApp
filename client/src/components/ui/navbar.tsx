@@ -1,8 +1,9 @@
 import * as React from "react";
 import { Link, useLocation } from "wouter";
-import { Home, BookOpen, Library, Settings, LogOut } from "lucide-react";
+import { Home, BookOpen, Library, Network, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { SettingsPanel } from "@/components/ui/settings-panel";
 
 export const Navbar: React.FC = () => {
   const { userId, role, logout } = useAuth();
@@ -14,6 +15,7 @@ export const Navbar: React.FC = () => {
       { href: "/", label: "聊天", icon: Home },
       { href: "/learning-path", label: "学习轨迹", icon: BookOpen },
       { href: "/memory-space", label: "记忆空间", icon: Library },
+      { href: "/memory-graph", label: "知识图谱", icon: Network },
     ];
     
     // 如果是管理员，添加管理页面
@@ -58,6 +60,9 @@ export const Navbar: React.FC = () => {
             <div className="hidden md:flex"></div>
           </div>
           <div className="flex items-center gap-2">
+            {/* 设置面板 */}
+            <SettingsPanel />
+            
             {userId ? (
               <Button
                 variant="ghost"

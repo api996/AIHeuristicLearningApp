@@ -1,0 +1,59 @@
+/**
+ * 主题变量备份文件
+ * 确保即使主题JSON未能加载，也能提供基本样式变量
+ */
+
+:root {
+  /* 确保圆角正确应用 */
+  --radius: 0.75rem;
+  
+  /* 基础颜色变量 */
+  --primary: 174 59% 49%;
+  --primary-foreground: 0 0% 100%;
+  
+  /* 确保边框圆角应用在所有元素上 */
+  --card-radius: var(--radius);
+  --input-radius: var(--radius);
+  --button-radius: var(--radius);
+  --popover-radius: var(--radius);
+  
+  /* 修复特定组件样式 */
+  --message-border-radius: 1.125rem;
+  --button-border-radius: 0.75rem;
+}
+
+/* 特殊修复：强制对话气泡应用圆角 */
+.message-appear,
+.chat-message-container .message-appear,
+.message-bubble,
+.message-content,
+.chat-message,
+[class*="py-3 px-4 rounded-2xl"] {
+  border-radius: var(--message-border-radius) !important;
+  overflow: hidden;
+}
+
+/* 修复按钮圆角 */
+button,
+.btn,
+[role="button"],
+[type="button"],
+[type="submit"] {
+  border-radius: var(--button-radius) !important;
+}
+
+/* 修复输入框圆角 */
+input,
+textarea,
+select,
+.input,
+[role="textbox"] {
+  border-radius: var(--input-radius) !important;
+}
+
+/* 修复对话框和弹出窗口圆角 */
+[role="dialog"],
+[data-radix-popper-content-wrapper] > div {
+  border-radius: var(--popover-radius) !important;
+  overflow: hidden;
+}

@@ -1,0 +1,12 @@
+2025-05-03 12:11:52,946 [INFO] 添加父目录到系统路径: /home/runner/workspace/server
+2025-05-03 12:11:55,324 [INFO] 成功导入嵌入服务类
+嵌入服务初始化: 使用模型=models/gemini-embedding-exp-03-07, 最大缓存=1000, 文本长度限制=1000
+API速率限制: 每分钟5请求, 每天100请求
+2025-05-03 12:11:55,325 [INFO] 嵌入服务已初始化
+ * Serving Flask app 'app.py'
+ * Debug mode: off
+2025-05-03 12:11:55,332 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9002
+ * Running on http://172.31.128.33:9002
+2025-05-03 12:11:55,332 [INFO] [33mPress CTRL+C to quit[0m

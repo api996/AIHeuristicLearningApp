@@ -1,0 +1,86 @@
+/**
+ * 强制深色模式 CSS
+ * 将知识图谱各页面强制设置为深色主题，无论用户的整体设置如何
+ */
+
+/* 知识图谱相关页面的选择器 */
+[class*="knowledge-graph"],
+[class*="graph-view"],
+[class*="topic-visualization"],
+[class*="graph-container"],
+div[data-graph-page="true"] {
+  /* 强制设置深色背景 */
+  background-color: #000 !important;
+  color: #fff !important;
+  /* 全局强制深色变量 */
+  --background: 220 14% 5% !important;
+  --foreground: 210 20% 98% !important;
+  --card: 220 14% 10% !important;
+  --card-foreground: 210 20% 98% !important;
+  --popover: 220 14% 5% !important;
+  --popover-foreground: 210 20% 98% !important;
+  --border: 215 27.9% 16.9% !important;
+  --input: 215 27.9% 16.9% !important;
+}
+
+/* 知识图谱组件基础深色背景 */
+.knowledge-graph-container,
+.graph-container,
+.force-graph-container {
+  background: linear-gradient(to bottom, #0f1724, #000) !important;
+  background-color: #070b14 !important;
+}
+
+/* 所有主要图谱工具栏和控制区 */
+.graph-controls,
+.graph-toolbar,
+.graph-filter-panel,
+.graph-legend {
+  background-color: rgba(10, 15, 25, 0.85) !important;
+  border: 1px solid rgba(40, 90, 150, 0.3) !important;
+  color: #b0d0ff !important;
+}
+
+/* 强制卡片深色化 */
+[class*="knowledge-graph"] .card,
+[class*="graph-view"] .card,
+[class*="topic-visualization"] .card,
+[data-graph-page="true"] .card {
+  background-color: rgba(15, 23, 36, 0.75) !important;
+  border-color: rgba(40, 90, 150, 0.3) !important;
+  color: #b0d0ff !important;
+}
+
+/* 强制图例深色化 */
+.graph-legend,
+.legend-item {
+  background-color: rgba(10, 15, 25, 0.85) !important;
+  color: #b0d0ff !important;
+}
+
+/* 按钮样式调整 */
+[class*="knowledge-graph"] button,
+[class*="graph-view"] button,
+[class*="topic-visualization"] button,
+[data-graph-page="true"] button {
+  background-color: rgba(30, 50, 80, 0.5) !important;
+  border-color: rgba(60, 120, 200, 0.5) !important;
+  color: #e0e8ff !important;
+}
+
+/* 按钮悬停样式 */
+[class*="knowledge-graph"] button:hover,
+[class*="graph-view"] button:hover,
+[class*="topic-visualization"] button:hover,
+[data-graph-page="true"] button:hover {
+  background-color: rgba(40, 70, 120, 0.7) !important;
+  border-color: rgba(80, 140, 220, 0.7) !important;
+}
+
+/* 设置全局深色主题标记 */
+[class*="knowledge-graph"] body,
+[class*="graph-view"] body,
+[class*="topic-visualization"] body,
+[data-graph-page="true"] body {
+  color-scheme: dark !important;
+}

@@ -1,0 +1,78 @@
+/* 
+  dialog-fixes.css - 解决iPad和其他移动设备上弹窗渲染问题
+*/
+
+/* 全局对话框样式修复 */
+.preferences-dialog-content {
+  z-index: 9999 !important;
+  position: relative;
+}
+
+/* iPad专用样式 - 添加到设备根元素上的.ipad-device类 */
+:root.ipad-device .preferences-dialog-content {
+  position: fixed !important;
+  inset: 0 !important;
+  margin: auto !important;
+  max-width: 400px !important;
+  max-height: 80vh !important;
+  width: 90% !important;
+  background-color: #1a1a1a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 12px !important;
+  z-index: 9999999 !important; /* 确保在所有元素之上 */
+  transform: none !important; /* 防止可能的3D变换问题 */
+  opacity: 1 !important;
+  visibility: visible !important;
+  animation: none !important; /* 禁用可能导致问题的动画 */
+}
+
+/* 对话框背景 */
+:root.ipad-device .dialog-backdrop {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999999 !important;
+}
+
+/* 优化iPad上的对话框内容布局 */
+:root.ipad-device .preferences-dialog-content .preferences-background-upload {
+  margin-bottom: 12px !important;
+}
+
+:root.ipad-device .preferences-dialog-content .preferences-theme-color-section {
+  display: grid !important;
+  grid-template-columns: repeat(6, 1fr) !important;
+  gap: 8px !important;
+}
+
+/* 触摸交互优化 */
+:root.ipad-device .dialog-content button,
+:root.ipad-device .dialog-content input,
+:root.ipad-device .dialog-content .dialog-close {
+  min-height: 44px !important; /* 确保符合iOS触摸标准 */
+  touch-action: manipulation !important;
+}
+
+/* 修复iPad上对话框可能出现的滚动问题 */
+:root.ipad-device .dialog-content {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-height: 80vh !important;
+  padding: 20px !important;
+}
+
+/* 确保对话框关闭按钮正常工作 */
+:root.ipad-device .dialog-close-button {
+  position: absolute !important;
+  right: 10px !important;
+  top: 10px !important;
+  z-index: 999999 !important;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: rgba(60, 60, 60, 0.5) !important;
+}

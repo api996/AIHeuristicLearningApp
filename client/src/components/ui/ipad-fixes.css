@@ -8,6 +8,35 @@
  * 4. 完全避免任何绝对定位
  */
 
+/* 管理员界面全局滚动修复，适用于所有设备 */
+.admin-dashboard {
+  min-height: 100vh !important;
+  overflow-y: auto !important;
+  max-height: 100vh !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.admin-dashboard > div {
+  height: auto !important;
+  min-height: 100vh !important;
+  overflow: visible !important;
+  width: 100% !important;
+}
+
+/* 修复所有容器式卡片的滚动问题 */
+.admin-dashboard .card {
+  overflow: auto !important;
+  max-height: calc(100vh - 100px) !important;
+}
+
+/* 确保表格可滚动 */
+.admin-dashboard table {
+  width: 100% !important;
+  overflow-x: auto !important;
+  display: block !important;
+}
+
 /* ===== iPad/平板专用布局(768px-1366px) ===== */
 @media screen and (min-width: 768px) and (max-width: 1366px) {
   /* ===== 基础容器结构 ===== */
@@ -15,8 +44,8 @@
   .tablet-device #root {
     width: 100vw !important;
     height: 100vh !important;
-    overflow: hidden !important;
-    position: fixed !important;
+    overflow: auto !important; /* 修复滚动问题 */
+    position: relative !important; /* 改为相对定位，允许自然滚动 */
     top: 0 !important;
     left: 0 !important;
     right: 0 !important;
@@ -34,7 +63,7 @@
     max-width: 100vw !important;
     margin: 0 !important;
     padding: 0 !important;
-    overflow: hidden !important;
+    overflow: auto !important; /* 修复滚动问题 */
   }
 
   /* ===== 侧边栏样式 ===== */
@@ -60,7 +89,7 @@
     height: 100vh !important;
     display: flex !important;
     flex-direction: column !important;
-    overflow: hidden !important;
+    overflow: auto !important; /* 修复滚动问题 */
     margin: 0 !important;
     padding: 0 !important;
     left: 0 !important;
@@ -244,6 +273,220 @@
   .ipad-device .message-appear,
   .tablet-device .message-appear {
     max-width: 80% !important; /* 在大屏上可以稍微窄一点 */
+  }
+}
+
+/* ===== 记忆空间、知识图谱和学习轨迹页面的iPad滚动修复 ===== */
+/* 支持所有屏幕尺寸，包括手机 */
+@media screen {
+  /* 全局页面容器滚动修复 */
+  .ipad-device .container.mx-auto.py-6.flex-1.flex.flex-col,
+  .tablet-device .container.mx-auto.py-6.flex-1.flex.flex-col,
+  .iphone-device .container.mx-auto.py-6.flex-1.flex.flex-col,
+  .mobile-device .container.mx-auto.py-6.flex-1.flex.flex-col {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 120px !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* 确保主要容器的内部可滚动 */
+  .ipad-device .flex.flex-col.min-h-screen.bg-background, 
+  .tablet-device .flex.flex-col.min-h-screen.bg-background,
+  .iphone-device .flex.flex-col.min-h-screen.bg-background,
+  .mobile-device .flex.flex-col.min-h-screen.bg-background {
+    position: relative !important;
+    height: 100% !important;
+    min-height: 100vh !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* 修复选项卡内容区域滚动问题 */
+  .ipad-device .tabs-content,
+  .tablet-device .tabs-content,
+  .iphone-device .tabs-content,
+  .mobile-device .tabs-content,
+  .ipad-device [role="tabpanel"],
+  .tablet-device [role="tabpanel"],
+  .iphone-device [role="tabpanel"],
+  .mobile-device [role="tabpanel"],
+  .ipad-device [data-state="active"],
+  .tablet-device [data-state="active"],
+  .iphone-device [data-state="active"],
+  .mobile-device [data-state="active"] {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    height: auto !important;
+    min-height: 500px !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* 修复网格列表滚动问题 */
+  .ipad-device .grid.gap-4,
+  .tablet-device .grid.gap-4 {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 300px !important;
+  }
+  
+  /* 知识图谱和d3图表区域修复 */
+  .ipad-device .h-\[600px\],
+  .tablet-device .h-\[600px\],
+  .ipad-device .h-\[400px\],
+  .tablet-device .h-\[400px\],
+  .ipad-device .h-\[350px\],
+  .tablet-device .h-\[350px\],
+  .ipad-device .h-\[70vh\],
+  .tablet-device .h-\[70vh\] {
+    height: auto !important;
+    min-height: 400px !important;
+    max-height: 600px !important;
+    overflow: visible !important;
+    position: relative !important;
+    touch-action: pan-x pan-y !important;
+  }
+  
+  /* 确保图表容器不会被隐藏或裁剪 */
+  .ipad-device svg,
+  .tablet-device svg,
+  .ipad-device svg.d3-graph,
+  .tablet-device svg.d3-graph,
+  .ipad-device .relative svg,
+  .tablet-device .relative svg {
+    touch-action: pan-x pan-y !important;
+    overflow: visible !important;
+    height: 100% !important;
+    width: 100% !important;
+  }
+
+  /* 记忆空间页面卡片修复 */
+  .ipad-device .grid.gap-4.md\:grid-cols-2.lg\:grid-cols-3 > .card,
+  .tablet-device .grid.gap-4.md\:grid-cols-2.lg\:grid-cols-3 > .card {
+    height: auto !important;
+    overflow: visible !important;
+    transform: translateZ(0) !important; /* 启用硬件加速 */
+  }
+  
+  /* 知识图谱详情页面特定修复 */
+  .ipad-device .knowledge-graph-container,
+  .tablet-device .knowledge-graph-container,
+  .iphone-device .knowledge-graph-container,
+  .mobile-device .knowledge-graph-container {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 70vh !important;
+    position: relative !important;
+    overflow: visible !important;
+    touch-action: manipulation !important;
+  }
+  
+  /* 确保知识图谱详情页的卡片内容可滚动 */
+  .ipad-device .flex-1.overflow-hidden,
+  .tablet-device .flex-1.overflow-hidden,
+  .iphone-device .flex-1.overflow-hidden,
+  .mobile-device .flex-1.overflow-hidden,
+  .ipad-device .card-container-for-fullscreen,
+  .tablet-device .card-container-for-fullscreen,
+  .iphone-device .card-container-for-fullscreen,
+  .mobile-device .card-container-for-fullscreen {
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    height: auto !important;
+    min-height: 70vh !important;
+  }
+  
+  /* 强制启用触摸滑动 */
+  .ipad-device .knowledge-graph-container svg, 
+  .tablet-device .knowledge-graph-container svg,
+  .iphone-device .knowledge-graph-container svg,
+  .mobile-device .knowledge-graph-container svg {
+    touch-action: manipulation !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+  }
+  
+  /* 知识图谱SVG内部元素样式 */
+  .ipad-device .knowledge-graph-container g,
+  .tablet-device .knowledge-graph-container g,
+  .iphone-device .knowledge-graph-container g,
+  .mobile-device .knowledge-graph-container g {
+    touch-action: manipulation !important;
+  }
+  
+  /* 知识图谱详情页独立修复 - 添加高优先级修复 */
+  .knowledge-graph-detail-page {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    min-height: 100vh !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+  
+  /* 针对全屏模式的额外处理 */
+  .fullscreened-graph,
+  .card-container-for-fullscreen:fullscreen,
+  .knowledge-graph-container:fullscreen,
+  :fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: auto !important;
+    background: rgba(3, 7, 18, 0.95) !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 9999 !important;
+    padding: 1rem !important;
+    touch-action: manipulation !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* 缩放按钮和全屏按钮修复 */
+  .ipad-device button[size="icon"],
+  .tablet-device button[size="icon"] {
+    transform: scale(1.0) !important;
+    margin: 0 4px !important;
+  }
+  
+  /* 学习轨迹标签页内容修复 */
+  .ipad-device [data-radix-tabs-content-wrapper],
+  .tablet-device [data-radix-tabs-content-wrapper],
+  .iphone-device [data-radix-tabs-content-wrapper],
+  .mobile-device [data-radix-tabs-content-wrapper] {
+    height: auto !important;
+    min-height: 70vh !important;
+    max-height: none !important;
+  }
+  
+  /* 学习轨迹标签内容修复 - 特定针对无法滚动的内容 */
+  .ipad-device [data-orientation="horizontal"] > [data-state="active"],
+  .tablet-device [data-orientation="horizontal"] > [data-state="active"],
+  .iphone-device [data-orientation="horizontal"] > [data-state="active"],
+  .mobile-device [data-orientation="horizontal"] > [data-state="active"] {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    height: auto !important;
+    min-height: 50vh !important;
+    padding-bottom: 50px !important;
+  }
+  
+  /* 修复管理员页面标签样式 */
+  .ipad-device [data-orientation="horizontal"],
+  .tablet-device [data-orientation="horizontal"],
+  .iphone-device [data-orientation="horizontal"],
+  .mobile-device [data-orientation="horizontal"] {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    height: auto !important;
+    width: 100% !important;
   }
 }
 

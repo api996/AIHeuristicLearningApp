@@ -1,16 +1,28 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle } from "lucide-react";
+import { ArrowRight, BookOpen, Brain, BarChart3, Network, ArrowLeftCircle, RefreshCw, Maximize, Minimize, Sparkles, HelpCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
+import TextNodeForceGraph from "@/components/TextNodeForceGraph";
+import KnowledgeGraphLegend from "@/components/KnowledgeGraphLegend";
+// 导入学习轨迹页面的iPad滚动修复CSS
+import "@/components/ui/learning-path-fixes.css";
+// 导入知识图谱样式
+import "@/components/ui/knowledge-graph-fixes.css";
+// 导入统一图谱预加载器
+import { preloadGraphData, GraphData, GraphNode, GraphLink } from '@/lib/unified-graph-preloader';
+
+// 使用统一的GraphData类型，替代自定义KnowledgeGraph接口
 
 export default function LearningPath() {
   const [, setLocation] = useLocation();
   const [user, setUser] = useState<{userId: number; role: string; username?: string} | null>(null);
+  const [isGraphLoading, setIsGraphLoading] = useState(false);
+  const [graphData, setGraphData] = useState<GraphData | null>(null);
 
   // 从localStorage获取用户信息
   useEffect(() => {
@@ -27,6 +39,8 @@ export default function LearningPath() {
     }
   }, [setLocation]);
 
+  // 注意：知识图谱数据加载已经移至下面的useEffect中，这里不再需要单独的预加载
+
   // 获取学习轨迹数据
   const { data: learningPath, isLoading, error } = useQuery({
     queryKey: ["/api/learning-path", user?.userId, user?.role],
@@ -39,6 +53,29 @@ export default function LearningPath() {
     },
     enabled: !!user?.userId,
   });
+  
+  // 加载知识图谱数据 - 使用预加载和自定义state管理方案
+  useEffect(() => {
+    if (user?.userId) {
+      // 设置加载状态
+      setIsGraphLoading(true);
+      
+      // 使用统一预加载函数获取数据
+      preloadGraphData(user.userId, 'knowledge')
+        .then((data: GraphData) => {
+          // 成功获取数据后，更新状态
+          setGraphData(data);
+          console.log(`知识图谱数据加载成功: ${data.nodes.length}个节点, ${data.links.length}个连接`);
+        })
+        .catch((err: Error) => {
+          console.error("知识图谱数据加载失败:", err);
+        })
+        .finally(() => {
+          // 无论成功失败，都结束加载状态
+          setIsGraphLoading(false);
+        });
+    }
+  }, [user?.userId]);
 
   // 如果用户未登录，显示提示信息
   if (!user?.userId) {
@@ -93,29 +130,56 @@ export default function LearningPath() {
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center">
-          <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg mr-3">
-            <Brain className="h-7 w-7 text-white" />
+    <div 
+      className="container mx-auto py-8 learning-path-container"
+      style={{
+        height: 'calc(100vh - 80px)', // 减去导航栏高度
+        overflowY: 'scroll', // 强制使用滚动条
+        WebkitOverflowScrolling: 'touch', // iOS滚动优化
+        scrollbarWidth: 'thin', // Firefox
+        position: 'relative',
+        padding: '16px',
+        boxSizing: 'border-box'
+      }}
+    >
+      {/* 改进后的顶部布局 - 标题在最上方，按钮在下方 */}
+      <div 
+        className="sticky top-0 z-10 bg-opacity-80 backdrop-blur-md"
+        style={{
+          backgroundColor: 'rgba(13, 17, 23, 0.8)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          zIndex: 10,
+          marginBottom: '16px',
+          padding: '8px 0'
+        }}
+      >
+        {/* 标题部分 - 水平布局 */}
+        <div className="flex items-center justify-center mb-2">
+          <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-lg mr-2">
+            <Brain className="h-5 w-5 text-white" />
           </div>
-          <h1 className="text-3xl font-bold">我的学习轨迹</h1>
+          <h1 className="text-xl font-bold">我的学习轨迹</h1>
         </div>
-        <div className="flex gap-2">
+        
+        {/* 按钮行 - 仅包含按钮 */}
+        <div className="flex gap-2 justify-center">
           <Button 
             variant="default" 
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            size="sm"
+            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white"
             onClick={() => setLocation(`/memory-space`)}
           >
-            <BookOpen size={18} />
-            <span>打开记忆空间</span>
+            <BookOpen size={16} />
+            <span>记忆空间</span>
           </Button>
           <Button 
             variant="outline" 
-            className="flex items-center gap-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700"
+            size="sm"
+            className="flex items-center gap-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700"
             onClick={navigateBack}
           >
-            <ArrowLeftCircle size={18} />
+            <ArrowLeftCircle size={16} />
             <span>返回聊天</span>
           </Button>
         </div>
@@ -124,9 +188,9 @@ export default function LearningPath() {
       <Tabs defaultValue="overview">
         <TabsList className="mb-6">
           <TabsTrigger value="overview">总览</TabsTrigger>
-          <TabsTrigger value="progress">学习进度</TabsTrigger>
-          <TabsTrigger value="suggestions">学习建议</TabsTrigger>
           <TabsTrigger value="knowledge-graph">知识图谱</TabsTrigger>
+          <TabsTrigger value="graph-rules">图谱规则</TabsTrigger>
+          <TabsTrigger value="suggestions">学习建议</TabsTrigger>
         </TabsList>
 
         {/* 总览标签页 */}
@@ -139,7 +203,7 @@ export default function LearningPath() {
                 </CardTitle>
                 <CardDescription>您的主要学习方向</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="card-content">
                 {learningPath?.topics && learningPath.topics.length > 0 ? (
                   <div className="space-y-4">
                     {learningPath.topics.map((topic: any) => (
@@ -173,16 +237,16 @@ export default function LearningPath() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <BarChart3 className="mr-2" /> 学习进度
+                  <BarChart3 className="mr-2" /> 学习分布
                 </CardTitle>
                 <CardDescription>您在各领域的学习深度</CardDescription>
               </CardHeader>
-              <CardContent>
-                {learningPath?.progress && learningPath.progress.length > 0 ? (
+              <CardContent className="card-content">
+                {learningPath?.distribution && learningPath.distribution.length > 0 ? (
                   <div className="space-y-4">
-                    {learningPath.progress.map((item: any, index: number) => {
+                    {learningPath.distribution.map((item: any, index: number) => {
                       // 根据进度值确定颜色
-                      const value = item.percentage || item.score || 0;
+                      const value = item.percentage || 0;
                       let color;
                       if (value >= 75) color = "text-green-400 bg-green-900/30";
                       else if (value >= 50) color = "text-blue-400 bg-blue-900/30";
@@ -195,17 +259,20 @@ export default function LearningPath() {
                           className="p-3 border rounded-md hover:bg-neutral-800/30 transition-colors"
                         >
                           <div className="flex justify-between items-center mb-2">
-                            <span className="font-medium">{item.topic || item.category}</span>
+                            <span className="font-medium">{item.topic || "未知主题"}</span>
                             <div className={`px-2.5 py-1 text-xs rounded-full ${color}`}>
                               {value}%
                             </div>
                           </div>
-                          {item.change !== undefined && (
+                          <div className="w-full bg-gray-800 rounded-full h-2.5">
+                            <div 
+                              className="bg-blue-600 h-2.5 rounded-full" 
+                              style={{ width: `${value}%` }}
+                            ></div>
+                          </div>
+                          {item.count && (
                             <div className="text-xs text-neutral-400 mt-1">
-                              较上次{item.change > 0 ? 
-                                <span className="text-green-400">提升 {Math.abs(item.change)}%</span> : 
-                                <span className="text-red-400">下降 {Math.abs(item.change)}%</span>
-                              }
+                              记忆数量: {item.count}
                             </div>
                           )}
                         </div>
@@ -215,8 +282,8 @@ export default function LearningPath() {
                 ) : (
                   <div className="flex flex-col items-center justify-center py-6 text-neutral-400">
                     <BarChart3 className="h-12 w-12 mb-3 opacity-20" />
-                    <p>暂无学习进度数据</p>
-                    <p className="text-sm mt-1">随着您的持续学习，这里将显示您的进度</p>
+                    <p>暂无学习分布数据</p>
+                    <p className="text-sm mt-1">随着您的持续学习，这里将显示您的分布</p>
                   </div>
                 )}
               </CardContent>
@@ -228,7 +295,7 @@ export default function LearningPath() {
               <CardTitle>学习建议</CardTitle>
               <CardDescription>基于您的学习记录生成的个性化建议</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="card-content">
               {learningPath?.suggestions && learningPath.suggestions.length > 0 ? (
                 <div className="space-y-3">
                   {learningPath.suggestions.map((suggestion: string, index: number) => (
@@ -256,14 +323,14 @@ export default function LearningPath() {
           </Card>
         </TabsContent>
 
-        {/* 学习进度标签页 */}
+        {/* 学习分布标签页 */}
         <TabsContent value="progress">
           <Card>
             <CardHeader>
-              <CardTitle>详细学习进度</CardTitle>
-              <CardDescription>各主题学习深度分析</CardDescription>
+              <CardTitle>详细学习分布</CardTitle>
+              <CardDescription>各主题学习分布分析</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="card-content">
               {learningPath?.progress && learningPath.progress.length > 0 ? (
                 <div className="space-y-6">
                   {learningPath.progress.map((item: any, index: number) => {
@@ -334,14 +401,52 @@ export default function LearningPath() {
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
                   <BarChart3 className="h-16 w-16 mb-4 opacity-20" />
-                  <p className="text-lg">暂无详细学习进度数据</p>
-                  <p className="text-sm mt-2">随着您的持续学习，这里将显示更详细的学习进展</p>
+                  <p className="text-lg">暂无详细学习分布数据</p>
+                  <p className="text-sm mt-2">随着您的持续学习，这里将显示更详细的学习分布</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* 图谱规则标签页 - 新增 */}
+        <TabsContent value="graph-rules">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Info className="mr-2 h-5 w-5" /> 知识图谱说明
+              </CardTitle>
+              <CardDescription>了解知识图谱中不同关系类型与颜色的含义</CardDescription>
+            </CardHeader>
+            <CardContent className="card-content">
+              <div className="p-4 border rounded-lg bg-black/30 mb-5">
+                <h3 className="text-lg font-medium text-blue-300 mb-3">知识图谱简介</h3>
+                <p className="text-neutral-300 mb-3">
+                  知识图谱是对您学习过程中涉及的概念、主题和它们之间关系的可视化表示。它能帮助您理解不同知识点之间的联系，发现学习路径，并更好地组织知识结构。
+                </p>
+                <div className="flex items-start text-neutral-300 space-y-2 flex-col mb-3">
+                  <div className="flex items-center gap-2">
+                    <HelpCircle className="h-4 w-4 text-blue-400" />
+                    <span className="font-medium">如何使用:</span> 
+                  </div>
+                  <ul className="list-disc pl-10 space-y-1 text-sm text-neutral-300">
+                    <li>点击节点查看详细信息</li>
+                    <li>拖动节点可以调整布局</li>
+                    <li>滚轮可以缩放图表</li>
+                    <li>点击"刷新数据"可更新最新的知识结构</li>
+                  </ul>
+                </div>
+              </div>
+              
+              {/* 恢复图例组件 - 传入真实的节点和连接数 */}
+              <KnowledgeGraphLegend 
+                nodeCount={graphData?.nodes?.length || 0}
+                linkCount={graphData?.links?.length || 0}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
         {/* 学习建议标签页 */}
         <TabsContent value="suggestions">
           <Card>
@@ -349,7 +454,7 @@ export default function LearningPath() {
               <CardTitle>个性化学习建议</CardTitle>
               <CardDescription>基于您的学习模式生成的建议</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="card-content">
               {learningPath?.suggestions && learningPath.suggestions.length > 0 ? (
                 <div className="space-y-5">
                   {learningPath.suggestions.map((suggestion: string, index: number) => (
@@ -385,40 +490,175 @@ export default function LearningPath() {
           </Card>
         </TabsContent>
 
-        {/* 知识图谱标签页 */}
+        {/* 知识图谱标签页 - 高性能优化版 */}
         <TabsContent value="knowledge-graph">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Network className="mr-2" /> 知识关联图谱
-              </CardTitle>
-              <CardDescription>
-                您的知识主题和它们之间的关联
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {learningPath?.knowledge_graph?.nodes && 
-               learningPath.knowledge_graph.nodes.length > 0 ? (
-                <div className="h-[500px] rounded-lg border border-blue-900/50 bg-gradient-to-b from-blue-950/20 to-purple-950/10 p-6">
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center space-y-3">
-                      <div className="bg-blue-900/30 w-16 h-16 rounded-full mx-auto flex items-center justify-center">
-                        <Network className="h-8 w-8 text-blue-400" />
-                      </div>
-                      <h3 className="text-lg text-blue-300">知识图谱可视化</h3>
-                      <p className="text-sm text-neutral-400 max-w-lg">
-                        系统已收集了您的学习数据，知识图谱可视化功能将在后续版本中提供，敬请期待！
-                      </p>
-                      <div className="pt-2 pb-1">
-                        <div className="h-2 w-48 mx-auto bg-neutral-800 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-blue-600 animate-pulse" style={{width: '35%'}}></div>
-                        </div>
-                        <p className="text-xs text-neutral-500 mt-2">开发进度: 35%</p>
-                      </div>
-                    </div>
+          {isGraphLoading ? (
+            // 加载状态 - 使用骨架屏减少加载时的布局偏移
+            <div className="relative h-[calc(100vh-200px)] w-full">
+              <div className="absolute inset-0 bg-gradient-to-b from-blue-950/30 to-purple-950/20 rounded-lg border border-blue-900/20 p-4">
+                <div className="flex justify-between items-center mb-3 p-2 bg-gray-900/60 rounded-md backdrop-blur-sm">
+                  <div className="h-8 w-48 bg-gray-800/70 rounded animate-pulse"></div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-20 bg-gray-800/70 rounded animate-pulse"></div>
                   </div>
                 </div>
-              ) : (
+                
+                <div className="h-[calc(100%-60px)] w-full flex flex-col items-center justify-center">
+                  <div className="w-16 h-16 border-t-4 border-b-4 border-indigo-500 rounded-full animate-spin mb-4"></div>
+                  <div className="text-indigo-400 font-medium text-center mb-2">正在加载知识图谱</div>
+                  <div className="text-gray-400 text-sm max-w-md text-center">
+                    绘制知识连接，优化展示效果...
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : graphData?.nodes && graphData.nodes.length > 0 ? (
+            <div className="relative h-[calc(100vh-200px)] w-full">
+              {/* 全屏模式下的知识图谱 */}
+              <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/40 to-purple-950/30 rounded-lg border border-indigo-900/30 p-4 overflow-hidden">
+                {/* 顶部操作栏 */}
+                <div className="flex justify-between items-center mb-3 p-2 bg-gray-900/80 rounded-md backdrop-blur-sm">
+                  <div className="flex items-center">
+                    <div className="bg-indigo-600 rounded-full p-1 mr-2">
+                      <Network className="h-4 w-4 text-white" />
+                    </div>
+                    <h3 className="text-lg font-medium text-white">知识连接图谱</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="bg-gray-800/70 text-white border-gray-700 hover:bg-gray-700"
+                      onClick={() => {
+                        if (user?.userId) {
+                          setIsGraphLoading(true);
+                          // 刷新知识图谱数据 - 使用真实聚类结果
+                          fetch(`/api/learning-path/${user.userId}/knowledge-graph?refresh=true&use_real_clusters=true`, {
+                            headers: { 'Cache-Control': 'no-cache' }
+                          })
+                            .then(res => res.json())
+                            .then(data => {
+                              console.log(`知识图谱数据刷新成功: ${data.nodes.length}个节点`);
+                              // 预加载新数据并刷新本地缓存
+                              preloadGraphData(user.userId, 'knowledge', true)
+                                .then((data: GraphData) => {
+                                  // 使用新加载的数据更新状态，而不是重新加载整个页面
+                                  if (data && data.nodes && data.links) {
+                                    setGraphData(data);
+                                  }
+                                  setIsGraphLoading(false);
+                                });
+                            })
+                            .catch(err => {
+                              console.error("知识图谱数据刷新失败:", err);
+                              alert("刷新知识图谱失败，请稍后再试");
+                              setIsGraphLoading(false);
+                            });
+                        }
+                      }}
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-1 ${isGraphLoading ? 'animate-spin' : ''}`} />
+                      刷新数据 ({graphData?.nodes?.length || 0}节点/{graphData?.links?.length || 0}连接)
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* 知识图谱可视化区域 */}
+                <div className="h-[calc(100%-60px)] w-full relative rounded-lg bg-indigo-950/10 border border-indigo-900/10 overflow-hidden">
+                  <div className="absolute inset-0" style={{ backdropFilter: 'blur(2px)' }}>
+                    {/* 使用优化后的文本节点力导向图 */}
+                    <TextNodeForceGraph
+                      nodes={graphData?.nodes || []}
+                      links={graphData?.links || []}
+                      width={window.innerWidth - 80} // 留出边距
+                      height={window.innerHeight - 280} // 留出页面头部和底部的空间
+                      onNodeClick={(nodeId) => {
+                        const node = graphData?.nodes?.find((n: any) => n.id === nodeId);
+                        if (node) {
+                          console.log(`点击了节点: ${node.label || nodeId}`);
+                          
+                          // 提供更美观的节点信息展示，不使用原生alert
+                          const nodeType = node.category === 'cluster' ? '主题' : 
+                                          node.category === 'keyword' ? '关键词' : '记忆';
+                          
+                          // 使用自定义样式而非alert
+                          const infoDiv = document.createElement('div');
+                          infoDiv.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/90 p-4 rounded-lg border border-indigo-500 z-50 max-w-md backdrop-blur-md shadow-lg';
+                          infoDiv.style.animation = 'fadeIn 0.2s ease-out';
+                          
+                          let typeColor = node.category === 'cluster' ? 'text-indigo-400' : 
+                                        node.category === 'keyword' ? 'text-emerald-400' : 'text-amber-400';
+                          
+                          infoDiv.innerHTML = `
+                            <div class="flex items-center mb-2">
+                              <div class="h-3 w-3 rounded-full ${node.category === 'cluster' ? 'bg-indigo-500' : 
+                                                              node.category === 'keyword' ? 'bg-emerald-500' : 'bg-amber-500'} mr-2"></div>
+                              <span class="${typeColor} font-medium">${nodeType}</span>
+                            </div>
+                            <div class="text-white text-lg font-bold mb-1">${node.label}</div>
+                            <div class="flex justify-end mt-3">
+                              <button class="bg-gray-800 hover:bg-gray-700 text-gray-200 px-3 py-1 rounded text-sm">关闭</button>
+                            </div>
+                          `;
+                          
+                          document.body.appendChild(infoDiv);
+                          
+                          // 点击关闭或点击外部区域关闭
+                          const closeBtn = infoDiv.querySelector('button');
+                          const closeInfo = () => {
+                            infoDiv.style.animation = 'fadeOut 0.2s ease-out forwards';
+                            setTimeout(() => {
+                              if (document.body.contains(infoDiv)) {
+                                document.body.removeChild(infoDiv);
+                              }
+                            }, 200);
+                          };
+                          
+                          closeBtn?.addEventListener('click', closeInfo);
+                          document.addEventListener('click', function onDocClick(e) {
+                            if (!infoDiv.contains(e.target as Node)) {
+                              closeInfo();
+                              document.removeEventListener('click', onDocClick);
+                            }
+                          }, { once: true });
+                          
+                          // 自动消失
+                          setTimeout(closeInfo, 4000);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                {/* 简洁的节点统计信息 */}
+                <div className="absolute bottom-4 left-4 z-10 bg-gray-900/80 px-3 py-2 rounded-lg backdrop-blur-sm border border-gray-800 shadow-lg">
+                  <p className="text-xs text-gray-400">
+                    <span className="font-medium">{graphData?.nodes?.length || 0}</span> 节点 | <span className="font-medium">{graphData?.links?.length || 0}</span> 连接
+                  </p>
+                </div>
+                
+                {/* 帮助提示 */}
+                <div className="absolute top-20 right-4 z-10 bg-gray-900/70 p-2 rounded-lg text-xs text-gray-400 backdrop-blur-sm border border-indigo-900/20">
+                  <div className="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    点击节点查看详细信息
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Network className="mr-2" /> 知识关联图谱
+                </CardTitle>
+                <CardDescription>
+                  您的知识主题和它们之间的关联
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="h-[400px] rounded-lg border border-neutral-800 flex items-center justify-center">
                   <div className="text-center space-y-4">
                     <svg width="80" height="80" viewBox="0 0 24 24" fill="none" className="mx-auto opacity-20">
@@ -430,9 +670,9 @@ export default function LearningPath() {
                     </p>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>

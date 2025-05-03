@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-04-24T07:40:11.828Z",
+  "system_status": "fully_operational",
+  "memory_system": {
+    "users": {
+      "1": {
+        "status": "error",
+        "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON",
+        "learning_path": {
+          "status": "admin_skipped"
+        }
+      },
+      "6": {
+        "status": "error",
+        "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON",
+        "learning_path": {
+          "status": "success",
+          "topic_count": 5
+        }
+      },
+      "7": {
+        "status": "error",
+        "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON",
+        "learning_path": {
+          "status": "success",
+          "topic_count": 10
+        }
+      }
+    }
+  },
+  "clustering_service": {
+    "status": "operational"
+  },
+  "learning_trajectory": {
+    "status": "operational"
+  },
+  "config": {
+    "vector_dimensions": 3072,
+    "flask_clustering_port": 9001,
+    "admin_user_id": 1,
+    "clustering_min_memories": 5,
+    "memory_distribution": {
+      "user_1": 0,
+      "user_6": 0,
+      "user_7": 0
+    }
+  }
+}

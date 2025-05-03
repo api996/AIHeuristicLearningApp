@@ -1,0 +1,138 @@
+/*
+ * 全局触摸交互优化样式
+ * 专门针对iPad和移动设备优化的触摸交互样式
+ */
+
+/* 通用触摸优化类 */
+.touch-optimized {
+  touch-action: manipulation !important;
+  -webkit-overflow-scrolling: touch !important;
+  -webkit-tap-highlight-color: transparent !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+/* iPad和平板设备特定优化 */
+.ipad-device .touch-optimized,
+.tablet-device .touch-optimized,
+.ipad-touch-target,
+.tablet-touch-target {
+  transform: translateZ(0) !important; /* 启用硬件加速 */
+  will-change: transform !important; /* 提高性能 */
+  backface-visibility: hidden !important; /* 提升渲染性能 */
+  perspective: 1000px !important; /* 3D渲染性能优化 */
+}
+
+/* 改进的滚动行为 */
+.ipad-device .scroll-container,
+.tablet-device .scroll-container,
+.ipad-device [data-scroll-container="true"],
+.tablet-device [data-scroll-container="true"] {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  touch-action: pan-y !important;
+  position: relative !important;
+}
+
+/* 可点击元素样式优化 */
+.ipad-device button,
+.tablet-device button,
+.ipad-device [role="button"],
+.tablet-device [role="button"],
+.ipad-device a,
+.tablet-device a {
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation !important;
+  min-height: 44px !important; /* 符合Apple可访问性指南的最小触摸目标大小 */
+}
+
+/* 修复iPad上个人中心选项弹窗被遮挡的问题 */
+.ipad-device .user-preferences-submenu,
+.tablet-device .user-preferences-submenu,
+.ipad-device .user-profile-option,
+.tablet-device .user-profile-option,
+.ipad-device .preferences-option-dialog,
+.tablet-device .preferences-option-dialog,
+.ipad-device [role="menu"] [data-state="open"],
+.tablet-device [role="menu"] [data-state="open"] {
+  background-color: rgba(30, 30, 30, 0.85) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+  z-index: 100000 !important;
+  position: relative !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* 修复个人中心选项弹窗的背景遮罩，降低不透明度 */
+.ipad-device [role="dialog"] + .dialog-overlay,
+.tablet-device [role="dialog"] + .dialog-overlay,
+.ipad-device [data-state="open"] + [data-state="open"],
+.tablet-device [data-state="open"] + [data-state="open"],
+.ipad-device .preferences-dialog-overlay,
+.tablet-device .preferences-dialog-overlay {
+  background-color: rgba(0, 0, 0, 0.5) !important; /* 降低背景遮罩不透明度 */
+  backdrop-filter: blur(2px) !important;
+  -webkit-backdrop-filter: blur(2px) !important;
+}
+
+/* 图形和可视化交互优化 */
+.ipad-device svg,
+.tablet-device svg,
+.ipad-device canvas,
+.tablet-device canvas {
+  touch-action: manipulation !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  transform: translateZ(0) !important;
+}
+
+/* 全屏模式通用样式 */
+.fullscreen-container {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  background: rgba(10, 10, 20, 0.95) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* 解决iOS Safari底部工具栏问题 */
+@supports (-webkit-touch-callout: none) {
+  .ipad-device .full-height-container,
+  .tablet-device .full-height-container,
+  .iphone-device .full-height-container {
+    height: 100% !important;
+    height: -webkit-fill-available !important;
+    min-height: -webkit-fill-available !important;
+    max-height: -webkit-fill-available !important;
+  }
+  
+  .ipad-device .has-bottom-bar,
+  .tablet-device .has-bottom-bar,
+  .iphone-device .has-bottom-bar {
+    padding-bottom: env(safe-area-inset-bottom, 20px) !important;
+  }
+  
+  /* 修复底部安全区域的滚动 */
+  .ipad-device .scroll-with-bottom-bar,
+  .tablet-device .scroll-with-bottom-bar,
+  .iphone-device .scroll-with-bottom-bar {
+    padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 50px) !important;
+  }
+}

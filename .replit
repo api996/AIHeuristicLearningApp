@@ -4,10 +4,15 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
+packages = ["glibcLocales", "libxcrypt", "pkg-config", "xsimd"]
+
+[env]
+REPLIT_DISABLE_PACKAGE_LAYER = "1"
 
 [deployment]
 deploymentTarget = "cloudrun"
-run = ["sh", "-c", "npm run dev"]
+run = ["sh", "-c", "NODE_ENV=production node production.js"]
+build = ["sh", "-c", "npm  run build"]
 
 [[ports]]
 localPort = 5000
@@ -18,8 +23,16 @@ localPort = 5001
 externalPort = 3000
 
 [[ports]]
-localPort = 5003
+localPort = 9001
 externalPort = 3001
+
+[[ports]]
+localPort = 9002
+externalPort = 3002
+
+[[ports]]
+localPort = 9003
+externalPort = 3003
 
 [workflows]
 runButton = "修复记忆文件系统并重启"
@@ -380,3 +393,15 @@ args = "python3 scripts/memory_cleanup.py"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "NODE_ENV=development npm run dev"
+
+[[workflows.workflow]]
+name = "清理虚假记忆文件"
+author = 41556570
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 scripts/clean_fake_memories.py"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-a2a19666-a799-475c-bd79-068397f30df4"

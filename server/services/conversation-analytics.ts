@@ -27,7 +27,10 @@ export class ConversationAnalyticsService {
 
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY || "";
-    this.endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-exp-03-25:generateContent";
+    
+    // 所有分析服务统一使用gemini-2.0-flash模型，具有更高的API调用限制
+    // 仅保留主对话使用高级的Gemini-2.5-Pro-Exp-03-25模型
+    this.endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
     log("对话阶段分析服务初始化完成");
   }
 
@@ -157,51 +160,182 @@ ${conversationText}
         throw new Error("API返回的响应为空");
       }
 
-      // 尝试从响应文本中提取JSON对象
+      // 尝试从响应文本中提取JSON对象，使用增强的错误处理机制
       try {
-        // 匹配JSON部分
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const jsonResult = JSON.parse(jsonMatch[0]);
+        // 先记录原始响应，便于调试
+        log(`Gemini原始响应(前200字符): ${responseText.substring(0, 200)}...`);
+        
+        // 方法1: 尝试直接解析整个响应
+        try {
+          const directResult = JSON.parse(responseText);
           
-          // 验证格式
+          // 验证直接解析结果
           if (
-            typeof jsonResult.currentPhase === 'string' && 
-            ['K', 'W', 'L', 'Q'].includes(jsonResult.currentPhase) &&
-            typeof jsonResult.summary === 'string' &&
-            typeof jsonResult.confidence === 'number'
+            typeof directResult.currentPhase === 'string' && 
+            ['K', 'W', 'L', 'Q'].includes(directResult.currentPhase) &&
+            typeof directResult.summary === 'string'
           ) {
+            log(`成功通过直接JSON解析`);
             return {
-              currentPhase: jsonResult.currentPhase as ConversationPhase,
-              summary: jsonResult.summary,
-              confidence: jsonResult.confidence
+              currentPhase: directResult.currentPhase as ConversationPhase,
+              summary: directResult.summary,
+              confidence: typeof directResult.confidence === 'number' ? directResult.confidence : 0.7
             };
+          }
+        } catch (error) {
+          // 直接解析失败，继续尝试其他方法
+          const directError = error instanceof Error ? error : new Error(String(error));
+          log(`直接JSON解析失败: ${directError.message}`);
+        }
+        
+        // 方法2: 尝试匹配并提取JSON对象
+        const jsonMatch = responseText.match(/\{[\s\S]*?\}/g);
+        if (jsonMatch) {
+          // 尝试解析找到的每个JSON对象，直到找到有效的
+          for (const jsonStr of jsonMatch) {
+            try {
+              const jsonResult = JSON.parse(jsonStr);
+              
+              // 验证格式 - 宽松验证，只要有阶段即可
+              if (
+                typeof jsonResult.currentPhase === 'string' && 
+                ['K', 'W', 'L', 'Q'].includes(jsonResult.currentPhase)
+              ) {
+                log(`成功通过JSON提取解析`);
+                return {
+                  currentPhase: jsonResult.currentPhase as ConversationPhase,
+                  summary: typeof jsonResult.summary === 'string' ? jsonResult.summary : "未提供摘要",
+                  confidence: typeof jsonResult.confidence === 'number' ? jsonResult.confidence : 0.7
+                };
+              }
+            } catch (error) {
+              // 继续尝试下一个匹配项
+              const jsonError = error instanceof Error ? error : new Error(String(error));
+              log(`JSON对象解析失败: ${jsonError.message}`);
+            }
           }
         }
         
-        // 如果解析失败，尝试从文本中提取阶段信息
-        const phaseMatch = responseText.match(/currentPhase"?\s*:\s*"([KWLQ])"/i);
-        const summaryMatch = responseText.match(/summary"?\s*:\s*"([^"]*)"/i);
-        const confidenceMatch = responseText.match(/confidence"?\s*:\s*([\d.]+)/i);
+        // 方法3: 使用正则表达式提取关键字段
+        log(`尝试使用正则表达式提取关键信息`);
+        // 尝试多种格式的字段名匹配
+        const phaseMatches = [
+          responseText.match(/currentPhase"?\s*[:=]\s*"?([KWLQ])"?/i),
+          responseText.match(/current_phase"?\s*[:=]\s*"?([KWLQ])"?/i),
+          responseText.match(/phase"?\s*[:=]\s*"?([KWLQ])"?/i),
+          responseText.match(/阶段"?\s*[:=]\s*"?([KWLQ])"?/i),
+          // 尝试匹配完整单词
+          responseText.match(/\b(Knowledge|Wondering|Learning|Questioning)\b/i)
+        ];
         
-        if (phaseMatch && summaryMatch) {
+        const summaryMatches = [
+          responseText.match(/summary"?\s*[:=]\s*"([^"]*?)"/i),
+          responseText.match(/摘要"?\s*[:=]\s*"([^"]*?)"/i),
+          responseText.match(/summary"?\s*[:=]\s*'([^']*?)'/i)
+        ];
+        
+        const confidenceMatches = [
+          responseText.match(/confidence"?\s*[:=]\s*([\d.]+)/i),
+          responseText.match(/置信度"?\s*[:=]\s*([\d.]+)/i)
+        ];
+        
+        // 找到第一个有效的匹配
+        const phaseMatch = phaseMatches.find(m => m !== null);
+        const summaryMatch = summaryMatches.find(m => m !== null);
+        const confidenceMatch = confidenceMatches.find(m => m !== null);
+        
+        // 如果找到了阶段信息
+        if (phaseMatch) {
+          let phase: ConversationPhase = "K"; // 默认值
+          
+          // 根据匹配的内容确定阶段
+          const matchedPhase = phaseMatch[1];
+          if (matchedPhase.length === 1 && ['K', 'W', 'L', 'Q'].includes(matchedPhase.toUpperCase())) {
+            phase = matchedPhase.toUpperCase() as ConversationPhase;
+          } else if (matchedPhase.startsWith('K') || matchedPhase.startsWith('k')) {
+            phase = "K";
+          } else if (matchedPhase.startsWith('W') || matchedPhase.startsWith('w')) {
+            phase = "W";
+          } else if (matchedPhase.startsWith('L') || matchedPhase.startsWith('l')) {
+            phase = "L";
+          } else if (matchedPhase.startsWith('Q') || matchedPhase.startsWith('q')) {
+            phase = "Q";
+          }
+          
+          log(`成功通过正则表达式提取: 阶段=${phase}`);
           return {
-            currentPhase: phaseMatch[1] as ConversationPhase,
-            summary: summaryMatch[1],
+            currentPhase: phase,
+            summary: summaryMatch ? summaryMatch[1] : "使用正则表达式提取的对话阶段分析",
             confidence: confidenceMatch ? parseFloat(confidenceMatch[1]) : 0.7
           };
         }
         
-        // 默认返回知识获取阶段
-        log(`无法从响应中解析JSON，使用默认值。响应: ${responseText.substring(0, 200)}...`);
+        // 方法4: 分析整个文本内容，查找关键词来推断阶段
+        log(`尝试通过关键词分析推断阶段`);
+        const lowerText = responseText.toLowerCase();
+        
+        // 关键词匹配表 - 按优先级排序
+        const keywordMap: Record<ConversationPhase, string[]> = {
+          "K": ["知识获取", "knowledge acquisition", "seeking information", "asking for information", "获取信息", "寻求知识"],
+          "W": ["疑惑", "困惑", "不确定", "wonder", "confusion", "unclear", "uncertainty", "为什么", "如何", "why"],
+          "L": ["深化", "理解", "应用", "联系", "deepen", "understanding", "learning", "application", "connect", "理解深入"],
+          "Q": ["质疑", "挑战", "批判", "challenge", "critical", "questioning", "doubt", "质疑信息", "提供替代"]
+        };
+        
+        // 计算每个阶段的关键词出现次数
+        const phaseCounts: Record<ConversationPhase, number> = { "K": 0, "W": 0, "L": 0, "Q": 0 };
+        
+        for (const [phase, keywords] of Object.entries(keywordMap)) {
+          for (const keyword of keywords) {
+            // 统计关键词出现的次数
+            const regex = new RegExp(keyword, 'gi');
+            const matches = lowerText.match(regex);
+            if (matches) {
+              phaseCounts[phase as ConversationPhase] += matches.length;
+            }
+          }
+        }
+        
+        // 找出关键词匹配最多的阶段
+        let maxCount = 0;
+        let inferredPhase: ConversationPhase = "K"; // 默认为K
+        
+        for (const [phase, count] of Object.entries(phaseCounts)) {
+          if (count > maxCount) {
+            maxCount = count;
+            inferredPhase = phase as ConversationPhase;
+          }
+        }
+        
+        if (maxCount > 0) {
+          log(`通过关键词分析推断阶段: ${inferredPhase}, 匹配次数: ${maxCount}`);
+          return {
+            currentPhase: inferredPhase,
+            summary: `通过文本分析推断的对话阶段`,
+            confidence: 0.6 // 较低的置信度
+          };
+        }
+        
+        // 所有方法都失败，返回默认值
+        log(`所有解析方法失败，使用默认值`);
         return {
-          currentPhase: "K",
-          summary: "无法确定具体对话阶段，默认为知识获取阶段",
+          currentPhase: "K", // 默认阶段
+          summary: "无法从API响应中确定具体对话阶段，默认为知识获取阶段",
           confidence: 0.5
         };
       } catch (error) {
-        log(`解析Gemini响应错误: ${error}, 原始响应: ${responseText.substring(0, 200)}...`);
-        throw error;
+        log(`解析Gemini响应过程中发生严重错误: ${error}`);
+        if (error instanceof Error && error.stack) {
+          log(`错误堆栈: ${error.stack}`);
+        }
+        log(`原始响应: ${responseText ? responseText.substring(0, 200) + '...' : 'undefined'}`);
+        
+        // 发生任何错误都返回默认值，不抛出异常
+        return {
+          currentPhase: "K",
+          summary: "解析过程出错，默认为知识获取阶段",
+          confidence: 0.5
+        };
       }
     } catch (error) {
       log(`调用Gemini进行对话分析错误: ${error}`);
