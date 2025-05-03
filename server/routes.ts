@@ -2352,6 +2352,128 @@ asyncio.run(test_memory())
     }
   });
 
+  // 验证会话API - 用于前端验证会话状态
+  app.get("/api/verify-session", async (req, res) => {
+    try {
+      // 从查询参数获取用户ID
+      const requestUserId = Number(req.query.userId);
+      
+      // 检查请求是否包含用户ID
+      if (!requestUserId || isNaN(requestUserId)) {
+        return res.status(400).json({
+          success: false,
+          message: "缺少有效的用户ID参数"
+        });
+      }
+      
+      // 检查会话中的用户ID
+      const sessionUserId = req.session?.userId;
+      
+      log(`[会话验证] 请求验证: 参数用户ID=${requestUserId}, 会话用户ID=${sessionUserId}`);
+      
+      // 如果会话中没有用户ID或与请求的不匹配，尝试从数据库验证用户
+      if (!sessionUserId || sessionUserId !== requestUserId) {
+        log(`[会话验证] 会话不一致: 参数=${requestUserId}, 会话=${sessionUserId}`);
+        
+        // 从数据库获取用户信息
+        const user = await storage.getUser(requestUserId);
+        
+        if (!user) {
+          log(`[会话验证] 用户ID ${requestUserId} 在数据库中不存在`);
+          return res.status(401).json({
+            success: false,
+            message: "用户不存在"
+          });
+        }
+        
+        // 用户存在但会话不一致，更新会话
+        if (req.session) {
+          req.session.userId = user.id;
+          req.session.userRole = user.role || 'user';
+          
+          // 等待会话保存
+          await new Promise<void>((resolve, reject) => {
+            req.session.save((err) => {
+              if (err) {
+                log(`[会话验证] 保存会话失败: ${err}`);
+                reject(err);
+              } else {
+                log(`[会话验证] 会话已更新，用户ID: ${user.id}`);
+                resolve();
+              }
+            });
+          });
+          
+          // 设置cookie
+          res.cookie('userId', user.id.toString(), {
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
+            httpOnly: true,
+            path: '/',
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production'
+          });
+          
+          log(`[会话验证] 重新建立会话成功，用户ID: ${user.id}`);
+          
+          return res.json({
+            success: true,
+            user: {
+              id: user.id,
+              username: user.username,
+              role: user.role || 'user',
+              userId: user.id // 兼容前端结构
+            }
+          });
+        } else {
+          log(`[会话验证] 无法创建会话`);
+          return res.status(500).json({
+            success: false,
+            message: "无法创建会话"
+          });
+        }
+      }
+      
+      // 会话一致，获取用户信息并返回
+      const user = await storage.getUser(sessionUserId);
+      
+      if (!user) {
+        log(`[会话验证] 会话中的用户ID ${sessionUserId} 在数据库中不存在`);
+        
+        // 清除无效会话
+        if (req.session) {
+          req.session.userId = undefined;
+          req.session.userRole = undefined;
+          req.session.destroy((err) => {
+            if (err) log(`[会话验证] 清除会话失败: ${err}`);
+          });
+        }
+        
+        return res.status(401).json({
+          success: false,
+          message: "会话用户不存在"
+        });
+      }
+      
+      log(`[会话验证] 会话验证成功，用户ID: ${user.id}`);
+      
+      return res.json({
+        success: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role || 'user',
+          userId: user.id // 兼容前端结构
+        }
+      });
+    } catch (error) {
+      log(`[会话验证] 错误: ${error}`);
+      res.status(500).json({
+        success: false,
+        message: "会话验证失败"
+      });
+    }
+  });
+
   // 获取系统当前设置和配置
   app.get("/api/system-info", async (req, res) => {
     try {
