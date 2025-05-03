@@ -130,9 +130,9 @@ async function processBatch(memoryIds, batchSize = 2, delay = 15000) {
  */
 async function main() {
   // 设置参数
-  const batchSize = 2;        // 每批处理记忆数量
-  const batchDelay = 15000;   // 批次间等待时间（毫秒）
-  const processLimit = 20;    // 每次运行处理的记忆数量上限
+  const batchSize = 4;        // 每批处理记忆数量
+  const batchDelay = 10000;   // 批次间等待时间（毫秒）
+  const processLimit = 40;    // 每次运行处理的记忆数量上限
   
   try {
     log(`=== 批量处理向量嵌入 ===`, 'info');
