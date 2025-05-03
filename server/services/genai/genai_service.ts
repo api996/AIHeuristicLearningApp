@@ -722,37 +722,11 @@ class FallbackService implements GenAIService {
 
 /**
  * 创建服务实例的异步函数
- * 优先使用Grok API，如果不可用则回退到Gemini
+ * 优先使用Gemini API，只有在Gemini不可用时才使用Grok
  * 返回Promise以避免TypeScript错误
  */
 const createGenAIService = async (): Promise<GenAIService> => {
-  // 优先使用Grok服务
-  if (grokApiKey && grokApiKey.trim() !== "") {
-    log("[genai_service] 检测到Grok API密钥，尝试使用Grok服务", "info");
-    const grokService = new GrokService();
-    
-    try {
-      // 测试Grok API是否可用
-      const testTexts = ["测试文本，用于验证Grok API是否可用"];
-      const testTopic = await grokService.generateTopicForMemories(testTexts);
-      
-      if (testTopic && testTopic !== "用户问") {
-        log(`[genai_service] 成功: Grok API已初始化，使用模型grok-3-fast-beta生成的测试主题: "${testTopic}"`, "info");
-        log(`[genai_service] 注意: 已针对向量聚类场景优化提示词，移除了不适合的极简输入检测`, "info");
-        return grokService;
-      } else {
-        log(`[genai_service] 警告: Grok API虽然返回了响应，但结果不符合预期: "${testTopic}"`, "warn");
-        log(`[genai_service] 自动回退: 将尝试使用Gemini API作为替代`, "warn");
-        // 如果Grok失败，尝试Gemini
-      }
-    } catch (error) {
-      log(`[genai_service] 错误: Grok API调用失败: ${error}`, "error");
-      log(`[genai_service] 自动回退: 将尝试使用Gemini API作为替代`, "warn");
-      // 如果Grok失败，尝试Gemini
-    }
-  }
-  
-  // 如果Grok不可用或失败，尝试使用Gemini
+  // 优先使用Gemini服务 - 确保生成正确的3072维向量嵌入
   if (geminiApiKey && geminiApiKey.trim() !== "") {
     log("[genai_service] 尝试使用Gemini服务", "info");
     const geminiService = new GeminiService();
@@ -774,8 +748,8 @@ const createGenAIService = async (): Promise<GenAIService> => {
     }
   }
   
-  // 如果两个API都不可用，抛出错误
-  throw new Error("[genai_service] 未设置任何可用的API密钥，请配置GROK_API_KEY或GEMINI_API_KEY环境变量");
+  // 如果Gemini API不可用，抛出明确的错误
+  throw new Error("[genai_service] 未设置Gemini API密钥，请配置GEMINI_API_KEY环境变量");
 };
 
 // 导出服务实例
@@ -819,8 +793,8 @@ export const initializeGenAIService = async (): Promise<GenAIService> => {
       console.error(`
 ====================================
 严重错误: GenAI服务初始化失败
-请确保GROK_API_KEY或GEMINI_API_KEY已正确设置
-至少需要一个可用的AI API密钥才能使用记忆向量嵌入功能
+请确保GEMINI_API_KEY已正确设置
+需要Gemini API密钥才能生成正确的3072维向量嵌入
 ====================================
       `);
     }
@@ -830,7 +804,7 @@ export const initializeGenAIService = async (): Promise<GenAIService> => {
 // 为防止初始导出的genAiService为undefined，提供一个错误提示方法
 setTimeout(() => {
   if (!genAiService) {
-    const errorMsg = "[genai_service] 严重错误：GenAI服务初始化失败，向量嵌入功能无法使用，请检查GROK_API_KEY或GEMINI_API_KEY配置";
+    const errorMsg = "[genai_service] 严重错误：GenAI服务初始化失败，向量嵌入功能无法使用，请确保GEMINI_API_KEY正确配置";
     log(errorMsg, "error");
     // 由于我们现在不再使用后备服务，这里抛出一个更为明确的错误
     throw new Error(errorMsg);
