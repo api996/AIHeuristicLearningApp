@@ -279,12 +279,14 @@ export default function Login() {
             console.log('[Login] 会话验证成功:', verifyData);
             
             if (verifyData.success && verifyData.user) {
-              // 准备并标准化用户数据格式
+              console.log('[Login] 服务器返回的原始用户数据:', verifyData.user);
+              
+              // 准备并标准化用户数据格式 - 使用完全解构方式避免混合数据
               const normalizedUser = {
-                ...verifyData.user,
-                id: verifyData.user.id, // 保留原始id
-                userId: verifyData.user.userId || verifyData.user.id, // 确保添加userId字段
-                username: verifyData.user.username || username // 确保有用户名
+                id: verifyData.user.id, 
+                userId: verifyData.user.id, // 始终使用id作为userId值确保一致性
+                role: verifyData.user.role || 'user',
+                username: verifyData.user.username || username
               };
               
               console.log('[Login] 标准化后的用户数据:', normalizedUser);

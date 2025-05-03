@@ -149,7 +149,15 @@ export default function Home() {
       
       {/* 主要内容 */}
       <div className="relative z-10">
-        <AIChat userData={user} />
+        {/* 确保user有正确的用户数据字段 */}
+        {user && (
+          <AIChat userData={{
+            id: user.id, 
+            userId: user.id, // 相同值的id和userId字段
+            role: user.role || 'user',
+            username: user.username || '用户',
+          }} />
+        )}
       </div>
     </div>
   );
