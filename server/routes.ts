@@ -405,6 +405,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 验证认证状态 - 用于前端验证会话是否有效
+  app.get("/api/auth/verify", async (req, res) => {
+    try {
+      // 检查会话中是否有用户ID
+      const userId = req.session?.userId;
+      
+      if (!userId) {
+        log(`[Auth] 会话验证失败: 未找到用户ID`);
+        return res.status(401).json({
+          success: false,
+          message: "未登录或会话已过期"
+        });
+      }
+      
+      // 从数据库获取用户信息以验证
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        log(`[Auth] 会话验证失败: 用户ID ${userId} 在数据库中不存在`);
+        // 清除会话中的无效用户ID
+        req.session.userId = undefined;
+        req.session.userRole = undefined;
+        
+        return res.status(401).json({
+          success: false,
+          message: "用户不存在，请重新登录"
+        });
+      }
+      
+      // 更新最后活动时间
+      req.session.lastActive = Date.now();
+      
+      // 返回用户信息（不包含密码）
+      const { password, ...userWithoutPassword } = user;
+      log(`[Auth] 会话验证成功: 用户ID ${userId}, 角色 ${user.role || 'user'}`);
+      
+      res.json({
+        success: true,
+        user: userWithoutPassword
+      });
+    } catch (error) {
+      log(`[Auth] 会话验证错误: ${error}`);
+      res.status(500).json({
+        success: false,
+        message: "验证会话状态时出错"
+      });
+    }
+  });
+
   // 处理退出登录请求
   app.post("/api/logout", (req, res) => {
     try {
@@ -2351,6 +2400,8 @@ asyncio.run(test_memory())
       });
     }
   });
+  
+  // 用户会话和认证状态已统一在前面的 /api/auth/verify 端点处理
 
   // 获取系统当前设置和配置
   app.get("/api/system-info", async (req, res) => {

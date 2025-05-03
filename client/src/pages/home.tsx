@@ -5,37 +5,34 @@ import { BackgroundUploader } from "@/components/background-uploader";
 import { Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
+import { useAuth } from "../App"; // 导入认证上下文
+import { clearAuthAndRedirect } from "@/lib/authVerifier"; // 导入登出方法
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const [userData, setUserData] = useState<any>(null);
+  const { user, isAuthenticated, isLoading } = useAuth(); // 使用认证上下文
   const [backgroundUrl, setBackgroundUrl] = useState<string>("/backgrounds/default-background.png");
 
   useEffect(() => {
-    const user = localStorage.getItem("user");
-    if (!user) {
-      console.log('[Home] No user session found, redirecting to login');
+    console.log('[Home] 认证状态:', { isAuthenticated, isLoading });
+    
+    // 如果认证状态已加载完成且未认证，重定向到登录页
+    if (!isLoading && !isAuthenticated) {
+      console.log('[Home] 用户未认证，重定向到登录页');
       setLocation("/login");
       return;
     }
-
-    try {
-      const parsedUser = JSON.parse(user);
-      if (!parsedUser.userId) {
-        console.log('[Home] Invalid user data, redirecting to login');
-        localStorage.removeItem("user");
-        setLocation("/login");
-        return;
-      }
-
-      // 管理员应该被重定向到管理控制台
-      if (parsedUser.role === 'admin') {
-        console.log('[Home] Admin user detected, redirecting to admin dashboard');
-        setLocation("/admin");
-        return;
-      }
-
-      setUserData(parsedUser);
+    
+    // 如果用户已认证且是管理员，重定向到管理页面
+    if (!isLoading && isAuthenticated && user?.role === 'admin') {
+      console.log('[Home] 管理员用户，重定向到管理控制台');
+      setLocation("/admin");
+      return;
+    }
+    
+    // 如果认证状态已加载完成且已认证，获取背景图片
+    if (!isLoading && isAuthenticated && user) {
+      console.log('[Home] 用户已认证，ID:', user.id);
       
       // 获取用户背景图片
       fetchUserBackground();
@@ -59,23 +56,19 @@ export default function Home() {
       return () => {
         window.removeEventListener('background-updated', handleBackgroundUpdated);
       };
-    } catch (e) {
-      console.error('[Home] Error parsing user data:', e);
-      localStorage.removeItem("user");
-      setLocation("/login");
     }
-  }, [setLocation]);
+  }, [isAuthenticated, isLoading, user, setLocation]);
   
   // 获取用户背景图片
   const fetchUserBackground = async () => {
     try {
-      // 确保使用当前登录用户的ID
-      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-      if (!currentUser.userId) {
-        throw new Error("未登录用户");
+      // 现在使用认证上下文中的用户数据
+      if (!user || !user.id) {
+        console.error('[Home] 获取背景图片失败: 未找到有效的用户ID');
+        throw new Error("未找到有效的用户ID");
       }
       
-      const userId = currentUser.userId;
+      const userId = user.id;
       const baseUrl = window.location.origin;
       
       // 检测当前屏幕方向
@@ -112,7 +105,7 @@ export default function Home() {
         setBackgroundUrl(fullImageUrl + cacheBuster);
       }
     } catch (error) {
-      console.error('获取背景图片失败:', error);
+      console.error('[Home] 获取背景图片失败:', error);
       // 使用默认背景，根据屏幕方向选择
       const baseUrl = window.location.origin;
       const isPortrait = window.matchMedia("(orientation: portrait)").matches;
@@ -124,14 +117,23 @@ export default function Home() {
     }
   };
   
-  // 处理登出
+  // 处理登出 - 使用authVerifier中的clearAuthAndRedirect方法
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    setLocation("/login");
+    console.log('[Home] 执行登出操作');
+    clearAuthAndRedirect();
   };
 
-  // 只有在有有效用户数据时才渲染内容
-  if (!userData) {
+  // 只有在已认证且有用户数据时才渲染内容
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <p className="text-foreground text-lg">Loading...</p>
+      </div>
+    );
+  }
+
+  // 未认证或没有用户数据时不渲染内容
+  if (!isAuthenticated || !user) {
     return null;
   }
 
@@ -147,7 +149,7 @@ export default function Home() {
       
       {/* 主要内容 */}
       <div className="relative z-10">
-        <AIChat userData={userData} />
+        <AIChat userData={user} />
       </div>
     </div>
   );

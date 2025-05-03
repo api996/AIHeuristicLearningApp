@@ -55,27 +55,44 @@ export default function Login() {
 
   // 检查是否已登录
   useEffect(() => {
-    console.log('[Login] Checking existing user session');
-    const user = localStorage.getItem("user");
-    if (user) {
-      console.log('[Login] Found existing user session');
+    const verifySession = async () => {
+      console.log('[Login] Checking existing user session');
       try {
-        const userData = JSON.parse(user);
-        if (userData && userData.userId) {
-          if (userData.role === 'admin') {
-            setLocation("/admin");
-          } else {
-            setLocation("/");
+        // 尝试使用后端验证API验证会话
+        const response = await fetch('/api/auth/verify');
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[Login] Session verification successful:', data);
+          
+          if (data.success && data.user) {
+            // 更新本地存储
+            localStorage.setItem('user', JSON.stringify(data.user));
+            
+            // 根据用户角色跳转到对应页面
+            if (data.user.role === 'admin') {
+              setLocation("/admin");
+            } else {
+              setLocation("/");
+            }
+            return;
           }
-        } else {
-          console.log('[Login] Invalid user data, clearing');
+        }
+        
+        // 如果服务器验证失败，检查是否有本地用户数据
+        const user = localStorage.getItem("user");
+        if (user) {
+          console.log('[Login] Found local user data but server session invalid, clearing');
           localStorage.removeItem("user");
         }
-      } catch (e) {
-        console.error('[Login] Error parsing user data:', e);
+      } catch (error) {
+        console.error('[Login] Error verifying session:', error);
+        // 出错时清除本地用户数据
         localStorage.removeItem("user");
       }
-    }
+    };
+    
+    verifySession();
   }, [setLocation]);
 
   // Turnstile验证失败的计数器
@@ -222,7 +239,8 @@ export default function Login() {
       const data = await response.json();
       console.log(`[Login] 响应数据:`, data);
 
-      if (data.success) {
+      // 定义内部函数：回退到老版本的登录流程
+      const fallbackLoginFlow = () => {
         // 设置用户会话数据
         const userData = {
           userId: data.userId,
@@ -231,29 +249,60 @@ export default function Login() {
         };
         localStorage.setItem("user", JSON.stringify(userData));
         
-        // 触发用户注册事件，通知其他组件更新状态
-        console.log('[Login] 用户登录成功，保存用户信息');
-        
-        // 这里改为直接手动触发事件，不依赖于动态导入
-        if (window.document) {
-          console.log('[Login] 手动创建并触发用户注册事件');
-          const event = new CustomEvent('userRegistered');
-          document.dispatchEvent(event);
-        }
-
-        // 根据角色导航到相应页面
-        console.log('[Login] 登录成功，即将导航到相应页面');
+        console.log('[Login] 使用备用登录方式');
         
         // 添加短暂延迟，确保状态更新完成
         setTimeout(() => {
           if (data.role === 'admin') {
-            console.log('[Login] 导航到管理页面');
             setLocation("/admin");
           } else {
-            console.log('[Login] 导航到主页');
             setLocation("/");
           }
         }, 100);
+      };
+
+      if (data.success) {
+        console.log('[Login] 用户登录成功');
+        
+        // 登录成功后，验证会话状态
+        try {
+          // 通过API验证会话状态
+          const verifyResponse = await fetch('/api/auth/verify');
+          
+          if (verifyResponse.ok) {
+            const verifyData = await verifyResponse.json();
+            console.log('[Login] 会话验证成功:', verifyData);
+            
+            if (verifyData.success && verifyData.user) {
+              // 保存验证获取的用户数据（包含服务器提供的全部参数）
+              localStorage.setItem('user', JSON.stringify(verifyData.user));
+              
+              // 触发用户注册事件，通知其他组件更新状态
+              if (window.document) {
+                console.log('[Login] 手动创建并触发用户注册事件');
+                const event = new CustomEvent('userRegistered');
+                document.dispatchEvent(event);
+              }
+              
+              // 根据角色导航到相应页面
+              if (verifyData.user.role === 'admin') {
+                console.log('[Login] 导航到管理页面');
+                setLocation("/admin");
+              } else {
+                console.log('[Login] 导航到主页');
+                setLocation("/");
+              }
+              return;
+            }
+          }
+          
+          // 如果验证失败，回退到老版本的方式
+          fallbackLoginFlow();
+        } catch (verifyError) {
+          console.error('[Login] 验证会话出错:', verifyError);
+          // 出错时回退到老版本的方式
+          fallbackLoginFlow();
+        }
       } else {
         setError(data.message || "验证失败，请稍后重试");
       }
