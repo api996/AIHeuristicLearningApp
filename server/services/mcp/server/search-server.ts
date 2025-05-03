@@ -11,9 +11,51 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import 'dotenv/config';
 import fetch from "node-fetch";
+import fs from 'fs';
+import path from 'path';
 
 // 导入真实的 WebSearchService 所需依赖
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+
+// 创建一个安全的日志函数，避免管道错误
+const logFile = path.join(process.cwd(), 'mcp_search.log');
+
+/**
+ * 安全的日志函数，避免EPIPE错误
+ * 同时将记录打印到控制台和写入文件
+ * @param message 日志消息
+ * @param level 日志级别 ('info', 'warn', 'error')
+ */
+function safeLog(message: string, level: string = 'info') {
+  try {
+    // 尝试打印到控制台，但捕获可能的EPIPE错误
+    try {
+      if (level === 'error') {
+        console.error(message);
+      } else if (level === 'warn') {
+        console.warn(message);
+      } else {
+        console.log(message);
+      }
+    } catch (consoleError) {
+      // 忽略控制台错误，继续尝试写入文件
+    }
+    
+    // 尝试写入到文件
+    try {
+      const timestamp = new Date().toISOString();
+      const logMessage = `${timestamp} [${level}] ${message}\n`;
+      
+      // 异步写入文件，不阻塞主进程
+      fs.appendFile(logFile, logMessage, { encoding: 'utf8' }, () => {});
+    } catch (fileError) {
+      // 忽略文件写入错误
+    }
+  } catch (e) {
+    // 完全沉默错误，避免任何可能引起EPIPE的输出
+  }
+}
+
 
 /**
  * 为MCP子进程提供的全功能搜索服务
@@ -85,7 +127,7 @@ class MCPWebSearchService {
       
       return JSON.parse(jsonText);
     } catch (error) {
-      console.error("[MCP-SEARCH] JSON解析错误:", error);
+      safeLog(`[MCP-SEARCH] JSON解析错误: ${error instanceof Error ? error.message : String(error)}`, 'error');
       return null;
     }
   }
@@ -117,11 +159,11 @@ class MCPWebSearchService {
    * @returns 搜索结果片段
    */
   async search(query: string) {
-    console.log(`[MCP-SEARCH] 执行基础搜索: ${query}`);
+    safeLog(`[MCP-SEARCH] 执行基础搜索: ${query}`, 'info');
     
     // 如果API密钥未设置，返回默认结果
     if (!this.apiKey) {
-      console.warn("[MCP-SEARCH] 搜索API密钥未设置，使用默认结果");
+      safeLog("[MCP-SEARCH] 搜索API密钥未设置，使用默认结果", 'warn');
       return [
         {
           title: `关于"${query}"的搜索结果`,
@@ -193,11 +235,11 @@ class MCPWebSearchService {
         }
       }
       
-      console.log(`[MCP-SEARCH] 搜索完成，获取到 ${snippets.length} 条结果`);
+      safeLog(`[MCP-SEARCH] 搜索完成，获取到 ${snippets.length} 条结果`, 'info');
       return snippets;
       
     } catch (error) {
-      console.error("[MCP-SEARCH] 搜索错误:", error);
+      safeLog(`[MCP-SEARCH] 搜索错误: ${error instanceof Error ? error.message : String(error)}`, 'error');
       // 返回默认结果
       return [
         {
@@ -216,16 +258,16 @@ class MCPWebSearchService {
    */
   async searchWithMCP(query: string) {
     try {
-      console.log(`[MCP-SEARCH] 执行MCP搜索: ${query}`);
+      safeLog(`[MCP-SEARCH] 执行MCP搜索: ${query}`, 'info');
       
       if (!query || query.trim().length === 0) {
-        console.log(`[MCP-SEARCH] 搜索查询为空，无法执行`);
+        safeLog(`[MCP-SEARCH] 搜索查询为空，无法执行`, 'info');
         return null;
       }
       
       // 检查Gemini API是否可用
       if (!this.genAI) {
-        console.log(`[MCP-SEARCH] MCP搜索需要Gemini API，但API未初始化`);
+        safeLog(`[MCP-SEARCH] MCP搜索需要Gemini API，但API未初始化`, 'warn');
         return null;
       }
       
@@ -233,7 +275,7 @@ class MCPWebSearchService {
       const snippets = await this.search(query);
       
       if (!snippets || snippets.length === 0) {
-        console.log(`[MCP-SEARCH] MCP搜索未找到结果: ${query}`);
+        safeLog(`[MCP-SEARCH] MCP搜索未找到结果: ${query}`, 'warn');
         return null;
       }
       
@@ -241,7 +283,7 @@ class MCPWebSearchService {
       return await this.processMCPResult(query, snippets);
       
     } catch (error) {
-      console.error("[MCP-SEARCH] MCP搜索错误:", error);
+      safeLog(`[MCP-SEARCH] MCP搜索错误: ${error instanceof Error ? error.message : String(error)}`, 'error');
       
       // 提供备用结果，确保服务不中断
       return {
@@ -349,7 +391,7 @@ ${searchContext}
       };
       
     } catch (error) {
-      console.error(`[MCP-SEARCH] MCP处理错误: ${error instanceof Error ? error.message : String(error)}`);
+      safeLog(`[MCP-SEARCH] MCP处理错误: ${error instanceof Error ? error.message : String(error)}`, 'error');
       
       // 返回最基本的结果
       return {
@@ -398,41 +440,38 @@ const searchParamsSchema = {
 // 简化：直接注册搜索函数作为工具
 // 注意：如果 SDK API 与此不匹配，请使用更底层的 RPC 方式实现
 try {
-  // 避免在子进程中使用标准输出，可能导致EPIPE错误
-  // console.log(`[MCP-SERVER] 注册工具函数: ${typeof server.tool}`);
+  // 避免在子进程中使用标准输出
+  safeLog(`注册MCP搜索工具函数`, 'info');
   
   // @ts-ignore 忽略类型检查以适应可能的 SDK 变更
-  server.tool && server.tool("webSearch", async (params: any) => {
+  if (server.tool) {
+    server.tool("webSearch", async (params: any) => {
     try {
-      // 避免在子进程中使用复杂日志，可能导致EPIPE错误
-      // console.log(`[MCP-SERVER] 收到搜索请求，参数:`, params);
-      
       // 新的参数处理逻辑 - MCP SDK可能通过多种方式传递参数
       // 检查所有可能的参数位置
-      
       let queryValue = "";
       
       // 尝试所有可能的参数结构
       if (typeof params === 'string') {
         queryValue = params; // 直接是查询字符串
-        console.log(`[MCP-SERVER] 参数是字符串: ${queryValue}`);
+        safeLog(`[MCP-SERVER] 参数是字符串: ${queryValue}`, 'info');
       } 
       else if (typeof params === 'object') {
         if (params === null) {
-          console.log(`[MCP-SERVER] 参数是null`);
+          safeLog(`[MCP-SERVER] 参数是null`, 'info');
         } else {
-          console.log(`[MCP-SERVER] 参数是对象，键: ${Object.keys(params).join(', ')}`);
+          safeLog(`[MCP-SERVER] 参数是对象，键: ${Object.keys(params).join(', ')}`, 'info');
           
           // 检查常见参数结构
           if (params.query) {
             queryValue = params.query; // 标准结构
-            console.log(`[MCP-SERVER] 从params.query获取值: ${queryValue}`);
+            safeLog(`[MCP-SERVER] 从params.query获取值: ${queryValue}`, 'info');
           } 
           else if (params.arguments && typeof params.arguments === 'object') {
             // arguments包含参数
             if (params.arguments.query) {
               queryValue = params.arguments.query;
-              console.log(`[MCP-SERVER] 从params.arguments.query获取值: ${queryValue}`);
+              safeLog(`[MCP-SERVER] 从params.arguments.query获取值: ${queryValue}`, 'info');
             }
           }
           else {
@@ -440,12 +479,12 @@ try {
             for (const key of Object.keys(params)) {
               if (typeof params[key] === 'string' && params[key].length > 0) {
                 queryValue = params[key];
-                console.log(`[MCP-SERVER] 从params[${key}]获取可能的查询值: ${queryValue}`);
+                safeLog(`[MCP-SERVER] 从params[${key}]获取可能的查询值: ${queryValue}`, 'info');
                 break;
               }
               else if (typeof params[key] === 'object' && params[key]?.query) {
                 queryValue = params[key].query;
-                console.log(`[MCP-SERVER] 从params[${key}].query获取值: ${queryValue}`);
+                safeLog(`[MCP-SERVER] 从params[${key}].query获取值: ${queryValue}`, 'info');
                 break;
               }
             }
@@ -458,7 +497,7 @@ try {
       
       // 如果查询为空，返回错误
       if (!query) {
-        console.error("[MCP-SERVER] 搜索查询为空");
+        safeLog("[MCP-SERVER] 搜索查询为空", 'error');
         return { 
           content: [{ 
             type: "text", 
@@ -493,23 +532,16 @@ try {
         }
       }
       
-      console.log(`[MCP-SERVER] 最终处理的参数: query=${query}, useMCP=${useMCP}, numResults=${numResults}`);
-      
-      // 添加更详细的日志
-      if (useMCP) {
-        console.log(`[MCP-SERVER] 使用MCP增强搜索模式执行查询: ${query}`);
-      } else {
-        console.log(`[MCP-SERVER] 使用基础搜索模式执行查询: ${query}`);
-      }
+      safeLog(`[MCP-SERVER] 最终处理的参数: query=${query}, useMCP=${useMCP}, numResults=${numResults}`, 'info');
       
       // 根据 useMCP 标志决定使用哪种搜索方式
       if (useMCP) {
         try {
-          console.log(`[MCP-SERVER] 尝试使用MCP增强搜索模式执行查询: ${query}`);
+          safeLog(`[MCP-SERVER] 尝试使用MCP增强搜索模式执行查询: ${query}`, 'info');
           const mcpResult = await mcpWebSearchService.searchWithMCP(query);
           
           if (!mcpResult) {
-            console.warn(`[MCP-SERVER] MCP模式未返回结果，切换到基础搜索模式`);
+            safeLog(`[MCP-SERVER] MCP模式未返回结果，切换到基础搜索模式`, 'warn');
             throw new Error("MCP搜索未返回结果");
           }
           
@@ -526,7 +558,7 @@ try {
             ]
           };
         } catch (mcpError) {
-          console.warn(`[MCP-SERVER] MCP模式执行失败，自动切换到基础搜索模式: ${mcpError instanceof Error ? mcpError.message : String(mcpError)}`);
+          safeLog(`[MCP-SERVER] MCP模式执行失败，自动切换到基础搜索模式: ${mcpError instanceof Error ? mcpError.message : String(mcpError)}`, 'warn');
           // MCP模式失败，自动切换到基础搜索模式
           useMCP = false;
           // 继续执行非MCP部分的代码
@@ -534,7 +566,7 @@ try {
       }
       
       // 如果useMCP为false或MCP模式执行失败，使用基础搜索
-      console.log(`[MCP-SERVER] 使用基础搜索模式执行查询: ${query}`);
+      safeLog(`[MCP-SERVER] 使用基础搜索模式执行查询: ${query}`, 'info');
       const snippets = await mcpWebSearchService.search(query);
       
       if (!snippets || snippets.length === 0) {
@@ -553,7 +585,7 @@ try {
         ]
       };
     } catch (error) {
-      console.error("搜索执行出错:", error);
+      safeLog(`搜索执行出错: ${error instanceof Error ? error.message : String(error)}`, 'error');
       return {
         content: [{ 
           type: "text", 
@@ -561,20 +593,31 @@ try {
         }]
       };
     }
-  });
+    });
+  }
 } catch (error) {
-  console.warn("MCP 工具注册方式可能已更新，错误:", error);
-  console.warn("建议查阅最新的 MCP SDK 文档以更新实现");
+  safeLog(`MCP 工具注册方式可能已更新，错误: ${error instanceof Error ? error.message : String(error)}`, 'warn');
+  safeLog("建议查阅最新的 MCP SDK 文档以更新实现", 'warn');
 }
 
 // 启动服务
 export async function startMcpSearchServer() {
   try {
+    // 创建日志文件目录（如果不存在）
+    try {
+      const logDir = path.dirname(logFile);
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+    } catch (e) {
+      // 忽略错误
+    }
+    
     await server.connect(transport);
-    console.log("MCP 搜索服务已启动，监听 stdio...");
+    safeLog("MCP 搜索服务已启动，监听 stdio...", 'info');
     return { success: true };
   } catch (error) {
-    console.error("MCP 服务启动失败:", error);
+    safeLog(`MCP 服务启动失败: ${error instanceof Error ? error.message : String(error)}`, 'error');
     return { 
       success: false, 
       error: error instanceof Error ? error.message : String(error) 
@@ -582,12 +625,33 @@ export async function startMcpSearchServer() {
   }
 }
 
+// 退出错误处理
+process.on('uncaughtException', (error) => {
+  try {
+    safeLog(`未捕获的异常: ${error instanceof Error ? error.stack || error.message : String(error)}`, 'error');
+  } catch (e) {
+    // 完全沉默错误，避免EPIPE
+  }
+  // 不退出进程，保持MCP服务继续运行
+});
+
+process.on('unhandledRejection', (reason) => {
+  try {
+    safeLog(`未处理的Promise拒绝: ${reason instanceof Error ? reason.stack || reason.message : String(reason)}`, 'error');
+  } catch (e) {
+    // 完全沉默错误，避免EPIPE
+  }
+  // 不退出进程，保持MCP服务继续运行
+});
+
 // 在 ES 模块环境中直接运行时调用
 // Node.js ESM 模块不支持 require.main，因此使用 import.meta.url 检查
-const isMainModule = import.meta.url.endsWith('search-server.js') || 
-                     import.meta.url.endsWith('search-server.ts');
+const isMainModule = import.meta.url?.endsWith('search-server.js') || 
+                     import.meta.url?.endsWith('search-server.ts');
 if (isMainModule) {
-  startMcpSearchServer().catch(console.error);
+  startMcpSearchServer().catch((error) => {
+    safeLog(`启动失败: ${error instanceof Error ? error.message : String(error)}`, 'error');
+  });
 }
 
 // 导出服务器实例供测试使用
