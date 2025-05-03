@@ -24,7 +24,7 @@ sys.path.append(parent_dir)
 logger.info(f"添加父目录到系统路径: {parent_dir}")
 
 try:
-    from services.embedding import EmbeddingService
+    from server.services.embedding import EmbeddingService
     logger.info("成功导入嵌入服务类")
 except ImportError as e:
     logger.error(f"导入嵌入服务失败: {e}")
@@ -140,7 +140,7 @@ def health_check():
 
 if __name__ == '__main__':
     # 获取端口
-    port = int(os.environ.get('EMBEDDING_API_PORT', 9002))
+    port = int(os.environ.get('EMBEDDING_API_PORT', 9003))
     logger.info(f"启动向量嵌入API服务，端口: {port}")
     
     # 启动服务
