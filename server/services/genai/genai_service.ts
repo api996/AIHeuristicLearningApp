@@ -92,17 +92,16 @@ class GeminiService implements GenAIService {
 
   async generateEmbedding(text: string): Promise<number[]> {
     try {
-      // 直接调用Python嵌入服务
-      log("[genai_service] 调用Python嵌入服务生成向量嵌入", "info");
+      log("[genai_service] 使用统一嵌入管理器生成向量嵌入", "info");
       
-      // 导入Python嵌入服务
-      const { pythonEmbeddingService } = await import("../learning/python_embedding");
+      // 导入统一嵌入管理器
+      const { embeddingManager } = await import("../embedding/embedding_manager");
       
-      // 使用Python服务生成嵌入
-      const embedding = await pythonEmbeddingService.generateEmbedding(text);
+      // 使用统一管理器生成嵌入
+      const embedding = await embeddingManager.generateEmbedding(text);
       
       if (!embedding) {
-        const errorMsg = "[genai_service] Python嵌入服务返回空结果，请检查Python环境配置";
+        const errorMsg = "[genai_service] 嵌入管理器返回空结果";
         log(errorMsg, "error");
         throw new Error(errorMsg);
       }
@@ -115,10 +114,10 @@ class GeminiService implements GenAIService {
         throw new Error(errorMsg);
       }
       
-      log(`[genai_service] 成功生成${embedding.length}维向量嵌入（通过Python服务）`, "info");
+      log(`[genai_service] 成功生成${embedding.length}维向量嵌入（通过统一管理器）`, "info");
       return embedding;
     } catch (error) {
-      const errorMsg = `[genai_service] 通过Python服务生成嵌入失败: ${error}`;
+      const errorMsg = `[genai_service] 生成嵌入失败: ${error}`;
       log(errorMsg, "error");
       throw new Error(errorMsg);
     }
@@ -365,17 +364,16 @@ class GrokService implements GenAIService {
 
   async generateEmbedding(text: string): Promise<number[]> {
     try {
-      // 直接调用Python嵌入服务，与Gemini实现相同
-      log("[genai_service] 调用Python嵌入服务生成向量嵌入", "info");
+      log("[genai_service] 使用统一嵌入管理器生成向量嵌入（Grok服务）", "info");
       
-      // 导入Python嵌入服务
-      const { pythonEmbeddingService } = await import("../learning/python_embedding");
+      // 导入统一嵌入管理器
+      const { embeddingManager } = await import("../embedding/embedding_manager");
       
-      // 使用Python服务生成嵌入
-      const embedding = await pythonEmbeddingService.generateEmbedding(text);
+      // 使用统一管理器生成嵌入
+      const embedding = await embeddingManager.generateEmbedding(text);
       
       if (!embedding) {
-        const errorMsg = "[genai_service] Python嵌入服务返回空结果，请检查Python环境配置";
+        const errorMsg = "[genai_service] 嵌入管理器返回空结果（Grok服务）";
         log(errorMsg, "error");
         throw new Error(errorMsg);
       }
@@ -388,10 +386,10 @@ class GrokService implements GenAIService {
         throw new Error(errorMsg);
       }
       
-      log(`[genai_service] 成功生成${embedding.length}维向量嵌入（通过Python服务）`, "info");
+      log(`[genai_service] 成功生成${embedding.length}维向量嵌入（通过统一管理器）`, "info");
       return embedding;
     } catch (error) {
-      const errorMsg = `[genai_service] 通过Python服务生成嵌入失败: ${error}`;
+      const errorMsg = `[genai_service] 生成嵌入失败: ${error}`;
       log(errorMsg, "error");
       throw new Error(errorMsg);
     }
