@@ -241,12 +241,17 @@ export default function Login() {
 
       // 定义内部函数：回退到老版本的登录流程
       const fallbackLoginFlow = () => {
-        // 设置用户会话数据
+        // 设置用户会话数据 - 确保同时包含id和userId
         const userData = {
-          userId: data.userId,
+          id: data.id || data.userId, // 使用id，如果不存在则使用userId
+          userId: data.userId || data.id, // 使用userId，如果不存在则使用id
           role: data.role,
           username: username
         };
+        
+        // 记录修正后的用户数据
+        console.log('[Login] 修正后的用户数据:', userData);
+        
         localStorage.setItem("user", JSON.stringify(userData));
         
         console.log('[Login] 使用备用登录方式');
@@ -274,8 +279,18 @@ export default function Login() {
             console.log('[Login] 会话验证成功:', verifyData);
             
             if (verifyData.success && verifyData.user) {
-              // 保存验证获取的用户数据（包含服务器提供的全部参数）
-              localStorage.setItem('user', JSON.stringify(verifyData.user));
+              // 准备并标准化用户数据格式
+              const normalizedUser = {
+                ...verifyData.user,
+                id: verifyData.user.id, // 保留原始id
+                userId: verifyData.user.userId || verifyData.user.id, // 确保添加userId字段
+                username: verifyData.user.username || username // 确保有用户名
+              };
+              
+              console.log('[Login] 标准化后的用户数据:', normalizedUser);
+              
+              // 保存标准化后的用户数据
+              localStorage.setItem('user', JSON.stringify(normalizedUser));
               
               // 触发用户注册事件，通知其他组件更新状态
               if (window.document) {

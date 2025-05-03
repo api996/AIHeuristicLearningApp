@@ -437,13 +437,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 更新最后活动时间
       req.session.lastActive = Date.now();
       
-      // 返回用户信息（不包含密码）
+      // 返回用户信息（不包含密码，并确保使用userId字段）
       const { password, ...userWithoutPassword } = user;
+      
+      // 提供userId字段以兼容前端期望的格式
+      const formattedUser = {
+        ...userWithoutPassword,
+        userId: userWithoutPassword.id // 添加userId字段作为id的别名
+      };
+      
       log(`[Auth] 会话验证成功: 用户ID ${userId}, 角色 ${user.role || 'user'}`);
       
       res.json({
         success: true,
-        user: userWithoutPassword
+        user: formattedUser
       });
     } catch (error) {
       log(`[Auth] 会话验证错误: ${error}`);
