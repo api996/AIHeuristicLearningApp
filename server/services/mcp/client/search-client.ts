@@ -13,6 +13,7 @@ import { log } from "../../../vite";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { TcpClientTransport } from './tcp-transport';
 
 // 获取当前文件的目录路径（兼容 ESM 模块环境）
 const currentFilePath = fileURLToPath(import.meta.url);
@@ -24,10 +25,13 @@ const currentDir = dirname(currentFilePath);
  */
 export class McpSearchClient {
   private client: Client | null = null;
-  private transport: StdioClientTransport | null = null;
+  private transport: StdioClientTransport | TcpClientTransport | null = null;
+  private tcpTransport: TcpClientTransport | null = null;
+  private stdioTransport: StdioClientTransport | null = null;
   private initialized = false;
   private serverProcess: ReturnType<typeof spawn> | null = null;
   private useDevCommand = false; // 是否使用开发命令(tsx)而不是生产命令(node)
+  private useTcpTransport = false; // 是否使用TCP传输
 
   /**
    * 初始化 MCP 客户端
@@ -115,13 +119,14 @@ export class McpSearchClient {
       log("初始化 MCP 搜索客户端...");
       log(`MCP 服务器脚本绝对路径: ${scriptPath}`);
 
+      // 注意：由于MCP SDK设计限制，我们必须先使用stdio创建和连接客户端，然后才能添加TCP传输
       // 创建 stdio 传输层 - 根据环境和文件类型选择正确的命令
       // 通常生产环境中使用 node，开发环境使用 tsx
       // 但如果在生产环境中找到的是 .ts 文件，则也使用 tsx
       const command = (isProduction && !this.useDevCommand) ? "node" : "tsx";
       log(`将使用命令: ${command} ${scriptPath}`);
       
-      this.transport = new StdioClientTransport({
+      this.stdioTransport = new StdioClientTransport({
         command: command,
         args: [scriptPath],
         env: {
@@ -135,15 +140,45 @@ export class McpSearchClient {
           PGPASSWORD: process.env.PGPASSWORD || ""
         }
       });
-
-      // 创建 MCP 客户端
+      
+      // 使用标准IO传输初始化
+      this.transport = this.stdioTransport;
+      
+      // 创建 MCP 客户端并连接
       this.client = new Client({ 
         name: "mcp-search-client", 
         version: "1.0.0"
       });
-
+      
       // 连接到服务器
       await this.client.connect(this.transport);
+      
+      // 现在尝试使用TCP传输
+      log('尝试添加TCP传输支持');
+      try {
+        this.tcpTransport = new TcpClientTransport();
+        await this.tcpTransport.connect();
+        
+        if (this.tcpTransport.isConnected()) {
+          log('TCP连接成功，添加TCP传输支持');
+          this.useTcpTransport = true;
+          
+          // 将TCP消息转发到Client
+          this.tcpTransport.on('message', (message: string) => {
+            // @ts-ignore - 直接调用内部处理方法
+            this.stdioTransport.handleMessage?.(message);
+          });
+        } else {
+          log('TCP连接未成功建立，仅使用stdio传输');
+          this.useTcpTransport = false;
+        }
+      } catch (tcpError) {
+        log(`TCP连接错误: ${tcpError instanceof Error ? tcpError.message : String(tcpError)}`);
+        log('仅使用stdio传输');
+        this.useTcpTransport = false;
+      }
+      
+      // 客户端已经连接，初始化握手
       
       // 初始化握手 (使用try/catch捕获可能的错误)
       try {
@@ -348,14 +383,27 @@ export class McpSearchClient {
       this.client = null;
     }
 
-    if (this.transport) {
+    // 关闭TCP传输
+    if (this.tcpTransport) {
       try {
-        this.transport.close();
+        this.tcpTransport.close().catch(() => {});
       } catch (error) {
         // 忽略关闭错误
       }
-      this.transport = null;
+      this.tcpTransport = null;
     }
+    
+    // 关闭stdio传输
+    if (this.stdioTransport) {
+      try {
+        this.stdioTransport.close();
+      } catch (error) {
+        // 忽略关闭错误
+      }
+      this.stdioTransport = null;
+    }
+    
+    this.transport = null;
 
     if (this.serverProcess) {
       try {
