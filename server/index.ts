@@ -89,17 +89,15 @@ app.use(session({
     tableName: 'session', // 与之前创建的表名匹配
     createTableIfMissing: true,
     // 增加会话清理间隔，减少服务器负担
-    pruneSessionInterval: 24 * 60 * 60, // 每24小时清理一次
-    // 重要: 增加会话过期时间，确保持久化
-    ttl: 30 * 24 * 60 * 60 // 30天过期时间
+    pruneSessionInterval: 24 * 60 * 60 // 每24小时清理一次
   }),
   secret: process.env.SESSION_SECRET || 'ai-learning-companion-secret-2025',
-  resave: true, // 确保会话始终被保存
-  saveUninitialized: true, // 保存所有会话，包括未初始化的会话
+  resave: false,
+  saveUninitialized: true, // 需要设置为true以支持未登录用户的会话
   cookie: { 
     // 在开发环境中禁用secure以确保cookie正常工作
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30天过期时间
+    secure: false,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 增加到7天，提高会话持久性
     sameSite: 'lax', // 兼容现代浏览器的cookie策略
     httpOnly: true, // 防止客户端JavaScript访问cookie
     path: '/' // 确保所有路径都可以访问cookie
@@ -107,29 +105,6 @@ app.use(session({
   // 添加名称使会话更容易识别，调试时也更方便
   name: 'xai.sid'
 }));
-
-// 重要：强制保存会话到存储，确保持久化
-app.use((req, res, next) => {
-  // 此中间件确保每个请求结束时会话都被保存
-  const oldEnd = res.end.bind(res);
-  res.end = function(chunk?: any, encoding?: BufferEncoding, callback?: () => void) {
-    if (req.session && req.session.userId) {
-      req.session.save((err) => {
-        if (err) {
-          console.error('[Session] 会话保存失败:', err);
-        }
-        if (typeof chunk === 'function') {
-          oldEnd(null, null, chunk);
-        } else {
-          oldEnd(chunk, encoding, callback);
-        }
-      });
-    } else {
-      oldEnd(chunk, encoding, callback);
-    }
-  };
-  next();
-});
 
 // 使用全局global.d.ts中声明的会话类型
 

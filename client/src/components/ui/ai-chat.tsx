@@ -81,15 +81,6 @@ interface AIChatProps {
   userData: any;
 }
 
-// 用户数据转换函数，确保数据格式一致
-function normalizeUserData(userData: any) {
-  return {
-    userId: userData.id || userData.userId, // 兼容两种格式
-    role: userData.role,
-    username: userData.username
-  };
-}
-
 export function AIChat({ userData }: AIChatProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -97,12 +88,6 @@ export function AIChat({ userData }: AIChatProps) {
   const [input, setInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // 标准化用户数据
-  const user = normalizeUserData(userData);
-  
-  console.log('[AIChat] 原始用户数据:', userData);
-  console.log('[AIChat] 标准化后的用户数据:', user);
   // 从系统配置获取默认模型
   const { data: systemConfig } = useQuery({
     queryKey: ["/api/system-config"],
@@ -229,6 +214,9 @@ export function AIChat({ userData }: AIChatProps) {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [selectedBackgroundFile, setSelectedBackgroundFile] = useState<File | null>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
+
+  // Use the passed in userData
+  const user = userData;
 
   // Update the query to include user context
   const { data: currentChat } = useQuery({
@@ -368,7 +356,7 @@ export function AIChat({ userData }: AIChatProps) {
         try {
           // 使用直接fetch而非API请求工具，确保最大兼容性
           const baseUrl = window.location.origin;
-          const url = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`;
+          const url = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
           console.log("API请求URL:", url);
           
           const messagesResponse = await fetch(url);
@@ -406,7 +394,7 @@ export function AIChat({ userData }: AIChatProps) {
       // 检查是否为中间消息（非最后一条AI消息），如果是，则显示确认对话框
       if (currentChatId && finalMessageId) {
         const baseUrl = window.location.origin;
-        const url = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}&activeOnly=false`;
+        const url = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}&activeOnly=false`;
         try {
           const allMessagesResponse = await fetch(url);
           if (allMessagesResponse.ok) {
@@ -480,8 +468,8 @@ export function AIChat({ userData }: AIChatProps) {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          userId: user.userId,
-          userRole: user.role,
+          userId: userData.userId,
+          userRole: userData.role,
           chatId: currentChatId,
           model: currentModel, // 添加当前选择的模型信息
           useWebSearch: useWebSearch // 添加网络搜索参数
@@ -550,7 +538,7 @@ export function AIChat({ userData }: AIChatProps) {
           
           // 使用直接fetch获取最新数据
           const baseUrl = window.location.origin;
-          const refreshUrl = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`;
+          const refreshUrl = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
           console.log("刷新消息列表URL:", refreshUrl);
           const refreshResponse = await fetch(refreshUrl);
           if (refreshResponse.ok) {
@@ -621,8 +609,8 @@ export function AIChat({ userData }: AIChatProps) {
       const response = await apiRequest("PATCH", `/api/messages/${messageId}/feedback`, { 
         feedback,
         feedbackText,
-        userId: user.userId,
-        userRole: user.role,
+        userId: userData.userId,
+        userRole: userData.role,
         chatId: currentChatId
       });
       return response.json();
@@ -1442,11 +1430,8 @@ export function AIChat({ userData }: AIChatProps) {
   }, [setLocation, theme]);
 
   const handleLogout = () => {
-    // 使用我们更新的认证工具中的登出方法
-    import("@/lib/authVerifier").then(({ clearAuthAndRedirect }) => {
-      console.log('[AIChat] 执行登出操作');
-      clearAuthAndRedirect();
-    });
+    localStorage.removeItem("user");
+    setLocation("/login");
   };
   
   // 跳转到学习轨迹页面
@@ -2733,7 +2718,7 @@ export function AIChat({ userData }: AIChatProps) {
                     const formData = new FormData();
                     formData.append('file', selectedBackgroundFile);
                     formData.append('fileType', 'background');
-                    formData.append('userId', String(user.userId)); // 确保传递用户ID
+                    formData.append('userId', String(userData.userId)); // 确保传递用户ID
                     
                     const baseUrl = window.location.origin;
                     const response = await fetch(`${baseUrl}/api/files/upload`, {
@@ -2750,7 +2735,7 @@ export function AIChat({ userData }: AIChatProps) {
                     
                     if (data && data.success && data.url) {
                       // 刷新背景
-                      const bgResponse = await fetch(`${baseUrl}/api/files/background?userId=${user.userId}&orientation=portrait`);
+                      const bgResponse = await fetch(`${baseUrl}/api/files/background?userId=${userData.userId}&orientation=portrait`);
                       if (bgResponse.ok) {
                         const bgData = await bgResponse.json();
                         if (bgData && bgData.url) {
@@ -2762,7 +2747,7 @@ export function AIChat({ userData }: AIChatProps) {
                           // 确保背景图片URL包含用户ID参数，避免401未授权错误
                           if (fullUrl.includes('/api/files/') && !fullUrl.includes('userId=')) {
                             const separator = fullUrl.includes('?') ? '&' : '?';
-                            fullUrl += `${separator}userId=${user.userId}`;
+                            fullUrl += `${separator}userId=${userData.userId}`;
                           }
                           
                           console.log('背景上传成功，新背景URL:', fullUrl);
