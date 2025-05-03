@@ -1,12 +1,12 @@
 /**
  * 直接调用嵌入服务脚本
- * 通过HTTP调用而不是生成子进程
+ * 直接使用genai_service而不是通过HTTP调用
  */
 
-import axios from 'axios';
+import { genAiService } from './genai/genai_service';
 
 /**
- * 直接使用HTTP调用嵌入服务
+ * 直接使用genAiService生成嵌入向量
  */
 export async function generateEmbedding(text) {
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
@@ -21,23 +21,16 @@ export async function generateEmbedding(text) {
       ? cleanedText.substring(0, 8000)
       : cleanedText;
     
-    console.log('使用HTTP调用嵌入服务生成语义向量嵌入');
+    console.log('使用Gemini API生成语义向量嵌入');
     
-    // 使用环境中百度向量服务
-    // 使用Gemini API生成嵌入向量
+    // 直接使用genAiService生成嵌入向量
+    const embedding = await genAiService.generateEmbedding(truncatedText);
     
-    // 调用Gemini API服务
-    const response = await axios.post('http://localhost:5000/api/embed', {
-      text: truncatedText
-    });
-    
-    // 验证响应
-    if (response.status !== 200 || !response.data || !response.data.embedding) {
-      console.error('嵌入服务返回错误响应:', response.status, response.data);
+    // 验证嵌入向量
+    if (!embedding) {
+      console.error('生成嵌入失败，返回空值');
       return null;
     }
-    
-    const embedding = response.data.embedding;
     
     // 验证维度
     if (embedding.length !== 3072) {

@@ -1,16 +1,12 @@
 /**
- * 使用HTTP服务调用处理记忆嵌入
- * 避免child_process调用错误
+ * 使用直接调用生成记忆向量嵌入
+ * 避child_process的问题
  */
 
 // 引入必要的模块
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import ws from 'ws';
 import dotenv from 'dotenv';
-import axios from 'axios';
-
-// 引入直接调用模块
-import { generateEmbedding } from './server/services/direct_embedding.js';
 
 // 加载环境变量
 dotenv.config();
@@ -22,6 +18,9 @@ if (!DATABASE_URL) {
   throw new Error("DATABASE_URL must be set");
 }
 const pool = new Pool({ connectionString: DATABASE_URL });
+
+// 引入生成嵌入方法
+import { generateEmbedding } from './server/services/direct_embedding.js';
 
 /**
  * 解析命令行参数
@@ -101,26 +100,40 @@ async function getMemoriesWithoutEmbeddings(limit) {
 }
 
 /**
- * 通过HTTP API生成嵌入向量
+ * 生成向量嵌入 - 使用Gemini API
  */
-async function generateEmbeddingViaAPI(text) {
+async function generateEmbeddingDirect(text) {
   try {
-    // 使用新的嵌入API
-    // 注意: Replit环境中不能使用localhost。它返回HTML而非JSON
-    // 我们将直接使用genai_service的generateEmbedding函数
-    const response = await axios.post('https://fa522bb9-56ee-4c36-81dd-8b51d5bdc276-00-14kghyl9hl0xc.sisko.replit.dev/api/embedding/embed', {
-      text: text
-    });
-    
-    if (response.status === 200 && response.data && response.data.success && response.data.embedding) {
-      log(`成功生成 ${response.data.dimensions} 维向量嵌入`, 'success');
-      return response.data.embedding;
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      log('无法为空文本生成嵌入', 'error');
+      return null;
     }
     
-    log(`API返回异常状态: ${response.status}, ${JSON.stringify(response.data || {})}`, 'error');
-    return null;
+    // 清理文本
+    const cleanedText = text.replace(/\s+/g, ' ').trim();
+    const truncatedText = cleanedText.length > 8000 
+      ? cleanedText.substring(0, 8000)
+      : cleanedText;
+    
+    log(`正在使用Gemini API生成向量嵌入...`, 'info');
+    // 使用导入的generateEmbedding函数
+    const embedding = await generateEmbedding(truncatedText);
+    
+    if (!embedding) {
+      log('生成嵌入失败，返回空值', 'error');
+      return null;
+    }
+    
+    if (embedding.length !== 3072) {
+      log(`警告: 嵌入维度异常 (${embedding.length}), 期望为3072维`, 'error');
+      return null;
+    }
+    
+    log(`成功生成 ${embedding.length} 维向量嵌入`, 'success');
+    return embedding;
+    
   } catch (error) {
-    log(`API调用失败: ${error.message}`, 'error');
+    log(`生成嵌入时出错: ${error.message}`, 'error');
     return null;
   }
 }
@@ -166,26 +179,8 @@ async function processBatches(memories, batchSize, batchDelay, maxBatches) {
       log(`处理记忆 ${memory.id}...`, 'info');
       
       try {
-        // 生成向量嵌入 - 准备三个方法
-        let embedding = null;
-        
-        // 方法1: 我们刚创建的直接方法
-        try {
-          log(`尝试方法1: 使用直接HTTP调用生成嵌入...`, 'info');
-          embedding = await generateEmbedding(memory.content);
-        } catch (err1) {
-          log(`方法1失败: ${err1.message}`, 'warning');
-        }
-        
-        // 方法2: 如果方法1失败，尝试使用HTTP API
-        if (!embedding) {
-          try {
-            log(`尝试方法2: 使用API生成嵌入...`, 'info');
-            embedding = await generateEmbeddingViaAPI(memory.content);
-          } catch (err2) {
-            log(`方法2失败: ${err2.message}`, 'warning');
-          }
-        }
+        // 生成向量嵌入
+        const embedding = await generateEmbeddingDirect(memory.content);
         
         // 如果获取到嵌入，保存它
         if (embedding && embedding.length === 3072) {
