@@ -2,7 +2,8 @@
  * 黄金价格记忆向量嵌入修复脚本
  * 为特定的黄金价格记忆生成向量嵌入并触发聚类重新计算
  */
-const { Pool } = require('pg');
+import pkg from 'pg';
+const { Pool } = pkg;
 
 // 连接数据库
 const pool = new Pool({
@@ -22,29 +23,33 @@ function log(message, type = 'info') {
 }
 
 /**
- * 使用Grok API生成向量嵌入
+ * 使用Gemini API生成向量嵌入（确保与系统中其他嵌入一致性）
  */
 async function generateEmbedding(text) {
   log(`为文本生成向量嵌入: "${text.substring(0, 50)}..."`);
   
   try {
-    const { OpenAI } = require('openai');
+    import { GoogleGenerativeAI } from '@google/generative-ai';
     
-    // 使用openai包调用Grok API
-    const openai = new OpenAI({
-      baseURL: 'https://api.x.ai/v1',
-      apiKey: process.env.GROK_API_KEY || process.env.XAI_API_KEY,
+    // 确保GEMINI_API_KEY存在
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('缺少GEMINI_API_KEY环境变量');
+    }
+    
+    // 初始化GoogleAI
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    
+    // 调用embedContent API，与服务端Python代码使用相同的模型
+    log('使用Gemini API (models/gemini-embedding-exp-03-07) 生成嵌入向量...');
+    const result = await genAI.embedContent({
+      model: 'models/gemini-embedding-exp-03-07',
+      content: text,
+      taskType: 'retrieval_document'
     });
     
-    // 调用embeddings API
-    const response = await openai.embeddings.create({
-      model: 'grok-3-fast-beta',
-      input: text,
-    });
-    
-    if (response && response.data && response.data[0] && response.data[0].embedding) {
-      log('成功生成向量嵌入', 'success');
-      return response.data[0].embedding;
+    if (result && result.embedding) {
+      log(`成功生成 ${result.embedding.length} 维向量嵌入`, 'success');
+      return result.embedding;
     } else {
       throw new Error('API响应格式不符合预期');
     }
