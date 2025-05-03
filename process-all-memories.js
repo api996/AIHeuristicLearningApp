@@ -10,10 +10,12 @@ import axios from 'axios';
 const SERVER_URL = 'https://fa522bb9-56ee-4c36-81dd-8b51d5bdc276-00-14kghyl9hl0xc.sisko.replit.dev';
 
 // 运行参数
-const BATCH_SIZE = 2; // 每批处理数量
-const BATCH_DELAY = 5000; // 两批之间的延迟（毫秒）
-const ITEM_DELAY = 2000; // 每个记忆之间的延迟（毫秒）
-const LIMIT_PER_REQUEST = 10; // 每次获取缺失嵌入的记忆数量
+const BATCH_SIZE = 3; // 每批处理数量
+const BATCH_DELAY = 15000; // 两批之间的延迟（毫秒）
+const ITEM_DELAY = 5000; // 每个记忆之间的延迟（毫秒）
+const LIMIT_PER_REQUEST = 5; // 每次获取缺失嵌入的记忆数量
+const MAX_RETRIES = 3; // 处理失败时的最大重试次数
+const RETRY_DELAY = 10000; // 重试前的延迟时间（毫秒）
 
 // 颜色格式化工具
 const colors = {
@@ -32,50 +34,111 @@ function log(message, type = 'info') {
 }
 
 /**
- * 获取缺失嵌入的记忆列表
+ * 获取缺失嵌入的记忆列表（带重试机制）
  */
 async function getMissingEmbeddings(limit = 10) {
-  try {
-    const url = `${SERVER_URL}/api/embedding/missing-embeddings?limit=${limit}`;
-    log(`请求缺失嵌入的记忆列表: ${url}`, 'info');
-    
-    const response = await axios.get(url);
-    
-    if (response.status === 200 && response.data.success) {
-      const memories = response.data.memories || [];
-      log(`发现 ${memories.length} 个缺失嵌入的记忆`, 'success');
-      return memories;
+  let retries = 0;
+  
+  while (retries <= MAX_RETRIES) {
+    try {
+      if (retries > 0) {
+        log(`尝试第 ${retries} 次重试获取缺失嵌入的记忆列表`, 'warn');
+      }
+      
+      const url = `${SERVER_URL}/api/embedding/missing-embeddings?limit=${limit}`;
+      log(`请求缺失嵌入的记忆列表: ${url}`, 'info');
+      
+      const response = await axios.get(url);
+      
+      if (response.status === 200 && response.data.success) {
+        const memories = response.data.memories || [];
+        log(`发现 ${memories.length} 个缺失嵌入的记忆`, 'success');
+        return memories;
+      }
+      
+      log(`获取缺失嵌入列表失败: ${JSON.stringify(response.data)}`, 'error');
+      
+      // 如果已达到最大重试次数，则返回空列表
+      if (retries >= MAX_RETRIES) {
+        log(`已达到最大重试次数 ${MAX_RETRIES}，无法获取缺失嵌入列表`, 'error');
+        return [];
+      }
+      
+      // 否则等待后重试
+      retries++;
+      log(`将在 ${RETRY_DELAY/1000} 秒后重试获取缺失嵌入列表...`, 'warn');
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+    } catch (error) {
+      log(`获取缺失嵌入列表错误: ${error.message}`, 'error');
+      
+      // 如果已达到最大重试次数，则返回空列表
+      if (retries >= MAX_RETRIES) {
+        log(`已达到最大重试次数 ${MAX_RETRIES}，无法获取缺失嵌入列表`, 'error');
+        return [];
+      }
+      
+      // 否则等待后重试
+      retries++;
+      log(`将在 ${RETRY_DELAY/1000} 秒后重试获取缺失嵌入列表...`, 'warn');
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
     }
-    
-    log(`获取缺失嵌入列表失败: ${JSON.stringify(response.data)}`, 'error');
-    return [];
-  } catch (error) {
-    log(`获取缺失嵌入列表错误: ${error.message}`, 'error');
-    return [];
   }
+  
+  return []; // 如果执行到这里，说明所有重试都失败了
 }
 
 /**
- * 处理单个记忆
+ * 处理单个记忆（带重试机制）
  */
 async function processMemory(memoryId) {
-  try {
-    log(`开始处理记忆 ${memoryId}`, 'info');
-    
-    const url = `${SERVER_URL}/api/embedding/process-memory/${memoryId}`;
-    const response = await axios.post(url);
-    
-    if (response.status === 200 && response.data.success) {
-      log(`记忆 ${memoryId} 处理成功, 维度: ${response.data.dimensions || 3072}`, 'success');
-      return true;
-    } else {
-      log(`处理记忆 ${memoryId} 失败: ${JSON.stringify(response.data)}`, 'error');
-      return false;
+  let retries = 0;
+  
+  while (retries <= MAX_RETRIES) {
+    try {
+      if (retries > 0) {
+        log(`尝试第 ${retries} 次重试处理记忆 ${memoryId}`, 'warn');
+      } else {
+        log(`开始处理记忆 ${memoryId}`, 'info');
+      }
+      
+      const url = `${SERVER_URL}/api/embedding/process-memory/${memoryId}`;
+      const response = await axios.post(url);
+      
+      if (response.status === 200 && response.data.success) {
+        log(`记忆 ${memoryId} 处理成功, 维度: ${response.data.dimensions || 3072}`, 'success');
+        return true;
+      } else {
+        log(`处理记忆 ${memoryId} 失败: ${JSON.stringify(response.data)}`, 'error');
+        
+        // 如果已达到最大重试次数，则放弃
+        if (retries >= MAX_RETRIES) {
+          log(`已达到最大重试次数 ${MAX_RETRIES}，放弃处理记忆 ${memoryId}`, 'error');
+          return false;
+        }
+        
+        // 否则等待后重试
+        retries++;
+        log(`将在 ${RETRY_DELAY/1000} 秒后重试...`, 'warn');
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        continue;
+      }
+    } catch (error) {
+      log(`处理记忆 ${memoryId} 时出错: ${error.message}`, 'error');
+      
+      // 如果已达到最大重试次数，则放弃
+      if (retries >= MAX_RETRIES) {
+        log(`已达到最大重试次数 ${MAX_RETRIES}，放弃处理记忆 ${memoryId}`, 'error');
+        return false;
+      }
+      
+      // 否则等待后重试
+      retries++;
+      log(`将在 ${RETRY_DELAY/1000} 秒后重试...`, 'warn');
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
     }
-  } catch (error) {
-    log(`处理记忆 ${memoryId} 时出错: ${error.message}`, 'error');
-    return false;
   }
+  
+  return false; // 如果执行到这里，说明所有重试都失败了
 }
 
 /**

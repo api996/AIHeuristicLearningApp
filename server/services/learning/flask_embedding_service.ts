@@ -16,13 +16,17 @@ const BASE_DIR = process.cwd();
 import { log } from '../../vite';
 
 // 默认API配置 - 使用高端口号避免与其他服务冲突
-const DEFAULT_API_PORT = 9003; // 使用9002端口，与聚类服务(9001)区分
+const DEFAULT_API_PORT = 9003; // 使用9003端口，与聚类服务(9001)区分
 const DEFAULT_API_URL = `http://localhost:${DEFAULT_API_PORT}`;
 
 // API服务实例
 let serviceProcess: any = null;
 let serviceStarted = false;
 let servicePort = DEFAULT_API_PORT;
+
+// 服务锁定文件路径 - 用于防止多个进程同时启动
+const SERVICE_LOCK_FILE = path.join(os.tmpdir(), 'flask_embedding_service.lock');
+const SERVICE_PID_FILE = path.join(os.tmpdir(), 'flask_embedding_service.pid');
 
 // 立即尝试启动服务，确保它在应用启动时可用
 (async function initialStartup() {
@@ -43,7 +47,48 @@ export async function startEmbeddingService(): Promise<boolean> {
   if (serviceStarted && serviceProcess && !serviceProcess.killed) {
     return true;
   }
-
+  
+  // 检查是否有其他进程已经启动了服务
+  try {
+    if (fs.existsSync(SERVICE_PID_FILE)) {
+      const pidContent = fs.readFileSync(SERVICE_PID_FILE, 'utf8');
+      const pid = parseInt(pidContent.trim());
+      
+      // 检查进程是否还在运行
+      try {
+        process.kill(pid, 0); // 0信号只检查进程是否存在，不会真正发送信号
+        log(`[flask_embedding] 发现已有服务进程正在运行, PID: ${pid}`, 'info');
+        
+        // 检查服务是否健康
+        const isHealthy = await checkServiceHealth();
+        if (isHealthy) {
+          log(`[flask_embedding] 已有服务进程健康检查通过`, 'info');
+          serviceStarted = true;
+          return true;
+        } else {
+          log(`[flask_embedding] 已有服务进程健康检查失败，将尝试启动新进程`, 'warn');
+          // 尝试终止旧进程
+          try {
+            process.kill(pid);
+            log(`[flask_embedding] 已终止旧进程 PID: ${pid}`, 'info');
+          } catch (killError) {
+            log(`[flask_embedding] 终止旧进程失败: ${killError}`, 'warn');
+          }
+        }
+      } catch (checkError) {
+        // 进程不存在，可以删除PID文件
+        log(`[flask_embedding] PID文件对应的进程不存在，可能已终止`, 'info');
+        try {
+          fs.unlinkSync(SERVICE_PID_FILE);
+        } catch (unlinkError) {
+          log(`[flask_embedding] 删除过期PID文件失败: ${unlinkError}`, 'warn');
+        }
+      }
+    }
+  } catch (error) {
+    log(`[flask_embedding] 检查服务进程状态出错: ${error}`, 'error');
+  }
+  
   return new Promise<boolean>((resolve) => {
     try {
       log(`[flask_embedding] 启动嵌入API服务...`, 'info');
@@ -110,6 +155,17 @@ export async function startEmbeddingService(): Promise<boolean> {
         if (output.includes('嵌入API服务已启动') || output.includes('启动向量嵌入API服务')) {
           clearTimeout(timeout);
           serviceStarted = true;
+          
+          // 记录PID到文件中
+          try {
+            if (serviceProcess && serviceProcess.pid) {
+              fs.writeFileSync(SERVICE_PID_FILE, serviceProcess.pid.toString(), 'utf8');
+              log(`[flask_embedding] 已写入PID文件: ${serviceProcess.pid}`, 'info');
+            }
+          } catch (writeError) {
+            log(`[flask_embedding] 写入PID文件失败: ${writeError}`, 'warn');
+          }
+          
           log(`[flask_embedding] 嵌入API服务已成功启动`, 'info');
           resolve(true);
         }
@@ -173,6 +229,16 @@ export async function stopEmbeddingService(): Promise<void> {
     log(`[flask_embedding] 停止嵌入API服务...`, 'info');
     serviceProcess.kill();
     serviceStarted = false;
+    
+    // 清理PID文件
+    try {
+      if (fs.existsSync(SERVICE_PID_FILE)) {
+        fs.unlinkSync(SERVICE_PID_FILE);
+        log(`[flask_embedding] 已清理PID文件`, 'info');
+      }
+    } catch (error) {
+      log(`[flask_embedding] 清理PID文件失败: ${error}`, 'warn');
+    }
   }
 }
 
