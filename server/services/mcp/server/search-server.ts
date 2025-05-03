@@ -17,44 +17,9 @@ import path from 'path';
 // 导入真实的 WebSearchService 所需依赖
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
-// 创建一个安全的日志函数，避免管道错误
-const logFile = path.join(process.cwd(), 'mcp_search.log');
-
-/**
- * 安全的日志函数，避免EPIPE错误
- * 同时将记录打印到控制台和写入文件
- * @param message 日志消息
- * @param level 日志级别 ('info', 'warn', 'error')
- */
-function safeLog(message: string, level: string = 'info') {
-  try {
-    // 尝试打印到控制台，但捕获可能的EPIPE错误
-    try {
-      if (level === 'error') {
-        console.error(message);
-      } else if (level === 'warn') {
-        console.warn(message);
-      } else {
-        console.log(message);
-      }
-    } catch (consoleError) {
-      // 忽略控制台错误，继续尝试写入文件
-    }
-    
-    // 尝试写入到文件
-    try {
-      const timestamp = new Date().toISOString();
-      const logMessage = `${timestamp} [${level}] ${message}\n`;
-      
-      // 异步写入文件，不阻塞主进程
-      fs.appendFile(logFile, logMessage, { encoding: 'utf8' }, () => {});
-    } catch (fileError) {
-      // 忽略文件写入错误
-    }
-  } catch (e) {
-    // 完全沉默错误，避免任何可能引起EPIPE的输出
-  }
-}
+// 导入安全日志模块和TCP传输模块
+import { safeLog, ensureLogDirectory, logFile } from './safe-logger';
+import { TcpServerTransport } from './tcp-transport';
 
 
 /**
@@ -427,8 +392,30 @@ const server = new McpServer({
   }
 });
 
-// 设置 stdio Transport
-const transport = new StdioServerTransport();
+// 创建扩展接口来避免TypeScript错误
+interface ExtendedStdioTransport extends StdioServerTransport {
+  emit?: (eventName: string, message: string) => void;
+  on?: (eventName: string, callback: (data: string) => void) => void;
+  handleMessage?: (message: string) => void;
+  write?: (data: string) => Promise<any>;
+}
+
+// 创建双重 Transport，同时支持 stdio 和 TCP
+// 这允许我们在不影响当前功能的情况下添加TCP支持
+const stdioTransport = new StdioServerTransport() as ExtendedStdioTransport;
+
+// TCP传输层初始化
+const tcpTransport = new TcpServerTransport();
+
+// 我们需要给标准IO传输层加入类似emit的方法
+safeLog('为StdioServerTransport添加过渡兼容方法')
+// 添加emit方法用于转发消息
+stdioTransport.emit = function(eventName: string, message: string) {
+  if (eventName === 'message' && message) {
+    // 直接调用是该传输对象的内部处理方法
+    stdioTransport.handleMessage?.(message);
+  }
+};
 
 // 定义搜索参数的模式
 const searchParamsSchema = {
@@ -603,18 +590,22 @@ try {
 // 启动服务
 export async function startMcpSearchServer() {
   try {
-    // 创建日志文件目录（如果不存在）
+    // 确保日志目录存在
+    ensureLogDirectory();
+    
+    // 启动 TCP 服务器
     try {
-      const logDir = path.dirname(logFile);
-      if (!fs.existsSync(logDir)) {
-        fs.mkdirSync(logDir, { recursive: true });
-      }
-    } catch (e) {
-      // 忽略错误
+      await tcpTransport.start();
+      safeLog("MCP TCP 服务器已启动", 'info');
+    } catch (tcpError) {
+      safeLog(`MCP TCP 服务器启动失败: ${tcpError instanceof Error ? tcpError.message : String(tcpError)}`, 'warn');
+      safeLog('将继续使用 stdio 传输', 'info');
     }
     
-    await server.connect(transport);
+    // 连接到 stdio 传输
+    await server.connect(stdioTransport);
     safeLog("MCP 搜索服务已启动，监听 stdio...", 'info');
+    
     return { success: true };
   } catch (error) {
     safeLog(`MCP 服务启动失败: ${error instanceof Error ? error.message : String(error)}`, 'error');
@@ -625,19 +616,124 @@ export async function startMcpSearchServer() {
   }
 }
 
+// 处理 TCP 连接的消息
+tcpTransport.on('message', async (message: string) => {
+  try {
+    // 将消息转发到 MCP 服务器
+    // 这里我们需要模拟 stdio 的行为，将消息通过 stdioTransport 传递给 server
+    stdioTransport.emit('message', message);
+    
+    safeLog(`[TCP] 转发消息到 MCP 服务器: ${message.length} 字节`, 'info');
+  } catch (error) {
+    safeLog(`[TCP] 处理消息错误: ${error instanceof Error ? error.message : String(error)}`, 'error');
+  }
+});
+
+// 添加对 TCP 的消息发送支持
+// 连接至 stdioTransport 的 write 事件
+// @ts-ignore - 直接访问内部事件
+
+// 通过监听提供的stdioTransport写入事件来转发消息
+safeLog('设置消息转发监听器');
+try {
+  // @ts-ignore - 添加对write事件的监听
+  stdioTransport.on('write', async (data: string) => {
+    try {
+      // 转发消息到TCP传输层
+      await tcpTransport.send(data);
+      safeLog(`[TCP] 发送消息到客户端: ${data.length} 字节`, 'info');
+    } catch (error) {
+      safeLog(`[TCP] 发送消息错误: ${error instanceof Error ? error.message : String(error)}`, 'warn');
+    }
+  });
+  
+  // 如果监听事件失败，尝试直接添加个沉默的钩子
+  if (!stdioTransport.on) {
+    safeLog('[TCP] 监听器添加失败，尝试使用钩子方式');
+    // @ts-ignore - 添加钩子
+    const originalWrite = stdioTransport.write?.bind(stdioTransport);
+    if (originalWrite) {
+      // @ts-ignore - 替换写入方法
+      stdioTransport.write = async function(data: string) {
+        // 调用原始方法
+        const result = await originalWrite(data);
+        // 同时转发到TCP
+        try {
+          await tcpTransport.send(data);
+        } catch (err) {
+          // 忽略错误
+        }
+        return result;
+      };
+    }
+  }
+} catch (e) {
+  safeLog(`[TCP] 设置消息转发时出错: ${e instanceof Error ? e.message : String(e)}`, 'error');
+}
+
+// 资源清理函数 - 确保所有资源都被正确关闭
+async function cleanupResources() {
+  try {
+    safeLog('开始清理MCP服务资源...', 'info');
+    
+    // 关闭TCP服务器
+    try {
+      await tcpTransport.close();
+      safeLog('TCP传输层已关闭', 'info');
+    } catch (err) {
+      safeLog(`关闭TCP传输层出错: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+    
+    // 尝试关闭其他资源
+    try {
+      // 如果WebSearchService实例有需要清理的资源，在这里处理
+      // 例如关闭所有未完成的HTTP请求等
+      
+      safeLog('所有资源已清理完毕', 'info');
+    } catch (err) {
+      safeLog(`清理其他资源出错: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    }
+  } catch (e) {
+    // 完全沉默错误，确保不会因为清理过程中的错误而失败
+  }
+}
+
+// 注册退出处理程序
+process.on('exit', () => {
+  safeLog('进程退出，执行最终清理', 'info');
+  // 同步清理最关键的资源
+  // 注意: process.on('exit') 回调中只能执行同步代码
+});
+
+// 注册更多退出信号，以便能够执行异步清理
+['SIGINT', 'SIGTERM', 'SIGHUP'].forEach(signal => {
+  process.on(signal, async () => {
+    safeLog(`收到${signal}信号，开始清理资源`, 'info');
+    await cleanupResources();
+    safeLog(`清理完成，退出进程`, 'info');
+    
+    // 使用延迟退出，确保日志写入完成
+    setTimeout(() => process.exit(0), 500);
+  });
+});
+
 // 退出错误处理
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', async (error) => {
   try {
     safeLog(`未捕获的异常: ${error instanceof Error ? error.stack || error.message : String(error)}`, 'error');
+    // 在发生未捕获异常时清理资源，但不退出进程
+    await cleanupResources();
+    safeLog('异常后资源已清理，服务将继续运行', 'info');
   } catch (e) {
     // 完全沉默错误，避免EPIPE
   }
   // 不退出进程，保持MCP服务继续运行
 });
 
-process.on('unhandledRejection', (reason) => {
+process.on('unhandledRejection', async (reason) => {
   try {
     safeLog(`未处理的Promise拒绝: ${reason instanceof Error ? reason.stack || reason.message : String(reason)}`, 'error');
+    // 不立即清理资源，只记录错误
   } catch (e) {
     // 完全沉默错误，避免EPIPE
   }
