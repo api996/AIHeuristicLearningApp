@@ -1,10 +1,11 @@
 /**
  * 嵌入向量 API路由
  * 提供快速生成嵌入向量的HTTP端点
+ * 使用统一的嵌入服务管理器处理所有请求
  */
 
 import { Router } from 'express';
-import { genAiService } from '../services/genai/genai_service';
+import { embeddingManager } from '../services/embedding/embedding_manager';
 import { Pool } from '@neondatabase/serverless'; 
 
 const router = Router();
@@ -14,7 +15,7 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL
 });
 
-// GenAI服务已经在应用启动时初始化
+// 初始化日志
 console.log('嵌入向量 API路由已初始化');
 
 // 嵌入生成端点
@@ -29,8 +30,8 @@ router.post('/embed', async (req, res) => {
       });
     }
     
-    // 使用GenAI服务生成嵌入
-    const embedding = await genAiService.generateEmbedding(text);
+    // 使用统一的嵌入管理器生成嵌入
+    const embedding = await embeddingManager.generateEmbedding(text);
     
     if (!embedding || embedding.length !== 3072) {
       return res.status(500).json({
@@ -66,59 +67,13 @@ router.post('/process-memory/:memoryId', async (req, res) => {
       });
     }
     
-    // 查询记忆内容
-    const memoryQuery = await pool.query(
-      'SELECT content FROM memories WHERE id = $1',
-      [memoryId]
-    );
-    
-    if (memoryQuery.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: `未找到ID为 ${memoryId} 的记忆`
-      });
-    }
-    
-    const content = memoryQuery.rows[0].content;
-    
-    // 检查该记忆是否已有嵌入
-    const existingQuery = await pool.query(
-      'SELECT 1 FROM memory_embeddings WHERE memory_id = $1',
-      [memoryId]
-    );
-    
-    if (existingQuery.rows.length > 0) {
-      // 删除现有嵌入
-      await pool.query(
-        'DELETE FROM memory_embeddings WHERE memory_id = $1',
-        [memoryId]
-      );
-      console.log(`删除记忆 ${memoryId} 的现有嵌入`);
-    }
-    
-    // 生成新的嵌入向量
-    const embedding = await genAiService.generateEmbedding(content);
-    
-    if (!embedding || embedding.length !== 3072) {
-      return res.status(500).json({
-        success: false,
-        error: `嵌入生成失败或维度不正确 (实际维度: ${embedding ? embedding.length : 0}, 期望: 3072)`
-      });
-    }
-    
-    // 保存嵌入向量
-    await pool.query(
-      'INSERT INTO memory_embeddings (memory_id, vector_data) VALUES ($1, $2)',
-      [memoryId, JSON.stringify(embedding)]
-    );
-    
-    console.log(`成功为记忆 ${memoryId} 生成并保存 ${embedding.length} 维嵌入向量`);
+    // 将记忆添加到处理队列
+    embeddingManager.addToProcessingQueue(parseInt(memoryId));
     
     return res.json({
       success: true,
       memoryId,
-      dimensions: embedding.length,
-      message: `成功为记忆生成并保存 ${embedding.length} 维嵌入向量`
+      message: `记忆已添加到处理队列，将异步生成嵌入向量`
     });
     
   } catch (error: any) {
@@ -126,6 +81,90 @@ router.post('/process-memory/:memoryId', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || '处理记忆嵌入时发生未知错误'
+    });
+  }
+});
+
+// 处理单个或多个记忆ID的嵌入
+router.post('/process', async (req, res) => {
+  try {
+    const { memoryId, memoryIds } = req.body;
+    const idsToProcess: number[] = [];
+    
+    // 处理单个ID
+    if (memoryId && !isNaN(parseInt(memoryId))) {
+      idsToProcess.push(parseInt(memoryId));
+    }
+    
+    // 处理多个ID
+    if (Array.isArray(memoryIds) && memoryIds.length > 0) {
+      memoryIds.forEach(id => {
+        if (!isNaN(parseInt(id)) && !idsToProcess.includes(parseInt(id))) {
+          idsToProcess.push(parseInt(id));
+        }
+      });
+    }
+    
+    if (idsToProcess.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: '未提供有效的记忆ID'
+      });
+    }
+    
+    // 将所有ID添加到处理队列
+    idsToProcess.forEach(id => {
+      embeddingManager.addToProcessingQueue(id);
+    });
+    
+    return res.json({
+      success: true,
+      count: idsToProcess.length,
+      memoryIds: idsToProcess,
+      message: `已将${idsToProcess.length}条记忆添加到处理队列`
+    });
+    
+  } catch (error: any) {
+    console.error('处理记忆嵌入错误:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || '处理记忆嵌入时发生未知错误'
+    });
+  }
+});
+
+// 手动触发检查未处理的记忆
+router.post('/trigger-check', async (req, res) => {
+  try {
+    embeddingManager.triggerCheck();
+    
+    return res.json({
+      success: true,
+      message: '已触发检查未处理的记忆'
+    });
+  } catch (error: any) {
+    console.error('触发检查出错:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || '触发检查时发生未知错误'
+    });
+  }
+});
+
+// 获取服务状态
+router.get('/status', async (req, res) => {
+  try {
+    const status = embeddingManager.getStatus();
+    
+    return res.json({
+      success: true,
+      status
+    });
+  } catch (error: any) {
+    console.error('获取服务状态出错:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || '获取服务状态时发生未知错误'
     });
   }
 });
