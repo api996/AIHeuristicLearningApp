@@ -81,6 +81,15 @@ interface AIChatProps {
   userData: any;
 }
 
+// 用户数据转换函数，确保数据格式一致
+function normalizeUserData(userData: any) {
+  return {
+    userId: userData.id || userData.userId, // 兼容两种格式
+    role: userData.role,
+    username: userData.username
+  };
+}
+
 export function AIChat({ userData }: AIChatProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -215,8 +224,8 @@ export function AIChat({ userData }: AIChatProps) {
   const [selectedBackgroundFile, setSelectedBackgroundFile] = useState<File | null>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
 
-  // Use the passed in userData
-  const user = userData;
+  // 使用通过normalizeUserData函数统一用户数据格式
+  const user = normalizeUserData(userData);
 
   // Update the query to include user context
   const { data: currentChat } = useQuery({
@@ -356,7 +365,7 @@ export function AIChat({ userData }: AIChatProps) {
         try {
           // 使用直接fetch而非API请求工具，确保最大兼容性
           const baseUrl = window.location.origin;
-          const url = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
+          const url = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`;
           console.log("API请求URL:", url);
           
           const messagesResponse = await fetch(url);
@@ -394,7 +403,7 @@ export function AIChat({ userData }: AIChatProps) {
       // 检查是否为中间消息（非最后一条AI消息），如果是，则显示确认对话框
       if (currentChatId && finalMessageId) {
         const baseUrl = window.location.origin;
-        const url = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}&activeOnly=false`;
+        const url = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}&activeOnly=false`;
         try {
           const allMessagesResponse = await fetch(url);
           if (allMessagesResponse.ok) {
@@ -468,8 +477,8 @@ export function AIChat({ userData }: AIChatProps) {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          userId: userData.userId,
-          userRole: userData.role,
+          userId: user.userId,
+          userRole: user.role,
           chatId: currentChatId,
           model: currentModel, // 添加当前选择的模型信息
           useWebSearch: useWebSearch // 添加网络搜索参数
@@ -538,7 +547,7 @@ export function AIChat({ userData }: AIChatProps) {
           
           // 使用直接fetch获取最新数据
           const baseUrl = window.location.origin;
-          const refreshUrl = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${userData.userId}&role=${userData.role}`;
+          const refreshUrl = `${baseUrl}/api/chats/${currentChatId}/messages?userId=${user.userId}&role=${user.role}`;
           console.log("刷新消息列表URL:", refreshUrl);
           const refreshResponse = await fetch(refreshUrl);
           if (refreshResponse.ok) {
@@ -609,8 +618,8 @@ export function AIChat({ userData }: AIChatProps) {
       const response = await apiRequest("PATCH", `/api/messages/${messageId}/feedback`, { 
         feedback,
         feedbackText,
-        userId: userData.userId,
-        userRole: userData.role,
+        userId: user.userId,
+        userRole: user.role,
         chatId: currentChatId
       });
       return response.json();
@@ -1430,8 +1439,11 @@ export function AIChat({ userData }: AIChatProps) {
   }, [setLocation, theme]);
 
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    setLocation("/login");
+    // 使用我们更新的认证工具中的登出方法
+    import("@/lib/authVerifier").then(({ clearAuthAndRedirect }) => {
+      console.log('[AIChat] 执行登出操作');
+      clearAuthAndRedirect();
+    });
   };
   
   // 跳转到学习轨迹页面
