@@ -34,8 +34,14 @@ class EmbeddingManager {
   };
   
   private processingMemory: boolean = false;
-  private memoryQueue: number[] = [];
+  private memoryQueue: (number | string)[] = [];
   private checkInterval: NodeJS.Timeout | null = null;
+  
+  // 错误重试和迟踪
+  private memoryRetryAttempts: Map<string, number> = new Map();
+  private maxRetryAttempts: number = 3;
+  private failedMemories: Set<string> = new Set();
+  private apiErrorCount: number = 0;
   
   // 单例模式的实例检查
   private static instance: EmbeddingManager;
@@ -171,9 +177,45 @@ class EmbeddingManager {
     
     this.processingMemory = true;
     const memoryId = this.memoryQueue.shift();
+    if (!memoryId) {
+      this.processingMemory = false;
+      return;
+    }
+    
+    // 使用字符串ID作为键
+    const memoryIdStr = String(memoryId);
+    const attempts = this.memoryRetryAttempts.get(memoryIdStr) || 0;
+    if (attempts >= this.maxRetryAttempts) {
+      log(`[EmbeddingManager] 记忆 ${memoryIdStr} 已达到最大重试次数 (${attempts}/${this.maxRetryAttempts})，跳过处理`, 'warn');
+      this.failedMemories.add(memoryIdStr);
+      this.processingMemory = false;
+      
+      // 延迟处理下一个，避免过快请求API
+      setTimeout(() => {
+        this.processNextMemory();
+      }, 1000); // 1秒后处理下一个
+      return;
+    }
+    
+    // 如果API错误太多，暂停处理(至少5分钟)
+    if (this.apiErrorCount > 10) {
+      log(`[EmbeddingManager] API错误过多 (${this.apiErrorCount}次)，暂停处理5分钟`, 'warn');
+      this.processingMemory = false;
+      
+      // 将当前记忆放回队列开始处理，稍后再处理
+      this.memoryQueue.unshift(memoryId);
+      
+      // 5分钟后重置错误计数并恢复处理
+      setTimeout(() => {
+        this.apiErrorCount = 0;
+        log(`[EmbeddingManager] 已重置API错误计数，恢复处理`, 'info');
+        this.processNextMemory();
+      }, 5 * 60 * 1000);
+      return;
+    }
     
     try {
-      log(`[EmbeddingManager] 开始处理记忆 ${memoryId}`, 'info');
+      log(`[EmbeddingManager] 开始处理记忆 ${memoryIdStr}`, 'info');
       
       // 查询记忆内容
       const memoryQuery = await pool.query(
@@ -182,7 +224,7 @@ class EmbeddingManager {
       );
       
       if (memoryQuery.rows.length === 0) {
-        log(`[EmbeddingManager] 未找到ID为 ${memoryId} 的记忆`, 'warn');
+        log(`[EmbeddingManager] 未找到ID为 ${memoryIdStr} 的记忆`, 'warn');
         this.processingMemory = false;
         this.processNextMemory();
         return;
@@ -202,11 +244,11 @@ class EmbeddingManager {
           'DELETE FROM memory_embeddings WHERE memory_id = $1',
           [memoryId]
         );
-        log(`[EmbeddingManager] 删除记忆 ${memoryId} 的现有嵌入`, 'info');
+        log(`[EmbeddingManager] 删除记忆 ${memoryIdStr} 的现有嵌入`, 'info');
       }
       
       // 生成新的嵌入向量
-      log(`[EmbeddingManager] 为记忆 ${memoryId} 生成嵌入向量`, 'info');
+      log(`[EmbeddingManager] 为记忆 ${memoryIdStr} 生成嵌入向量`, 'info');
       const embedding = await this.generateEmbedding(content);
       
       if (!embedding || embedding.length !== 3072) {
@@ -219,16 +261,44 @@ class EmbeddingManager {
         [memoryId, JSON.stringify(embedding)]
       );
       
-      log(`[EmbeddingManager] 成功为记忆 ${memoryId} 生成并保存 ${embedding.length} 维嵌入向量`, 'info');
+      // 处理成功，重置该记忆的重试计数
+      this.memoryRetryAttempts.delete(memoryIdStr);
+      
+      log(`[EmbeddingManager] 成功为记忆 ${memoryIdStr} 生成并保存 ${embedding.length} 维嵌入向量`, 'info');
     } catch (error) {
-      log(`[EmbeddingManager] 处理记忆 ${memoryId} 时出错: ${error}`, 'error');
+      // 增加重试计数
+      const newAttempts = (this.memoryRetryAttempts.get(memoryIdStr) || 0) + 1;
+      this.memoryRetryAttempts.set(memoryIdStr, newAttempts);
+      
+      // 检查错误类型
+      const errorMsg = String(error);
+      if (errorMsg.includes('API') || errorMsg.includes('密钥') || errorMsg.includes('配额') || 
+          errorMsg.includes('GEMINI') || errorMsg.includes('超时')) {
+        this.apiErrorCount++;
+        log(`[EmbeddingManager] 检测到API错误，计数增加到 ${this.apiErrorCount}`, 'warn');
+      }
+      
+      log(`[EmbeddingManager] 处理记忆 ${memoryIdStr} 时出错 (尝试 ${newAttempts}/${this.maxRetryAttempts}): ${error}`, 'error');
+      
+      // 如果还没达到最大重试次数，重新加入队列
+      if (newAttempts < this.maxRetryAttempts) {
+        log(`[EmbeddingManager] 将记忆 ${memoryIdStr} 重新加入队列，稍后重试`, 'info');
+        // 将失败的记忆添加回队列末尾
+        this.memoryQueue.push(memoryId);
+      } else {
+        log(`[EmbeddingManager] 记忆 ${memoryIdStr} 达到最大重试次数，不再处理`, 'warn');
+        this.failedMemories.add(memoryIdStr);
+      }
     } finally {
       this.processingMemory = false;
+      
+      // 检查API错误计数决定延迟时间
+      const delayTime = this.apiErrorCount > 5 ? 30000 : 5000; // API错误多时增加延迟
       
       // 延迟处理下一个，避免过快请求API
       setTimeout(() => {
         this.processNextMemory();
-      }, 5000); // 5秒后处理下一个
+      }, delayTime);
     }
   }
   
@@ -244,13 +314,38 @@ class EmbeddingManager {
     try {
       log(`[EmbeddingManager] 生成嵌入向量，文本长度: ${text.length}字符`, 'info');
       
+      // 检查API错误计数，如果太多则拒绝请求
+      if (this.apiErrorCount > 10) {
+        throw new Error(`API服务当前不可用，请稍后再试 (错误计数: ${this.apiErrorCount})`);
+      }
+      
       // 确保服务正在运行
       if (!this.status.running) {
         await this.initializeService();
       }
       
+      // 对较长的文本进行截断，避免命令行参数过长
+      let truncatedText = text;
+      const maxTextLength = 1000;
+      if (text.length > maxTextLength) {
+        truncatedText = text.substring(0, maxTextLength);
+        log(`[EmbeddingManager] 文本过长，已截断至${maxTextLength}字符`, 'warn');
+      }
+      
       // 调用Flask服务生成嵌入
-      const embedding = await flaskGenerateEmbedding(text);
+      let embedding;
+      try {
+        embedding = await flaskGenerateEmbedding(truncatedText);
+      } catch (error) {
+        // 判断是否为API相关错误
+        const errorMsg = String(error);
+        if (errorMsg.includes('API') || errorMsg.includes('密钥') || errorMsg.includes('配额') || 
+            errorMsg.includes('GEMINI') || errorMsg.includes('超时')) {
+          this.apiErrorCount++;
+          log(`[EmbeddingManager] 检测到API错误，计数增加到 ${this.apiErrorCount}`, 'warn');
+        }
+        throw error;
+      }
       
       // 验证嵌入维度
       if (!embedding || embedding.length !== 3072) {
@@ -272,6 +367,21 @@ class EmbeddingManager {
    */
   public getStatus(): ServiceStatus {
     return { ...this.status };
+  }
+
+  /**
+   * 获取处理统计数据
+   */
+  public getProcessingStats() {
+    return {
+      queueSize: this.memoryQueue.length,
+      failedMemoriesCount: this.failedMemories.size,
+      apiErrorCount: this.apiErrorCount,
+      failedMemories: Array.from(this.failedMemories),
+      retryAttempts: Object.fromEntries(this.memoryRetryAttempts),
+      processingInProgress: this.processingMemory,
+      serviceStatus: this.status
+    };
   }
   
   /**
