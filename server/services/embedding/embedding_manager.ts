@@ -7,6 +7,11 @@ import { log } from '../../vite';
 import { Pool } from '@neondatabase/serverless';
 import { startEmbeddingService, generateEmbedding as flaskGenerateEmbedding } from '../learning/flask_embedding_service';
 
+// 添加全局变量类型声明
+declare global {
+  var embeddingManagerInstance: EmbeddingManager | undefined;
+}
+
 // 连接数据库
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL
@@ -32,7 +37,16 @@ class EmbeddingManager {
   private memoryQueue: number[] = [];
   private checkInterval: NodeJS.Timeout | null = null;
   
+  // 单例模式的实例检查
+  private static instance: EmbeddingManager;
+
   constructor() {
+    // 确保只有一个实例
+    if (EmbeddingManager.instance) {
+      log(`[EmbeddingManager] 已存在实例，使用现有实例`, 'warn');
+      return EmbeddingManager.instance;
+    }
+    
     log(`[EmbeddingManager] 初始化统一嵌入服务管理器`, 'info');
     
     // 启动服务并开始监控
@@ -40,6 +54,9 @@ class EmbeddingManager {
     
     // 设置定期检查未处理记忆的任务
     this.setupAutoProcessing();
+    
+    // 保存实例
+    EmbeddingManager.instance = this;
   }
   
   /**
@@ -266,5 +283,19 @@ class EmbeddingManager {
   }
 }
 
-// 创建并导出单例
-export const embeddingManager = new EmbeddingManager();
+// 创建并导出单例 - 使用IIFE确保只创建一次
+export const embeddingManager = (() => {
+  // 检查是否已存在实例
+  if ((global as any).embeddingManagerInstance) {
+    log(`[使用现有实例] 嵌入服务管理器`, 'info');
+    return (global as any).embeddingManagerInstance as EmbeddingManager;
+  }
+  
+  // 创建新实例
+  const instance = new EmbeddingManager();
+  
+  // 将实例保存到全局对象
+  (global as any).embeddingManagerInstance = instance;
+  
+  return instance;
+})();
