@@ -28,15 +28,12 @@ let servicePort = DEFAULT_API_PORT;
 const SERVICE_LOCK_FILE = path.join(os.tmpdir(), 'flask_embedding_service.lock');
 const SERVICE_PID_FILE = path.join(os.tmpdir(), 'flask_embedding_service.pid');
 
-// 立即尝试启动服务，确保它在应用启动时可用
-(async function initialStartup() {
-  try {
-    log(`[flask_embedding] 应用启动时初始化嵌入服务...`, 'info');
-    await startEmbeddingService();
-  } catch (error) {
-    log(`[flask_embedding] 初始化时启动服务失败: ${error}`, 'error');
-  }
-})();
+// 服务初始化锁，确保只调用一次启动函数
+let initializationInProgress = false;
+let serviceInitialized = false;
+
+// 不再自动启动，改为由EmbeddingManager调用时启动
+// 这样避免重复初始化
 
 /**
  * 启动嵌入API服务
@@ -362,7 +359,15 @@ async function directPythonEmbedding(pythonScript: string, text: string): Promis
   return await new Promise<number[]>((resolve, reject) => {
     try {
       log(`[flask_embedding] 启动Python进程: ${pythonScript}`, 'info');
-      const pythonProcess = spawn('python', [pythonScript, '--text', text]);
+      
+      // 创建临时文件保存文本内容，避免命令行参数过长
+      const tempFilePath = path.join(os.tmpdir(), `embedding_text_${Date.now()}.txt`);
+      fs.writeFileSync(tempFilePath, text, 'utf8');
+      
+      log(`[flask_embedding] 文本内容已写入临时文件: ${tempFilePath}`, 'info');
+      
+      // 使用文件路径而不是直接传递文本
+      const pythonProcess = spawn('python3', [pythonScript, '--file', tempFilePath]);
       
       let output = '';
       pythonProcess.stdout.on('data', (data: Buffer) => {
