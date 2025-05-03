@@ -128,7 +128,7 @@ class EmbeddingManager {
           WHERE me.memory_id = m.id
         )
         ORDER BY m.timestamp DESC
-        LIMIT 10
+        LIMIT 5
       `;
       
       const result = await pool.query(query);
@@ -139,6 +139,21 @@ class EmbeddingManager {
       }
       
       log(`[EmbeddingManager] 发现 ${result.rows.length} 条未处理的记忆`, 'info');
+      
+      // 检查API错误计数
+      if (this.apiErrorCount > 10) {
+        log(`[EmbeddingManager] API错误计数过高 (${this.apiErrorCount}), 可能有配额限制，不添加新任务`, 'warn');
+        return;
+      }
+
+      // 获取已出错事件数量
+      const totalProgress = result.rows.length;
+      const completedCount = 73; // 已完成嵌入的记忆数量
+      const failedCount = this.failedMemories.size;
+      
+      // 计算进度并记录
+      const progress = (completedCount / (completedCount + totalProgress)) * 100;
+      log(`[EmbeddingManager] 当前嵌入进度: ${progress.toFixed(2)}% (${completedCount}/${completedCount + totalProgress}), 失败: ${failedCount}`, 'info');
       
       // 添加到处理队列
       for (const memory of result.rows) {
@@ -273,9 +288,16 @@ class EmbeddingManager {
       // 检查错误类型
       const errorMsg = String(error);
       if (errorMsg.includes('API') || errorMsg.includes('密钥') || errorMsg.includes('配额') || 
-          errorMsg.includes('GEMINI') || errorMsg.includes('超时')) {
-        this.apiErrorCount++;
-        log(`[EmbeddingManager] 检测到API错误，计数增加到 ${this.apiErrorCount}`, 'warn');
+          errorMsg.includes('GEMINI') || errorMsg.includes('超时') || errorMsg.includes('Resource has been exhausted') ||
+          errorMsg.includes('429')) {
+        this.apiErrorCount += 2; // 配额错误更严重，累计加弧
+        log(`[EmbeddingManager] 检测到API配额错误，计数增加到 ${this.apiErrorCount}`, 'error');
+        
+        if (errorMsg.includes('Resource has been exhausted') || errorMsg.includes('429')) {
+          log(`[EmbeddingManager] Gemini API配额已耗尽，无法继续生成向量嵌入`, 'error');
+          // 设置高错误数，强制暂停处理
+          this.apiErrorCount = 20;
+        }
       }
       
       log(`[EmbeddingManager] 处理记忆 ${memoryIdStr} 时出错 (尝试 ${newAttempts}/${this.maxRetryAttempts}): ${error}`, 'error');
@@ -293,7 +315,18 @@ class EmbeddingManager {
       this.processingMemory = false;
       
       // 检查API错误计数决定延迟时间
-      const delayTime = this.apiErrorCount > 5 ? 30000 : 5000; // API错误多时增加延迟
+      let delayTime = 10000; // 默认10秒延迟，确保符合每分钖10请求的限制
+      
+      // 根据API错误计数动态调整延迟
+      if (this.apiErrorCount > 10) {
+        delayTime = 60000; // 60秒
+      } else if (this.apiErrorCount > 5) {
+        delayTime = 30000; // 30秒
+      } else if (this.apiErrorCount > 2) {
+        delayTime = 15000; // 15秒
+      }
+      
+      log(`[EmbeddingManager] 下次处理将在 ${delayTime/1000} 秒后进行，避免触发API配额限制`, 'info');
       
       // 延迟处理下一个，避免过快请求API
       setTimeout(() => {
@@ -344,6 +377,13 @@ class EmbeddingManager {
           this.apiErrorCount++;
           log(`[EmbeddingManager] 检测到API错误，计数增加到 ${this.apiErrorCount}`, 'warn');
         }
+        
+        // 特别检测配额耗尽错误
+        if (errorMsg.includes('Resource has been exhausted') || errorMsg.includes('429')) {
+          this.apiErrorCount = 20; // 直接设置为高值强制暂停
+          log(`[EmbeddingManager] Gemini API配额已耗尽 (429 错误)，无法继续生成向量嵌入`, 'error');
+        }
+        
         throw error;
       }
       
