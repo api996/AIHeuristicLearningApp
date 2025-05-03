@@ -68,13 +68,26 @@ export function getLocalUser(): User | null {
     try {
       const userData = JSON.parse(userJson);
       
-      if (!userData || !userData.id) {
+      // 处理字段不一致的情况 - 标准化用户数据
+      if (userData) {
+        // 确保同时存在id和userId字段
+        if (!userData.id && userData.userId) {
+          userData.id = userData.userId; // 使用userId补充id
+          console.log('[AuthVerifier] 数据使用userId补充id:', userData);
+        } else if (userData.id && !userData.userId) {
+          userData.userId = userData.id; // 使用id补充userId
+          console.log('[AuthVerifier] 数据使用id补充userId:', userData);
+        }
+      }
+      
+      // 检查是否存在有效的id字段
+      if (!userData || (!userData.id && !userData.userId)) {
         console.log('[AuthVerifier] 本地用户数据格式无效，缺少必要字段');
         localStorage.removeItem('user');
         return null;
       }
       
-      console.log(`[AuthVerifier] 在本地找到有效用户数据，ID=${userData.id}, 角色=${userData.role || '未知'}`);
+      console.log(`[AuthVerifier] 在本地找到有效用户数据，ID=${userData.id || userData.userId}, 角色=${userData.role || '未知'}`);
       return userData;
     } catch (parseError) {
       console.error('[AuthVerifier] 解析本地用户数据失败:', parseError);

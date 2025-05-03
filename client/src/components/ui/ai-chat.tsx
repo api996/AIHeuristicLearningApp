@@ -97,6 +97,11 @@ export function AIChat({ userData }: AIChatProps) {
   const [input, setInput] = useState("");
   const [showSidebar, setShowSidebar] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // 标准化用户数据
+  const user = normalizeUserData(userData);
+  
+  console.log('[AIChat] 标准化后的用户数据:', user);
   // 从系统配置获取默认模型
   const { data: systemConfig } = useQuery({
     queryKey: ["/api/system-config"],
@@ -223,9 +228,6 @@ export function AIChat({ userData }: AIChatProps) {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [selectedBackgroundFile, setSelectedBackgroundFile] = useState<File | null>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
-
-  // 使用通过normalizeUserData函数统一用户数据格式
-  const user = normalizeUserData(userData);
 
   // Update the query to include user context
   const { data: currentChat } = useQuery({
@@ -2730,7 +2732,7 @@ export function AIChat({ userData }: AIChatProps) {
                     const formData = new FormData();
                     formData.append('file', selectedBackgroundFile);
                     formData.append('fileType', 'background');
-                    formData.append('userId', String(userData.userId)); // 确保传递用户ID
+                    formData.append('userId', String(user.userId)); // 确保传递用户ID
                     
                     const baseUrl = window.location.origin;
                     const response = await fetch(`${baseUrl}/api/files/upload`, {
@@ -2747,7 +2749,7 @@ export function AIChat({ userData }: AIChatProps) {
                     
                     if (data && data.success && data.url) {
                       // 刷新背景
-                      const bgResponse = await fetch(`${baseUrl}/api/files/background?userId=${userData.userId}&orientation=portrait`);
+                      const bgResponse = await fetch(`${baseUrl}/api/files/background?userId=${user.userId}&orientation=portrait`);
                       if (bgResponse.ok) {
                         const bgData = await bgResponse.json();
                         if (bgData && bgData.url) {
@@ -2759,7 +2761,7 @@ export function AIChat({ userData }: AIChatProps) {
                           // 确保背景图片URL包含用户ID参数，避免401未授权错误
                           if (fullUrl.includes('/api/files/') && !fullUrl.includes('userId=')) {
                             const separator = fullUrl.includes('?') ? '&' : '?';
-                            fullUrl += `${separator}userId=${userData.userId}`;
+                            fullUrl += `${separator}userId=${user.userId}`;
                           }
                           
                           console.log('背景上传成功，新背景URL:', fullUrl);
