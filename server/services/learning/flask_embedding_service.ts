@@ -296,7 +296,7 @@ async function directPythonEmbedding(pythonScript: string, text: string): Promis
   return await new Promise<number[]>((resolve, reject) => {
     try {
       log(`[flask_embedding] 启动Python进程: ${pythonScript}`, 'info');
-      const pythonProcess = spawn('python', [pythonScript, '--embed', '--text', text]);
+      const pythonProcess = spawn('python', [pythonScript, '--text', text]);
       
       let output = '';
       pythonProcess.stdout.on('data', (data: Buffer) => {
