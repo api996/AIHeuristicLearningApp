@@ -51,11 +51,11 @@ async function checkVectorDimensions() {
     const dimensionsResult = await pool.query(`
       SELECT 
         CASE 
-          WHEN array_length(vector_embedding, 1) IS NULL THEN 'NULL'
-          ELSE array_length(vector_embedding, 1)::text
+          WHEN jsonb_array_length(vector_data) IS NULL THEN 'NULL'
+          ELSE jsonb_array_length(vector_data)::text
         END as dimension,
         COUNT(*) as count
-      FROM memories
+      FROM memory_embeddings
       GROUP BY dimension
       ORDER BY dimension
     `);
@@ -90,30 +90,30 @@ async function checkVectorDimensions() {
     
     // 获取几个示例ID
     const sampleResult = await pool.query(`
-      SELECT id, array_length(vector_embedding, 1) as dimension
-      FROM memories
-      WHERE vector_embedding IS NOT NULL
+      SELECT memory_id, jsonb_array_length(vector_data) as dimension
+      FROM memory_embeddings
+      WHERE vector_data IS NOT NULL
       ORDER BY random()
       LIMIT 5
     `);
     
     log('\n随机向量嵌入样本:');
     for (const row of sampleResult.rows) {
-      log(`  记忆ID: ${row.id}, 维度: ${row.dimension}`, row.dimension === 3072 ? 'success' : 'error');
+      log(`  记忆ID: ${row.memory_id}, 维度: ${row.dimension}`, row.dimension === 3072 ? 'success' : 'error');
     }
     
     // 检查异常维度
     const abnormalResult = await pool.query(`
-      SELECT id, array_length(vector_embedding, 1) as dimension
-      FROM memories
-      WHERE vector_embedding IS NOT NULL AND array_length(vector_embedding, 1) != 3072
+      SELECT memory_id, jsonb_array_length(vector_data) as dimension
+      FROM memory_embeddings
+      WHERE vector_data IS NOT NULL AND jsonb_array_length(vector_data) != 3072
       LIMIT 10
     `);
     
     if (abnormalResult.rows.length > 0) {
       log('\n发现异常维度的向量嵌入:', 'error');
       for (const row of abnormalResult.rows) {
-        log(`  记忆ID: ${row.id}, 维度: ${row.dimension}`, 'error');
+        log(`  记忆ID: ${row.memory_id}, 维度: ${row.dimension}`, 'error');
       }
     } else {
       log('\n未发现异常维度的向量嵌入', 'success');
