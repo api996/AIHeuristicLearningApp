@@ -155,8 +155,10 @@ async function generateEmbedding(text) {
               
               if (result && result.embedding && Array.isArray(result.embedding)) {
                 // 验证嵌入维度
-                if (result.embedding.length < 100) {
-                  log(`警告: 嵌入维度异常 (${result.embedding.length})`, 'warning');
+                if (result.embedding.length !== 3072) {
+                  log(`警告: 嵌入维度异常 (${result.embedding.length}), 期望为3072维`, 'warning');
+                  // 如果维度不正确，抛出错误
+                  throw new Error(`嵌入维度不正确：${result.embedding.length}，期望为3072维`);
                 } else {
                   log(`成功生成${result.embedding.length}维语义向量嵌入`, 'success');
                 }
