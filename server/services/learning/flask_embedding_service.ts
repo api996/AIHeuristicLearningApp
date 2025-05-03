@@ -247,8 +247,10 @@ async function fallbackGenerateEmbedding(text: string): Promise<number[]> {
     log(`[flask_embedding] 使用直接Python嵌入模式`, 'warn');
     
     // 通过构造Python进程来直接调用Gemini API
-    const { spawn } = require('child_process');
-    const path = require('path');
+    // 使用已导入的模块而不是require
+    // 这些模块已在文件顶部导入
+    // const { spawn } = require('child_process');
+    // const path = require('path');
     
     // 构造Python命令
     const pythonScript = path.join(BASE_DIR, 'server/services/embedding.py');
@@ -256,7 +258,8 @@ async function fallbackGenerateEmbedding(text: string): Promise<number[]> {
     // 运行Python脚本生成向量嵌入
     try {
       log(`[flask_embedding] 检查Python脚本是否存在: ${pythonScript}`, 'info');
-      const fs = require('fs');
+      // 使用已导入的模块而不是require
+      // const fs = require('fs');
       if (!fs.existsSync(pythonScript)) {
         log(`[flask_embedding] 错误: Python脚本不存在: ${pythonScript}`, 'error');
         // 尝试查找其他可能的位置
@@ -288,7 +291,7 @@ async function fallbackGenerateEmbedding(text: string): Promise<number[]> {
  * @returns 向量嵌入
  */
 async function directPythonEmbedding(pythonScript: string, text: string): Promise<number[]> {
-  const { spawn } = require('child_process');
+  // 使用已导入的模块而不是require
   
   return await new Promise<number[]>((resolve, reject) => {
     try {
