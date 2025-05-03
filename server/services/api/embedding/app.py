@@ -8,6 +8,7 @@ import logging
 import sys
 import os
 import json
+import time
 import traceback
 
 # 配置日志
@@ -124,19 +125,10 @@ def api_similarity():
 @app.route('/health', methods=['GET'])
 def health_check():
     """
-    健康检查端点
+    健康检查端点 - 简化版
     """
-    # 执行简单的嵌入测试，验证服务是否正常工作
-    try:
-        # 尝试嵌入一段简单文本
-        embedding = embedding_service.embed_single_text("健康检查测试文本")
-        if embedding and len(embedding) > 0:
-            return jsonify({"status": "healthy", "gemini_api": "working"})
-        else:
-            return jsonify({"status": "degraded", "error": "嵌入服务返回空结果"}), 500
-    except Exception as e:
-        logger.error(f"健康检查失败: {e}")
-        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+    # 只返回服务运行状态，不执行实际API调用
+    return jsonify({"status": "healthy", "service": "running"})
 
 if __name__ == '__main__':
     # 获取端口

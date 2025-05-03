@@ -212,20 +212,29 @@ class EmbeddingManager {
       return;
     }
     
-    // 如果API错误太多，暂停处理(至少5分钟)
+    // 如果API错误太多，暂停处理(增长到至10分钟)
     if (this.apiErrorCount > 10) {
-      log(`[EmbeddingManager] API错误过多 (${this.apiErrorCount}次)，暂停处理5分钟`, 'warn');
+      const backoffTime = 10 * 60 * 1000; // 10分钟的更长延迟
+      log(`[EmbeddingManager] API错误过多 (${this.apiErrorCount}次)，可能达到配额限制，暂停处理${backoffTime/60000}分钟`, 'warn');
       this.processingMemory = false;
       
       // 将当前记忆放回队列开始处理，稍后再处理
       this.memoryQueue.unshift(memoryId);
       
-      // 5分钟后重置错误计数并恢复处理
+      // 将所有正在重试的记忆重置重试计数，避免即将放弃的记忆
+      this.memoryRetryAttempts.clear();
+      log(`[EmbeddingManager] 已重置所有记忆的重试计数`, 'info');
+      
+      // 设置记忆队列处理状态
+      log(`[EmbeddingManager] 回退后队列中剩余${this.memoryQueue.length}个记忆等待处理`, 'info');
+      
+      // 更长时间后重置错误计数并恢复处理
       setTimeout(() => {
-        this.apiErrorCount = 0;
-        log(`[EmbeddingManager] 已重置API错误计数，恢复处理`, 'info');
+        // 部分减少API错误计数，而不是完全重置
+        this.apiErrorCount = Math.max(0, this.apiErrorCount - 5);
+        log(`[EmbeddingManager] 部分重置API错误计数至 ${this.apiErrorCount}，尝试恢复处理`, 'info');
         this.processNextMemory();
-      }, 5 * 60 * 1000);
+      }, backoffTime);
       return;
     }
     

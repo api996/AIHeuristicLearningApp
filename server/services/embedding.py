@@ -136,9 +136,9 @@ class EmbeddingService:
         # 文本长度限制，过长的文本将被截断以降低API调用成本
         self._max_text_length = 1000  # 限制文本长度为1000字符
         
-        # 添加API速率限制
-        self._minute_request_limit = 5  # 每分钟最大请求数
-        self._day_request_limit = 100   # 每天最大请求数
+        # 添加API速率限制 - 更保守的设置以避免配额限制
+        self._minute_request_limit = 2  # 每分钟最大请求数，从5降到2
+        self._day_request_limit = 50    # 每天最大请求数，从100降到50
         self._minute_requests = deque()  # 记录过去一分钟的请求时间
         self._day_requests = deque()    # 记录过去24小时的请求时间
         
