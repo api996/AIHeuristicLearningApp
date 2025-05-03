@@ -101,6 +101,7 @@ export function AIChat({ userData }: AIChatProps) {
   // 标准化用户数据
   const user = normalizeUserData(userData);
   
+  console.log('[AIChat] 原始用户数据:', userData);
   console.log('[AIChat] 标准化后的用户数据:', user);
   // 从系统配置获取默认模型
   const { data: systemConfig } = useQuery({
