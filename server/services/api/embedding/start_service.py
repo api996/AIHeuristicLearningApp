@@ -33,7 +33,7 @@ def start_embedding_service():
         app_path = os.path.join(script_dir, 'app.py')
         
         # 设置端口（避免与其他服务冲突）
-        port = int(os.environ.get('EMBEDDING_API_PORT', 9002))
+        port = int(os.environ.get('EMBEDDING_API_PORT', 9003))
         os.environ['EMBEDDING_API_PORT'] = str(port)
         
         logger.info(f"启动向量嵌入API服务，端口: {port}, 路径: {app_path}")
@@ -59,6 +59,11 @@ def start_embedding_service():
             env_copy = os.environ.copy()
             env_copy['PYTHONUNBUFFERED'] = '1'  # 确保输出不缓冲
             
+            # 设置正确的PYTHONPATH以确保可以导入server包
+            current_dir = os.path.abspath(os.path.dirname(__file__))
+            project_root = os.path.abspath(os.path.join(current_dir, '../../../..'))
+            env_copy['PYTHONPATH'] = project_root
+            
             logger.info(f"正在启动Flask应用: {app_path}, Python路径: {sys.executable}")
             
             # 使用subprocess启动Flask应用
@@ -73,10 +78,17 @@ def start_embedding_service():
             # 立即读取一小段输出，看看是否有明显错误
             stderr_output = ''
             try:
-                stderr_output = embedding_process.stderr.readline()
+                # 读取所有stderr输出
+                for i in range(10):  # 最多读取10行避免阻塞
+                    line = embedding_process.stderr.readline()
+                    if not line:
+                        break
+                    stderr_output += line
+                
                 if stderr_output:
                     logger.warning(f"Flask应用启动时输出错误: {stderr_output}")
-            except:
+            except Exception as e:
+                logger.error(f"读取进程错误输出时异常: {e}")
                 pass
                 
         except Exception as e:
