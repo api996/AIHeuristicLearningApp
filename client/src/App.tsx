@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { AuthVerifier } from "@/components/auth-verifier";
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -77,6 +78,22 @@ function App() {
     return cleanup;
   }, []);
 
+  // 初始化应用全局状态
+  const [isAppInitialized, setIsAppInitialized] = useState(false);
+  
+  // 在组件挂载时标记应用已初始化
+  useEffect(() => {
+    console.log('[App] 开始验证认证状态，当前路径:', window.location.pathname);
+    
+    // 设置一个短暂停，确保其他组件都已准备好
+    const timer = setTimeout(() => {
+      console.log('[App] 应用已初始化');
+      setIsAppInitialized(true);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       {/* 添加主题提供者，确保跨页面状态一致性 */}
@@ -85,7 +102,14 @@ function App() {
         <ThemeLoader />
         {/* 添加背景容器，实现自定义背景图片 */}
         <BackgroundContainer>
-          <Router />
+          {isAppInitialized ? (
+            // 使用AuthVerifier应用验证器，确保前后端认证状态一致
+            <React.Suspense fallback={<div>Loading...</div>}>
+              <AuthVerifier>
+                <Router />
+              </AuthVerifier>
+            </React.Suspense>
+          ) : <div>初始化应用中...</div>}
           <Toaster />
         </BackgroundContainer>
       </ThemeProvider>
