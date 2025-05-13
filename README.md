@@ -1,7 +1,6 @@
 # 启发式智能导学系统 | Heuristic Intelligent Learning System
 
 <div align="center">
-  <img src="./public/logo.svg" alt="启发式智能导学系统 Logo" width="180" height="180">
   <h1>启发式智能导学系统 | Heuristic Intelligent Learning System</h1>
   
   <p>
@@ -27,7 +26,6 @@
   
   <br/>
   
-  <img src="https://via.placeholder.com/800x450.png?text=启发式导师+系统界面预览" alt="启发式导师系统预览" width="80%">
 </div>
 
 ## 📚 简介
@@ -49,8 +47,7 @@
     <tr>
       <td align="center" width="33%">
         <img src="https://via.placeholder.com/80x80.png?text=AI" width="80px"><br/>
-        <strong>多模型协作</strong><br/>
-        <small>智能模型选择与负载均衡</small>
+        <strong>多模型集成</strong><br/>
       </td>
       <td align="center" width="33%">
         <img src="https://via.placeholder.com/80x80.png?text=RAG" width="80px"><br/>
