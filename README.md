@@ -1,8 +1,4 @@
-<div align="center">
-  <img src="./public/logo.svg" alt="启发式导师 Logo" width="180" height="180">
-  <h1>启发式导师 | Heuristic Tutor</h1>
-  
-  <p>
+   <p>
     <strong>启发式对话导学系统</strong>
   </p>
   
@@ -20,7 +16,6 @@
     <a href="#快速开始">快速开始</a> •
     <a href="#技术特性">技术特性</a> •
     <a href="#部署">部署</a> •
-    <a href="#参与贡献">参与贡献</a>
   </p>
   
   <br/>
