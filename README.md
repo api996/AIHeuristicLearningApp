@@ -46,33 +46,27 @@
   <table>
     <tr>
       <td align="center" width="33%">
-        <img src="https://via.placeholder.com/80x80.png?text=AI" width="80px"><br/>
         <strong>多模型集成</strong><br/>
       </td>
       <td align="center" width="33%">
-        <img src="https://via.placeholder.com/80x80.png?text=RAG" width="80px"><br/>
         <strong>检索增强生成</strong><br/>
         <small>结合历史记忆与网络知识</small>
       </td>
-      <td align="center" width="33%">
-        <img src="https://via.placeholder.com/80x80.png?text=3D" width="80px"><br/>
+      <td align="center" width="33%"
         <strong>知识图谱</strong><br/>
         <small>交互式3D知识可视化</small>
       </td>
     </tr>
     <tr>
       <td align="center">
-        <img src="https://via.placeholder.com/80x80.png?text=DB" width="80px"><br/>
         <strong>持久化记忆</strong><br/>
         <small>高维向量数据库</small>
       </td>
       <td align="center">
-        <img src="https://via.placeholder.com/80x80.png?text=KWLQ" width="80px"><br/>
         <strong>KWLQ框架</strong><br/>
         <small>结构化学习方法论</small>
       </td>
       <td align="center">
-        <img src="https://via.placeholder.com/80x80.png?text=ML" width="80px"><br/>
         <strong>自适应学习</strong><br/>
         <small>个性化学习路径生成</small>
       </td>
